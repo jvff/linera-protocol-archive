@@ -319,7 +319,7 @@ impl ExecutionState {
                 self.manager = ChainManager::single(*new_owner);
             }
             Operation::ChangeMultipleOwners { new_owners } => {
-                self.manager = ChainManager::multiple(new_owners.iter().cloned().collect());
+                self.manager = ChainManager::multiple(new_owners.to_vec());
             }
             Operation::CloseChain => {
                 self.manager = ChainManager::default();
