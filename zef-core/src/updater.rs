@@ -28,16 +28,14 @@ pub struct ValidatorUpdater<A, S> {
 
 /// Execute a sequence of actions in parallel for all validators.
 /// Try to stop early when a quorum is reached.
-pub async fn communicate_with_quorum<'a, A, V, K, F, G>(
+pub async fn communicate_with_quorum<'a, A, V, K>(
     validator_clients: &'a [(ValidatorName, A)],
     committee: &Committee,
-    group_by: G,
-    execute: F,
+    group_by: impl Fn(&V) -> K,
+    execute: impl Fn(ValidatorName, A) -> future::BoxFuture<'a, Result<V, Error>> + Clone,
 ) -> Result<(K, Vec<V>), Option<Error>>
 where
     A: ValidatorNode + Send + Sync + 'static + Clone,
-    F: Fn(ValidatorName, A) -> future::BoxFuture<'a, Result<V, Error>> + Clone,
-    G: Fn(&V) -> K,
     K: Hash + PartialEq + Eq + Copy,
     V: 'static,
 {
