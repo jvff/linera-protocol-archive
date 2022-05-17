@@ -100,18 +100,17 @@ pub enum Error {
         sender_id: ChainId,
         height: BlockHeight,
     },
-    #[fail(
-        display = "Message in block proposal does not match received message from chain {:?} at height {:?} and index {:?}",
-        sender_id, height, index
-    )]
+    #[fail(display = "Message in block proposal does not match received message \
+        from chain {sender_id:?} at height {height:?} and index {index:?}")]
     InvalidMessageContent {
         sender_id: ChainId,
         height: BlockHeight,
         index: usize,
     },
     #[fail(
-        display = "Message in block proposal does not match the order of received messages from chain {:?}: was height {:?} and index {:?} instead of {:?} and {:?})",
-        sender_id, height, index, expected_height, expected_index
+        display = "Message in block proposal does not match the order of received messages \
+        from chain {sender_id:?}: was height {height:?} and index {index:?} \
+        instead of {expected_height:?} and {expected_index:?})"
     )]
     InvalidMessageOrder {
         sender_id: ChainId,
