@@ -30,7 +30,7 @@ pub enum Operation {
     OpenChain {
         id: ChainId,
         owner: Owner,
-        committee: Committee,
+        committees: Vec<Committee>,
         admin_id: ChainId,
     },
     /// Close the chain.
@@ -39,6 +39,11 @@ pub enum Operation {
     ChangeOwner { new_owner: Owner },
     /// Change the authentication key of the chain.
     ChangeMultipleOwners { new_owners: Vec<Owner> },
+    /// Register a new committee.
+    NewCommittee {
+        admin_id: ChainId,
+        committee: Committee,
+    },
 }
 
 /// A block containing operations to apply on a given chain, as well as the
@@ -142,7 +147,7 @@ pub struct ChainInfoQuery {
     /// Optionally block that the block height is the one expected.
     pub check_next_block_height: Option<BlockHeight>,
     /// Query the current committee.
-    pub query_committee: bool,
+    pub query_committees: bool,
     /// Query the received messages that are waiting be picked in the next block.
     pub query_pending_messages: bool,
     /// Query a range of certificates sent from the chain.
@@ -171,7 +176,7 @@ pub struct ChainInfo {
     /// The hash of the current execution state.
     pub state_hash: HashValue,
     /// The current committee (if requested)
-    pub queried_committee: Option<Committee>,
+    pub queried_committees: Vec<Committee>,
     /// The received messages that are waiting be picked in the next block (if requested).
     pub queried_pending_messages: Vec<MessageGroup>,
     /// The response to `query_sent_certificates_in_range`
