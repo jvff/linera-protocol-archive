@@ -8,7 +8,7 @@ use crate::error::*;
 use failure::format_err;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum SerializedMessage {
     // Inbound
     BlockProposal(Box<BlockProposal>),
