@@ -88,21 +88,8 @@ impl<T> Transport for T where
 }
 
 impl NetworkProtocol {
-    /// Create a DataStream for this protocol.
-    pub async fn connect(self, address: String) -> Result<Box<dyn DataStream>, std::io::Error> {
-        let max_data_size = 1000;
-        let stream: Box<dyn DataStream> = match self {
-            NetworkProtocol::Udp => Box::new(UdpDataStream::connect(address, max_data_size).await?),
-            NetworkProtocol::Tcp => Box::new(TcpDataStream::connect(address, max_data_size).await?),
-        };
-        Ok(stream)
-    }
-
     /// Create a transport for this protocol.
-    pub async fn connect_transport(
-        self,
-        address: String,
-    ) -> Result<impl Transport, std::io::Error> {
+    pub async fn connect(self, address: String) -> Result<impl Transport, std::io::Error> {
         let address: SocketAddr = address.parse().expect("Invalid address to connect to");
 
         let stream: futures::future::Either<_, _> = match self {
