@@ -24,10 +24,12 @@ impl Decoder for Codec {
         match bincode::deserialize_from(buffer.reader()) {
             Ok(message) => Ok(Some(message)),
             Err(boxed_error) => match *boxed_error {
-                bincode::ErrorKind::Custom(_) => {
-                    // An error from `serde`, likely that the message is incomplete
+                bincode::ErrorKind::Io(io_error)
+                    if io_error.kind() == io::ErrorKind::UnexpectedEof =>
+                {
                     Ok(None)
                 }
+                bincode::ErrorKind::Io(io_error) => Err(Error::Io(io_error)),
                 error => Err(Error::Deserialization(error)),
             },
         }
