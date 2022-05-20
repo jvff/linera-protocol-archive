@@ -7,5 +7,5 @@ pub mod chain;
 pub mod committee;
 pub mod error;
 pub mod manager;
+pub mod message;
 pub mod messages;
-pub mod serialize;

@@ -12,7 +12,7 @@ use std::{
     time::{Duration, Instant},
 };
 use structopt::StructOpt;
-use zef_base::{base_types::*, messages::*, serialize::*};
+use zef_base::{base_types::*, message::*, messages::*};
 use zef_core::{
     client::*,
     node::{LocalNodeClient, ValidatorNode},
@@ -168,10 +168,7 @@ impl ClientContext {
     }
 
     /// Make one block proposal per chain, up to `max_proposals` blocks.
-    fn make_benchmark_block_proposals(
-        &mut self,
-        max_proposals: usize,
-    ) -> Vec<(ChainId, SerializedMessage)> {
+    fn make_benchmark_block_proposals(&mut self, max_proposals: usize) -> Vec<(ChainId, Message)> {
         let mut proposals = Vec::new();
         let mut next_recipient = self.wallet_state.last_chain().unwrap().chain_id;
         for chain in self.wallet_state.chains_mut() {
@@ -249,8 +246,8 @@ impl ClientContext {
         &self,
         phase: &'static str,
         max_in_flight: u64,
-        proposals: Vec<(ChainId, SerializedMessage)>,
-    ) -> Vec<SerializedMessage> {
+        proposals: Vec<(ChainId, Message)>,
+    ) -> Vec<Message> {
         let time_start = Instant::now();
         info!("Broadcasting {} {}", proposals.len(), phase);
         let validator_clients = self.make_validator_mass_clients(max_in_flight);
@@ -327,10 +324,10 @@ impl ClientContext {
     }
 }
 
-fn deserialize_response(response: SerializedMessage) -> Option<ChainInfoResponse> {
+fn deserialize_response(response: Message) -> Option<ChainInfoResponse> {
     match response {
-        SerializedMessage::ChainInfoResponse(info) => Some(*info),
-        SerializedMessage::Error(error) => {
+        Message::ChainInfoResponse(info) => Some(*info),
+        Message::Error(error) => {
             error!("Received error value: {}", error);
             None
         }

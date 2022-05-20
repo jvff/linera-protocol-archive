@@ -4,7 +4,7 @@
 
 use crate::{codec, transport::*};
 use async_trait::async_trait;
-use zef_base::{base_types::*, error::*, messages::*, serialize::*};
+use zef_base::{base_types::*, error::*, message::*, messages::*};
 use zef_core::{node::ValidatorNode, worker::*};
 
 #[cfg(feature = "benchmark")]
@@ -99,7 +99,7 @@ where
         cross_chain_max_retries: usize,
         cross_chain_retry_delay: Duration,
         this_shard: ShardId,
-        mut receiver: mpsc::Receiver<(SerializedMessage, ShardId)>,
+        mut receiver: mpsc::Receiver<(Message, ShardId)>,
     ) {
         let mut pool = network_protocol
             .make_outgoing_connection_pool()
@@ -188,26 +188,23 @@ where
 
 struct RunningServerState<Storage> {
     server: Server<Storage>,
-    cross_chain_sender: mpsc::Sender<(SerializedMessage, ShardId)>,
+    cross_chain_sender: mpsc::Sender<(Message, ShardId)>,
 }
 
 impl<Storage> MessageHandler for RunningServerState<Storage>
 where
     Storage: zef_storage::Storage + Clone + 'static,
 {
-    fn handle_message(
-        &mut self,
-        message: SerializedMessage,
-    ) -> futures::future::BoxFuture<Option<SerializedMessage>> {
+    fn handle_message(&mut self, message: Message) -> futures::future::BoxFuture<Option<Message>> {
         Box::pin(async move {
             let reply = match message {
-                SerializedMessage::BlockProposal(message) => self
+                Message::BlockProposal(message) => self
                     .server
                     .state
                     .handle_block_proposal(*message)
                     .await
                     .map(|info| Some(info.into())),
-                SerializedMessage::Certificate(message) => {
+                Message::Certificate(message) => {
                     match self.server.state.handle_certificate(*message).await {
                         Ok((info, continuation)) => {
                             // Cross-shard requests
@@ -218,13 +215,13 @@ where
                         Err(error) => Err(error),
                     }
                 }
-                SerializedMessage::ChainInfoQuery(message) => self
+                Message::ChainInfoQuery(message) => self
                     .server
                     .state
                     .handle_chain_info_query(*message)
                     .await
                     .map(|info| Some(info.into())),
-                SerializedMessage::CrossChainRequest(request) => {
+                Message::CrossChainRequest(request) => {
                     match self.server.state.handle_cross_chain_request(*request).await {
                         Ok(continuation) => {
                             self.handle_continuation(continuation).await;
@@ -236,9 +233,9 @@ where
                     // No user to respond to.
                     Ok(None)
                 }
-                SerializedMessage::Vote(_)
-                | SerializedMessage::Error(_)
-                | SerializedMessage::ChainInfoResponse(_) => Err(Error::UnexpectedMessage),
+                Message::Vote(_) | Message::Error(_) | Message::ChainInfoResponse(_) => {
+                    Err(Error::UnexpectedMessage)
+                }
             };
 
             self.server.packets_processed += 1;
@@ -320,8 +317,8 @@ impl Client {
     async fn send_recv_internal(
         &mut self,
         shard: ShardId,
-        message: SerializedMessage,
-    ) -> Result<SerializedMessage, codec::Error> {
+        message: Message,
+    ) -> Result<Message, codec::Error> {
         let address = format!("{}:{}", self.base_address, self.base_port + shard);
         let mut stream = self.network_protocol.connect(address).await?;
         // Send message
@@ -339,11 +336,11 @@ impl Client {
     pub async fn send_recv_info(
         &mut self,
         shard: ShardId,
-        message: SerializedMessage,
+        message: Message,
     ) -> Result<ChainInfoResponse, Error> {
         match self.send_recv_internal(shard, message).await {
-            Ok(SerializedMessage::ChainInfoResponse(response)) => Ok(*response),
-            Ok(SerializedMessage::Error(error)) => Err(*error),
+            Ok(Message::ChainInfoResponse(response)) => Ok(*response),
+            Ok(Message::Error(error)) => Err(*error),
             Ok(_) => Err(Error::UnexpectedMessage),
             Err(error) => match error {
                 codec::Error::Io(io_error) => Err(Error::ClientIoError {
@@ -417,8 +414,8 @@ impl MassClient {
     async fn run_shard(
         &self,
         shard: u32,
-        requests: Vec<SerializedMessage>,
-    ) -> Result<Vec<SerializedMessage>, io::Error> {
+        requests: Vec<Message>,
+    ) -> Result<Vec<Message>, io::Error> {
         let address = format!("{}:{}", self.base_address, self.base_port + shard);
         let mut stream = self.network_protocol.connect(address).await?;
         let mut requests = requests.into_iter();
@@ -470,12 +467,9 @@ impl MassClient {
     }
 
     /// Spin off one task for each shard based on this validator client.
-    pub fn run<I>(
-        &self,
-        sharded_requests: I,
-    ) -> impl futures::stream::Stream<Item = Vec<SerializedMessage>>
+    pub fn run<I>(&self, sharded_requests: I) -> impl futures::stream::Stream<Item = Vec<Message>>
     where
-        I: IntoIterator<Item = (ShardId, Vec<SerializedMessage>)>,
+        I: IntoIterator<Item = (ShardId, Vec<Message>)>,
     {
         let handles = futures::stream::FuturesUnordered::new();
         for (shard, requests) in sharded_requests {
