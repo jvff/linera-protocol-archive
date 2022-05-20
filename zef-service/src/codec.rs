@@ -21,7 +21,16 @@ impl Decoder for Codec {
     type Error = Error;
 
     fn decode(&mut self, buffer: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        Ok(bincode::deserialize_from(buffer.reader()).ok())
+        match bincode::deserialize_from(buffer.reader()) {
+            Ok(message) => Ok(Some(message)),
+            Err(boxed_error) => match *boxed_error {
+                bincode::ErrorKind::Custom(_) => {
+                    // An error from `serde`, likely that the message is incomplete
+                    Ok(None)
+                }
+                error => Err(Error::Deserialization(error)),
+            },
+        }
     }
 }
 
