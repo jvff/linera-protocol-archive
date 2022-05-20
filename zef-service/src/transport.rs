@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, io, net::SocketAddr, sync::Arc};
 use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio_util::{codec::Framed, udp::UdpFramed};
-use zef_base::message::Message;
+use zef_base::rpc;
 
 /// Suggested buffer size
 pub const DEFAULT_MAX_DATAGRAM_SIZE: &str = "65507";
@@ -28,14 +28,14 @@ arg_enum! {
 pub trait ConnectionPool: Send {
     fn send_message_to<'a>(
         &'a mut self,
-        message: Message,
+        message: rpc::Message,
         address: &'a str,
     ) -> future::BoxFuture<'a, Result<(), codec::Error>>;
 }
 
 /// The handler required to create a service.
 pub trait MessageHandler {
-    fn handle_message(&mut self, message: Message) -> future::BoxFuture<Option<Message>>;
+    fn handle_message(&mut self, message: rpc::Message) -> future::BoxFuture<Option<rpc::Message>>;
 }
 
 /// The result of spawning a server is oneshot channel to kill it and a handle to track completion.
@@ -63,12 +63,12 @@ impl SpawnedServer {
 /// A transport is an active connection that can be used to send and receive
 /// [`Messages`]s.
 pub trait Transport:
-    Stream<Item = Result<Message, codec::Error>> + Sink<Message, Error = codec::Error>
+    Stream<Item = Result<rpc::Message, codec::Error>> + Sink<rpc::Message, Error = codec::Error>
 {
 }
 
 impl<T> Transport for T where
-    T: Stream<Item = Result<Message, codec::Error>> + Sink<Message, Error = codec::Error>
+    T: Stream<Item = Result<rpc::Message, codec::Error>> + Sink<rpc::Message, Error = codec::Error>
 {
 }
 
@@ -147,7 +147,7 @@ impl UdpConnectionPool {
 impl ConnectionPool for UdpConnectionPool {
     fn send_message_to<'a>(
         &'a mut self,
-        message: Message,
+        message: rpc::Message,
         address: &'a str,
     ) -> future::BoxFuture<'a, Result<(), codec::Error>> {
         Box::pin(async move {
@@ -231,7 +231,7 @@ impl TcpConnectionPool {
 impl ConnectionPool for TcpConnectionPool {
     fn send_message_to<'a>(
         &'a mut self,
-        message: Message,
+        message: rpc::Message,
         address: &'a str,
     ) -> future::BoxFuture<'a, Result<(), codec::Error>> {
         Box::pin(async move {

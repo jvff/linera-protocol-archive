@@ -2,22 +2,22 @@ use bytes::{Buf, BufMut, BytesMut};
 use std::io;
 use thiserror::Error;
 use tokio_util::codec::{Decoder, Encoder};
-use zef_base::message::Message;
+use zef_base::rpc;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Codec;
 
-impl Encoder<Message> for Codec {
+impl Encoder<rpc::Message> for Codec {
     type Error = Error;
 
-    fn encode(&mut self, message: Message, buffer: &mut BytesMut) -> Result<(), Self::Error> {
+    fn encode(&mut self, message: rpc::Message, buffer: &mut BytesMut) -> Result<(), Self::Error> {
         bincode::serialize_into(&mut buffer.writer(), &message)
             .map_err(|error| Error::Serialization(*error))
     }
 }
 
 impl Decoder for Codec {
-    type Item = Message;
+    type Item = rpc::Message;
     type Error = Error;
 
     fn decode(&mut self, buffer: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
