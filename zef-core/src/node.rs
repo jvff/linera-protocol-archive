@@ -60,9 +60,7 @@ where
     ) -> Result<ChainInfoResponse, Error> {
         let node = self.0.clone();
         let mut node = node.lock().await;
-        node.state
-            .fully_handle_certificate(certificate.clone())
-            .await
+        node.state.fully_handle_certificate(certificate).await
     }
 
     async fn handle_chain_info_query(
