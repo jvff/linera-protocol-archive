@@ -4,7 +4,7 @@ use thiserror::Error;
 use tokio_util::codec::{Decoder, Encoder};
 use zef_base::rpc;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct Codec;
 
 impl Encoder<rpc::Message> for Codec {
