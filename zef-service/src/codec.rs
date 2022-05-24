@@ -7,6 +7,12 @@ use zef_base::rpc;
 #[derive(Clone, Copy, Debug)]
 pub struct Codec;
 
+impl Codec {
+    pub fn new() -> Self {
+        Codec
+    }
+}
+
 impl Encoder<rpc::Message> for Codec {
     type Error = Error;
 
