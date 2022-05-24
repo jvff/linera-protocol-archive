@@ -5,12 +5,13 @@ use tokio_util::codec::{Decoder, Encoder};
 use zef_base::rpc;
 
 /// An encoder/decoder of [`rpc::Message`]s for the RPC protocol.
-///
-/// Handles the serialization of RPC messages.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct Codec;
+pub type Codec = BincodeCodec;
 
-impl Encoder<rpc::Message> for Codec {
+/// The encoder/decoder of [`rpc::Message`]s that handles the serialization of messages.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct BincodeCodec;
+
+impl Encoder<rpc::Message> for BincodeCodec {
     type Error = Error;
 
     fn encode(&mut self, message: rpc::Message, buffer: &mut BytesMut) -> Result<(), Self::Error> {
@@ -19,7 +20,7 @@ impl Encoder<rpc::Message> for Codec {
     }
 }
 
-impl Decoder for Codec {
+impl Decoder for BincodeCodec {
     type Item = rpc::Message;
     type Error = Error;
 
