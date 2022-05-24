@@ -1,11 +1,86 @@
 use bytes::{Buf, BufMut, BytesMut};
-use std::io;
+use std::{io, mem, ops::DerefMut};
 use thiserror::Error;
 use tokio_util::codec::{Decoder, Encoder};
 use zef_base::rpc;
 
+/// The size of the frame prefix that contains the payload size.
+const PREFIX_SIZE: u8 = mem::size_of::<u32>() as u8;
+
 /// An encoder/decoder of [`rpc::Message`]s for the RPC protocol.
-pub type Codec = BincodeCodec;
+pub type Codec = LengthDelimitedCodec<BincodeCodec>;
+
+/// An encoder/decoder of length delimited frames.
+///
+/// The frames are then processed by the `InnerCodec`.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct LengthDelimitedCodec<InnerCodec> {
+    inner: InnerCodec,
+}
+
+impl<InnerCodec, Message> Encoder<Message> for LengthDelimitedCodec<InnerCodec>
+where
+    InnerCodec: Encoder<Message>,
+    Error: From<InnerCodec::Error>,
+{
+    type Error = Error;
+
+    fn encode(&mut self, message: Message, buffer: &mut BytesMut) -> Result<(), Self::Error> {
+        buffer.put_u32_le(0);
+
+        self.inner.encode(message, buffer)?;
+
+        let frame_size = buffer.len();
+        let payload_size = frame_size - PREFIX_SIZE as usize;
+
+        let mut start_of_buffer = buffer.deref_mut();
+
+        start_of_buffer.put_u32_le(
+            payload_size
+                .try_into()
+                .map_err(|_| Error::MessageTooBig { size: payload_size })?,
+        );
+
+        Ok(())
+    }
+}
+
+impl<InnerCodec> Decoder for LengthDelimitedCodec<InnerCodec>
+where
+    InnerCodec: Decoder,
+    Error: From<InnerCodec::Error>,
+{
+    type Item = InnerCodec::Item;
+    type Error = Error;
+
+    fn decode(&mut self, buffer: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+        if buffer.len() < PREFIX_SIZE.into() {
+            return Ok(None);
+        }
+
+        let mut start_of_buffer: &[u8] = &*buffer;
+        let payload_size = start_of_buffer
+            .get_u32_le()
+            .try_into()
+            .expect("u32 should fit in a usize");
+
+        let frame_size = PREFIX_SIZE as usize + payload_size;
+
+        if buffer.len() < frame_size {
+            buffer.reserve(frame_size);
+            return Ok(None);
+        }
+
+        let _prefix = buffer.split_to(PREFIX_SIZE.into());
+        let mut payload = buffer.split_to(payload_size);
+
+        match self.inner.decode(&mut payload) {
+            Ok(Some(message)) => Ok(Some(message)),
+            Ok(None) => Err(Error::FrameWithIncompleteMessage),
+            Err(error) => Err(error.into()),
+        }
+    }
+}
 
 /// The encoder/decoder of [`rpc::Message`]s that handles the serialization of messages.
 #[derive(Clone, Copy, Debug, Default)]
@@ -51,4 +126,12 @@ pub enum Error {
 
     #[error("Failed to serialize outgoing message")]
     Serialization(#[source] bincode::ErrorKind),
+
+    #[error("Message is too big to fit in a protocol frame: \
+        message is {size} bytes but can't be larger than {max} bytes.",
+        max = u32::MAX)]
+    MessageTooBig { size: usize },
+
+    #[error("Frame contains an incomplete message")]
+    FrameWithIncompleteMessage,
 }
