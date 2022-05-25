@@ -4,6 +4,9 @@ use thiserror::Error;
 use tokio_util::codec::{Decoder, Encoder};
 use zef_base::rpc;
 
+/// The size of the frame prefix that contains the payload size.
+const PREFIX_SIZE: u8 = mem::size_of::<u32>() as u8;
+
 /// An encoder/decoder of [`rpc::Message`]s for the RPC protocol.
 pub type Codec = LengthDelimitedCodec<BincodeCodec>;
 
@@ -23,14 +26,12 @@ where
     type Error = Error;
 
     fn encode(&mut self, message: Message, buffer: &mut BytesMut) -> Result<(), Self::Error> {
-        let prefix_size = mem::size_of::<u32>();
-
         buffer.put_u32_le(0);
 
         self.inner.encode(message, buffer)?;
 
         let frame_size = buffer.len();
-        let payload_size = frame_size - prefix_size;
+        let payload_size = frame_size - PREFIX_SIZE as usize;
 
         let mut start_of_buffer = buffer.deref_mut();
 
@@ -53,24 +54,21 @@ where
     type Error = Error;
 
     fn decode(&mut self, buffer: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        let prefix_size = mem::size_of::<u32>();
-
-        if buffer.len() < prefix_size {
+        if buffer.len() < PREFIX_SIZE.into() {
             return Ok(None);
         }
 
         let mut start_of_buffer: &[u8] = &*buffer;
         let payload_size = start_of_buffer.get_u32_le();
 
-        let frame_size =
-            u32::try_from(prefix_size).expect("Prefix size is too large") + payload_size;
+        let frame_size = PREFIX_SIZE as u32 + payload_size;
 
         if buffer.len().try_into().unwrap_or(u32::MAX) < frame_size {
             buffer.reserve(frame_size.try_into().expect("u32 should fit in a usize"));
             return Ok(None);
         }
 
-        let _prefix = buffer.split_to(prefix_size);
+        let _prefix = buffer.split_to(PREFIX_SIZE.into());
         let mut payload =
             buffer.split_to(payload_size.try_into().expect("u32 should fit in a usize"));
 
