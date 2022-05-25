@@ -25,7 +25,7 @@ where
     fn encode(&mut self, message: Message, buffer: &mut BytesMut) -> Result<(), Self::Error> {
         let prefix_size = mem::size_of::<u32>();
 
-        buffer.put_u32(0);
+        buffer.put_u32_le(0);
 
         self.inner.encode(message, buffer)?;
 
@@ -34,7 +34,7 @@ where
 
         let mut start_of_buffer = buffer.deref_mut();
 
-        start_of_buffer.put_u32(
+        start_of_buffer.put_u32_le(
             payload_size
                 .try_into()
                 .map_err(|_| Error::MessageTooBig { size: payload_size })?,
@@ -59,7 +59,7 @@ where
             return Ok(None);
         }
 
-        let payload_size = u32::from_be_bytes(
+        let payload_size = u32::from_le_bytes(
             buffer[..prefix_size]
                 .try_into()
                 .expect("Incorrect prefix size to select size bytes"),
