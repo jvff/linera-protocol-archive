@@ -59,11 +59,8 @@ where
             return Ok(None);
         }
 
-        let payload_size = u32::from_le_bytes(
-            buffer[..prefix_size]
-                .try_into()
-                .expect("Incorrect prefix size to select size bytes"),
-        );
+        let mut start_of_buffer: &[u8] = &*buffer;
+        let payload_size = start_of_buffer.get_u32_le();
 
         let frame_size =
             u32::try_from(prefix_size).expect("Prefix size is too large") + payload_size;
