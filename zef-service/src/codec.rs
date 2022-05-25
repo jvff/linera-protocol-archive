@@ -11,7 +11,7 @@ const PREFIX_SIZE: u8 = mem::size_of::<u32>() as u8;
 ///
 /// The frames are length-delimited by a [`u32`] prefix, and the payload is deserialized by
 /// [`bincode`].
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug)]
 pub struct Codec;
 
 impl Encoder<rpc::Message> for Codec {
