@@ -18,21 +18,28 @@ impl Encoder<rpc::Message> for Codec {
     type Error = Error;
 
     fn encode(&mut self, message: rpc::Message, buffer: &mut BytesMut) -> Result<(), Self::Error> {
-        buffer.put_u32_le(0);
+        let mut frame_buffer = buffer.split_off(buffer.len());
 
-        bincode::serialize_into(buffer.writer(), &message)
+        frame_buffer.put_u32_le(0);
+
+        let mut frame_writer = frame_buffer.writer();
+
+        bincode::serialize_into(&mut frame_writer, &message)
             .map_err(|error| Error::Serialization(*error))?;
 
-        let frame_size = buffer.len();
+        let mut frame_buffer = frame_writer.into_inner();
+        let frame_size = frame_buffer.len();
         let payload_size = frame_size - PREFIX_SIZE as usize;
 
-        let mut start_of_buffer = buffer.deref_mut();
+        let mut start_of_frame = frame_buffer.deref_mut();
 
-        start_of_buffer.put_u32_le(
+        start_of_frame.put_u32_le(
             payload_size
                 .try_into()
                 .map_err(|_| Error::MessageTooBig { size: payload_size })?,
         );
+
+        buffer.unsplit(frame_buffer);
 
         Ok(())
     }
