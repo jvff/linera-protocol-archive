@@ -8,27 +8,20 @@ use zef_base::rpc;
 const PREFIX_SIZE: u8 = mem::size_of::<u32>() as u8;
 
 /// An encoder/decoder of [`rpc::Message`]s for the RPC protocol.
-pub type Codec = LengthDelimitedCodec<BincodeCodec>;
-
-/// An encoder/decoder of length delimited frames.
 ///
-/// The frames are then processed by the `InnerCodec`.
+/// The frames are length-delimited by a [`u32`] prefix, and the payload is deserialized by
+/// [`bincode`].
 #[derive(Clone, Copy, Debug, Default)]
-pub struct LengthDelimitedCodec<InnerCodec> {
-    inner: InnerCodec,
-}
+pub struct Codec;
 
-impl<InnerCodec, Message> Encoder<Message> for LengthDelimitedCodec<InnerCodec>
-where
-    InnerCodec: Encoder<Message>,
-    Error: From<InnerCodec::Error>,
-{
+impl Encoder<rpc::Message> for Codec {
     type Error = Error;
 
-    fn encode(&mut self, message: Message, buffer: &mut BytesMut) -> Result<(), Self::Error> {
+    fn encode(&mut self, message: rpc::Message, buffer: &mut BytesMut) -> Result<(), Self::Error> {
         buffer.put_u32_le(0);
 
-        self.inner.encode(message, buffer)?;
+        bincode::serialize_into(buffer.writer(), &message)
+            .map_err(|error| Error::Serialization(*error))?;
 
         let frame_size = buffer.len();
         let payload_size = frame_size - PREFIX_SIZE as usize;
@@ -45,12 +38,8 @@ where
     }
 }
 
-impl<InnerCodec> Decoder for LengthDelimitedCodec<InnerCodec>
-where
-    InnerCodec: Decoder,
-    Error: From<InnerCodec::Error>,
-{
-    type Item = InnerCodec::Item;
+impl Decoder for Codec {
+    type Item = rpc::Message;
     type Error = Error;
 
     fn decode(&mut self, buffer: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
@@ -72,46 +61,12 @@ where
         }
 
         let _prefix = buffer.split_to(PREFIX_SIZE.into());
-        let mut payload = buffer.split_to(payload_size);
+        let payload = buffer.split_to(payload_size);
 
-        match self.inner.decode(&mut payload) {
-            Ok(Some(message)) => Ok(Some(message)),
-            Ok(None) => Err(Error::FrameWithIncompleteMessage),
-            Err(error) => Err(error.into()),
-        }
-    }
-}
+        let message =
+            bincode::deserialize(&payload).map_err(|error| Error::Deserialization(*error))?;
 
-/// The encoder/decoder of [`rpc::Message`]s that handles the serialization of messages.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct BincodeCodec;
-
-impl Encoder<rpc::Message> for BincodeCodec {
-    type Error = Error;
-
-    fn encode(&mut self, message: rpc::Message, buffer: &mut BytesMut) -> Result<(), Self::Error> {
-        bincode::serialize_into(&mut buffer.writer(), &message)
-            .map_err(|error| Error::Serialization(*error))
-    }
-}
-
-impl Decoder for BincodeCodec {
-    type Item = rpc::Message;
-    type Error = Error;
-
-    fn decode(&mut self, buffer: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        match bincode::deserialize_from(buffer.reader()) {
-            Ok(message) => Ok(Some(message)),
-            Err(boxed_error) => match *boxed_error {
-                bincode::ErrorKind::Io(io_error)
-                    if io_error.kind() == io::ErrorKind::UnexpectedEof =>
-                {
-                    Ok(None)
-                }
-                bincode::ErrorKind::Io(io_error) => Err(Error::Io(io_error)),
-                error => Err(Error::Deserialization(error)),
-            },
-        }
+        Ok(Some(message))
     }
 }
 
@@ -131,7 +86,4 @@ pub enum Error {
         message is {size} bytes but can't be larger than {max} bytes.",
         max = u32::MAX)]
     MessageTooBig { size: usize },
-
-    #[error("Frame contains an incomplete message")]
-    FrameWithIncompleteMessage,
 }
