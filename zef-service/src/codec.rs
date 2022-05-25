@@ -59,18 +59,20 @@ where
         }
 
         let mut start_of_buffer: &[u8] = &*buffer;
-        let payload_size = start_of_buffer.get_u32_le();
+        let payload_size = start_of_buffer
+            .get_u32_le()
+            .try_into()
+            .expect("u32 should fit in a usize");
 
-        let frame_size = PREFIX_SIZE as u32 + payload_size;
+        let frame_size = PREFIX_SIZE as usize + payload_size;
 
-        if buffer.len().try_into().unwrap_or(u32::MAX) < frame_size {
-            buffer.reserve(frame_size.try_into().expect("u32 should fit in a usize"));
+        if buffer.len() < frame_size {
+            buffer.reserve(frame_size);
             return Ok(None);
         }
 
         let _prefix = buffer.split_to(PREFIX_SIZE.into());
-        let mut payload =
-            buffer.split_to(payload_size.try_into().expect("u32 should fit in a usize"));
+        let mut payload = buffer.split_to(payload_size);
 
         match self.inner.decode(&mut payload) {
             Ok(Some(message)) => Ok(Some(message)),
