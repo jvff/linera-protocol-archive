@@ -10,6 +10,7 @@ pub type Codec = LengthDelimitedCodec<BincodeCodec>;
 /// An encoder/decoder of length delimited frames.
 ///
 /// The frames are then processed by the `InnerCodec`.
+#[derive(Clone, Copy, Debug)]
 pub struct LengthDelimitedCodec<InnerCodec> {
     inner: InnerCodec,
 }
