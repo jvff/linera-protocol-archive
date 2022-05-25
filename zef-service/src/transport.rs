@@ -81,7 +81,7 @@ impl NetworkProtocol {
             NetworkProtocol::Udp => {
                 let socket = UdpSocket::bind(&"0.0.0.0:0").await?;
 
-                UdpFramed::new(socket, Codec::new())
+                UdpFramed::new(socket, Codec::default())
                     .with(move |message| future::ready(Ok((message, address))))
                     .map_ok(|(message, _address)| message)
                     .left_stream()
@@ -89,7 +89,7 @@ impl NetworkProtocol {
             NetworkProtocol::Tcp => {
                 let stream = TcpStream::connect(address).await?;
 
-                Framed::new(stream, Codec::new()).right_stream()
+                Framed::new(stream, Codec::default()).right_stream()
             }
         };
 
@@ -139,7 +139,7 @@ struct UdpConnectionPool {
 impl UdpConnectionPool {
     async fn new() -> Result<Self, std::io::Error> {
         let socket = UdpSocket::bind(&"0.0.0.0:0").await?;
-        let transport = UdpFramed::new(socket, Codec::new());
+        let transport = UdpFramed::new(socket, Codec::default());
         Ok(Self { transport })
     }
 }
@@ -169,7 +169,7 @@ impl NetworkProtocol {
     where
         S: MessageHandler + Send + 'static,
     {
-        let mut transport = UdpFramed::new(socket, Codec::new());
+        let mut transport = UdpFramed::new(socket, Codec::default());
         loop {
             let (message, peer) = match future::select(exit_future, transport.next()).await {
                 future::Either::Left(_) => break,
@@ -216,7 +216,7 @@ impl TcpConnectionPool {
             match TcpStream::connect(address).await {
                 Ok(s) => {
                     self.streams
-                        .insert(address.to_string(), Framed::new(s, Codec::new()));
+                        .insert(address.to_string(), Framed::new(s, Codec::default()));
                 }
                 Err(error) => {
                     error!("Failed to open connection to {}: {}", address, error);
@@ -266,7 +266,7 @@ impl NetworkProtocol {
             };
             let guarded_state = guarded_state.clone();
             tokio::spawn(async move {
-                let mut transport = Framed::new(socket, Codec::new());
+                let mut transport = Framed::new(socket, Codec::default());
                 while let Some(maybe_message) = transport.next().await {
                     let message = match maybe_message {
                         Ok(message) => message,

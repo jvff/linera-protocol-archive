@@ -10,18 +10,9 @@ pub type Codec = LengthDelimitedCodec<BincodeCodec>;
 /// An encoder/decoder of length delimited frames.
 ///
 /// The frames are then processed by the `InnerCodec`.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct LengthDelimitedCodec<InnerCodec> {
     inner: InnerCodec,
-}
-
-impl LengthDelimitedCodec<BincodeCodec> {
-    /// Create a new instance of the encoder/decoder.
-    pub fn new() -> Self {
-        LengthDelimitedCodec {
-            inner: BincodeCodec,
-        }
-    }
 }
 
 impl<InnerCodec, Message> Encoder<Message> for LengthDelimitedCodec<InnerCodec>
@@ -95,7 +86,7 @@ where
 }
 
 /// The encoder/decoder of [`rpc::Message`]s that handles the serialization of messages.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct BincodeCodec;
 
 impl Encoder<rpc::Message> for BincodeCodec {
