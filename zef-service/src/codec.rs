@@ -20,14 +20,37 @@ impl Encoder<rpc::Message> for Codec {
     fn encode(&mut self, message: rpc::Message, buffer: &mut BytesMut) -> Result<(), Self::Error> {
         let mut frame_buffer = buffer.split_off(buffer.len());
 
-        frame_buffer.put_u32_le(0);
+        self.write_dummy_prefix(&mut frame_buffer);
+        self.serialize_message(&mut frame_buffer, message)?;
+        self.write_real_prefix(&mut frame_buffer)?;
 
-        let mut frame_writer = frame_buffer.writer();
+        buffer.unsplit(frame_buffer);
+
+        Ok(())
+    }
+}
+
+impl Codec {
+    pub fn write_dummy_prefix(self, frame_buffer: &mut BytesMut) {
+        frame_buffer.put_u32_le(0);
+    }
+
+    pub fn serialize_message(
+        self,
+        frame_buffer: &mut BytesMut,
+        message: rpc::Message,
+    ) -> Result<(), Error> {
+        let mut frame_writer = mem::take(frame_buffer).writer();
 
         bincode::serialize_into(&mut frame_writer, &message)
             .map_err(|error| Error::Serialization(*error))?;
 
-        let mut frame_buffer = frame_writer.into_inner();
+        *frame_buffer = frame_writer.into_inner();
+
+        Ok(())
+    }
+
+    pub fn write_real_prefix(self, frame_buffer: &mut BytesMut) -> Result<(), Error> {
         let frame_size = frame_buffer.len();
         let payload_size = frame_size - PREFIX_SIZE as usize;
 
@@ -38,8 +61,6 @@ impl Encoder<rpc::Message> for Codec {
                 .try_into()
                 .map_err(|_| Error::MessageTooBig { size: payload_size })?,
         );
-
-        buffer.unsplit(frame_buffer);
 
         Ok(())
     }
@@ -54,12 +75,7 @@ impl Decoder for Codec {
             return Ok(None);
         }
 
-        let mut start_of_buffer: &[u8] = &*buffer;
-        let payload_size = start_of_buffer
-            .get_u32_le()
-            .try_into()
-            .expect("u32 should fit in a usize");
-
+        let payload_size = self.read_payload_size(&buffer);
         let frame_size = PREFIX_SIZE as usize + payload_size;
 
         if buffer.len() < frame_size {
@@ -67,13 +83,23 @@ impl Decoder for Codec {
             return Ok(None);
         }
 
+        self.deserialize_message(buffer).map(Some)
+    }
+}
+
+impl Codec {
+    pub fn read_payload_size(self, buffer: &[u8]) -> usize {
+        buffer
+            .get_u32_le()
+            .try_into()
+            .expect("u32 should fit in a usize")
+    }
+
+    pub fn deserialize_message(self, buffer: &mut BytesMut) -> Result<rpc::Message, Error> {
         let _prefix = buffer.split_to(PREFIX_SIZE.into());
         let payload = buffer.split_to(payload_size);
 
-        let message =
-            bincode::deserialize(&payload).map_err(|error| Error::Deserialization(*error))?;
-
-        Ok(Some(message))
+        bincode::deserialize(&payload).map_err(|error| Error::Deserialization(*error))
     }
 }
 
