@@ -164,7 +164,7 @@ mod tests {
         let frame_start = buffer.len();
         let prefix_end = frame_start + PREFIX_SIZE as usize;
 
-        let result = Codec.encode(message.clone(), &mut buffer);
+        let result = Codec.encode(message, &mut buffer);
 
         assert!(matches!(result, Ok(())));
         assert_eq!(&buffer[..frame_start], &leading_bytes);
