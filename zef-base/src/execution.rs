@@ -183,8 +183,8 @@ impl ExecutionState {
                 match self.status.as_ref() {
                     Some(ChainStatus::ManagedBy {
                         admin_id: id,
-                        subscribed: s,
-                    }) => *s && admin_id == id,
+                        subscribed,
+                    }) => *subscribed && admin_id == id,
                     _ => false,
                 }
             }
