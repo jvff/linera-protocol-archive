@@ -27,7 +27,9 @@ server_services() {
     for server in $(seq 1 ${NUM_VALIDATORS}); do
         cat << EOF
   server_${server}:
-    build: .
+    build:
+      context: .
+      target: server
     command: ./run-server.sh ${NUM_SHARDS}
     volumes:
       - common:/config/common:ro
@@ -47,7 +49,9 @@ $(server_volumes)
 
 services:
   setup:
-    build: .
+    build:
+      context: .
+      target: setup
     command: ./setup.sh ${NUM_VALIDATORS} ${NUM_SHARDS}
     volumes:
       - common:/config/common
@@ -55,7 +59,9 @@ services:
 $(server_volumes_for_setup)
 $(server_services)
   client:
-    build: .
+    build:
+      context: .
+      target: client
     command: ./run-client.sh
     volumes:
       - common:/config/common:ro
