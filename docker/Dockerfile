@@ -27,30 +27,30 @@ RUN mkdir /opt/zefchain && \
     git checkout main && \
     cargo build --release
 
-FROM debian:11 as setup
+FROM debian:11 as base
+
+RUN apt-get update && apt-get install -y etcd-client
 
 RUN mkdir -p /opt/zefchain
+
+COPY fetch-from-etcd.sh /opt/zefchain/
+
+WORKDIR /opt/zefchain
+
+FROM base as setup
+
+RUN apt-get install -y etcd-server
 
 COPY --from=builder /opt/zefchain/target/release/server /opt/zefchain/
 COPY --from=builder /opt/zefchain/target/release/client /opt/zefchain/
 COPY setup.sh /opt/zefchain/
 
-WORKDIR /opt/zefchain
-
-FROM debian:11 as client
-
-RUN mkdir -p /opt/zefchain
+FROM base as client
 
 COPY --from=builder /opt/zefchain/target/release/client /opt/zefchain/
 COPY run-client.sh /opt/zefchain/
 
-WORKDIR /opt/zefchain
-
-FROM debian:11 as server
-
-RUN mkdir -p /opt/zefchain
+FROM base as server
 
 COPY --from=builder /opt/zefchain/target/release/server /opt/zefchain/
 COPY run-server.sh /opt/zefchain/
-
-WORKDIR /opt/zefchain

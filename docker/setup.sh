@@ -8,6 +8,11 @@ if [ -z "$NUM_VALIDATORS" ] || [ -z "$NUM_SHARDS" ]; then
     exit 1
 fi
 
+# Start etcd server
+etcd \
+    --listen-client-urls 'http://0.0.0.0:2379' \
+    --advertise-client-urls 'http://zefchain-setup-1:2379' &
+
 # Clean up data files
 rm -rf config/*
 
@@ -34,9 +39,12 @@ VALIDATORS=($(validator_options))
     --initial-funding 100 \
     --committee committee.json
 
-mv genesis.json /config/common/
-mv wallet.json /config/client/
+etcdctl set "genesis" "$(cat genesis.json)"
+etcdctl set "wallet" "$(cat wallet.json)"
 
 for server in $(seq 1 ${NUM_VALIDATORS}); do
-    mv "server_${server}.json" "/config/server_${server}/config.json"
+    etcdctl set "server_${server}" "$(cat "server_${server}.json")"
 done
+
+# Keep etcd server running on the foreground
+fg 1

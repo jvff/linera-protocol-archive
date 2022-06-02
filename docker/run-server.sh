@@ -7,16 +7,15 @@ if [ -z "$NUM_SHARDS" ]; then
     exit 1
 fi
 
-while ! [ -f "/config/server/config.json" ]; do
-    sleep 1
-done
+./fetch-from-etcd.sh "genesis"
+./fetch-from-etcd.sh "server_$SERVER_ID"
 
 for shard in $(seq 0 $(expr "${NUM_SHARDS}" - 1)); do
     ./server run \
         --storage "shard_${shard}.db" \
-        --server "/config/server/config.json" \
+        --server "server_${SERVER_ID}.json" \
         --shard "$shard" \
-        --genesis /config/common/genesis.json &
+        --genesis genesis.json &
 done
 
 sleep 15
