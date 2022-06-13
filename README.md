@@ -37,10 +37,10 @@ trap 'kill $(jobs -p)' EXIT
 # * Private server states are stored in `server*.json`.
 # * `committee.json` is the public description of the FastPay committee.
 ./server generate-all --validators \
-   server_1.json:tcp:127.0.0.1:9100:127.0.0.1:9101:127.0.0.1:9102:127.0.0.1:9103:127.0.0.1:9104 \
-   server_2.json:tcp:127.0.0.1:9200:127.0.0.1:9201:127.0.0.1:9202:127.0.0.1:9203:127.0.0.1:9204 \
-   server_3.json:tcp:127.0.0.1:9300:127.0.0.1:9301:127.0.0.1:9302:127.0.0.1:9303:127.0.0.1:9304 \
-   server_4.json:tcp:127.0.0.1:9400:127.0.0.1:9401:127.0.0.1:9402:127.0.0.1:9403:127.0.0.1:9404 \
+   server_1.json:udp:127.0.0.1:9100:127.0.0.1:9101:127.0.0.1:9102:127.0.0.1:9103:127.0.0.1:9104 \
+   server_2.json:udp:127.0.0.1:9200:127.0.0.1:9201:127.0.0.1:9202:127.0.0.1:9203:127.0.0.1:9204 \
+   server_3.json:udp:127.0.0.1:9300:127.0.0.1:9301:127.0.0.1:9302:127.0.0.1:9303:127.0.0.1:9304 \
+   server_4.json:udp:127.0.0.1:9400:127.0.0.1:9401:127.0.0.1:9402:127.0.0.1:9403:127.0.0.1:9404 \
 --committee committee.json
 
 # Create configuration files for 1000 user chains.
@@ -51,6 +51,8 @@ trap 'kill $(jobs -p)' EXIT
 # Start servers and create initial chains in DB
 for I in 1 2 3 4
 do
+    ./proxy server_"$I".json &
+
     for J in $(seq 0 3)
     do
         ./server run --storage server_"$I"_"$J".db --server server_"$I".json --shard "$J" --genesis genesis.json &
