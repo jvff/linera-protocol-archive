@@ -108,13 +108,13 @@ impl FromStr for ValidatorOptions {
         let parts: Vec<&str> = s.split(':').collect();
         ensure!(
             parts.len() >= 4 && parts.len() % 2 == 0,
-            "Expecting format `file.json:(udp|tcp):host:port:host1:port1:...:hostN:portN`"
+            "Expecting format `file.json:host:port:(udp|tcp):host1:port1:...:hostN:portN`"
         );
 
         let server_config_path = Path::new(parts[0]).to_path_buf();
-        let protocol = parts[1].parse().map_err(|s| anyhow!("{}", s))?;
-        let address = parts[2].to_owned();
-        let port = parts[3].parse()?;
+        let address = parts[1].to_owned();
+        let port = parts[2].parse()?;
+        let protocol = parts[3].parse().map_err(|s| anyhow!("{}", s))?;
         let mut shards = Vec::new();
         for i in 2..parts.len() / 2 {
             let host = parts[2 * i].to_string();
@@ -283,7 +283,7 @@ mod test {
     #[test]
     fn test_validator_options() {
         let options =
-            ValidatorOptions::from_str("server.json:udp:host:9000:host1:9001:host2:9002").unwrap();
+            ValidatorOptions::from_str("server.json:host:9000:udp:host1:9001:host2:9002").unwrap();
         assert_eq!(
             options,
             ValidatorOptions {
