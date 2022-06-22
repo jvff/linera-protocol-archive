@@ -12,6 +12,8 @@ use zef_base::{
     error::Error,
     messages::{Certificate, ChainId},
 };
+use moka::sync::Cache;
+use core::fmt::Debug;
 
 #[cfg(test)]
 #[path = "unit_tests/rocksdb_storage_tests.rs"]
@@ -22,6 +24,7 @@ mod rocksdb_storage_tests;
 pub struct RocksdbStore {
     /// RocksDB handle.
     db: rocksdb::DB,
+    cache: Cache::<std::vec::Vec<u8>, Arc<dyn Send + Sync + Debug>>,
 }
 
 #[derive(Clone, Copy)]
@@ -79,6 +82,7 @@ impl RocksdbStore {
         assert!(path.is_dir());
         Ok(Self {
             db: open_db(&path)?,
+            cache: Cache::<std::vec::Vec<u8>, Arc<dyn Send + Sync + Debug>>::new(10_000),
         })
     }
 
@@ -118,28 +122,35 @@ impl RocksdbStore {
         V: serde::de::DeserializeOwned,
     {
         let key = bcs::to_bytes(&key).expect("should not fail");
-        let kind = serde_name::trace_name::<V>().expect("V must be a struct or an enum");
-        let value = self
-            .read_value(kind, &key)
-            .await
-            .map_err(|e| Error::StorageIoError {
-                error: format!("{}: {}", kind, e),
-            })?;
-        let result = match value {
-            Some(v) => Some(ron::de::from_bytes(&v).map_err(|e| Error::StorageBcsError {
-                error: format!("{}: {}", kind, e),
-            })?),
-            None => None,
+        let result1 = match self.cache.get(&key){
+            Some(v) => Some(v),
+            None => {
+                let kind = serde_name::trace_name::<V>().expect("V must be a struct or an enum");
+                let value = self
+                    .read_value(kind, &key)
+                    .await
+                    .map_err(|e| Error::StorageIoError {
+                        error: format!("{}: {}", kind, e),
+                    })?;
+                let result = match value {
+                    Some(v) => Some(ron::de::from_bytes(&v).map_err(|e| Error::StorageBcsError {
+                        error: format!("{}: {}", kind, e),
+                    })?),
+                    None => None,
+                    };
+                result
+            },
         };
-        Ok(result)
+        Ok(result1)
     }
 
-    async fn write<'b, K, V>(&self, key: &K, value: &V) -> Result<(), Error>
+    async fn write<'b, K: 'static, V: 'static>(&self, key: &K, value: &V ) -> Result<(), Error>
     where
-        K: serde::Serialize + std::fmt::Debug,
-        V: serde::Serialize + serde::Deserialize<'b> + std::fmt::Debug,
+        K: serde::Serialize + std::fmt::Debug + std::fmt::Debug,
+        V: serde::Serialize + serde::Deserialize<'b> + std::fmt::Debug + std::marker::Sync + Send + Clone,
     {
         let key = bcs::to_bytes(&key).expect("should not fail");
+        self.cache.insert(key.clone(), Arc::new(value.clone()));
         let kind = serde_name::trace_name::<V>().expect("V must be a struct or an enum");
         let value = ron::to_string(&value).expect("should not fail");
         self.write_value(kind, &key, value.as_bytes())
@@ -156,6 +167,7 @@ impl RocksdbStore {
         V: serde::de::DeserializeOwned,
     {
         let key = bcs::to_bytes(&key).expect("should not fail");
+        self.cache.invalidate(&key);
         let kind = serde_name::trace_name::<V>().expect("V must be a struct or an enum");
         self.remove_value(kind, &key)
             .await
@@ -186,6 +198,9 @@ impl Storage for RocksdbStoreClient {
     }
 
     async fn write_chain(&mut self, state: ChainState) -> Result<(), Error> {
+        let mycache = Cache::<ChainId, ChainState>::new(10);
+
+        mycache.insert(state.state.chain_id.clone(), state.clone());
         self.0.write(&state.state.chain_id, &state).await
     }
 
