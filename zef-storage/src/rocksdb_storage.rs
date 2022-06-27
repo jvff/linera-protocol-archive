@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::Storage;
 use async_trait::async_trait;
+use core::fmt::Debug;
+use moka::sync::Cache;
 use std::{
+    any::Any,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -12,8 +15,6 @@ use zef_base::{
     error::Error,
     messages::{Certificate, ChainId},
 };
-use moka::sync::Cache;
-use core::fmt::Debug;
 
 #[cfg(test)]
 #[path = "unit_tests/rocksdb_storage_tests.rs"]
@@ -24,7 +25,7 @@ mod rocksdb_storage_tests;
 pub struct RocksdbStore {
     /// RocksDB handle.
     db: rocksdb::DB,
-    cache: Cache::<std::vec::Vec<u8>, Arc<dyn Send + Sync + Debug>>,
+    cache: Cache<std::vec::Vec<u8>, Arc<dyn Send + Sync + Any + 'static>>,
 }
 
 #[derive(Clone, Copy)]
@@ -82,7 +83,7 @@ impl RocksdbStore {
         assert!(path.is_dir());
         Ok(Self {
             db: open_db(&path)?,
-            cache: Cache::<std::vec::Vec<u8>, Arc<dyn Send + Sync + Debug>>::new(10_000),
+            cache: Cache::<std::vec::Vec<u8>, Arc<dyn Send + Sync + Any + 'static>>::new(10_000),
         })
     }
 
@@ -116,38 +117,46 @@ impl RocksdbStore {
         self.get_db_handler(kind)?.delete(key)
     }
 
-    async fn read<K, V>(&self, key: &K) -> Result<Option<V>, Error>
+    async fn read<K, V>(&self, key: &K) -> Result<Option<Arc<V>>, Error>
     where
         K: serde::Serialize + std::fmt::Debug,
-        V: serde::de::DeserializeOwned,
+        V: serde::de::DeserializeOwned + Send + Sync + Any + 'static,
     {
         let key = bcs::to_bytes(&key).expect("should not fail");
-        let result1 = match self.cache.get(&key){
-            Some(v) => Some(v),
+        let result1 = match self.cache.get(&key) {
+            Some(v) => Some(v.downcast().expect("wrong bytes from cache")),
             None => {
                 let kind = serde_name::trace_name::<V>().expect("V must be a struct or an enum");
-                let value = self
-                    .read_value(kind, &key)
-                    .await
-                    .map_err(|e| Error::StorageIoError {
-                        error: format!("{}: {}", kind, e),
-                    })?;
-                let result = match value {
-                    Some(v) => Some(ron::de::from_bytes(&v).map_err(|e| Error::StorageBcsError {
-                        error: format!("{}: {}", kind, e),
-                    })?),
+                let value =
+                    self.read_value(kind, &key)
+                        .await
+                        .map_err(|e| Error::StorageIoError {
+                            error: format!("{}: {}", kind, e),
+                        })?;
+                match value {
+                    Some(v) => Some(
+                        ron::de::from_bytes::<V>(&v)
+                            .map_err(|e| Error::StorageBcsError {
+                                error: format!("{}: {}", kind, e),
+                            })
+                            .map(Arc::new)?,
+                    ),
                     None => None,
-                    };
-                result
-            },
+                }
+            }
         };
         Ok(result1)
     }
 
-    async fn write<'b, K: 'static, V: 'static>(&self, key: &K, value: &V ) -> Result<(), Error>
+    async fn write<'b, K: 'static, V: 'static>(&self, key: &K, value: &V) -> Result<(), Error>
     where
         K: serde::Serialize + std::fmt::Debug + std::fmt::Debug,
-        V: serde::Serialize + serde::Deserialize<'b> + std::fmt::Debug + std::marker::Sync + Send + Clone,
+        V: serde::Serialize
+            + serde::Deserialize<'b>
+            + std::fmt::Debug
+            + std::marker::Sync
+            + Send
+            + Clone,
     {
         let key = bcs::to_bytes(&key).expect("should not fail");
         self.cache.insert(key.clone(), Arc::new(value.clone()));
@@ -189,18 +198,18 @@ impl RocksdbStoreClient {
 
 #[async_trait]
 impl Storage for RocksdbStoreClient {
-    async fn read_chain_or_default(&mut self, id: ChainId) -> Result<ChainState, Error> {
+    async fn read_chain_or_default(&mut self, id: ChainId) -> Result<Arc<ChainState>, Error> {
         Ok(self
             .0
             .read(&id)
             .await?
-            .unwrap_or_else(|| ChainState::new(id)))
+            .unwrap_or_else(|| Arc::new(ChainState::new(id))))
     }
 
     async fn write_chain(&mut self, state: ChainState) -> Result<(), Error> {
         let mycache = Cache::<ChainId, ChainState>::new(10);
 
-        mycache.insert(state.state.chain_id.clone(), state.clone());
+        mycache.insert(state.state.chain_id, state.clone());
         self.0.write(&state.state.chain_id, &state).await
     }
 
@@ -208,7 +217,7 @@ impl Storage for RocksdbStoreClient {
         self.0.remove::<_, ChainState>(&id).await
     }
 
-    async fn read_certificate(&mut self, hash: HashValue) -> Result<Certificate, Error> {
+    async fn read_certificate(&mut self, hash: HashValue) -> Result<Arc<Certificate>, Error> {
         self.0
             .read(&hash)
             .await?
