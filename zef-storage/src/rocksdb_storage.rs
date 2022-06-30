@@ -133,16 +133,12 @@ impl RocksdbStore {
                         .map_err(|e| Error::StorageIoError {
                             error: format!("{}: {}", kind, e),
                         })?;
-                match value {
-                    Some(v) => {
-                        Some(
-                            ron::de::from_bytes::<V>(&v).map_err(|e| Error::StorageBcsError {
-                                error: format!("{}: {}", kind, e),
-                            })?,
-                        )
-                    }
-                    None => None,
-                }
+                value
+                    .map(|v| ron::de::from_bytes::<V>(&v))
+                    .transpose()
+                    .map_err(|e| Error::StorageBcsError {
+                        error: format!("{}: {}", kind, e),
+                    })?
             }
         };
         Ok(result)
