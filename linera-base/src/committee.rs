@@ -6,8 +6,12 @@ use crate::messages::ValidatorName;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+#[cfg(any(test, feature = "test"))]
+use test_strategy::Arbitrary;
+
 /// A set of validators (identified by their public keys) and their voting rights.
 #[derive(Eq, PartialEq, Hash, Clone, Debug, Default, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary))]
 pub struct Committee {
     /// The voting rights.
     pub voting_rights: BTreeMap<ValidatorName, usize>,

@@ -18,6 +18,7 @@ use {
         strategy::{self, Strategy},
     },
     std::ops::RangeInclusive,
+    test_strategy::Arbitrary,
 };
 
 #[cfg(test)]
@@ -29,6 +30,7 @@ pub struct KeyPair(dalek::Keypair);
 
 /// A signature public key.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary))]
 pub struct PublicKey(pub [u8; dalek::PUBLIC_KEY_LENGTH]);
 
 /// A Sha512 value.

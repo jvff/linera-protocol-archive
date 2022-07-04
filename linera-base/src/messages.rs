@@ -31,20 +31,24 @@ pub struct BlockHeight(pub u64);
 #[derive(
     Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Default, Debug, Serialize, Deserialize,
 )]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary))]
 pub struct RoundNumber(pub u64);
 
 /// The identity of a validator.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Debug, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary))]
 pub struct ValidatorName(pub PublicKey);
 
 /// The owner of a chain.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Debug, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary))]
 pub struct Owner(pub PublicKey);
 
 /// A number identifying the configuration of the chain (aka the committee).
 #[derive(
     Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Default, Debug, Serialize, Deserialize,
 )]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary))]
 pub struct Epoch(pub u64);
 
 /// How to create a chain.
@@ -77,6 +81,7 @@ pub struct EffectId {
 ///   received ahead of time in the inbox of the chain.
 /// * This constraint does not apply to the execution of confirmed blocks.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary))]
 pub struct Block {
     /// The chain to which this block belongs.
     pub chain_id: ChainId,
@@ -111,6 +116,7 @@ pub struct ChannelId {
 
 /// The origin of a message. Used to identify each inbox.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary))]
 pub enum Origin {
     /// The message is a direct message.
     Chain(ChainId),
@@ -128,6 +134,7 @@ impl Origin {
 
 /// A selection of messages sent by a block to another chain.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary))]
 pub struct MessageGroup {
     pub origin: Origin,
     pub height: BlockHeight,
@@ -145,6 +152,7 @@ pub struct BlockProposal {
 
 /// A statement to be certified by the validators.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary))]
 pub enum Value {
     /// The block was validated but confirmation will require additional steps.
     ValidatedBlock {

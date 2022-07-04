@@ -13,6 +13,9 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+#[cfg(any(test, feature = "test"))]
+use test_strategy::Arbitrary;
+
 /// Execution state of a chain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
@@ -37,6 +40,7 @@ pub struct ExecutionState {
 
 /// A recipient's address.
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary))]
 pub enum Address {
     /// This is mainly a placeholder for future extensions.
     Burn,
@@ -48,6 +52,7 @@ pub enum Address {
 #[derive(
     Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Default, Debug, Serialize, Deserialize,
 )]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary))]
 pub struct Amount(u64);
 
 /// The balance of a chain.
@@ -58,6 +63,7 @@ pub struct Balance(u128);
 
 /// Optional user message attached to a transfer.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Hash, Default, Debug, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary))]
 pub struct UserData(pub Option<[u8; 32]>);
 
 /// The name of the channel for the admin chain to broadcast reconfigurations.
@@ -65,6 +71,7 @@ pub const ADMIN_CHANNEL: &str = "ADMIN";
 
 /// A chain operation.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary))]
 pub enum Operation {
     /// Transfer `amount` units of value to the recipient.
     Transfer {
@@ -117,6 +124,7 @@ pub enum ChainAdminStatus {
 
 /// The effect of an operation to be performed on a remote chain.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary))]
 pub enum Effect {
     /// Credit `amount` units of value to the recipient.
     Credit { recipient: ChainId, amount: Amount },
