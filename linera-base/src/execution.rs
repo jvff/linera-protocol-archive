@@ -14,7 +14,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 #[cfg(any(test, feature = "test"))]
-use test_strategy::Arbitrary;
+use {
+    proptest::{collection::btree_map, prelude::any},
+    test_strategy::Arbitrary,
+};
 
 /// Execution state of a chain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -134,12 +137,20 @@ pub enum Effect {
         owner: Owner,
         admin_id: ChainId,
         epoch: Epoch,
+        #[cfg_attr(
+            any(test, feature = "test"),
+            strategy(btree_map(any::<Epoch>(), any::<Committee>(), 0..8))
+        )]
         committees: BTreeMap<Epoch, Committee>,
     },
     /// Set the current epoch and the recognized committees.
     SetCommittees {
         admin_id: ChainId,
         epoch: Epoch,
+        #[cfg_attr(
+            any(test, feature = "test"),
+            strategy(btree_map(any::<Epoch>(), any::<Committee>(), 0..8))
+        )]
         committees: BTreeMap<Epoch, Committee>,
     },
     /// Subscribe to a channel.

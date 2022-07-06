@@ -16,6 +16,7 @@ use std::{collections::HashSet, iter, ops::Range, str::FromStr};
 #[cfg(any(test, feature = "test"))]
 use {
     proptest::{
+        collection::vec,
         prelude::{any, Arbitrary},
         strategy::{self, BoxedStrategy, Strategy},
     },
@@ -95,8 +96,10 @@ pub struct Block {
     pub epoch: Epoch,
     /// A selection of incoming messages to be executed first. Successive messages of same
     /// sender and height are grouped together for conciseness.
+    #[cfg_attr(any(test, feature = "test"), strategy(vec(any::<MessageGroup>(), 0..4)))]
     pub incoming_messages: Vec<MessageGroup>,
     /// The operations to execute.
+    #[cfg_attr(any(test, feature = "test"), strategy(vec(any::<Operation>(), 0..4)))]
     pub operations: Vec<Operation>,
     /// The block height.
     pub height: BlockHeight,
@@ -144,6 +147,7 @@ impl Origin {
 pub struct MessageGroup {
     pub origin: Origin,
     pub height: BlockHeight,
+    #[cfg_attr(any(test, feature = "test"), strategy(vec(any::<(usize, Effect)>(), 0..4)))]
     pub effects: Vec<(usize, Effect)>,
 }
 
@@ -164,12 +168,14 @@ pub enum Value {
     ValidatedBlock {
         block: Block,
         round: RoundNumber,
+        #[cfg_attr(any(test, feature = "test"), strategy(vec(any::<Effect>(), 0..4)))]
         effects: Vec<Effect>,
         state_hash: HashValue,
     },
     /// The block is validated and confirmed (i.e. ready to be published).
     ConfirmedBlock {
         block: Block,
+        #[cfg_attr(any(test, feature = "test"), strategy(vec(any::<Effect>(), 0..4)))]
         effects: Vec<Effect>,
         state_hash: HashValue,
     },

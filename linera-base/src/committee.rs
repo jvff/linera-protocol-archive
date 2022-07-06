@@ -7,13 +7,20 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 #[cfg(any(test, feature = "test"))]
-use test_strategy::Arbitrary;
+use {
+    proptest::{collection::btree_map, prelude::any},
+    test_strategy::Arbitrary,
+};
 
 /// A set of validators (identified by their public keys) and their voting rights.
 #[derive(Eq, PartialEq, Hash, Clone, Debug, Default, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test"), derive(Arbitrary))]
 pub struct Committee {
     /// The voting rights.
+    #[cfg_attr(
+        any(test, feature = "test"),
+        strategy(btree_map(any::<ValidatorName>(), any::<usize>(), 0..10))
+    )]
     pub voting_rights: BTreeMap<ValidatorName, usize>,
     /// The sum of all voting rights.
     pub total_votes: usize,
