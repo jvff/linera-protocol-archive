@@ -1,5 +1,11 @@
 use super::{S3Storage, CERTIFICATE_BUCKET, CHAIN_BUCKET};
+use crate::Storage;
 use aws_sdk_s3::Endpoint;
+use linera_base::{
+    crypto::HashValue,
+    execution::{ExecutionState, Operation},
+    messages::{Block, BlockHeight, Certificate, ChainId, Epoch, Value},
+};
 use std::{
     env::{self, VarError},
     error::Error,
@@ -61,6 +67,37 @@ async fn list_buckets(client: &aws_sdk_s3::Client) -> Result<Vec<String>, Box<dy
         .into_iter()
         .filter_map(|bucket| bucket.name)
         .collect())
+}
+
+/// Test if certificates are stored and retrieved correctly.
+#[tokio::test]
+#[ignore]
+async fn certificate_storage_round_trip() -> Result<(), Box<dyn Error>> {
+    let block = Block {
+        epoch: Epoch::from(0),
+        chain_id: ChainId::root(1),
+        incoming_messages: Vec::new(),
+        operations: vec![Operation::CloseChain],
+        previous_block_hash: None,
+        height: BlockHeight::default(),
+    };
+    let value = Value::ConfirmedBlock {
+        block,
+        effects: Vec::new(),
+        state_hash: HashValue::new(&ExecutionState::new(ChainId::root(1))),
+    };
+    let certificate = Certificate::new(value, vec![]);
+
+    let config = new_local_stack_config().await?;
+    let mut storage = S3Storage::from_config(config).await?;
+
+    storage.write_certificate(certificate.clone()).await?;
+
+    let stored_certificate = storage.read_certificate(certificate.hash).await?;
+
+    assert_eq!(certificate, stored_certificate);
+
+    Ok(())
 }
 
 #[derive(Debug, Error)]
