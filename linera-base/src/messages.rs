@@ -11,10 +11,16 @@ use crate::{
     manager::ChainManager,
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, str::FromStr};
+use std::{collections::HashSet, iter, ops::Range, str::FromStr};
 
 #[cfg(any(test, feature = "test"))]
-use test_strategy::Arbitrary;
+use {
+    proptest::{
+        prelude::{any, Arbitrary},
+        strategy::{self, BoxedStrategy, Strategy},
+    },
+    test_strategy::Arbitrary,
+};
 
 #[cfg(test)]
 #[path = "unit_tests/messages_tests.rs"]
@@ -707,3 +713,26 @@ impl BcsSignable for ChainDescription {}
 impl BcsSignable for ChainInfo {}
 impl BcsSignable for BlockAndRound {}
 impl BcsSignable for Value {}
+
+#[cfg(any(test, feature = "test"))]
+impl Arbitrary for Certificate {
+    type Parameters = ();
+    type Strategy =
+        strategy::Map<(BoxedStrategy<Value>, Range<usize>), fn((Value, usize)) -> Certificate>;
+
+    fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
+        (any::<Value>(), 0..10).prop_map(|(value, key_pair_count)| {
+            let signatures = iter::repeat_with(KeyPair::generate)
+                .take(key_pair_count)
+                .map(|key_pair| {
+                    let signature = Signature::new(&value, &key_pair);
+                    let validator_name = ValidatorName(key_pair.public());
+
+                    (validator_name, signature)
+                })
+                .collect();
+
+            Certificate::new(value, signatures)
+        })
+    }
+}
