@@ -110,6 +110,7 @@ pub struct Block {
 
 /// A block with a round number.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary))]
 pub struct BlockAndRound {
     pub block: Block,
     pub round: RoundNumber,
@@ -719,6 +720,20 @@ impl BcsSignable for ChainDescription {}
 impl BcsSignable for ChainInfo {}
 impl BcsSignable for BlockAndRound {}
 impl BcsSignable for Value {}
+
+#[cfg(any(test, feature = "test"))]
+impl Arbitrary for BlockProposal {
+    type Parameters = ();
+    type Strategy = strategy::Map<BoxedStrategy<BlockAndRound>, fn(BlockAndRound) -> BlockProposal>;
+
+    fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
+        any::<BlockAndRound>().prop_map(|content| {
+            let key_pair = KeyPair::generate();
+
+            BlockProposal::new(content, &key_pair)
+        })
+    }
+}
 
 #[cfg(any(test, feature = "test"))]
 impl Arbitrary for Certificate {
