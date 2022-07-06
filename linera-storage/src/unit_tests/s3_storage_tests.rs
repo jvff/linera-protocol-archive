@@ -1,7 +1,7 @@
 use super::{S3Storage, CERTIFICATE_BUCKET, CHAIN_BUCKET};
 use crate::Storage;
 use aws_sdk_s3::Endpoint;
-use linera_base::messages::Certificate;
+use linera_base::{chain::ChainState, messages::Certificate};
 use proptest::prelude::*;
 use std::{
     env::{self, VarError},
@@ -77,6 +77,23 @@ async fn certificate_storage_round_trip(certificate: Certificate) {
     let stored_certificate = storage.read_certificate(certificate.hash).await?;
 
     prop_assert_eq!(certificate, stored_certificate);
+
+    Ok(())
+}
+
+/// Test if chain states are stored and retrieved correctly.
+#[proptest]
+async fn chain_storage_round_trip(chain_state: ChainState) {
+    let config = new_local_stack_config().await?;
+    let mut storage = S3Storage::from_config(config).await?;
+
+    storage.write_chain(chain_state.clone()).await?;
+
+    let stored_chain_state = storage
+        .read_chain_or_default(chain_state.state.chain_id)
+        .await?;
+
+    prop_assert_eq!(chain_state, stored_chain_state);
 
     Ok(())
 }
