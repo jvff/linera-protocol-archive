@@ -15,7 +15,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 
 #[cfg(any(test, feature = "test"))]
-use test_strategy::Arbitrary;
+use {
+    proptest::{
+        collection::{hash_map, vec_deque},
+        prelude::any,
+    },
+    test_strategy::Arbitrary,
+};
 
 /// The state of a chain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,8 +45,16 @@ pub struct ChainState {
     pub received_log: Vec<HashValue>,
 
     /// Mailboxes used to send messages, indexed by recipient.
+    #[cfg_attr(
+        any(test, feature = "test"),
+        strategy(hash_map(any::<ChainId>(), any::<OutboxState>(), 0..10))
+    )]
     pub outboxes: HashMap<ChainId, OutboxState>,
     /// Mailboxes used to receive messages indexed by their origin.
+    #[cfg_attr(
+        any(test, feature = "test"),
+        strategy(hash_map(any::<Origin>(), any::<InboxState>(), 0..10))
+    )]
     pub inboxes: HashMap<Origin, InboxState>,
     /// Channels able to multicast messages to subscribers.
     pub channels: HashMap<String, ChannelState>,
@@ -54,6 +68,7 @@ pub struct ChainState {
 pub struct OutboxState {
     /// Keep sending these certified blocks of ours until they are acknowledged by
     /// receivers.
+    #[cfg_attr(any(test, feature = "test"), strategy(vec_deque(any::<BlockHeight>(), 0..10)))]
     pub queue: VecDeque<BlockHeight>,
 }
 
@@ -65,9 +80,11 @@ pub struct InboxState {
     /// below this height.
     pub next_height_to_receive: BlockHeight,
     /// These events have been received but not yet picked by a block to be executed.
+    #[cfg_attr(any(test, feature = "test"), strategy(vec_deque(any::<Event>(), 0..4)))]
     pub received_events: VecDeque<Event>,
     /// These events have been executed but the cross-chain requests have not been
     /// received yet.
+    #[cfg_attr(any(test, feature = "test"), strategy(vec_deque(any::<Event>(), 0..4)))]
     pub expected_events: VecDeque<Event>,
 }
 
@@ -76,6 +93,10 @@ pub struct InboxState {
 #[cfg_attr(any(test, feature = "test"), derive(Arbitrary, Eq, PartialEq))]
 pub struct ChannelState {
     /// The subscribers and whether they have received the latest update yet.
+    #[cfg_attr(
+        any(test, feature = "test"),
+        strategy(hash_map(any::<ChainId>(), any::<bool>(), 0..10))
+    )]
     pub subscribers: HashMap<ChainId, bool>,
     /// The latest block height to communicate, if any.
     pub block_height: Option<BlockHeight>,

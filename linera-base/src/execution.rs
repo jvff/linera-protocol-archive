@@ -34,6 +34,10 @@ pub struct ExecutionState {
     /// We avoid BTreeSet<String> because of a Serde/BCS limitation.
     pub subscriptions: BTreeMap<ChannelId, ()>,
     /// The committees that we trust, indexed by epoch number.
+    #[cfg_attr(
+        any(test, feature = "test"),
+        strategy(btree_map(any::<Epoch>(), any::<Committee>(), 0..10))
+    )]
     pub committees: BTreeMap<Epoch, Committee>,
     /// Manager of the chain.
     pub manager: ChainManager,
