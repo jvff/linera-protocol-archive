@@ -1,9 +1,13 @@
 use super::{S3Storage, CERTIFICATE_BUCKET, CHAIN_BUCKET};
+use crate::Storage;
 use aws_sdk_s3::Endpoint;
+use linera_base::messages::Certificate;
+use proptest::prelude::*;
 use std::{
     env::{self, VarError},
     error::Error,
 };
+use test_strategy::proptest;
 use thiserror::Error;
 
 /// Name of the environment variable with the address to a LocalStack instance.
@@ -60,6 +64,21 @@ async fn list_buckets(client: &aws_sdk_s3::Client) -> Result<Vec<String>, Box<dy
         .into_iter()
         .filter_map(|bucket| bucket.name)
         .collect())
+}
+
+/// Test if certificates are stored and retrieved correctly.
+#[proptest]
+async fn certificate_storage_round_trip(certificate: Certificate) {
+    let config = new_local_stack_config().await?;
+    let mut storage = S3Storage::from_config(config).await?;
+
+    storage.write_certificate(certificate.clone()).await?;
+
+    let stored_certificate = storage.read_certificate(certificate.hash).await?;
+
+    prop_assert_eq!(certificate, stored_certificate);
+
+    Ok(())
 }
 
 #[derive(Debug, Error)]

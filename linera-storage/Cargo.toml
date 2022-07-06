@@ -30,4 +30,6 @@ linera-base = { path = "../linera-base" }
 [dev-dependencies]
 http = "0.2"
 proptest = "1.0.0"
-test-strategy = "0.2.0"
+test-strategy = { git = "https://github.com/jvff/test-strategy", branch = "support-async-tests", features = ["tokio"] }
+
+linera-base = { path = "../linera-base", features = ["test"] }
