@@ -757,3 +757,17 @@ impl Arbitrary for Certificate {
         })
     }
 }
+
+#[cfg(any(test, feature = "test"))]
+impl Arbitrary for Vote {
+    type Parameters = ();
+    type Strategy = strategy::Map<BoxedStrategy<Value>, fn(Value) -> Vote>;
+
+    fn arbitrary_with((): Self::Parameters) -> Self::Strategy {
+        any::<Value>().prop_map(|value| {
+            let key_pair = KeyPair::generate();
+
+            Vote::new(value, &key_pair)
+        })
+    }
+}
