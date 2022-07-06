@@ -2,6 +2,7 @@ use super::{S3Storage, CERTIFICATE_BUCKET, CHAIN_BUCKET};
 use crate::Storage;
 use aws_sdk_s3::Endpoint;
 use linera_base::{
+    chain::ChainState,
     crypto::HashValue,
     execution::{ExecutionState, Operation},
     messages::{Block, BlockHeight, Certificate, ChainId, Epoch, Value},
@@ -96,6 +97,30 @@ async fn certificate_storage_round_trip() -> Result<(), Box<dyn Error>> {
     let stored_certificate = storage.read_certificate(certificate.hash).await?;
 
     assert_eq!(certificate, stored_certificate);
+
+    Ok(())
+}
+
+/// Test if chain states are stored and retrieved correctly.
+#[tokio::test]
+#[ignore]
+async fn chain_storage_round_trip() -> Result<(), Box<dyn Error>> {
+    let config = new_local_stack_config().await?;
+    let mut storage = S3Storage::from_config(config).await?;
+
+    let chain_id = ChainId::root(1);
+    let chain_state = ChainState {
+        next_block_height: BlockHeight(100),
+        ..ChainState::new(chain_id)
+    };
+
+    storage.write_chain(chain_state.clone()).await?;
+
+    let stored_chain_state = storage
+        .read_chain_or_default(chain_state.state.chain_id)
+        .await?;
+
+    assert_eq!(chain_state, stored_chain_state);
 
     Ok(())
 }
