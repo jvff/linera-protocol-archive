@@ -5,9 +5,12 @@ use crate::{crypto::*, ensure, error::Error, execution::Effect, messages::*};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[cfg(any(test, feature = "test"))]
+use test_strategy::Arbitrary;
+
 /// How to produce new blocks.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary, Eq, PartialEq))]
 pub enum ChainManager {
     /// The chain is not active. (No blocks can be created)
     None,
@@ -19,7 +22,7 @@ pub enum ChainManager {
 
 /// The specific state of a chain managed by one owner.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary, Eq, PartialEq))]
 pub struct SingleOwnerManager {
     /// The owner of the chain.
     pub owner: Owner,
@@ -29,7 +32,7 @@ pub struct SingleOwnerManager {
 
 /// The specific state of a chain managed by multiple owners.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary, Eq, PartialEq))]
 pub struct MultiOwnerManager {
     /// The co-owners of the chain.
     /// Using a map instead a hashset because Serde treats HashSet's as vectors.

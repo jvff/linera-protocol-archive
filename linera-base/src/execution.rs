@@ -21,7 +21,7 @@ use {
 
 /// Execution state of a chain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary, Eq, PartialEq))]
 pub struct ExecutionState {
     /// The UID of the chain.
     pub chain_id: ChainId,
@@ -62,6 +62,7 @@ pub struct Amount(u64);
 #[derive(
     Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Default, Debug, Serialize, Deserialize,
 )]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary))]
 pub struct Balance(u128);
 
 /// Optional user message attached to a transfer.
@@ -119,7 +120,7 @@ pub enum Operation {
 
 /// The administrative status of this chain w.r.t reconfigurations.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary, Eq, PartialEq))]
 pub enum ChainAdminStatus {
     ManagedBy { admin_id: ChainId },
     Managing,

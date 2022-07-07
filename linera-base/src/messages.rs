@@ -60,6 +60,7 @@ pub struct Epoch(pub u64);
 
 /// How to create a chain.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Debug, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary))]
 pub enum ChainDescription {
     /// The chain was created by the genesis configuration.
     Root(usize),
@@ -74,6 +75,7 @@ pub struct ChainId(pub HashValue);
 
 /// The index of an effect in a chain.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Debug, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary))]
 pub struct EffectId {
     pub chain_id: ChainId,
     pub height: BlockHeight,

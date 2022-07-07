@@ -14,9 +14,12 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 
+#[cfg(any(test, feature = "test"))]
+use test_strategy::Arbitrary;
+
 /// The state of a chain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary, Eq, PartialEq))]
 pub struct ChainState {
     /// How the chain was created. May be unknown for inactive chains.
     pub description: Option<ChainDescription>,
@@ -47,7 +50,7 @@ pub struct ChainState {
 /// execution of blocks, so currently we just send the certified blocks over and let the
 /// receivers figure out what was the message for them.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary, Eq, PartialEq))]
 pub struct OutboxState {
     /// Keep sending these certified blocks of ours until they are acknowledged by
     /// receivers.
@@ -56,7 +59,7 @@ pub struct OutboxState {
 
 /// An inbox used to receive and execute messages from another chain.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary, Eq, PartialEq))]
 pub struct InboxState {
     /// We have already received the cross-chain requests and enqueued all the messages
     /// below this height.
@@ -70,7 +73,7 @@ pub struct InboxState {
 
 /// The state of a channel followed by subscribers.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary, Eq, PartialEq))]
 pub struct ChannelState {
     /// The subscribers and whether they have received the latest update yet.
     pub subscribers: HashMap<ChainId, bool>,
@@ -80,7 +83,7 @@ pub struct ChannelState {
 
 /// A message sent by some (unspecified) chain at a particular height and index.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
+#[cfg_attr(any(test, feature = "test"), derive(Arbitrary, Eq, PartialEq))]
 pub struct Event {
     /// The height of the block that created the event.
     pub height: BlockHeight,
