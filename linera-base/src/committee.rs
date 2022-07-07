@@ -34,6 +34,7 @@ impl Committee {
     }
 
     /// For testing
+    #[cfg(any(test, feature = "test"))]
     pub fn make_simple(keys: Vec<ValidatorName>) -> Self {
         let total_votes = keys.len();
         Committee {
