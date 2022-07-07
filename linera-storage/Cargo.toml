@@ -26,3 +26,8 @@ log = "0.4.14"
 rocksdb = "0.18.0"
 
 linera-base = { path = "../linera-base" }
+
+[dev-dependencies]
+http = "0.2"
+proptest = "1.0.0"
+test-strategy = "0.2.0"
