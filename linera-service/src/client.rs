@@ -236,7 +236,7 @@ impl ClientContext {
             let proposals = proposals.clone();
             handles.push(tokio::spawn(async move {
                 info!("Sending {} requests", proposals.len());
-                let responses = client.send(proposals).await.unwrap_or_else(|_| Vec::new());
+                let responses = client.send(proposals).await.unwrap_or_default();
                 info!("Done sending requests");
                 responses
             }));
