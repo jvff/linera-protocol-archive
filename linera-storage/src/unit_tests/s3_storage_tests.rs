@@ -1,3 +1,4 @@
+use super::{S3Storage, CERTIFICATE_BUCKET, CHAIN_BUCKET};
 use aws_sdk_s3::Endpoint;
 use aws_types::SdkConfig;
 use std::{
@@ -82,6 +83,41 @@ impl LocalStackTestContext {
 
         Ok(())
     }
+}
+
+/// Test if the necessary buckets are created if needed.
+#[tokio::test]
+#[ignore]
+async fn buckets_are_created() -> Result<(), Box<dyn Error>> {
+    let localstack = LocalStackTestContext::new().await?;
+    let client = aws_sdk_s3::Client::from_conf(localstack.config());
+
+    let initial_buckets = list_buckets(&client).await?;
+
+    assert!(!initial_buckets.contains(&CERTIFICATE_BUCKET.to_owned()));
+    assert!(!initial_buckets.contains(&CHAIN_BUCKET.to_owned()));
+
+    let _storage = S3Storage::from_config(localstack.config()).await?;
+
+    let buckets = list_buckets(&client).await?;
+
+    assert!(buckets.contains(&CERTIFICATE_BUCKET.to_owned()));
+    assert!(buckets.contains(&CHAIN_BUCKET.to_owned()));
+
+    Ok(())
+}
+
+/// Helper function to list the names of buckets registered on S3.
+async fn list_buckets(client: &aws_sdk_s3::Client) -> Result<Vec<String>, Box<dyn Error>> {
+    Ok(client
+        .list_buckets()
+        .send()
+        .await?
+        .buckets
+        .expect("List of buckets was not returned")
+        .into_iter()
+        .filter_map(|bucket| bucket.name)
+        .collect())
 }
 
 #[derive(Debug, Error)]
