@@ -794,9 +794,15 @@ where
                 // The client's main chain (aka "recipient") is active.
                 ensure!(
                     block.epoch <= epoch,
-                    "Cannot accept a certificate from an unknown committee in the future. Please synchronize the local chain",
+                    "Cannot accept a certificate from an unknown committee in the future. \
+                    Please synchronize the local chain",
                 );
-                state.committees.get(&block.epoch).ok_or_else(|| anyhow!("Cannot accept a certificate from a committee that was retired. Try a newer certificate from the same origin"))?
+                state.committees.get(&block.epoch).ok_or_else(|| {
+                    anyhow!(
+                        "Cannot accept a certificate from a committee that was retired. \
+                        Try a newer certificate from the same origin"
+                    )
+                })?
             }
             None => {
                 // The main chain is inactive. This certificate must contain out chain
