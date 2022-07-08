@@ -101,11 +101,8 @@ async fn buckets_are_created() -> Result<(), Box<dyn Error>> {
 
     let initial_buckets = list_buckets(&client).await?;
 
-    for bucket in [CERTIFICATE_BUCKET, CHAIN_BUCKET] {
-        if initial_buckets.contains(&bucket.to_owned()) {
-            client.delete_bucket().bucket(bucket).send().await?;
-        }
-    }
+    assert!(!initial_buckets.contains(&CERTIFICATE_BUCKET.to_owned()));
+    assert!(!initial_buckets.contains(&CHAIN_BUCKET.to_owned()));
 
     let _storage = S3Storage::from_config(localstack.config()).await?;
 
