@@ -1,6 +1,7 @@
 use super::{S3Storage, CERTIFICATE_BUCKET, CHAIN_BUCKET};
 use crate::Storage;
 use aws_sdk_s3::Endpoint;
+use aws_types::SdkConfig;
 use linera_base::{
     chain::ChainState,
     crypto::HashValue,
@@ -12,7 +13,7 @@ use std::{
     error::Error,
 };
 use thiserror::Error;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, MutexGuard};
 
 /// A static lock to prevent multiple tests from using the same LocalStack instance at the same
 /// time.
@@ -21,28 +22,54 @@ static LOCALSTACK_GUARD: Mutex<()> = Mutex::const_new(());
 /// Name of the environment variable with the address to a LocalStack instance.
 const LOCALSTACK_ENDPOINT: &str = "LOCALSTACK_ENDPOINT";
 
-/// Create a new [`aws_sdk_s3::Config`] for tests, using a LocalStack instance.
-///
-/// An address to the LocalStack instance must be specified using a [`LOCALSTACK_ENDPOINT`]
-/// environment variable.
-async fn new_local_stack_config() -> Result<aws_sdk_s3::Config, LocalStackEndpointError> {
-    let base_config = aws_config::load_from_env().await;
-    let localstack_endpoint = Endpoint::immutable(env::var(LOCALSTACK_ENDPOINT)?.parse()?);
+/// A type to help tests that need a LocalStack instance.
+struct LocalStackTestContext {
+    base_config: SdkConfig,
+    endpoint: Endpoint,
+    _guard: MutexGuard<'static, ()>,
+}
 
-    let s3_config = aws_sdk_s3::config::Builder::from(&base_config)
-        .endpoint_resolver(localstack_endpoint)
-        .build();
+impl LocalStackTestContext {
+    /// Creates an instance of [`LocalStackTestContext`], loading the necessary LocalStack
+    /// configuration.
+    ///
+    /// An address to the LocalStack instance must be specified using a [`LOCALSTACK_ENDPOINT`]
+    /// environment variable.
+    ///
+    /// This also locks the [`LOCALSTACK_GUARD`] to enforce only one test has access to the
+    /// LocalStack instance.
+    pub async fn new() -> Result<LocalStackTestContext, Box<dyn Error>> {
+        let base_config = aws_config::load_from_env().await;
+        let endpoint = Self::load_endpoint()?;
+        let _guard = LOCALSTACK_GUARD.lock().await;
 
-    Ok(s3_config)
+        Ok(LocalStackTestContext {
+            base_config,
+            endpoint,
+            _guard,
+        })
+    }
+
+    /// Creates an [`Endpoint`] using the configuration in the [`LOCALSTACK_ENDPOINT`] environment
+    /// variable.
+    fn load_endpoint() -> Result<Endpoint, LocalStackEndpointError> {
+        Ok(Endpoint::immutable(env::var(LOCALSTACK_ENDPOINT)?.parse()?))
+    }
+
+    /// Create a new [`aws_sdk_s3::Config`] for tests, using a LocalStack instance.
+    pub fn config(&self) -> aws_sdk_s3::Config {
+        aws_sdk_s3::config::Builder::from(&self.base_config)
+            .endpoint_resolver(self.endpoint.clone())
+            .build()
+    }
 }
 
 /// Test if the necessary buckets are created if needed.
 #[tokio::test]
 #[ignore]
 async fn buckets_are_created() -> Result<(), Box<dyn Error>> {
-    let _localstack_guard = LOCALSTACK_GUARD.lock().await;
-    let config = new_local_stack_config().await?;
-    let client = aws_sdk_s3::Client::from_conf(config);
+    let localstack = LocalStackTestContext::new().await?;
+    let client = aws_sdk_s3::Client::from_conf(localstack.config());
 
     let initial_buckets = list_buckets(&client).await?;
 
@@ -52,8 +79,7 @@ async fn buckets_are_created() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let config = new_local_stack_config().await?;
-    let _storage = S3Storage::from_config(config).await?;
+    let _storage = S3Storage::from_config(localstack.config()).await?;
 
     let buckets = list_buckets(&client).await?;
 
@@ -95,9 +121,8 @@ async fn certificate_storage_round_trip() -> Result<(), Box<dyn Error>> {
     };
     let certificate = Certificate::new(value, vec![]);
 
-    let _localstack_guard = LOCALSTACK_GUARD.lock().await;
-    let config = new_local_stack_config().await?;
-    let mut storage = S3Storage::from_config(config).await?;
+    let localstack = LocalStackTestContext::new().await?;
+    let mut storage = S3Storage::from_config(localstack.config()).await?;
 
     storage.write_certificate(certificate.clone()).await?;
 
@@ -118,9 +143,8 @@ async fn chain_storage_round_trip() -> Result<(), Box<dyn Error>> {
         ..ChainState::new(chain_id)
     };
 
-    let _localstack_guard = LOCALSTACK_GUARD.lock().await;
-    let config = new_local_stack_config().await?;
-    let mut storage = S3Storage::from_config(config).await?;
+    let localstack = LocalStackTestContext::new().await?;
+    let mut storage = S3Storage::from_config(localstack.config()).await?;
 
     storage.write_chain(chain_state.clone()).await?;
 
