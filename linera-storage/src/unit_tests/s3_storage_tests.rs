@@ -12,6 +12,11 @@ use std::{
     error::Error,
 };
 use thiserror::Error;
+use tokio::sync::Mutex;
+
+/// A static lock to prevent multiple tests from using the same LocalStack instance at the same
+/// time.
+static LOCALSTACK_GUARD: Mutex<()> = Mutex::const_new(());
 
 /// Name of the environment variable with the address to a LocalStack instance.
 const LOCALSTACK_ENDPOINT: &str = "LOCALSTACK_ENDPOINT";
@@ -35,6 +40,7 @@ async fn new_local_stack_config() -> Result<aws_sdk_s3::Config, LocalStackEndpoi
 #[tokio::test]
 #[ignore]
 async fn buckets_are_created() -> Result<(), Box<dyn Error>> {
+    let _localstack_guard = LOCALSTACK_GUARD.lock().await;
     let config = new_local_stack_config().await?;
     let client = aws_sdk_s3::Client::from_conf(config);
 
@@ -89,6 +95,7 @@ async fn certificate_storage_round_trip() -> Result<(), Box<dyn Error>> {
     };
     let certificate = Certificate::new(value, vec![]);
 
+    let _localstack_guard = LOCALSTACK_GUARD.lock().await;
     let config = new_local_stack_config().await?;
     let mut storage = S3Storage::from_config(config).await?;
 
@@ -111,6 +118,7 @@ async fn chain_storage_round_trip() -> Result<(), Box<dyn Error>> {
         ..ChainState::new(chain_id)
     };
 
+    let _localstack_guard = LOCALSTACK_GUARD.lock().await;
     let config = new_local_stack_config().await?;
     let mut storage = S3Storage::from_config(config).await?;
 
