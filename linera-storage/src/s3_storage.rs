@@ -121,9 +121,11 @@ impl S3Storage {
 #[async_trait]
 impl Storage for S3Storage {
     async fn read_chain_or_default(&mut self, chain_id: ChainId) -> Result<ChainState, Error> {
-        self.get_object(CHAIN_BUCKET, chain_id.to_string())
-            .await
-            .map_err(S3StorageError::into_base_error)
+        match self.get_object(CHAIN_BUCKET, chain_id.to_string()).await {
+            Ok(chain_state) => Ok(chain_state),
+            Err(error) if error.is_no_such_key() => Ok(ChainState::new(chain_id)),
+            Err(error) => Err(error.into_base_error()),
+        }
     }
 
     async fn write_chain(&mut self, state: ChainState) -> Result<(), Error> {
@@ -186,5 +188,19 @@ impl S3StorageError {
         Error::StorageIoError {
             error: self.to_string(),
         }
+    }
+
+    /// Check if the error is because the key doesn't exist in the storage.
+    pub fn is_no_such_key(&self) -> bool {
+        matches!(
+            self,
+            S3StorageError::Get(SdkError::ServiceError {
+                err: aws_sdk_s3::error::GetObjectError {
+                    kind: aws_sdk_s3::error::GetObjectErrorKind::NoSuchKey(_),
+                    ..
+                },
+                ..
+            })
+        )
     }
 }
