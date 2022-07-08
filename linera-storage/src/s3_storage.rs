@@ -10,6 +10,10 @@ use linera_base::{
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+#[cfg(test)]
+#[path = "unit_tests/s3_storage_tests.rs"]
+mod s3_storage_tests;
+
 /// ID for bucket where certificates are stored.
 const CERTIFICATE_BUCKET: &str = "certificates";
 

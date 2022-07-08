@@ -26,3 +26,6 @@ log = "0.4.14"
 rocksdb = "0.18.0"
 
 linera-base = { path = "../linera-base" }
+
+[dev-dependencies]
+http = "0.2"
