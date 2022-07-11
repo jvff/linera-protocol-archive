@@ -1,6 +1,6 @@
 use super::{S3Storage, CERTIFICATE_BUCKET, CHAIN_BUCKET};
 use crate::Storage;
-use anyhow::Error;
+use anyhow::{Context, Error};
 use aws_sdk_s3::Endpoint;
 use aws_types::SdkConfig;
 use linera_base::{
@@ -9,8 +9,7 @@ use linera_base::{
     execution::{ExecutionState, Operation},
     messages::{Block, BlockHeight, Certificate, ChainDescription, ChainId, Epoch, Value},
 };
-use std::env::{self, VarError};
-use thiserror::Error;
+use std::env;
 use tokio::sync::{Mutex, MutexGuard};
 
 /// A static lock to prevent multiple tests from using the same LocalStack instance at the same
@@ -54,8 +53,18 @@ impl LocalStackTestContext {
 
     /// Creates an [`Endpoint`] using the configuration in the [`LOCALSTACK_ENDPOINT`] environment
     /// variable.
-    fn load_endpoint() -> Result<Endpoint, LocalStackEndpointError> {
-        Ok(Endpoint::immutable(env::var(LOCALSTACK_ENDPOINT)?.parse()?))
+    fn load_endpoint() -> Result<Endpoint, Error> {
+        let endpoint_address = env::var(LOCALSTACK_ENDPOINT)
+            .with_context(|| {
+                format!(
+                    "Missing LocalStack endpoint address in {LOCALSTACK_ENDPOINT:?} \
+                    environment variable"
+                )
+            })?
+            .parse()
+            .context("LocalStack endpoint address is not a valid URI")?;
+
+        Ok(Endpoint::immutable(endpoint_address))
     }
 
     /// Create a new [`aws_sdk_s3::Config`] for tests, using a LocalStack instance.
@@ -235,13 +244,4 @@ async fn removal_of_chain_state() -> Result<(), Error> {
     assert_eq!(retrieved_chain_state, expected_chain_state);
 
     Ok(())
-}
-
-#[derive(Debug, Error)]
-pub enum LocalStackEndpointError {
-    #[error("Missing LocalStack endpoint address in {LOCALSTACK_ENDPOINT:?} environment variable")]
-    Missing(#[from] VarError),
-
-    #[error("LocalStack endpoint address is not a valid URI")]
-    Invalid(#[from] http::uri::InvalidUri),
 }
