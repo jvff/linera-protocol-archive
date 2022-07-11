@@ -8,17 +8,21 @@ use linera_base::{
     messages::{Certificate, ChainId},
 };
 use serde::{de::DeserializeOwned, Serialize};
+use std::fmt::Display;
 use thiserror::Error;
 
 #[cfg(test)]
 #[path = "unit_tests/s3_storage_tests.rs"]
 mod s3_storage_tests;
 
-/// ID for bucket where certificates are stored.
-const CERTIFICATE_BUCKET: &str = "certificates";
+/// Bucket ID to use for storing the data.
+const BUCKET: &str = "linera";
 
-/// ID for bucket where chain states are stored.
-const CHAIN_BUCKET: &str = "chains";
+/// Key prefix for stored certificates.
+const CERTIFICATE_PREFIX: &str = "certificates";
+
+/// Chain prefix for stored chain states.
+const CHAIN_PREFIX: &str = "chains";
 
 /// Storage layer that uses Amazon S3.
 #[derive(Clone, Debug)]
@@ -47,30 +51,29 @@ impl S3Storage {
             client: Client::from_conf(config.into()),
         };
 
-        s3_storage.try_create_bucket(CERTIFICATE_BUCKET).await?;
-        s3_storage.try_create_bucket(CHAIN_BUCKET).await?;
+        s3_storage.try_create_bucket().await?;
 
         Ok(s3_storage)
     }
 
-    /// Tries to create a bucket with the given `name`.
+    /// Tries to create a bucket for storing the data.
     ///
     /// Will not fail if it already exists.
-    async fn try_create_bucket(&self, name: &str) -> Result<(), SdkError<CreateBucketError>> {
-        match self.client.create_bucket().bucket(name).send().await {
+    async fn try_create_bucket(&self) -> Result<(), SdkError<CreateBucketError>> {
+        match self.client.create_bucket().bucket(BUCKET).send().await {
             Ok(_) => Ok(()),
             Err(SdkError::ServiceError { err, .. }) if err.is_bucket_already_exists() => Ok(()),
             Err(error) => Err(error),
         }
     }
 
-    /// Retrieve a generic `Object` from the `bucket` using the provided `key`.
+    /// Retrieve a generic `Object` from the bucket using the provided `key` prefixed with `prefix`.
     ///
     /// The `Object` is deserialized using [`ron`].
     async fn get_object<Object>(
         &mut self,
-        bucket: impl Into<String>,
-        key: impl Into<String>,
+        prefix: &str,
+        key: impl Display,
     ) -> Result<Object, S3StorageError>
     where
         Object: DeserializeOwned,
@@ -78,8 +81,8 @@ impl S3Storage {
         let response = self
             .client
             .get_object()
-            .bucket(bucket)
-            .key(key)
+            .bucket(BUCKET)
+            .key(format!("{prefix}-{key}"))
             .send()
             .await?;
         let bytes = response.body.collect().await?.into_bytes();
@@ -88,13 +91,13 @@ impl S3Storage {
         Ok(object)
     }
 
-    /// Store a generic `object` into the `bucket` using the provided `key`.
+    /// Store a generic `object` into the bucket using the provided `key` prefixed with `prefix`.
     ///
     /// The `Object` is serialized using [`ron`].
     async fn put_object<Object>(
         &mut self,
-        bucket: impl Into<String>,
-        key: impl Into<String>,
+        prefix: &str,
+        key: impl Display,
         object: Object,
     ) -> Result<(), S3StorageError>
     where
@@ -108,9 +111,25 @@ impl S3Storage {
 
         self.client
             .put_object()
-            .bucket(bucket)
-            .key(key)
+            .bucket(BUCKET)
+            .key(format!("{prefix}-{key}"))
             .body(bytes.into())
+            .send()
+            .await?;
+
+        Ok(())
+    }
+
+    /// Remove an object with the provided `key` prefixed with `prefix` from the bucket.
+    async fn remove_object(
+        &mut self,
+        prefix: &str,
+        key: impl Display,
+    ) -> Result<(), S3StorageError> {
+        self.client
+            .delete_object()
+            .bucket(BUCKET)
+            .key(format!("{prefix}-{key}"))
             .send()
             .await?;
 
@@ -121,7 +140,7 @@ impl S3Storage {
 #[async_trait]
 impl Storage for S3Storage {
     async fn read_chain_or_default(&mut self, chain_id: ChainId) -> Result<ChainState, Error> {
-        match self.get_object(CHAIN_BUCKET, chain_id.to_string()).await {
+        match self.get_object(CHAIN_PREFIX, chain_id).await {
             Ok(chain_state) => Ok(chain_state),
             Err(error) if error.is_no_such_key() => Ok(ChainState::new(chain_id)),
             Err(error) => Err(error.into_base_error()),
@@ -129,37 +148,27 @@ impl Storage for S3Storage {
     }
 
     async fn write_chain(&mut self, state: ChainState) -> Result<(), Error> {
-        self.put_object(CHAIN_BUCKET, state.state.chain_id.to_string(), state)
+        self.put_object(CHAIN_PREFIX, state.state.chain_id, state)
             .await
             .map_err(S3StorageError::into_base_error)
     }
 
     async fn remove_chain(&mut self, chain_id: ChainId) -> Result<(), Error> {
-        self.client
-            .delete_object()
-            .bucket(CHAIN_BUCKET)
-            .key(chain_id.to_string())
-            .send()
+        self.remove_object(CHAIN_PREFIX, chain_id)
             .await
-            .map(|_| ())
-            .map_err(S3StorageError::from)
             .map_err(S3StorageError::into_base_error)
     }
 
     async fn read_certificate(&mut self, hash: HashValue) -> Result<Certificate, Error> {
-        self.get_object(CERTIFICATE_BUCKET, hash.to_string())
+        self.get_object(CERTIFICATE_PREFIX, hash)
             .await
             .map_err(S3StorageError::into_base_error)
     }
 
     async fn write_certificate(&mut self, certificate: Certificate) -> Result<(), Error> {
-        self.put_object(
-            CERTIFICATE_BUCKET,
-            certificate.hash.to_string(),
-            certificate,
-        )
-        .await
-        .map_err(S3StorageError::into_base_error)
+        self.put_object(CERTIFICATE_PREFIX, certificate.hash, certificate)
+            .await
+            .map_err(S3StorageError::into_base_error)
     }
 }
 

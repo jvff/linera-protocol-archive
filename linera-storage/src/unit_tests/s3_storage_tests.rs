@@ -1,4 +1,4 @@
-use super::{S3Storage, CERTIFICATE_BUCKET, CHAIN_BUCKET};
+use super::{S3Storage, BUCKET};
 use crate::Storage;
 use anyhow::{Context, Error};
 use aws_sdk_s3::Endpoint;
@@ -107,16 +107,12 @@ async fn buckets_are_created() -> Result<(), Error> {
     let client = aws_sdk_s3::Client::from_conf(localstack.config());
 
     let initial_buckets = list_buckets(&client).await?;
-
-    assert!(!initial_buckets.contains(&CERTIFICATE_BUCKET.to_owned()));
-    assert!(!initial_buckets.contains(&CHAIN_BUCKET.to_owned()));
+    assert!(!initial_buckets.contains(&BUCKET.to_owned()));
 
     let _storage = S3Storage::from_config(localstack.config()).await?;
 
     let buckets = list_buckets(&client).await?;
-
-    assert!(buckets.contains(&CERTIFICATE_BUCKET.to_owned()));
-    assert!(buckets.contains(&CHAIN_BUCKET.to_owned()));
+    assert!(buckets.contains(&BUCKET.to_owned()));
 
     Ok(())
 }
