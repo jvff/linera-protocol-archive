@@ -1,5 +1,6 @@
 use super::{S3Storage, CERTIFICATE_BUCKET, CHAIN_BUCKET};
 use crate::Storage;
+use anyhow::Error;
 use aws_sdk_s3::Endpoint;
 use aws_types::SdkConfig;
 use linera_base::{
@@ -8,10 +9,7 @@ use linera_base::{
     execution::{ExecutionState, Operation},
     messages::{Block, BlockHeight, Certificate, ChainDescription, ChainId, Epoch, Value},
 };
-use std::{
-    env::{self, VarError},
-    error::Error,
-};
+use std::env::{self, VarError};
 use thiserror::Error;
 use tokio::sync::{Mutex, MutexGuard};
 
@@ -38,7 +36,7 @@ impl LocalStackTestContext {
     ///
     /// This also locks the [`LOCALSTACK_GUARD`] to enforce only one test has access to the
     /// LocalStack instance.
-    pub async fn new() -> Result<LocalStackTestContext, Box<dyn Error>> {
+    pub async fn new() -> Result<LocalStackTestContext, Error> {
         let base_config = aws_config::load_from_env().await;
         let endpoint = Self::load_endpoint()?;
         let _guard = LOCALSTACK_GUARD.lock().await;
@@ -68,7 +66,7 @@ impl LocalStackTestContext {
     }
 
     /// Remove all buckets from the LocalStack S3 storage.
-    async fn clear(&self) -> Result<(), Box<dyn Error>> {
+    async fn clear(&self) -> Result<(), Error> {
         let client = aws_sdk_s3::Client::from_conf(self.config());
 
         for bucket in list_buckets(&client).await? {
@@ -95,7 +93,7 @@ impl LocalStackTestContext {
 /// Test if the necessary buckets are created if needed.
 #[tokio::test]
 #[ignore]
-async fn buckets_are_created() -> Result<(), Box<dyn Error>> {
+async fn buckets_are_created() -> Result<(), Error> {
     let localstack = LocalStackTestContext::new().await?;
     let client = aws_sdk_s3::Client::from_conf(localstack.config());
 
@@ -115,7 +113,7 @@ async fn buckets_are_created() -> Result<(), Box<dyn Error>> {
 }
 
 /// Helper function to list the names of buckets registered on S3.
-async fn list_buckets(client: &aws_sdk_s3::Client) -> Result<Vec<String>, Box<dyn Error>> {
+async fn list_buckets(client: &aws_sdk_s3::Client) -> Result<Vec<String>, Error> {
     Ok(client
         .list_buckets()
         .send()
@@ -130,7 +128,7 @@ async fn list_buckets(client: &aws_sdk_s3::Client) -> Result<Vec<String>, Box<dy
 /// Test if certificates are stored and retrieved correctly.
 #[tokio::test]
 #[ignore]
-async fn certificate_storage_round_trip() -> Result<(), Box<dyn Error>> {
+async fn certificate_storage_round_trip() -> Result<(), Error> {
     let block = Block {
         epoch: Epoch::from(0),
         chain_id: ChainId::root(1),
@@ -161,7 +159,7 @@ async fn certificate_storage_round_trip() -> Result<(), Box<dyn Error>> {
 /// Test if retrieving inexistent certificates fails.
 #[tokio::test]
 #[ignore]
-async fn retrieval_of_inexistent_certificate() -> Result<(), Box<dyn Error>> {
+async fn retrieval_of_inexistent_certificate() -> Result<(), Error> {
     let certificate_hash = HashValue::new(&ChainDescription::Root(123));
 
     let localstack = LocalStackTestContext::new().await?;
@@ -177,7 +175,7 @@ async fn retrieval_of_inexistent_certificate() -> Result<(), Box<dyn Error>> {
 /// Test if chain states are stored and retrieved correctly.
 #[tokio::test]
 #[ignore]
-async fn chain_storage_round_trip() -> Result<(), Box<dyn Error>> {
+async fn chain_storage_round_trip() -> Result<(), Error> {
     let chain_id = ChainId::root(1);
     let chain_state = ChainState {
         next_block_height: BlockHeight(100),
@@ -201,7 +199,7 @@ async fn chain_storage_round_trip() -> Result<(), Box<dyn Error>> {
 /// Test if retrieving inexistent chain states creates new [`ChainState`] instances.
 #[tokio::test]
 #[ignore]
-async fn retrieval_of_inexistent_chain_state() -> Result<(), Box<dyn Error>> {
+async fn retrieval_of_inexistent_chain_state() -> Result<(), Error> {
     let chain_id = ChainId::root(5);
 
     let localstack = LocalStackTestContext::new().await?;
@@ -218,7 +216,7 @@ async fn retrieval_of_inexistent_chain_state() -> Result<(), Box<dyn Error>> {
 /// Test if chain states are stored and retrieved correctly.
 #[tokio::test]
 #[ignore]
-async fn removal_of_chain_state() -> Result<(), Box<dyn Error>> {
+async fn removal_of_chain_state() -> Result<(), Error> {
     let chain_id = ChainId::root(9);
     let chain_state = ChainState {
         next_block_height: BlockHeight(300),
