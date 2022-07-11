@@ -7,7 +7,7 @@ use linera_base::{
     error::Error,
     messages::{Certificate, ChainId},
 };
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 use thiserror::Error;
 
 #[cfg(test)]
@@ -73,7 +73,7 @@ impl S3Storage {
         key: impl Into<String>,
     ) -> Result<Object, S3StorageError>
     where
-        Object: for<'de> Deserialize<'de>,
+        Object: DeserializeOwned,
     {
         let response = self
             .client
