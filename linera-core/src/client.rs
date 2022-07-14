@@ -1012,11 +1012,11 @@ where
     async fn process_inbox(&mut self) -> Result<Vec<Certificate>> {
         self.prepare_chain().await?;
         let mut certificates = Vec::new();
-        loop {
-            let incoming_messages = self.pending_messages().await?;
-            if incoming_messages.is_empty() {
-                break;
-            }
+        let mut incoming_messages;
+        while {
+            incoming_messages = self.pending_messages().await?;
+            !incoming_messages.is_empty()
+        } {
             let block = Block {
                 epoch: self.epoch().await?,
                 chain_id: self.chain_id,
