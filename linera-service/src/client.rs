@@ -652,7 +652,10 @@ async fn main() {
                     );
                 }
                 RemoveValidator { name } => {
-                    validators.remove(&name);
+                    if validators.remove(&name).is_none() {
+                        warn!("Skipping removal of nonexistent validator");
+                        return;
+                    }
                 }
                 _ => unreachable!(),
             }
