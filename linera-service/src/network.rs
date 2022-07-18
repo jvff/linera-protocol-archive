@@ -310,15 +310,7 @@ where
     Storage: Send,
 {
     async fn obtain_chain_guard_for(&mut self, message: &rpc::Message) -> Option<ChainGuard> {
-        let chain_id = match message {
-            rpc::Message::BlockProposal(proposal) => proposal.content.block.chain_id,
-            rpc::Message::Certificate(certificate) => certificate.value.chain_id(),
-            rpc::Message::ChainInfoQuery(query) => query.chain_id,
-            rpc::Message::CrossChainRequest(request) => request.target_chain_id(),
-            rpc::Message::Vote(_) | rpc::Message::Error(_) | rpc::Message::ChainInfoResponse(_) => {
-                return None;
-            }
-        };
+        let chain_id = message.target_chain_id()?;
         Some(self.chain_guards.guard(chain_id).await)
     }
 
