@@ -37,7 +37,7 @@ struct LocalValidatorClient(Arc<Mutex<LocalValidator>>);
 #[async_trait]
 impl ValidatorNode for LocalValidatorClient {
     async fn handle_block_proposal(
-        &mut self,
+        &self,
         proposal: BlockProposal,
     ) -> Result<ChainInfoResponse, Error> {
         let validator = self.0.clone();
@@ -50,7 +50,7 @@ impl ValidatorNode for LocalValidatorClient {
     }
 
     async fn handle_certificate(
-        &mut self,
+        &self,
         certificate: Certificate,
     ) -> Result<ChainInfoResponse, Error> {
         let validator = self.0.clone();
@@ -59,7 +59,7 @@ impl ValidatorNode for LocalValidatorClient {
     }
 
     async fn handle_chain_info_query(
-        &mut self,
+        &self,
         query: ChainInfoQuery,
     ) -> Result<ChainInfoResponse, Error> {
         self.0
@@ -232,7 +232,7 @@ impl TestBuilder {
             });
         let mut count = 0;
         let mut certificate = None;
-        for (name, mut client) in self.validator_clients.clone() {
+        for (name, client) in self.validator_clients.clone() {
             if let Ok(response) = client.handle_chain_info_query(query.clone()).await {
                 if response.check(name).is_ok() {
                     let ChainInfo {

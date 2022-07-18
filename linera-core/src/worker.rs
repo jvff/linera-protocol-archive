@@ -23,25 +23,25 @@ pub trait ValidatorWorker {
     /// Propose a new block. In case of success, the chain info contains a vote on the new
     /// block.
     async fn handle_block_proposal(
-        &mut self,
+        &self,
         proposal: BlockProposal,
     ) -> Result<ChainInfoResponse, Error>;
 
     /// Process a certificate, e.g. to extend a chain with a confirmed block.
     async fn handle_certificate(
-        &mut self,
+        &self,
         certificate: Certificate,
     ) -> Result<(ChainInfoResponse, Vec<CrossChainRequest>), Error>;
 
     /// Handle information queries on chains.
     async fn handle_chain_info_query(
-        &mut self,
+        &self,
         query: ChainInfoQuery,
     ) -> Result<ChainInfoResponse, Error>;
 
     /// Handle a (trusted!) cross-chain request.
     async fn handle_cross_chain_request(
-        &mut self,
+        &self,
         request: CrossChainRequest,
     ) -> Result<Vec<CrossChainRequest>, Error>;
 }
@@ -278,7 +278,7 @@ where
     Client: Storage + Clone + 'static,
 {
     async fn handle_block_proposal(
-        &mut self,
+        &self,
         proposal: BlockProposal,
     ) -> Result<ChainInfoResponse, Error> {
         log::trace!("{} <-- {:?}", self.nickname, proposal);
@@ -339,7 +339,7 @@ where
 
     /// Process a certificate.
     async fn handle_certificate(
-        &mut self,
+        &self,
         certificate: Certificate,
     ) -> Result<(ChainInfoResponse, Vec<CrossChainRequest>), Error> {
         log::trace!("{} <-- {:?}", self.nickname, certificate);
@@ -357,7 +357,7 @@ where
     }
 
     async fn handle_chain_info_query(
-        &mut self,
+        &self,
         query: ChainInfoQuery,
     ) -> Result<ChainInfoResponse, Error> {
         log::trace!("{} <-- {:?}", self.nickname, query);
@@ -431,7 +431,7 @@ where
     }
 
     async fn handle_cross_chain_request(
-        &mut self,
+        &self,
         request: CrossChainRequest,
     ) -> Result<Vec<CrossChainRequest>, Error> {
         log::trace!("{} <-- {:?}", self.nickname, request);

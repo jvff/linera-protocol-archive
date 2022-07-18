@@ -35,7 +35,7 @@ pub trait ConnectionPool: Send {
 
 /// The handler required to create a service.
 pub trait MessageHandler {
-    fn handle_message(&mut self, message: rpc::Message) -> future::BoxFuture<Option<rpc::Message>>;
+    fn handle_message(&self, message: rpc::Message) -> future::BoxFuture<Option<rpc::Message>>;
 }
 
 /// The result of spawning a server is oneshot channel to kill it and a handle to track completion.
@@ -119,17 +119,18 @@ impl NetworkProtocol {
         state: S,
     ) -> Result<SpawnedServer, std::io::Error>
     where
-        S: MessageHandler + Send + 'static,
+        S: MessageHandler + Send + Sync + 'static,
     {
         let (complete, receiver) = futures::channel::oneshot::channel();
+        let sharable_state = Arc::new(state);
         let handle = match self {
             Self::Udp => {
                 let socket = UdpSocket::bind(&address).await?;
-                tokio::spawn(Self::run_udp_server(socket, state, receiver))
+                tokio::spawn(Self::run_udp_server(socket, sharable_state, receiver))
             }
             Self::Tcp => {
                 let listener = TcpListener::bind(address).await?;
-                tokio::spawn(Self::run_tcp_server(listener, state, receiver))
+                tokio::spawn(Self::run_tcp_server(listener, sharable_state, receiver))
             }
         };
         Ok(SpawnedServer { complete, handle })
@@ -168,11 +169,11 @@ impl ConnectionPool for UdpConnectionPool {
 impl NetworkProtocol {
     async fn run_udp_server<S>(
         socket: UdpSocket,
-        mut state: S,
+        state: Arc<S>,
         mut exit_future: futures::channel::oneshot::Receiver<()>,
     ) -> Result<(), std::io::Error>
     where
-        S: MessageHandler + Send + 'static,
+        S: MessageHandler + Send + Sync + 'static,
     {
         let mut transport = UdpFramed::new(socket, Codec);
         loop {
@@ -254,11 +255,11 @@ impl ConnectionPool for TcpConnectionPool {
 impl NetworkProtocol {
     async fn run_tcp_server<S>(
         listener: TcpListener,
-        state: S,
+        sharable_state: Arc<S>,
         mut exit_future: futures::channel::oneshot::Receiver<()>,
     ) -> Result<(), std::io::Error>
     where
-        S: MessageHandler + Send + 'static,
+        S: MessageHandler + Send + Sync + 'static,
     {
         let guarded_state = Arc::new(futures::lock::Mutex::new(state));
         loop {

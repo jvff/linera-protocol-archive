@@ -15,19 +15,19 @@ use std::sync::Arc;
 pub trait ValidatorNode {
     /// Propose a new block.
     async fn handle_block_proposal(
-        &mut self,
+        &self,
         proposal: BlockProposal,
     ) -> Result<ChainInfoResponse, Error>;
 
     /// Process a certificate.
     async fn handle_certificate(
-        &mut self,
+        &self,
         certificate: Certificate,
     ) -> Result<ChainInfoResponse, Error>;
 
     /// Handle information queries for this chain.
     async fn handle_chain_info_query(
-        &mut self,
+        &self,
         query: ChainInfoQuery,
     ) -> Result<ChainInfoResponse, Error>;
 }
@@ -46,7 +46,7 @@ where
     S: Storage + Clone + 'static,
 {
     async fn handle_block_proposal(
-        &mut self,
+        &self,
         proposal: BlockProposal,
     ) -> Result<ChainInfoResponse, Error> {
         let node = self.0.clone();
@@ -55,7 +55,7 @@ where
     }
 
     async fn handle_certificate(
-        &mut self,
+        &self,
         certificate: Certificate,
     ) -> Result<ChainInfoResponse, Error> {
         let node = self.0.clone();
@@ -64,7 +64,7 @@ where
     }
 
     async fn handle_chain_info_query(
-        &mut self,
+        &self,
         query: ChainInfoQuery,
     ) -> Result<ChainInfoResponse, Error> {
         self.0
@@ -195,7 +195,7 @@ where
     pub async fn try_download_certificates_from<A>(
         &mut self,
         name: ValidatorName,
-        mut client: A,
+        client: A,
         chain_id: ChainId,
         start: BlockHeight,
         stop: BlockHeight,
@@ -247,7 +247,7 @@ where
     pub async fn try_synchronize_chain_state_from<A>(
         &mut self,
         name: ValidatorName,
-        mut client: A,
+        client: A,
         chain_id: ChainId,
     ) -> Result<(), Error>
     where

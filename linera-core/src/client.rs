@@ -568,7 +568,7 @@ where
             &nodes,
             local_committee,
             |_| (),
-            |name, mut client| {
+            |name, client| {
                 let tracker = *trackers.get(&name).unwrap_or(&0);
                 let committees = committees.clone();
                 Box::pin(async move {

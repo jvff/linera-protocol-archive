@@ -228,7 +228,7 @@ where
     Storage: linera_storage::Storage + Clone + 'static,
 {
     fn handle_message(
-        &mut self,
+        &self,
         message: rpc::Message,
     ) -> futures::future::BoxFuture<Option<rpc::Message>> {
         Box::pin(async move {
@@ -298,10 +298,10 @@ where
 
 impl<Storage> RunningServerState<Storage>
 where
-    Storage: Send,
+    Storage: Send + Sync,
 {
     fn handle_continuation(
-        &mut self,
+        &self,
         requests: Vec<CrossChainRequest>,
     ) -> futures::future::BoxFuture<()> {
         Box::pin(async move {
@@ -341,7 +341,7 @@ impl Client {
     }
 
     async fn send_recv_internal(
-        &mut self,
+        &self,
         message: rpc::Message,
     ) -> Result<rpc::Message, codec::Error> {
         let address = format!("{}:{}", self.network.host, self.network.port);
@@ -358,10 +358,7 @@ impl Client {
             .ok_or_else(|| codec::Error::Io(std::io::ErrorKind::UnexpectedEof.into()))
     }
 
-    pub async fn send_recv_info(
-        &mut self,
-        message: rpc::Message,
-    ) -> Result<ChainInfoResponse, Error> {
+    pub async fn send_recv_info(&self, message: rpc::Message) -> Result<ChainInfoResponse, Error> {
         match self.send_recv_internal(message).await {
             Ok(rpc::Message::ChainInfoResponse(response)) => Ok(*response),
             Ok(rpc::Message::Error(error)) => Err(*error),
@@ -380,7 +377,7 @@ impl Client {
 impl ValidatorNode for Client {
     /// Initiate a new block.
     async fn handle_block_proposal(
-        &mut self,
+        &self,
         proposal: BlockProposal,
     ) -> Result<ChainInfoResponse, Error> {
         self.send_recv_info(proposal.into()).await
@@ -388,7 +385,7 @@ impl ValidatorNode for Client {
 
     /// Process a certificate.
     async fn handle_certificate(
-        &mut self,
+        &self,
         certificate: Certificate,
     ) -> Result<ChainInfoResponse, Error> {
         self.send_recv_info(certificate.into()).await
@@ -396,7 +393,7 @@ impl ValidatorNode for Client {
 
     /// Handle information queries for this chain.
     async fn handle_chain_info_query(
-        &mut self,
+        &self,
         query: ChainInfoQuery,
     ) -> Result<ChainInfoResponse, Error> {
         self.send_recv_info(query.into()).await

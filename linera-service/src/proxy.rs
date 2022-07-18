@@ -26,7 +26,7 @@ pub struct Proxy {
 }
 
 impl MessageHandler for Proxy {
-    fn handle_message(&mut self, message: rpc::Message) -> BoxFuture<Option<rpc::Message>> {
+    fn handle_message(&self, message: rpc::Message) -> BoxFuture<Option<rpc::Message>> {
         let shard = self.select_shard_for(&message);
         let protocol = self.internal_config.protocol;
 
