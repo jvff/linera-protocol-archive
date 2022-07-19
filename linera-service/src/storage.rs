@@ -35,21 +35,19 @@ impl StorageConfig {
         config: &GenesisConfig,
     ) -> Result<MixedStorage, anyhow::Error> {
         use StorageConfig::*;
-        let client: MixedStorage = match self {
+        let mut client: MixedStorage = match self {
             InMemory => {
-                let mut client = InMemoryStoreClient::default();
-                config.initialize_store(&mut client).await?;
+                let client = InMemoryStoreClient::default();
                 Box::new(client)
             }
             Rocksdb { path } if path.is_dir() => {
                 log::warn!("Using existing database {:?}", path);
                 let client = RocksdbStoreClient::new(path.clone(), 10000)?;
-                Box::new(client)
+                return Ok(Box::new(client));
             }
             Rocksdb { path } => {
                 std::fs::create_dir_all(path)?;
-                let mut client = RocksdbStoreClient::new(path.clone(), 10000)?;
-                config.initialize_store(&mut client).await?;
+                let client = RocksdbStoreClient::new(path.clone(), 10000)?;
                 Box::new(client)
             }
             S3 { config } => {
@@ -64,6 +62,7 @@ impl StorageConfig {
                 Box::new(client)
             }
         };
+        config.initialize_store(&mut client).await?;
         Ok(client)
     }
 }
