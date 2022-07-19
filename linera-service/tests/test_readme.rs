@@ -2,6 +2,7 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use linera_storage::LocalStackTestContext;
 use std::{io::Write, process::Command};
 use tempfile::tempdir;
 
@@ -60,6 +61,7 @@ const S3_STORAGE: &str = "--storage s3:localstack";
 #[test]
 #[ignore]
 fn test_examples_in_readme_s3() -> std::io::Result<()> {
+    let _localstack_guard = LocalStackTestContext::new();
     let dir = tempdir().unwrap();
     let file = std::io::BufReader::new(std::fs::File::open("../README.md")?);
     let mut quotes = get_bash_quotes(file)?;
