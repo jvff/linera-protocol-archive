@@ -54,8 +54,8 @@ where
     Ok(result)
 }
 
-const ROCKSDB_STORAGE : &str = "--storage rocksdb:server_\"$I\"_\"$J\".db";
-const S3_STORAGE : &str = "--storage s3:localstack";
+const ROCKSDB_STORAGE: &str = "--storage rocksdb:server_\"$I\"_\"$J\".db";
+const S3_STORAGE: &str = "--storage s3:localstack";
 
 #[test]
 #[ignore]
