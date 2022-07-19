@@ -34,7 +34,6 @@ tempfile = "3.2.0"
 test-strategy = "0.2.0"
 
 linera-base = { path = "../linera-base", features = ["test"] }
-linera-storage = { path = "../linera-storage", features = ["test"] }
 
 [[bin]]
 name = "client"

@@ -12,9 +12,9 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::{env, fmt::Display};
 use thiserror::Error;
 
-#[cfg(any(test, feature = "test"))]
+#[cfg(test)]
 #[path = "unit_tests/s3_storage_tests.rs"]
-pub mod s3_storage_tests;
+mod s3_storage_tests;
 
 /// Bucket ID to use for storing the data.
 const BUCKET: &str = "linera";

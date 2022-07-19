@@ -4,11 +4,7 @@ version = "0.1.0"
 authors = ["Linera <contact@linera.io>"]
 edition = "2021"
 
-[features]
-test = ["anyhow"]
-
 [dependencies]
-anyhow = { version = "1.0.57", optional = true }
 aws-config = "0.14.0"
 aws-sdk-s3 = "0.14.0"
 aws-types = "0.14.0"
