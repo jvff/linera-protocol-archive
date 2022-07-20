@@ -1,7 +1,6 @@
 use super::ChainGuards;
 use futures::FutureExt;
 use linera_base::messages::ChainId;
-use sha2::{Digest, Sha512};
 use std::{
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -14,7 +13,7 @@ use tokio::{sync::Barrier, time::sleep};
 /// Test if a chain guard can be obtained again after it has been dropped.
 #[tokio::test(start_paused = true)]
 async fn guard_can_be_obtained_later_again() {
-    let chain_id = create_dummy_chain_id('0');
+    let chain_id = ChainId::root(0);
     let mut guards = ChainGuards::default();
     // Obtain the guard the first time and drop it immediately
     let _ = guards.guard(chain_id).await;
@@ -27,7 +26,7 @@ async fn guard_can_be_obtained_later_again() {
 /// Test if two tasks obtaining a guard for the same chain obtain them sequentially.
 #[tokio::test(start_paused = true)]
 async fn prevents_concurrent_access_to_the_same_chain() {
-    let chain_id = create_dummy_chain_id('0');
+    let chain_id = ChainId::root(0);
 
     let access = ConcurrentAccessTest::default()
         .spawn_two_tasks_to_obtain_guards_for(chain_id, chain_id)
@@ -40,10 +39,7 @@ async fn prevents_concurrent_access_to_the_same_chain() {
 #[tokio::test(start_paused = true)]
 async fn allows_concurrent_access_to_different_chains() {
     let access = ConcurrentAccessTest::default()
-        .spawn_two_tasks_to_obtain_guards_for(
-            create_dummy_chain_id('0'),
-            create_dummy_chain_id('1'),
-        )
+        .spawn_two_tasks_to_obtain_guards_for(ChainId::root(0), ChainId::root(1))
         .await;
 
     assert_eq!(access, Access::Concurrent);
@@ -120,15 +116,4 @@ impl ConcurrentAccessTest {
             true => Access::Sequential,
         }
     }
-}
-
-/// Create a dummy [`ChainId`] by repeating the provided nibble.
-pub fn create_dummy_chain_id(nibble: char) -> ChainId {
-    assert!(('0'..='9').contains(&nibble) || ('a'..='f').contains(&nibble));
-
-    nibble
-        .to_string()
-        .repeat(Sha512::output_size() * 2)
-        .parse()
-        .expect("Invalid chain ID")
 }
