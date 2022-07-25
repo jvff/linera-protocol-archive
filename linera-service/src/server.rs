@@ -6,7 +6,7 @@
 
 use anyhow::{anyhow, ensure};
 use async_trait::async_trait;
-use futures::future::join_all;
+use futures::{future::join_all, stream, StreamExt};
 use linera_base::{crypto::*, messages::ValidatorName};
 use linera_core::worker::*;
 use linera_service::{
@@ -63,14 +63,10 @@ impl ServerContext {
         S: Storage + Clone + Send + Sync + 'static,
     {
         let num_shards = self.server_config.internal_network.shards.len();
-        let mut servers = Vec::new();
-        for shard in 0..num_shards {
-            let server = self
-                .make_shard_server(local_ip_addr, shard, storage.clone())
-                .await;
-            servers.push(server)
-        }
-        servers
+        stream::iter(0..num_shards)
+            .then(|shard| self.make_shard_server(local_ip_addr, shard, storage.clone()))
+            .collect()
+            .await
     }
 }
 
