@@ -78,26 +78,17 @@ where
     type Output = ();
 
     async fn run(self, storage: S) -> Result<(), anyhow::Error> {
+        // Allow local IP address to be different from the public one.
+        let listen_address = "0.0.0.0";
         // Run the server
         let servers = match self.shard {
             Some(shard) => {
                 info!("Running shard number {}", shard);
-
-                let server = self
-                    .make_shard_server(
-                        "0.0.0.0", // Allow local IP address to be different from the public one.
-                        shard, storage,
-                    )
-                    .await;
-                vec![server]
+                vec![self.make_shard_server(listen_address, shard, storage).await]
             }
             None => {
                 info!("Running all shards");
-                self.make_servers(
-                    "0.0.0.0", // Allow local IP address to be different from the public one.
-                    storage,
-                )
-                .await
+                self.make_servers(listen_address, storage).await
             }
         };
 
