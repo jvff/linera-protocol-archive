@@ -119,13 +119,13 @@ async fn bucket_is_created() -> Result<(), Error> {
     let bucket: BucketName = "linera".parse().expect("Invalid bucket name");
 
     let initial_buckets = list_buckets(&client).await?;
-    assert!(!initial_buckets.contains(&bucket));
+    assert!(!initial_buckets.contains(bucket.as_ref()));
 
     let (_storage, bucket_status) =
         S3Storage::from_config(localstack.config(), bucket.clone()).await?;
 
     let buckets = list_buckets(&client).await?;
-    assert!(buckets.contains(&bucket));
+    assert!(buckets.contains(bucket.as_ref()));
     assert_eq!(bucket_status, BucketStatus::New);
 
     Ok(())
@@ -141,8 +141,8 @@ async fn separate_buckets_are_created() -> Result<(), Error> {
     let second_bucket: BucketName = "second".parse().expect("Invalid bucket name");
 
     let initial_buckets = list_buckets(&client).await?;
-    assert!(!initial_buckets.contains(&first_bucket));
-    assert!(!initial_buckets.contains(&second_bucket));
+    assert!(!initial_buckets.contains(first_bucket.as_ref()));
+    assert!(!initial_buckets.contains(second_bucket.as_ref()));
 
     let (_storage, first_bucket_status) =
         S3Storage::from_config(localstack.config(), first_bucket.clone()).await?;
@@ -150,8 +150,8 @@ async fn separate_buckets_are_created() -> Result<(), Error> {
         S3Storage::from_config(localstack.config(), second_bucket.clone()).await?;
 
     let buckets = list_buckets(&client).await?;
-    assert!(buckets.contains(&first_bucket));
-    assert!(buckets.contains(&second_bucket));
+    assert!(buckets.contains(first_bucket.as_ref()));
+    assert!(buckets.contains(second_bucket.as_ref()));
     assert_eq!(first_bucket_status, BucketStatus::New);
     assert_eq!(second_bucket_status, BucketStatus::New);
 

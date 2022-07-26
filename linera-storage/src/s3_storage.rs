@@ -10,7 +10,7 @@ use linera_base::{
     messages::{Certificate, ChainId},
 };
 use serde::{de::DeserializeOwned, Serialize};
-use std::{env, fmt::Display, net::IpAddr, ops::Deref, str::FromStr};
+use std::{env, fmt::Display, net::IpAddr, str::FromStr};
 use thiserror::Error;
 
 #[cfg(any(test, feature = "test"))]
@@ -89,7 +89,7 @@ impl S3Storage {
         match self
             .client
             .get_bucket_location()
-            .bucket(&*self.bucket)
+            .bucket(self.bucket.as_ref())
             .send()
             .await
         {
@@ -97,7 +97,7 @@ impl S3Storage {
             Err(SdkError::ServiceError { err, .. }) if err.code() == Some("NoSuchBucket") => {
                 self.client
                     .create_bucket()
-                    .bucket(&*self.bucket)
+                    .bucket(self.bucket.as_ref())
                     .send()
                     .await?;
                 Ok(BucketStatus::New)
@@ -120,7 +120,7 @@ impl S3Storage {
         let response = self
             .client
             .get_object()
-            .bucket(&*self.bucket)
+            .bucket(self.bucket.as_ref())
             .key(format!("{prefix}-{key}"))
             .send()
             .await?;
@@ -150,7 +150,7 @@ impl S3Storage {
 
         self.client
             .put_object()
-            .bucket(&*self.bucket)
+            .bucket(self.bucket.as_ref())
             .key(format!("{prefix}-{key}"))
             .body(bytes.into())
             .send()
@@ -167,7 +167,7 @@ impl S3Storage {
     ) -> Result<(), S3StorageError> {
         self.client
             .delete_object()
-            .bucket(&*self.bucket)
+            .bucket(self.bucket.as_ref())
             .key(format!("{prefix}-{key}"))
             .send()
             .await?;
@@ -281,10 +281,8 @@ impl BucketName {
     }
 }
 
-impl Deref for BucketName {
-    type Target = String;
-
-    fn deref(&self) -> &Self::Target {
+impl AsRef<String> for BucketName {
+    fn as_ref(&self) -> &String {
         &self.0
     }
 }
