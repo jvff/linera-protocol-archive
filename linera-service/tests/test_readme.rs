@@ -56,7 +56,7 @@ where
 }
 
 const ROCKSDB_STORAGE: &str = "--storage rocksdb:server_\"$I\"_\"$J\".db";
-const S3_STORAGE: &str = "--storage s3:localstack:server-\"$I\"-\"$J\"";
+const S3_STORAGE: &str = "--storage s3:localstack:server-\"$I\"";
 
 #[test]
 #[ignore]
