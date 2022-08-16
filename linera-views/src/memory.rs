@@ -183,10 +183,7 @@ where
 
     async fn get(&mut self, index: usize) -> Result<Option<T>, Self::Error> {
         Ok(self
-            .with_ref(|v: Option<&VecDeque<T>>| match v {
-                None => None,
-                Some(x) => x.get(index).cloned(),
-            })
+            .with_ref(|v: Option<&VecDeque<T>>| v?.get(index).cloned())
             .await)
     }
 
