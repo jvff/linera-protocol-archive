@@ -67,6 +67,13 @@ impl LocalStackTestContext {
             .build()
     }
 
+    /// Create a new [`aws_sdk_dynamodb::Config`] for tests, using a LocalStack instance.
+    pub fn dynamo_db_config(&self) -> aws_sdk_dynamodb::Config {
+        aws_sdk_dynamodb::config::Builder::from(&self.base_config)
+            .endpoint_resolver(self.endpoint.clone())
+            .build()
+    }
+
     /// Create a new [`S3Storage`] instance, using a LocalStack instance.
     pub async fn create_s3_storage(&self) -> Result<S3Storage, Error> {
         let bucket = "linera".parse().context("Invalid S3 bucket name")?;
@@ -110,4 +117,14 @@ pub async fn list_buckets(client: &aws_sdk_s3::Client) -> Result<Vec<String>, Er
         .into_iter()
         .filter_map(|bucket| bucket.name)
         .collect())
+}
+
+/// Helper function to list the names of tables registered on DynamoDB.
+pub async fn list_tables(client: &aws_sdk_dynamodb::Client) -> Result<Vec<String>, Error> {
+    Ok(client
+        .list_tables()
+        .send()
+        .await?
+        .table_names
+        .expect("List of tables was not returned"))
 }

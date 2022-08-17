@@ -4,6 +4,10 @@ use linera_base::ensure;
 use std::str::FromStr;
 use thiserror::Error;
 
+#[cfg(test)]
+#[path = "unit_tests/dynamo_db_storage_tests.rs"]
+pub mod dynamo_db_storage_tests;
+
 /// Storage layer that uses Amazon DynamoDB.
 #[derive(Clone, Debug)]
 pub struct DynamoDbStorage {
