@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 mod dynamo_db_storage;
+mod localstack;
 mod memory_storage;
 mod rocksdb_storage;
 mod s3_storage;
