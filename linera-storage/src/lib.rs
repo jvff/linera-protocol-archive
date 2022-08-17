@@ -13,7 +13,7 @@ pub use rocksdb_storage::*;
 pub use s3_storage::*;
 
 #[cfg(any(test, feature = "test"))]
-pub use s3_storage::s3_storage_tests::LocalStackTestContext;
+pub mod test_utils;
 
 use async_trait::async_trait;
 use futures::future;
