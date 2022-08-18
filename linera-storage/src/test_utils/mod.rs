@@ -81,8 +81,16 @@ impl LocalStackTestContext {
         Ok(storage)
     }
 
-    /// Remove all buckets from the LocalStack S3 storage.
+    /// Remove all stored data from LocalStack storage.
     async fn clear(&self) -> Result<(), Error> {
+        self.remove_buckets().await?;
+        self.remove_tables().await?;
+
+        Ok(())
+    }
+
+    /// Remove all buckets from the LocalStack S3 storage.
+    async fn remove_buckets(&self) -> Result<(), Error> {
         let client = aws_sdk_s3::Client::from_conf(self.s3_config());
 
         for bucket in list_buckets(&client).await? {
@@ -100,6 +108,17 @@ impl LocalStackTestContext {
             }
 
             client.delete_bucket().bucket(bucket).send().await?;
+        }
+
+        Ok(())
+    }
+
+    /// Remove all tables from the LocalStack DynamoDB storage.
+    async fn remove_tables(&self) -> Result<(), Error> {
+        let client = aws_sdk_dynamodb::Client::from_conf(self.dynamo_db_config());
+
+        for table in list_tables(&client).await? {
+            client.delete_table().table_name(table).send().await?;
         }
 
         Ok(())
