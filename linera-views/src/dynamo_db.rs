@@ -135,6 +135,16 @@ impl<E> DynamoDbContext<E> {
         )
     }
 
+    /// Build the value attribute for storing a table item.
+    fn build_value(&self, value: &impl Serialize) -> (String, AttributeValue) {
+        (
+            VALUE_ATTRIBUTE.to_owned(),
+            AttributeValue::B(Blob::new(
+                bcs::to_bytes(value).expect("Serialization failed"),
+            )),
+        )
+    }
+
     /// Retrieve a generic `Item` from the table using the provided `key` prefixed by the current
     /// context.
     ///
@@ -176,6 +186,27 @@ impl<E> DynamoDbContext<E> {
         let item = bcs::from_bytes(bytes.as_ref())?;
 
         Ok(item)
+    }
+
+    /// Store a generic `value` into the table using the provided `key` prefixed by the current
+    /// context.
+    ///
+    /// The value is serialized using [`bcs`].
+    async fn put_item(
+        &self,
+        key: &impl Serialize,
+        value: &impl Serialize,
+    ) -> Result<(), DynamoDbContextError> {
+        let item = [self.build_key(key), self.build_value(value)].into();
+
+        self.client
+            .put_item()
+            .table_name(self.table.as_ref())
+            .set_item(Some(item))
+            .send()
+            .await?;
+
+        Ok(())
     }
 }
 
@@ -239,6 +270,9 @@ pub enum InvalidTableName {
 #[derive(Debug, Error)]
 pub enum DynamoDbContextError {
     #[error(transparent)]
+    Put(#[from] Box<SdkError<aws_sdk_dynamodb::error::PutItemError>>),
+
+    #[error(transparent)]
     Get(#[from] Box<SdkError<aws_sdk_dynamodb::error::GetItemError>>),
 
     #[error("The stored value attribute is missing")]
@@ -251,8 +285,11 @@ pub enum DynamoDbContextError {
     ValueDeserialization(#[from] bcs::Error),
 }
 
-impl From<SdkError<aws_sdk_dynamodb::error::GetItemError>> for DynamoDbContextError {
-    fn from(error: SdkError<aws_sdk_dynamodb::error::GetItemError>) -> Self {
+impl<InnerError> From<SdkError<InnerError>> for DynamoDbContextError
+where
+    DynamoDbContextError: From<Box<SdkError<InnerError>>>,
+{
+    fn from(error: SdkError<InnerError>) -> Self {
         Box::new(error).into()
     }
 }
