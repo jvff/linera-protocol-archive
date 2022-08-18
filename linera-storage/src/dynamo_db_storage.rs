@@ -1,8 +1,17 @@
 use crate::localstack;
-use aws_sdk_dynamodb::Client;
+use aws_sdk_dynamodb::{
+    model::{
+        AttributeDefinition, KeySchemaElement, KeyType, ProvisionedThroughput, ScalarAttributeType,
+    },
+    types::SdkError,
+    Client,
+};
 use linera_base::ensure;
 use std::str::FromStr;
 use thiserror::Error;
+
+/// The attribute name of the primary key.
+const KEY_ATTRIBUTE: &str = "key";
 
 #[cfg(test)]
 #[path = "unit_tests/dynamo_db_storage_tests.rs"]
@@ -52,8 +61,33 @@ impl DynamoDbStorage {
         Ok(DynamoDbStorage::from_config(config, table).await?)
     }
 
+    /// Create the storage table if it doesn't exist.
     async fn create_table_if_needed(&self) -> Result<TableStatus, CreateTableError> {
-        Ok(TableStatus::Existing)
+        self.client
+            .create_table()
+            .table_name(self.table.as_ref())
+            .attribute_definitions(
+                AttributeDefinition::builder()
+                    .attribute_name(KEY_ATTRIBUTE)
+                    .attribute_type(ScalarAttributeType::S)
+                    .build(),
+            )
+            .key_schema(
+                KeySchemaElement::builder()
+                    .attribute_name(KEY_ATTRIBUTE)
+                    .key_type(KeyType::Hash)
+                    .build(),
+            )
+            .provisioned_throughput(
+                ProvisionedThroughput::builder()
+                    .read_capacity_units(10)
+                    .write_capacity_units(10)
+                    .build(),
+            )
+            .send()
+            .await?;
+
+        Ok(TableStatus::New)
     }
 }
 
@@ -115,7 +149,10 @@ pub enum InvalidTableName {
 
 /// Error when creating a table for a new [`DynamoDbStorage`] instance.
 #[derive(Debug, Error)]
-pub enum CreateTableError {}
+pub enum CreateTableError {
+    #[error(transparent)]
+    CreateTable(#[from] SdkError<aws_sdk_dynamodb::error::CreateTableError>),
+}
 
 /// Error when creating a [`DynamoDbStorage`] instance using a LocalStack instance.
 #[derive(Debug, Error)]
@@ -124,5 +161,11 @@ pub enum LocalStackError {
     Endpoint(#[from] localstack::EndpointError),
 
     #[error(transparent)]
-    CreateTable(#[from] CreateTableError),
+    CreateTable(#[from] Box<CreateTableError>),
+}
+
+impl From<CreateTableError> for LocalStackError {
+    fn from(error: CreateTableError) -> Self {
+        Box::new(error).into()
+    }
 }
