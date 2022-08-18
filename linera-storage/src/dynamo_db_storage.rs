@@ -1,17 +1,22 @@
 use crate::localstack;
 use aws_sdk_dynamodb::{
     model::{
-        AttributeDefinition, KeySchemaElement, KeyType, ProvisionedThroughput, ScalarAttributeType,
+        AttributeDefinition, AttributeValue, KeySchemaElement, KeyType, ProvisionedThroughput,
+        ScalarAttributeType,
     },
     types::SdkError,
     Client,
 };
-use linera_base::ensure;
-use std::str::FromStr;
+use linera_base::{ensure, error::Error};
+use serde::de::DeserializeOwned;
+use std::{fmt::Display, str::FromStr};
 use thiserror::Error;
 
 /// The attribute name of the primary key.
 const KEY_ATTRIBUTE: &str = "key";
+
+/// The attribute name of the table value blob.
+const VALUE_ATTRIBUTE: &str = "value";
 
 #[cfg(test)]
 #[path = "unit_tests/dynamo_db_storage_tests.rs"]
@@ -89,6 +94,46 @@ impl DynamoDbStorage {
 
         Ok(TableStatus::New)
     }
+
+    /// Build the key attribute value for a table item.
+    fn build_key(&self, prefix: &str, key: impl Display) -> (String, AttributeValue) {
+        (
+            KEY_ATTRIBUTE.to_owned(),
+            AttributeValue::S(format!("{}-{}", prefix, key)),
+        )
+    }
+
+    /// Retrieve a generic `Item` from the table using the provided `key` prefixed with `prefix`.
+    ///
+    /// The `Item` is deserialized using [`ron`].
+    async fn get_item<Item>(
+        &mut self,
+        prefix: &str,
+        key: impl Display,
+    ) -> Result<Item, DynamoDbStorageError>
+    where
+        Item: DeserializeOwned,
+    {
+        let response = self
+            .client
+            .get_item()
+            .table_name(self.table.as_ref())
+            .set_key(Some([self.build_key(prefix, key)].into()))
+            .send()
+            .await?;
+
+        let string = response
+            .item()
+            .ok_or(DynamoDbStorageError::ItemNotFound)?
+            .get(VALUE_ATTRIBUTE)
+            .ok_or(DynamoDbStorageError::MissingValue)?
+            .as_s()
+            .map_err(DynamoDbStorageError::wrong_value_type)?;
+
+        let item = ron::from_str(string)?;
+
+        Ok(item)
+    }
 }
 
 /// Status of a table at the creation time of a [`DynamoDbStorage`] instance.
@@ -145,6 +190,64 @@ pub enum InvalidTableName {
 
     #[error("Table name must only contain lowercase letters, numbers, periods and hyphens")]
     InvalidCharacter,
+}
+
+/// Errors that occur when using [`DynamoDbStorage`].
+#[derive(Debug, Error)]
+pub enum DynamoDbStorageError {
+    #[error(transparent)]
+    Get(#[from] Box<SdkError<aws_sdk_dynamodb::error::GetItemError>>),
+
+    #[error("Item not found in table")]
+    ItemNotFound,
+
+    #[error("The stored value attribute is missing")]
+    MissingValue,
+
+    #[error("Value was stored as {0}, but it was expected to be stored as a string")]
+    WrongValueType(String),
+
+    #[error(transparent)]
+    Deserialization(#[from] ron::Error),
+}
+
+impl From<SdkError<aws_sdk_dynamodb::error::GetItemError>> for DynamoDbStorageError {
+    fn from(error: SdkError<aws_sdk_dynamodb::error::GetItemError>) -> Self {
+        Box::new(error).into()
+    }
+}
+
+impl DynamoDbStorageError {
+    /// Create a [`DynamoDbStorageError::WrongValueType`] instance based on the returned value type.
+    ///
+    /// # Panics
+    ///
+    /// If the value type is in the correct type, a string scalar.
+    pub fn wrong_value_type(value: &AttributeValue) -> Self {
+        let type_description = match value {
+            AttributeValue::B(_) => "a binary blob",
+            AttributeValue::Bool(_) => "a boolean",
+            AttributeValue::Bs(_) => "a list of binary blobs",
+            AttributeValue::L(_) => "a list",
+            AttributeValue::M(_) => "a map",
+            AttributeValue::N(_) => "a number",
+            AttributeValue::Ns(_) => "a list of numbers",
+            AttributeValue::Null(_) => "a null value",
+            AttributeValue::Ss(_) => "a list of strings",
+            AttributeValue::S(_) => unreachable!("creating an error type for the correct type"),
+            _ => "an unknown type",
+        }
+        .to_owned();
+
+        DynamoDbStorageError::WrongValueType(type_description)
+    }
+
+    /// Convert the error into an instance of the main [`Error`] type.
+    pub fn into_base_error(self) -> Error {
+        Error::StorageIoError {
+            error: self.to_string(),
+        }
+    }
 }
 
 /// Error when creating a table for a new [`DynamoDbStorage`] instance.
