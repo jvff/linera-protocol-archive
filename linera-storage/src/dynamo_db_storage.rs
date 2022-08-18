@@ -8,7 +8,7 @@ use aws_sdk_dynamodb::{
     Client,
 };
 use linera_base::{ensure, error::Error};
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
 use std::{fmt::Display, str::FromStr};
 use thiserror::Error;
 
@@ -103,6 +103,14 @@ impl DynamoDbStorage {
         )
     }
 
+    /// Build the value attribute for storing a table item.
+    fn build_value(&self, value: &impl Serialize) -> (String, AttributeValue) {
+        (
+            VALUE_ATTRIBUTE.to_owned(),
+            AttributeValue::S(ron::to_string(value).expect("Serialization failed")),
+        )
+    }
+
     /// Retrieve a generic `Item` from the table using the provided `key` prefixed with `prefix`.
     ///
     /// The `Item` is deserialized using [`ron`].
@@ -133,6 +141,27 @@ impl DynamoDbStorage {
         let item = ron::from_str(string)?;
 
         Ok(item)
+    }
+
+    /// Store a generic `value` into the table using the provided `key` prefixed with `prefix`.
+    ///
+    /// The value is serialized using [`ron`].
+    async fn put_item(
+        &self,
+        prefix: &str,
+        key: impl Display,
+        value: &impl Serialize,
+    ) -> Result<(), DynamoDbStorageError> {
+        let item = [self.build_key(prefix, key), self.build_value(value)].into();
+
+        self.client
+            .put_item()
+            .table_name(self.table.as_ref())
+            .set_item(Some(item))
+            .send()
+            .await?;
+
+        Ok(())
     }
 }
 
@@ -196,6 +225,9 @@ pub enum InvalidTableName {
 #[derive(Debug, Error)]
 pub enum DynamoDbStorageError {
     #[error(transparent)]
+    Put(#[from] Box<SdkError<aws_sdk_dynamodb::error::PutItemError>>),
+
+    #[error(transparent)]
     Get(#[from] Box<SdkError<aws_sdk_dynamodb::error::GetItemError>>),
 
     #[error("Item not found in table")]
@@ -211,8 +243,11 @@ pub enum DynamoDbStorageError {
     Deserialization(#[from] ron::Error),
 }
 
-impl From<SdkError<aws_sdk_dynamodb::error::GetItemError>> for DynamoDbStorageError {
-    fn from(error: SdkError<aws_sdk_dynamodb::error::GetItemError>) -> Self {
+impl<InnerError> From<SdkError<InnerError>> for DynamoDbStorageError
+where
+    DynamoDbStorageError: From<Box<SdkError<InnerError>>>,
+{
+    fn from(error: SdkError<InnerError>) -> Self {
         Box::new(error).into()
     }
 }
