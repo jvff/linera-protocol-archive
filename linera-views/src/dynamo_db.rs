@@ -208,6 +208,20 @@ impl<E> DynamoDbContext<E> {
 
         Ok(())
     }
+
+    /// Remove an item with the provided `key` prefixed with `prefix` from the table.
+    async fn remove_item(&self, key: &impl Serialize) -> Result<(), DynamoDbContextError> {
+        let key = [self.build_key(key)].into();
+
+        self.client
+            .delete_item()
+            .table_name(self.table.as_ref())
+            .set_key(Some(key))
+            .send()
+            .await?;
+
+        Ok(())
+    }
 }
 
 /// Status of a table at the creation time of a [`DynamoDbContext`] instance.
@@ -274,6 +288,9 @@ pub enum DynamoDbContextError {
 
     #[error(transparent)]
     Get(#[from] Box<SdkError<aws_sdk_dynamodb::error::GetItemError>>),
+
+    #[error(transparent)]
+    Delete(#[from] Box<SdkError<aws_sdk_dynamodb::error::DeleteItemError>>),
 
     #[error("The stored value attribute is missing")]
     MissingValue,
