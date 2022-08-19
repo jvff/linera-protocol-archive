@@ -80,8 +80,12 @@ impl DynamoDbStorage {
     }
 
     /// Create the storage table if it doesn't exist.
+    ///
+    /// Attempts to create the table, but does not fail if the operation fails because the table
+    /// already exists.
     async fn create_table_if_needed(&self) -> Result<TableStatus, CreateTableError> {
-        self.client
+        let result = self
+            .client
             .create_table()
             .table_name(self.table.as_ref())
             .attribute_definitions(
@@ -103,9 +107,13 @@ impl DynamoDbStorage {
                     .build(),
             )
             .send()
-            .await?;
+            .await;
 
-        Ok(TableStatus::New)
+        match result {
+            Ok(_) => Ok(TableStatus::New),
+            Err(error) if is_due_to_existing_table(&error) => Ok(TableStatus::Existing),
+            Err(error) => Err(error.into()),
+        }
     }
 
     /// Build the key attribute value for a table item.
@@ -383,4 +391,19 @@ impl From<CreateTableError> for LocalStackError {
     fn from(error: CreateTableError) -> Self {
         Box::new(error).into()
     }
+}
+
+/// Check if an error that occurred when attempting to create a table indicates that the table
+/// already exists.
+fn is_due_to_existing_table(error: &SdkError<aws_sdk_dynamodb::error::CreateTableError>) -> bool {
+    matches!(
+        error,
+        SdkError::ServiceError {
+            err: aws_sdk_dynamodb::error::CreateTableError {
+                kind: aws_sdk_dynamodb::error::CreateTableErrorKind::ResourceInUseException(_),
+                ..
+            },
+            ..
+        }
+    )
 }
