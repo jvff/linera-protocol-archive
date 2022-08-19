@@ -1,4 +1,5 @@
-use crate::localstack;
+use crate::{localstack, Storage};
+use async_trait::async_trait;
 use aws_sdk_dynamodb::{
     model::{
         AttributeDefinition, AttributeValue, KeySchemaElement, KeyType, ProvisionedThroughput,
@@ -7,7 +8,13 @@ use aws_sdk_dynamodb::{
     types::SdkError,
     Client,
 };
-use linera_base::{ensure, error::Error};
+use linera_base::{
+    chain::ChainState,
+    crypto::HashValue,
+    ensure,
+    error::Error,
+    messages::{Certificate, ChainId},
+};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{fmt::Display, str::FromStr};
 use thiserror::Error;
@@ -17,6 +24,12 @@ const KEY_ATTRIBUTE: &str = "key";
 
 /// The attribute name of the table value blob.
 const VALUE_ATTRIBUTE: &str = "value";
+
+/// The key prefix for certificates.
+const CERTIFICATE_PREFIX: &str = "certificate";
+
+/// Chain prefix for stored chain states.
+const CHAIN_PREFIX: &str = "chains";
 
 #[cfg(test)]
 #[path = "unit_tests/dynamo_db_storage_tests.rs"]
@@ -180,6 +193,41 @@ impl DynamoDbStorage {
             .await?;
 
         Ok(())
+    }
+}
+
+#[async_trait]
+impl Storage for DynamoDbStorage {
+    async fn read_chain_or_default(&mut self, chain_id: ChainId) -> Result<ChainState, Error> {
+        match self.get_item(CHAIN_PREFIX, chain_id).await {
+            Ok(chain_state) => Ok(chain_state),
+            Err(error) if error.is_not_found() => Ok(ChainState::new(chain_id)),
+            Err(error) => Err(error.into_base_error()),
+        }
+    }
+
+    async fn write_chain(&mut self, state: ChainState) -> Result<(), Error> {
+        self.put_item(CHAIN_PREFIX, state.state.chain_id, &state)
+            .await
+            .map_err(DynamoDbStorageError::into_base_error)
+    }
+
+    async fn remove_chain(&mut self, chain_id: ChainId) -> Result<(), Error> {
+        self.remove_item(CHAIN_PREFIX, chain_id)
+            .await
+            .map_err(DynamoDbStorageError::into_base_error)
+    }
+
+    async fn read_certificate(&mut self, hash: HashValue) -> Result<Certificate, Error> {
+        self.get_item(CERTIFICATE_PREFIX, hash)
+            .await
+            .map_err(DynamoDbStorageError::into_base_error)
+    }
+
+    async fn write_certificate(&mut self, certificate: Certificate) -> Result<(), Error> {
+        self.put_item(CERTIFICATE_PREFIX, certificate.hash, &certificate)
+            .await
+            .map_err(DynamoDbStorageError::into_base_error)
     }
 }
 
