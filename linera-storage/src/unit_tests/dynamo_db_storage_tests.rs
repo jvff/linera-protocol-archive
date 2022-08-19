@@ -5,6 +5,7 @@ use crate::{
 };
 use anyhow::Error;
 use linera_base::{
+    chain::ChainState,
     crypto::HashValue,
     execution::{ExecutionState, Operation},
     messages::{Block, BlockHeight, Certificate, ChainDescription, ChainId, Epoch, Value},
@@ -101,6 +102,30 @@ async fn retrieval_of_inexistent_certificate() -> Result<(), Error> {
     let result = storage.read_certificate(certificate_hash).await;
 
     assert!(result.is_err());
+
+    Ok(())
+}
+
+/// Test if chain states are stored and retrieved correctly.
+#[tokio::test]
+#[ignore]
+async fn chain_storage_round_trip() -> Result<(), Error> {
+    let chain_id = ChainId::root(1);
+    let chain_state = ChainState {
+        next_block_height: BlockHeight(100),
+        ..ChainState::new(chain_id)
+    };
+
+    let localstack = LocalStackTestContext::new().await?;
+    let mut storage = localstack.create_dynamo_db_storage().await?;
+
+    storage.write_chain(chain_state.clone()).await?;
+
+    let stored_chain_state = storage
+        .read_chain_or_default(chain_state.state.chain_id)
+        .await?;
+
+    assert_eq!(chain_state, stored_chain_state);
 
     Ok(())
 }
