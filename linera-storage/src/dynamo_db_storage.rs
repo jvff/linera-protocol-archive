@@ -304,6 +304,14 @@ impl DynamoDbStorageError {
             error: self.to_string(),
         }
     }
+
+    /// Check if the error is because the value was not found in the storage.
+    pub fn is_not_found(&self) -> bool {
+        matches!(
+            self,
+            DynamoDbStorageError::ItemNotFound | DynamoDbStorageError::MissingValue
+        )
+    }
 }
 
 /// Error when creating a table for a new [`DynamoDbStorage`] instance.
