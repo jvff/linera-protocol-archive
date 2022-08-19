@@ -1,4 +1,4 @@
-use crate::S3Storage;
+use crate::{DynamoDbStorage, S3Storage};
 use anyhow::{Context, Error};
 use aws_sdk_s3::Endpoint;
 use aws_types::SdkConfig;
@@ -78,6 +78,13 @@ impl LocalStackTestContext {
     pub async fn create_s3_storage(&self) -> Result<S3Storage, Error> {
         let bucket = "linera".parse().context("Invalid S3 bucket name")?;
         let (storage, _) = S3Storage::from_config(self.s3_config(), bucket).await?;
+        Ok(storage)
+    }
+
+    /// Create a new [`DynamoDbStorage`] instance, using a LocalStack instance.
+    pub async fn create_dynamo_db_storage(&self) -> Result<DynamoDbStorage, Error> {
+        let table = "linera".parse().context("Invalid DynamoDB table name")?;
+        let (storage, _) = DynamoDbStorage::from_config(self.dynamo_db_config(), table).await?;
         Ok(storage)
     }
 

@@ -1,6 +1,14 @@
 use super::{DynamoDbStorage, TableName, TableStatus};
-use crate::test_utils::{list_tables, LocalStackTestContext};
+use crate::{
+    test_utils::{list_tables, LocalStackTestContext},
+    Storage,
+};
 use anyhow::Error;
+use linera_base::{
+    crypto::HashValue,
+    execution::{ExecutionState, Operation},
+    messages::{Block, BlockHeight, Certificate, ChainId, Epoch, Value},
+};
 
 /// Test if the table for the storage is created when needed.
 #[tokio::test]
@@ -46,6 +54,37 @@ async fn separate_tables_are_created() -> Result<(), Error> {
     assert!(tables.contains(second_table.as_ref()));
     assert_eq!(first_table_status, TableStatus::New);
     assert_eq!(second_table_status, TableStatus::New);
+
+    Ok(())
+}
+
+/// Test if certificates are stored and retrieved correctly.
+#[tokio::test]
+#[ignore]
+async fn certificate_storage_round_trip() -> Result<(), Error> {
+    let block = Block {
+        epoch: Epoch::from(0),
+        chain_id: ChainId::root(1),
+        incoming_messages: Vec::new(),
+        operations: vec![Operation::CloseChain],
+        previous_block_hash: None,
+        height: BlockHeight::default(),
+    };
+    let value = Value::ConfirmedBlock {
+        block,
+        effects: Vec::new(),
+        state_hash: HashValue::new(&ExecutionState::new(ChainId::root(1))),
+    };
+    let certificate = Certificate::new(value, vec![]);
+
+    let localstack = LocalStackTestContext::new().await?;
+    let mut storage = localstack.create_dynamo_db_storage().await?;
+
+    storage.write_certificate(certificate.clone()).await?;
+
+    let stored_certificate = storage.read_certificate(certificate.hash).await?;
+
+    assert_eq!(certificate, stored_certificate);
 
     Ok(())
 }
