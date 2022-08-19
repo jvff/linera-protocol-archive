@@ -59,6 +59,35 @@ async fn separate_tables_are_created() -> Result<(), Error> {
     Ok(())
 }
 
+/// Test if a table is reused when a second storage instance is created later.
+#[tokio::test]
+#[ignore]
+async fn table_is_reused() -> Result<(), Error> {
+    let chain_id = ChainId::root(100);
+    let chain_state = ChainState {
+        next_block_height: BlockHeight(248),
+        ..ChainState::new(chain_id)
+    };
+
+    let localstack = LocalStackTestContext::new().await?;
+    let table: TableName = "table".parse().expect("Invalid table name");
+
+    let (mut storage, first_table_status) =
+        DynamoDbStorage::from_config(localstack.dynamo_db_config(), table.clone()).await?;
+    assert_eq!(first_table_status, TableStatus::New);
+
+    storage.write_chain(chain_state.clone()).await?;
+
+    let (mut storage, second_table_status) =
+        DynamoDbStorage::from_config(localstack.dynamo_db_config(), table.clone()).await?;
+    assert_eq!(second_table_status, TableStatus::Existing);
+
+    let stored_chain_state = storage.read_chain_or_default(chain_id).await?;
+    assert_eq!(stored_chain_state, chain_state);
+
+    Ok(())
+}
+
 /// Test if certificates are stored and retrieved correctly.
 #[tokio::test]
 #[ignore]
