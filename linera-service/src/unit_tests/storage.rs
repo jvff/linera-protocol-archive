@@ -7,7 +7,8 @@ use linera_base::{
     messages::{ChainDescription, ChainId},
     system::Balance,
 };
-use linera_storage::{LocalStackTestContext, Storage};
+use linera_storage::Storage;
+use linera_views::test_utils::LocalStackTestContext;
 
 /// Test if an empty S3 storage is properly initialized by [`StorageConfig::run_with_storage`].
 ///
