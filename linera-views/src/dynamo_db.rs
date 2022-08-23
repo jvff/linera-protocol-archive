@@ -1,7 +1,10 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{localstack, views::Context};
+use crate::{
+    localstack,
+    views::{Context, ScopedOperations, ViewError},
+};
 use async_trait::async_trait;
 use aws_sdk_dynamodb::{
     model::{
@@ -13,7 +16,7 @@ use aws_sdk_dynamodb::{
 };
 use linera_base::ensure;
 use serde::{de::DeserializeOwned, Serialize};
-use std::{collections::HashMap, str::FromStr, sync::Arc};
+use std::{collections::HashMap, io, str::FromStr, sync::Arc};
 use thiserror::Error;
 use tokio::sync::OwnedMutexGuard;
 
@@ -273,6 +276,22 @@ where
     }
 }
 
+#[async_trait]
+impl<E> ScopedOperations for DynamoDbContext<E>
+where
+    E: Clone + Send + Sync,
+{
+    fn clone_with_scope(&self, index: u64) -> Self {
+        DynamoDbContext {
+            client: self.client.clone(),
+            table: self.table.clone(),
+            lock: self.lock.clone(),
+            key_prefix: self.extend_prefix(&index),
+            extra: self.extra.clone(),
+        }
+    }
+}
+
 /// Status of a table at the creation time of a [`DynamoDbContext`] instance.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TableStatus {
@@ -349,6 +368,12 @@ pub enum DynamoDbContextError {
 
     #[error("Failed to deserialize value")]
     ValueDeserialization(#[from] bcs::Error),
+
+    #[error("IO error")]
+    Io(#[from] io::Error),
+
+    #[error(transparent)]
+    View(#[from] ViewError),
 }
 
 impl<InnerError> From<SdkError<InnerError>> for DynamoDbContextError
