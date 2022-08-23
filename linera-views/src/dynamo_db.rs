@@ -1,7 +1,8 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::localstack;
+use crate::{localstack, views::Context};
+use async_trait::async_trait;
 use aws_sdk_dynamodb::{
     model::{
         AttributeDefinition, AttributeValue, KeySchemaElement, KeyType, ProvisionedThroughput,
@@ -221,6 +222,19 @@ impl<E> DynamoDbContext<E> {
             .await?;
 
         Ok(())
+    }
+}
+
+#[async_trait]
+impl<E> Context for DynamoDbContext<E>
+where
+    E: Clone + Send + Sync,
+{
+    type Extra = E;
+    type Error = DynamoDbContextError;
+
+    fn extra(&self) -> &E {
+        &self.extra
     }
 }
 
