@@ -3,7 +3,7 @@
 
 use crate::{
     localstack,
-    views::{Context, ScopedOperations, ViewError},
+    views::{Context, RegisterOperations, ScopedOperations, ViewError},
 };
 use async_trait::async_trait;
 use aws_sdk_dynamodb::{
@@ -254,6 +254,28 @@ where
             key_prefix: self.extend_prefix(&index),
             extra: self.extra.clone(),
         }
+    }
+}
+
+#[async_trait]
+impl<E, T> RegisterOperations<T> for DynamoDbContext<E>
+where
+    T: Default + Serialize + DeserializeOwned + Send + Sync + 'static,
+    E: Clone + Send + Sync,
+{
+    async fn get(&mut self) -> Result<T, Self::Error> {
+        let value = self.get_item(&()).await?.unwrap_or_default();
+        Ok(value)
+    }
+
+    async fn set(&mut self, value: T) -> Result<(), Self::Error> {
+        self.put_item(&(), &value).await?;
+        Ok(())
+    }
+
+    async fn delete(&mut self) -> Result<(), Self::Error> {
+        self.remove_item(&()).await?;
+        Ok(())
     }
 }
 
