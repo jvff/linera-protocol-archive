@@ -4,8 +4,8 @@
 use crate::{
     localstack,
     views::{
-        AppendOnlyLogOperations, Context, QueueOperations, RegisterOperations, ScopedOperations,
-        ViewError,
+        AppendOnlyLogOperations, Context, MapOperations, QueueOperations, RegisterOperations,
+        ScopedOperations, ViewError,
     },
 };
 use async_trait::async_trait;
@@ -19,7 +19,7 @@ use aws_sdk_dynamodb::{
 };
 use linera_base::ensure;
 use serde::{de::DeserializeOwned, Serialize};
-use std::{io, ops::Range, str::FromStr, sync::Arc};
+use std::{collections::HashMap, io, ops::Range, str::FromStr, sync::Arc};
 use thiserror::Error;
 use tokio::sync::OwnedMutexGuard;
 
@@ -142,6 +142,11 @@ impl<E> DynamoDbContext<E> {
         )
     }
 
+    /// Deserialize a key from its bytes representation.
+    fn deserialize_key<Key>(bytes: &[u8]) -> Key {
+        todo!();
+    }
+
     /// Build the value attribute for storing a table item.
     fn build_value(&self, value: &impl Serialize) -> (String, AttributeValue) {
         (
@@ -171,10 +176,56 @@ impl<E> DynamoDbContext<E> {
             .send()
             .await?;
 
-        let item = match response.item() {
+        let attributes = match response.item() {
             Some(item) => item,
             None => return Ok(None),
         };
+
+        let (_key, item) = Self::parse_item(attributes)?;
+
+        Ok(item)
+    }
+
+    /// Scan the table for items that start with the prefix of the current context.
+    async fn get_items_in_scope<Item>(
+        &mut self,
+    ) -> Result<Vec<(Vec<u8>, Item)>, DynamoDbContextError>
+    where
+        Item: DeserializeOwned,
+    {
+        let response = self
+            .client
+            .scan()
+            .table_name(self.table.as_ref())
+            .filter_expression("begins_with(key, :prefix)")
+            .expression_attribute_values("prefix", AttributeValue::B(Blob::new(self.key_prefix)))
+            .send()
+            .await?;
+
+        let items = response
+            .items()
+            .into_iter()
+            .flatten()
+            .map(Self::parse_item)
+            .collect()?;
+
+        Ok(items)
+    }
+
+    fn parse_item<Item>(
+        item: &HashMap<String, AttributeValue>,
+    ) -> Result<(Vec<u8>, Item), DynamoDbContextError>
+    where
+        Item: DeserializeOwned,
+    {
+        let key = item
+            .get(KEY_ATTRIBUTE)
+            .ok_or(DynamoDbContextError::MissingKey)?
+            .as_b()
+            .map_err(DynamoDbContextError::wrong_key_type)?
+            .as_ref()
+            .to_owned();
+
         let bytes = item
             .get(VALUE_ATTRIBUTE)
             .ok_or(DynamoDbContextError::MissingValue)?
@@ -183,7 +234,7 @@ impl<E> DynamoDbContext<E> {
 
         let item = bcs::from_bytes(bytes.as_ref())?;
 
-        Ok(item)
+        Ok((key, item))
     }
 
     /// Store a generic `value` into the table using the provided `key` prefixed by the current
@@ -375,6 +426,52 @@ where
     }
 }
 
+#[async_trait]
+impl<E, I, V> MapOperations<I, V> for DynamoDbContext<E>
+where
+    I: Eq + Ord + Send + Sync + Serialize + DeserializeOwned + Clone + 'static,
+    V: Serialize + DeserializeOwned + Send + Sync + 'static,
+    E: Clone + Send + Sync,
+{
+    async fn get(&mut self, index: &I) -> Result<Option<V>, Self::Error> {
+        Ok(self.get_item(&index).await?)
+    }
+
+    async fn insert(&mut self, index: I, value: V) -> Result<(), Self::Error> {
+        self.put_item(&index, &value).await?;
+        Ok(())
+    }
+
+    async fn remove(&mut self, index: I) -> Result<(), Self::Error> {
+        self.remove_item(&index).await?;
+        Ok(())
+    }
+
+    async fn indices(&mut self) -> Result<Vec<I>, Self::Error> {
+        let keys = self
+            .get_items_in_scope()
+            .await?
+            .into_iter()
+            .map(|(key, _value)| key)
+            .collect();
+        Ok(keys)
+    }
+
+    async fn delete(&mut self) -> Result<(), Self::Error> {
+        let keys = self
+            .get_items_in_scope()
+            .await?
+            .map(|(key, _value)| key)
+            .collect();
+
+        for key in keys {
+            self.remove_item(bcs::from_bytes(key)).await?;
+        }
+
+        Ok(())
+    }
+}
+
 /// Status of a table at the creation time of a [`DynamoDbContext`] instance.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TableStatus {
@@ -443,10 +540,16 @@ pub enum DynamoDbContextError {
     #[error(transparent)]
     Delete(#[from] Box<SdkError<aws_sdk_dynamodb::error::DeleteItemError>>),
 
+    #[error("The stored key attribute is missing")]
+    MissingKey,
+
+    #[error("Key was stored as {0}, but it was expected to be stored as a binary blob")]
+    WrongKeyType(String),
+
     #[error("The stored value attribute is missing")]
     MissingValue,
 
-    #[error("Value was stored as {0}, but it was expected to be stored as a string")]
+    #[error("Value was stored as {0}, but it was expected to be stored as a s blobtring")]
     WrongValueType(String),
 
     #[error(transparent)]
@@ -469,13 +572,26 @@ where
 }
 
 impl DynamoDbContextError {
+    /// Create a [`DynamoDbContextError::WrongKeyType`] instance based on the returned value type.
+    ///
+    /// # Panics
+    ///
+    /// If the value type is in the correct type, a binary blob.
+    pub fn wrong_key_type(value: &AttributeValue) -> Self {
+        DynamoDbContextError::WrongKeyType(Self::type_description_of(value))
+    }
+
     /// Create a [`DynamoDbContextError::WrongValueType`] instance based on the returned value type.
     ///
     /// # Panics
     ///
     /// If the value type is in the correct type, a binary blob.
     pub fn wrong_value_type(value: &AttributeValue) -> Self {
-        let type_description = match value {
+        DynamoDbContextError::WrongValueType(Self::type_description_of(value))
+    }
+
+    fn type_description_of(value: &AttributeValue) -> String {
+        match value {
             AttributeValue::B(_) => unreachable!("creating an error type for the correct type"),
             AttributeValue::Bool(_) => "a boolean",
             AttributeValue::Bs(_) => "a list of binary blobs",
@@ -488,9 +604,7 @@ impl DynamoDbContextError {
             AttributeValue::Ss(_) => "a list of strings",
             _ => "an unknown type",
         }
-        .to_owned();
-
-        DynamoDbContextError::WrongValueType(type_description)
+        .to_owned()
     }
 }
 
