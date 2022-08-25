@@ -142,11 +142,6 @@ impl<E> DynamoDbContext<E> {
         )
     }
 
-    /// Deserialize a key from its bytes representation.
-    fn deserialize_key<Key>(bytes: &[u8]) -> Key {
-        todo!();
-    }
-
     /// Build the value attribute for storing a table item.
     fn build_value(&self, value: &impl Serialize) -> (String, AttributeValue) {
         (
@@ -181,60 +176,64 @@ impl<E> DynamoDbContext<E> {
             None => return Ok(None),
         };
 
-        let (_key, item) = Self::parse_item(attributes)?;
-
-        Ok(item)
+        Self::extract_value(attributes)
     }
 
-    /// Scan the table for items that start with the prefix of the current context.
-    async fn get_items_in_scope<Item>(
-        &mut self,
-    ) -> Result<Vec<(Vec<u8>, Item)>, DynamoDbContextError>
+    fn extract_key<Key>(
+        &self,
+        attributes: &HashMap<String, AttributeValue>,
+    ) -> Result<Key, DynamoDbContextError>
     where
-        Item: DeserializeOwned,
+        Key: DeserializeOwned,
     {
-        let response = self
-            .client
-            .scan()
-            .table_name(self.table.as_ref())
-            .filter_expression("begins_with(key, :prefix)")
-            .expression_attribute_values("prefix", AttributeValue::B(Blob::new(self.key_prefix)))
-            .send()
-            .await?;
-
-        let items = response
-            .items()
-            .into_iter()
-            .flatten()
-            .map(Self::parse_item)
-            .collect()?;
-
-        Ok(items)
+        Self::extract_attribute(
+            attributes,
+            KEY_ATTRIBUTE,
+            Some(self.key_prefix.len()),
+            DynamoDbContextError::MissingKey,
+            DynamoDbContextError::wrong_key_type,
+            DynamoDbContextError::KeyDeserialization,
+        )
     }
 
-    fn parse_item<Item>(
-        item: &HashMap<String, AttributeValue>,
-    ) -> Result<(Vec<u8>, Item), DynamoDbContextError>
+    fn extract_value<Value>(
+        attributes: &HashMap<String, AttributeValue>,
+    ) -> Result<Value, DynamoDbContextError>
     where
-        Item: DeserializeOwned,
+        Value: DeserializeOwned,
     {
-        let key = item
-            .get(KEY_ATTRIBUTE)
-            .ok_or(DynamoDbContextError::MissingKey)?
+        Self::extract_attribute(
+            attributes,
+            VALUE_ATTRIBUTE,
+            None,
+            DynamoDbContextError::MissingValue,
+            DynamoDbContextError::wrong_value_type,
+            DynamoDbContextError::ValueDeserialization,
+        )
+    }
+
+    fn extract_attribute<Data>(
+        attributes: &HashMap<String, AttributeValue>,
+        attribute: &str,
+        bytes_to_skip: Option<usize>,
+        missing_error: DynamoDbContextError,
+        type_error: impl FnOnce(&AttributeValue) -> DynamoDbContextError,
+        deserialization_error: impl FnOnce(bcs::Error) -> DynamoDbContextError,
+    ) -> Result<Data, DynamoDbContextError>
+    where
+        Data: DeserializeOwned,
+    {
+        let bytes = attributes
+            .get(attribute)
+            .ok_or(missing_error)?
             .as_b()
-            .map_err(DynamoDbContextError::wrong_key_type)?
+            .map_err(type_error)?
             .as_ref()
             .to_owned();
+        let data_start = bytes_to_skip.unwrap_or(0);
+        let data_bytes = &bytes[data_start..];
 
-        let bytes = item
-            .get(VALUE_ATTRIBUTE)
-            .ok_or(DynamoDbContextError::MissingValue)?
-            .as_b()
-            .map_err(DynamoDbContextError::wrong_value_type)?;
-
-        let item = bcs::from_bytes(bytes.as_ref())?;
-
-        Ok((key, item))
+        bcs::from_bytes(data_bytes).map_err(deserialization_error)
     }
 
     /// Store a generic `value` into the table using the provided `key` prefixed by the current
@@ -270,6 +269,36 @@ impl<E> DynamoDbContext<E> {
             .await?;
 
         Ok(())
+    }
+
+    /// Scan the table for the keys that are prefixed by the current context.
+    ///
+    /// # Panics
+    ///
+    /// If the raw key bytes can't be deserialized into a `Key`.
+    async fn get_sub_keys<Key>(&mut self) -> Result<Vec<Key>, DynamoDbContextError>
+    where
+        Key: DeserializeOwned,
+    {
+        let prefix = AttributeValue::B(Blob::new(self.key_prefix.clone()));
+        let response = self
+            .client
+            .scan()
+            .table_name(self.table.as_ref())
+            .projection_expression(KEY_ATTRIBUTE)
+            .filter_expression("begins_with(key, :prefix)")
+            .expression_attribute_values("prefix", prefix)
+            .send()
+            .await?;
+
+        let keys = response
+            .items()
+            .into_iter()
+            .flatten()
+            .map(|item| self.extract_key(item))
+            .collect::<Result<_, _>>()?;
+
+        Ok(keys)
     }
 }
 
@@ -448,24 +477,12 @@ where
     }
 
     async fn indices(&mut self) -> Result<Vec<I>, Self::Error> {
-        let keys = self
-            .get_items_in_scope()
-            .await?
-            .into_iter()
-            .map(|(key, _value)| key)
-            .collect();
-        Ok(keys)
+        self.get_sub_keys().await
     }
 
     async fn delete(&mut self) -> Result<(), Self::Error> {
-        let keys = self
-            .get_items_in_scope()
-            .await?
-            .map(|(key, _value)| key)
-            .collect();
-
-        for key in keys {
-            self.remove_item(bcs::from_bytes(key)).await?;
+        for key in self.get_sub_keys::<I>().await? {
+            self.remove_item(&key).await?;
         }
 
         Ok(())
@@ -540,6 +557,9 @@ pub enum DynamoDbContextError {
     #[error(transparent)]
     Delete(#[from] Box<SdkError<aws_sdk_dynamodb::error::DeleteItemError>>),
 
+    #[error(transparent)]
+    Scan(#[from] Box<SdkError<aws_sdk_dynamodb::error::ScanError>>),
+
     #[error("The stored key attribute is missing")]
     MissingKey,
 
@@ -552,8 +572,11 @@ pub enum DynamoDbContextError {
     #[error("Value was stored as {0}, but it was expected to be stored as a s blobtring")]
     WrongValueType(String),
 
-    #[error(transparent)]
-    Deserialization(#[from] bcs::Error),
+    #[error("Failed to deserialize key")]
+    KeyDeserialization(#[source] bcs::Error),
+
+    #[error("Failed to deserialize value")]
+    ValueDeserialization(#[source] bcs::Error),
 
     #[error("IO error")]
     Io(#[from] io::Error),
