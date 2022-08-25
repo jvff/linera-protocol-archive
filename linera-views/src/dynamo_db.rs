@@ -11,8 +11,8 @@ use aws_sdk_dynamodb::{
     Client,
 };
 use linera_base::ensure;
-use serde::de::DeserializeOwned;
-use std::{str::FromStr, sync::Arc};
+use serde::{de::DeserializeOwned, Serialize};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 use thiserror::Error;
 use tokio::sync::OwnedMutexGuard;
 
@@ -154,11 +154,20 @@ impl<E> DynamoDbContext<E> {
             .send()
             .await?;
 
-        let item = match response.item() {
-            Some(item) => item,
-            None => return Ok(None),
-        };
-        let bytes = item
+        match response.item() {
+            Some(item) => Ok(Some(Self::extract_value(item)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Extract the value attribute from an item and deserialize it into the `Value` type.
+    fn extract_value<Value>(
+        attributes: &HashMap<String, AttributeValue>,
+    ) -> Result<Value, DynamoDbContextError>
+    where
+        Value: DeserializeOwned,
+    {
+        let bytes = attributes
             .get(VALUE_ATTRIBUTE)
             .ok_or(DynamoDbContextError::MissingValue)?
             .as_b()
