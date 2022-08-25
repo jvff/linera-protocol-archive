@@ -22,6 +22,13 @@ pub trait Hasher: Default + Write + Send + Sync + 'static {
     fn finalize(self) -> Self::Output;
 }
 
+trait BcsHasher: Hasher {
+    fn update(&mut self, value: &impl Serialize) -> Result<(), ViewError> {
+        bcs::serialize_into(self, value)?;
+        Ok(())
+    }
+}
+
 impl Hasher for sha2::Sha512 {
     type Output = generic_array::GenericArray<u8, <sha2::Sha512 as sha2::Digest>::OutputSize>;
 
@@ -29,6 +36,8 @@ impl Hasher for sha2::Sha512 {
         <sha2::Sha512 as sha2::Digest>::finalize(self)
     }
 }
+
+impl<AllHashers> BcsHasher for AllHashers where AllHashers: Hasher {}
 
 #[async_trait]
 impl<C, W, const INDEX: u64> HashView<C> for ScopedView<INDEX, W>
@@ -49,7 +58,7 @@ where
 {
     async fn hash(&mut self) -> Result<<C::Hasher as Hasher>::Output, C::Error> {
         let mut hasher = C::Hasher::default();
-        bcs::serialize_into(&mut hasher, self.get()).map_err(ViewError::Serialization)?;
+        hasher.update(self.get())?;
         Ok(hasher.finalize())
     }
 }
@@ -64,7 +73,7 @@ where
         let count = self.count();
         let elements = self.read(0..count).await?;
         let mut hasher = C::Hasher::default();
-        bcs::serialize_into(&mut hasher, &elements).map_err(ViewError::Serialization)?;
+        hasher.update(&elements)?;
         Ok(hasher.finalize())
     }
 }
@@ -79,7 +88,7 @@ where
         let count = self.count();
         let elements = self.read_front(count).await?;
         let mut hasher = C::Hasher::default();
-        bcs::serialize_into(&mut hasher, &elements).map_err(ViewError::Serialization)?;
+        hasher.update(&elements)?;
         Ok(hasher.finalize())
     }
 }
@@ -94,14 +103,15 @@ where
     async fn hash(&mut self) -> Result<<C::Hasher as Hasher>::Output, C::Error> {
         let mut hasher = C::Hasher::default();
         let indices = self.indices().await?;
-        bcs::serialize_into(&mut hasher, &indices.len()).map_err(ViewError::Serialization)?;
+        hasher.update(&indices.len())?;
+
         for index in indices {
             let value = self
                 .get(&index)
                 .await?
                 .expect("The value for the returned index should be present");
-            bcs::serialize_into(&mut hasher, &index).map_err(ViewError::Serialization)?;
-            bcs::serialize_into(&mut hasher, &value).map_err(ViewError::Serialization)?;
+            hasher.update(&index)?;
+            hasher.update(&value)?;
         }
         Ok(hasher.finalize())
     }
@@ -117,9 +127,9 @@ where
     async fn hash(&mut self) -> Result<<C::Hasher as Hasher>::Output, C::Error> {
         let mut hasher = C::Hasher::default();
         let indices = self.indices().await?;
-        bcs::serialize_into(&mut hasher, &indices.len()).map_err(ViewError::Serialization)?;
+        hasher.update(&indices.len())?;
         for index in indices {
-            bcs::serialize_into(&mut hasher, &index).map_err(ViewError::Serialization)?;
+            hasher.update(&index)?;
             let view = self.load_entry(index).await?;
             let hash = view.hash().await?;
             hasher.write_all(hash.as_ref())?;
