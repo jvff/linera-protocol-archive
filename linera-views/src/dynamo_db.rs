@@ -318,6 +318,46 @@ impl<E> DynamoDbContext<E> {
 
         Ok(())
     }
+
+    /// Scan the table for the keys that are prefixed by the current context.
+    ///
+    /// # Panics
+    ///
+    /// If the raw key bytes can't be deserialized into a `Key`.
+    async fn get_sub_keys<Key, ExtraSuffix>(
+        &mut self,
+        extra_suffix_for_key_prefix: &ExtraSuffix,
+    ) -> Result<Vec<Key>, DynamoDbContextError>
+    where
+        Key: DeserializeOwned,
+        ExtraSuffix: Serialize,
+    {
+        let extra_prefix_bytes =
+            bcs::to_bytes(extra_suffix_for_key_prefix).expect("Failed to serialize suffix");
+        let extra_prefix_bytes_count = extra_prefix_bytes.len();
+
+        let mut prefix_bytes = self.key_prefix.clone();
+        prefix_bytes.extend(extra_prefix_bytes);
+
+        let response = self
+            .client
+            .scan()
+            .table_name(self.table.as_ref())
+            .projection_expression(KEY_ATTRIBUTE)
+            .filter_expression(format!("begins_with({KEY_ATTRIBUTE}, :prefix)"))
+            .expression_attribute_values(":prefix", AttributeValue::B(Blob::new(prefix_bytes)))
+            .send()
+            .await?;
+
+        let keys = response
+            .items()
+            .into_iter()
+            .flatten()
+            .map(|item| self.extract_key(item, Some(extra_prefix_bytes_count)))
+            .collect::<Result<_, _>>()?;
+
+        Ok(keys)
+    }
 }
 
 #[async_trait]
@@ -540,6 +580,9 @@ pub enum DynamoDbContextError {
 
     #[error(transparent)]
     Delete(#[from] Box<SdkError<aws_sdk_dynamodb::error::DeleteItemError>>),
+
+    #[error(transparent)]
+    Scan(#[from] Box<SdkError<aws_sdk_dynamodb::error::ScanError>>),
 
     #[error("The stored key attribute is missing")]
     MissingKey,
