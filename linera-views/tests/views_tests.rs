@@ -109,6 +109,42 @@ impl StateStore for RocksdbTestStore {
     }
 }
 
+pub struct DynamoDbTestStore {
+    db: Arc<rocksdb::DB>,
+    locks: HashMap<usize, Arc<Mutex<()>>>,
+}
+
+impl DynamoDbTestStore {
+    fn new(db: rocksdb::DB) -> Self {
+        Self {
+            db: Arc::new(db),
+            locks: HashMap::new(),
+        }
+    }
+}
+
+impl StateViewContext for DynamoDbContext<usize> {}
+
+#[async_trait]
+impl StateStore for DynamoDbTestStore {
+    type Context = RocksdbContext<usize>;
+
+    async fn load(&mut self, id: usize) -> Result<StateView<Self::Context>, RocksdbViewError> {
+        let lock = self
+            .locks
+            .entry(id)
+            .or_insert_with(|| Arc::new(Mutex::new(())));
+        log::trace!("Acquiring lock on {:?}", id);
+        let context = RocksdbContext::new(
+            self.db.clone(),
+            lock.clone().lock_owned().await,
+            bcs::to_bytes(&id)?,
+            id,
+        );
+        StateView::load(context).await
+    }
+}
+
 #[cfg(test)]
 async fn test_store<S>(store: &mut S) -> <<S::Context as HashingContext>::Hasher as Hasher>::Output
 where
