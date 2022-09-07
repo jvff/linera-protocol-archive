@@ -20,10 +20,8 @@ pub trait Hasher: Default + Write + Send + Sync + 'static {
     type Output: Debug + Clone + Eq + AsRef<[u8]> + 'static;
 
     fn finalize(self) -> Self::Output;
-}
 
-trait BcsHasher: Hasher {
-    fn update(&mut self, value: &impl Serialize) -> Result<(), ViewError> {
+    fn update_with_bcs_bytes(&mut self, value: &impl Serialize) -> Result<(), ViewError> {
         bcs::serialize_into(self, value)?;
         Ok(())
     }
@@ -36,8 +34,6 @@ impl Hasher for sha2::Sha512 {
         <sha2::Sha512 as sha2::Digest>::finalize(self)
     }
 }
-
-impl<AllHashers> BcsHasher for AllHashers where AllHashers: Hasher {}
 
 #[async_trait]
 impl<C, W, const INDEX: u64> HashView<C> for ScopedView<INDEX, W>
@@ -58,7 +54,7 @@ where
 {
     async fn hash(&mut self) -> Result<<C::Hasher as Hasher>::Output, C::Error> {
         let mut hasher = C::Hasher::default();
-        hasher.update(self.get())?;
+        hasher.update_with_bcs_bytes(self.get())?;
         Ok(hasher.finalize())
     }
 }
@@ -73,7 +69,7 @@ where
         let count = self.count();
         let elements = self.read(0..count).await?;
         let mut hasher = C::Hasher::default();
-        hasher.update(&elements)?;
+        hasher.update_with_bcs_bytes(&elements)?;
         Ok(hasher.finalize())
     }
 }
@@ -88,7 +84,7 @@ where
         let count = self.count();
         let elements = self.read_front(count).await?;
         let mut hasher = C::Hasher::default();
-        hasher.update(&elements)?;
+        hasher.update_with_bcs_bytes(&elements)?;
         Ok(hasher.finalize())
     }
 }
@@ -103,15 +99,15 @@ where
     async fn hash(&mut self) -> Result<<C::Hasher as Hasher>::Output, C::Error> {
         let mut hasher = C::Hasher::default();
         let indices = self.indices().await?;
-        hasher.update(&indices.len())?;
+        hasher.update_with_bcs_bytes(&indices.len())?;
 
         for index in indices {
             let value = self
                 .get(&index)
                 .await?
                 .expect("The value for the returned index should be present");
-            hasher.update(&index)?;
-            hasher.update(&value)?;
+            hasher.update_with_bcs_bytes(&index)?;
+            hasher.update_with_bcs_bytes(&value)?;
         }
         Ok(hasher.finalize())
     }
@@ -127,9 +123,9 @@ where
     async fn hash(&mut self) -> Result<<C::Hasher as Hasher>::Output, C::Error> {
         let mut hasher = C::Hasher::default();
         let indices = self.indices().await?;
-        hasher.update(&indices.len())?;
+        hasher.update_with_bcs_bytes(&indices.len())?;
         for index in indices {
-            hasher.update(&index)?;
+            hasher.update_with_bcs_bytes(&index)?;
             let view = self.load_entry(index).await?;
             let hash = view.hash().await?;
             hasher.write_all(hash.as_ref())?;
