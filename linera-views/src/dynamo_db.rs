@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
+    hash::HashingContext,
     localstack,
     views::{
         AppendOnlyLogOperations, CollectionOperations, Context, MapOperations, QueueOperations,
@@ -34,10 +35,10 @@ const PARTITION_ATTRIBUTE: &str = "partition";
 const DUMMY_PARTITION_KEY: &[u8] = &[0];
 
 /// The attribute name of the primary key (used as a sort key).
-const KEY_ATTRIBUTE: &str = "key";
+const KEY_ATTRIBUTE: &str = "item_key";
 
 /// The attribute name of the table value blob.
-const VALUE_ATTRIBUTE: &str = "value";
+const VALUE_ATTRIBUTE: &str = "item_value";
 
 /// A implementation of [`Context`] based on DynamoDB.
 #[derive(Debug, Clone)]
@@ -53,7 +54,7 @@ impl<E> DynamoDbContext<E> {
     /// Create a new [`DynamoDbContext`] instance.
     pub async fn new(
         table: TableName,
-        lock: Arc<OwnedMutexGuard<()>>,
+        lock: OwnedMutexGuard<()>,
         key_prefix: Vec<u8>,
         extra: E,
     ) -> Result<(Self, TableStatus), CreateTableError> {
@@ -66,14 +67,14 @@ impl<E> DynamoDbContext<E> {
     pub async fn from_config(
         config: impl Into<aws_sdk_dynamodb::Config>,
         table: TableName,
-        lock: Arc<OwnedMutexGuard<()>>,
+        lock: OwnedMutexGuard<()>,
         key_prefix: Vec<u8>,
         extra: E,
     ) -> Result<(Self, TableStatus), CreateTableError> {
         let storage = DynamoDbContext {
             client: Client::from_conf(config.into()),
             table,
-            lock,
+            lock: Arc::new(lock),
             key_prefix,
             extra,
         };
@@ -90,7 +91,7 @@ impl<E> DynamoDbContext<E> {
     /// [`TableStatus`] to indicate if the table was created or if it already exists.
     pub async fn with_localstack(
         table: TableName,
-        lock: Arc<OwnedMutexGuard<()>>,
+        lock: OwnedMutexGuard<()>,
         key_prefix: Vec<u8>,
         extra: E,
     ) -> Result<(Self, TableStatus), LocalStackError> {
@@ -104,7 +105,8 @@ impl<E> DynamoDbContext<E> {
 
     /// Create the storage table if it doesn't exist.
     async fn create_table_if_needed(&self) -> Result<TableStatus, CreateTableError> {
-        self.client
+        let result = self
+            .client
             .create_table()
             .table_name(self.table.as_ref())
             .attribute_definitions(
@@ -128,7 +130,7 @@ impl<E> DynamoDbContext<E> {
             .key_schema(
                 KeySchemaElement::builder()
                     .attribute_name(KEY_ATTRIBUTE)
-                    .key_type(KeyType::Hash)
+                    .key_type(KeyType::Range)
                     .build(),
             )
             .provisioned_throughput(
@@ -138,9 +140,13 @@ impl<E> DynamoDbContext<E> {
                     .build(),
             )
             .send()
-            .await?;
+            .await;
 
-        Ok(TableStatus::New)
+        match result {
+            Ok(_) => Ok(TableStatus::New),
+            Err(error) if error.is_resource_in_use_exception() => Ok(TableStatus::Existing),
+            Err(error) => Err(error.into()),
+        }
     }
 
     /// Extend the current key prefix with the provided marker, returning a new key prefix.
@@ -216,7 +222,7 @@ impl<E> DynamoDbContext<E> {
         Key: DeserializeOwned,
     {
         Self::extract_attribute(
-            attributes,
+            dbg!(attributes),
             KEY_ATTRIBUTE,
             Some(self.key_prefix.len()),
             DynamoDbContextError::MissingKey,
@@ -325,7 +331,7 @@ impl<E> DynamoDbContext<E> {
         Key: DeserializeOwned,
         ExtraSuffix: Serialize,
     {
-        let mut prefix_bytes = self.key_prefix.clone();
+        let mut prefix_bytes = dbg!(self.key_prefix.clone());
         prefix_bytes.extend(
             bcs::to_bytes(extra_suffix_for_key_prefix).expect("Failed to serialize suffix"),
         );
@@ -336,7 +342,10 @@ impl<E> DynamoDbContext<E> {
             .table_name(self.table.as_ref())
             .projection_expression(KEY_ATTRIBUTE)
             .filter_expression(format!("begins_with({KEY_ATTRIBUTE}, :prefix)"))
-            .expression_attribute_values("prefix", AttributeValue::B(Blob::new(prefix_bytes)))
+            .expression_attribute_values(
+                ":prefix",
+                dbg!(AttributeValue::B(Blob::new(prefix_bytes))),
+            )
             .send()
             .await?;
 
@@ -536,6 +545,13 @@ where
 
         Ok(())
     }
+}
+
+impl<E> HashingContext for DynamoDbContext<E>
+where
+    E: Clone + Send + Sync,
+{
+    type Hasher = sha2::Sha512;
 }
 
 /// A marker type used to distinguish keys from the current scope from the keys of sub-views.
@@ -745,5 +761,26 @@ pub enum LocalStackError {
 impl From<CreateTableError> for LocalStackError {
     fn from(error: CreateTableError) -> Self {
         Box::new(error).into()
+    }
+}
+
+/// A helper trait to add a `SdkError<CreateTableError>::is_resource_in_use_exception()` method.
+trait IsResourceInUseException {
+    /// Check if the error is a resource is in use exception.
+    fn is_resource_in_use_exception(&self) -> bool;
+}
+
+impl IsResourceInUseException for SdkError<aws_sdk_dynamodb::error::CreateTableError> {
+    fn is_resource_in_use_exception(&self) -> bool {
+        matches!(
+            self,
+            SdkError::ServiceError {
+                err: aws_sdk_dynamodb::error::CreateTableError {
+                    kind: aws_sdk_dynamodb::error::CreateTableErrorKind::ResourceInUseException(_),
+                    ..
+                },
+                ..
+            }
+        )
     }
 }

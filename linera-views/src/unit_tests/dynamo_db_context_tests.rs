@@ -71,8 +71,8 @@ async fn separate_tables_are_created() -> Result<(), Error> {
 }
 
 /// Create a dummy [`OwnedMutexGuard`].
-async fn dummy_lock() -> Arc<OwnedMutexGuard<()>> {
+async fn dummy_lock() -> OwnedMutexGuard<()> {
     let dummy_mutex = Arc::new(Mutex::new(()));
 
-    Arc::new(dummy_mutex.lock_owned().await)
+    dummy_mutex.lock_owned().await
 }
