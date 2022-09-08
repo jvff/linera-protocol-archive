@@ -429,13 +429,13 @@ where
     }
 
     async fn get(&mut self, index: usize) -> Result<Option<T>, Self::Error> {
-        self.get_item(&index.to_le_bytes()).await
+        self.get_item(&index).await
     }
 
     async fn read(&mut self, range: std::ops::Range<usize>) -> Result<Vec<T>, Self::Error> {
         let mut items = Vec::with_capacity(range.len());
         for index in range {
-            let item = match self.get_item(&index.to_le_bytes()).await? {
+            let item = match self.get_item(&index).await? {
                 Some(item) => item,
                 None => return Ok(items),
             };
@@ -458,7 +458,7 @@ where
         let count = AppendOnlyLogOperations::<T>::count(self).await?;
         self.remove_item(&()).await?;
         for index in 0..count {
-            self.remove_item(&index.to_le_bytes()).await?;
+            self.remove_item(&index).await?;
         }
         Ok(())
     }
