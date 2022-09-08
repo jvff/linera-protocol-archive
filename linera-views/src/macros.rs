@@ -54,9 +54,7 @@ where
         use std::io::Write;
 
         let mut hasher = C::Hasher::default();
-        $(
-        dbg!(stringify!($field));
-            hasher.write_all(self.$field.hash().await?.as_ref())?; )*
+        $( hasher.write_all(self.$field.hash().await?.as_ref())?; )*
         Ok(hasher.finalize())
     }
 }

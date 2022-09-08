@@ -217,14 +217,15 @@ impl<E> DynamoDbContext<E> {
     fn extract_key<Key>(
         &self,
         attributes: &HashMap<String, AttributeValue>,
+        extra_bytes_to_skip: Option<usize>,
     ) -> Result<Key, DynamoDbContextError>
     where
         Key: DeserializeOwned,
     {
         Self::extract_attribute(
-            dbg!(attributes),
+            attributes,
             KEY_ATTRIBUTE,
-            Some(self.key_prefix.len()),
+            Some(self.key_prefix.len() + extra_bytes_to_skip.unwrap_or(0)),
             DynamoDbContextError::MissingKey,
             DynamoDbContextError::wrong_key_type,
             DynamoDbContextError::KeyDeserialization,
@@ -331,10 +332,12 @@ impl<E> DynamoDbContext<E> {
         Key: DeserializeOwned,
         ExtraSuffix: Serialize,
     {
-        let mut prefix_bytes = dbg!(self.key_prefix.clone());
-        prefix_bytes.extend(
-            bcs::to_bytes(extra_suffix_for_key_prefix).expect("Failed to serialize suffix"),
-        );
+        let extra_prefix_bytes =
+            bcs::to_bytes(extra_suffix_for_key_prefix).expect("Failed to serialize suffix");
+        let extra_prefix_bytes_count = extra_prefix_bytes.len();
+
+        let mut prefix_bytes = self.key_prefix.clone();
+        prefix_bytes.extend(extra_prefix_bytes);
 
         let response = self
             .client
@@ -342,10 +345,7 @@ impl<E> DynamoDbContext<E> {
             .table_name(self.table.as_ref())
             .projection_expression(KEY_ATTRIBUTE)
             .filter_expression(format!("begins_with({KEY_ATTRIBUTE}, :prefix)"))
-            .expression_attribute_values(
-                ":prefix",
-                dbg!(AttributeValue::B(Blob::new(prefix_bytes))),
-            )
+            .expression_attribute_values(":prefix", AttributeValue::B(Blob::new(prefix_bytes)))
             .send()
             .await?;
 
@@ -353,7 +353,7 @@ impl<E> DynamoDbContext<E> {
             .items()
             .into_iter()
             .flatten()
-            .map(|item| self.extract_key(item))
+            .map(|item| self.extract_key(item, Some(extra_prefix_bytes_count)))
             .collect::<Result<_, _>>()?;
 
         Ok(keys)
