@@ -29,7 +29,7 @@ use tokio::sync::OwnedMutexGuard;
 pub mod dynamo_db_context_tests;
 
 /// The attribute name of the partition key.
-const PARTITION_ATTRIBUTE: &str = "partition";
+const PARTITION_ATTRIBUTE: &str = "item_partition";
 
 /// A dummy value to use as the partition key.
 const DUMMY_PARTITION_KEY: &[u8] = &[0];
@@ -325,7 +325,7 @@ impl<E> DynamoDbContext<E> {
         Ok(())
     }
 
-    /// Scan the table for the keys that are prefixed by the current context.
+    /// Query the table for the keys that are prefixed by the current context.
     ///
     /// # Panics
     ///
@@ -347,10 +347,16 @@ impl<E> DynamoDbContext<E> {
 
         let response = self
             .client
-            .scan()
+            .query()
             .table_name(self.table.as_ref())
             .projection_expression(KEY_ATTRIBUTE)
-            .filter_expression(format!("begins_with({KEY_ATTRIBUTE}, :prefix)"))
+            .key_condition_expression(format!(
+                "{PARTITION_ATTRIBUTE} = :partition and begins_with({KEY_ATTRIBUTE}, :prefix)"
+            ))
+            .expression_attribute_values(
+                ":partition",
+                AttributeValue::B(Blob::new(DUMMY_PARTITION_KEY)),
+            )
             .expression_attribute_values(":prefix", AttributeValue::B(Blob::new(prefix_bytes)))
             .send()
             .await?;
@@ -674,7 +680,7 @@ pub enum DynamoDbContextError {
     Delete(#[from] Box<SdkError<aws_sdk_dynamodb::error::DeleteItemError>>),
 
     #[error(transparent)]
-    Scan(#[from] Box<SdkError<aws_sdk_dynamodb::error::ScanError>>),
+    Query(#[from] Box<SdkError<aws_sdk_dynamodb::error::QueryError>>),
 
     #[error("The stored key attribute is missing")]
     MissingKey,
