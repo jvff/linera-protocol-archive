@@ -6,7 +6,7 @@ macro_rules! impl_view {
 
     ($name: ident { $($field:ident),* $(,)? }; $( $operation:path ),* $(,)? ) => {
 
-#[async_trait::async_trait]
+#[$crate::async_trait]
 impl<C> $crate::views::View<C> for $name<C>
 where
     C: $crate::views::Context
@@ -39,7 +39,7 @@ where
     }
 }
 
-#[async_trait::async_trait]
+#[$crate::async_trait]
 impl<C> $crate::hash::HashView<C> for $name<C>
 where
     C: $crate::hash::HashingContext
