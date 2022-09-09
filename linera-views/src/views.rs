@@ -6,7 +6,7 @@ use std::{
     cmp::Eq,
     collections::{btree_map, BTreeMap, VecDeque},
     fmt::Debug,
-    ops::Range,
+    ops::{Deref, DerefMut, Range},
 };
 use thiserror::Error;
 
@@ -657,8 +657,8 @@ where
 {
     /// Obtain a subview for the data at the given index in the collection. Return an
     /// error if `remove_entry` was used earlier on this index from the same [`CollectionView`].
-    pub async fn load_entry(&mut self, index: I) -> Result<&mut W, C::Error> {
-        match self.updates.entry(index.clone()) {
+    pub async fn load_entry(&mut self, index: I) -> Result<CollectionEntry<'_, I, W>, C::Error> {
+        let entry = match self.updates.entry(index.clone()) {
             btree_map::Entry::Occupied(e) => match e.into_mut() {
                 Some(view) => Ok(view),
                 None => Err(C::Error::from(ViewError::RemovedEntry(format!(
@@ -671,7 +671,9 @@ where
                 let view = W::load(context).await?;
                 Ok(e.insert(Some(view)).as_mut().unwrap())
             }
-        }
+        }?;
+
+        Ok(CollectionEntry { index, entry })
     }
 
     /// Mark the entry so that it is removed in the next commit.
