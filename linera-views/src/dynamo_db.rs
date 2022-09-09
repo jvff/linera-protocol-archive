@@ -42,25 +42,23 @@ const VALUE_ATTRIBUTE: &str = "item_value";
 
 /// A implementation of [`Context`] based on DynamoDB.
 #[derive(Debug, Clone)]
-pub struct DynamoDbContext<E> {
+pub struct DynamoDbContext {
     client: Client,
     table: TableName,
     lock: Arc<OwnedMutexGuard<()>>,
     key_prefix: Vec<u8>,
-    extra: E,
 }
 
-impl<E> DynamoDbContext<E> {
+impl DynamoDbContext {
     /// Create a new [`DynamoDbContext`] instance.
     pub async fn new(
         table: TableName,
         lock: OwnedMutexGuard<()>,
         key_prefix: Vec<u8>,
-        extra: E,
     ) -> Result<(Self, TableStatus), CreateTableError> {
         let config = aws_config::load_from_env().await;
 
-        DynamoDbContext::from_config(&config, table, lock, key_prefix, extra).await
+        DynamoDbContext::from_config(&config, table, lock, key_prefix).await
     }
 
     /// Create a new [`DynamoDbContext`] instance using the provided `config` parameters.
@@ -69,14 +67,12 @@ impl<E> DynamoDbContext<E> {
         table: TableName,
         lock: OwnedMutexGuard<()>,
         key_prefix: Vec<u8>,
-        extra: E,
     ) -> Result<(Self, TableStatus), CreateTableError> {
         let storage = DynamoDbContext {
             client: Client::from_conf(config.into()),
             table,
             lock: Arc::new(lock),
             key_prefix,
-            extra,
         };
 
         let table_status = storage.create_table_if_needed().await?;
@@ -93,14 +89,13 @@ impl<E> DynamoDbContext<E> {
         table: TableName,
         lock: OwnedMutexGuard<()>,
         key_prefix: Vec<u8>,
-        extra: E,
     ) -> Result<(Self, TableStatus), LocalStackError> {
         let base_config = aws_config::load_from_env().await;
         let config = aws_sdk_dynamodb::config::Builder::from(&base_config)
             .endpoint_resolver(localstack::get_endpoint()?)
             .build();
 
-        Ok(DynamoDbContext::from_config(config, table, lock, key_prefix, extra).await?)
+        Ok(DynamoDbContext::from_config(config, table, lock, key_prefix).await?)
     }
 
     /// Create the storage table if it doesn't exist.
@@ -373,39 +368,26 @@ impl<E> DynamoDbContext<E> {
 }
 
 #[async_trait]
-impl<E> Context for DynamoDbContext<E>
-where
-    E: Clone + Send + Sync,
-{
-    type Extra = E;
+impl Context for DynamoDbContext {
     type Error = DynamoDbContextError;
-
-    fn extra(&self) -> &E {
-        &self.extra
-    }
 }
 
 #[async_trait]
-impl<E> ScopedOperations for DynamoDbContext<E>
-where
-    E: Clone + Send + Sync,
-{
+impl ScopedOperations for DynamoDbContext {
     fn clone_with_scope(&self, index: u64) -> Self {
         DynamoDbContext {
             client: self.client.clone(),
             table: self.table.clone(),
             lock: self.lock.clone(),
             key_prefix: self.extend_prefix(&index),
-            extra: self.extra.clone(),
         }
     }
 }
 
 #[async_trait]
-impl<E, T> RegisterOperations<T> for DynamoDbContext<E>
+impl<T> RegisterOperations<T> for DynamoDbContext
 where
     T: Default + Serialize + DeserializeOwned + Send + Sync + 'static,
-    E: Clone + Send + Sync,
 {
     async fn get(&mut self) -> Result<T, Self::Error> {
         let value = self.get_item(&()).await?.unwrap_or_default();
@@ -424,10 +406,9 @@ where
 }
 
 #[async_trait]
-impl<E, T> AppendOnlyLogOperations<T> for DynamoDbContext<E>
+impl<T> AppendOnlyLogOperations<T> for DynamoDbContext
 where
     T: Serialize + DeserializeOwned + Send + Sync + 'static,
-    E: Clone + Send + Sync,
 {
     async fn count(&mut self) -> Result<usize, Self::Error> {
         let count = self.get_item(&()).await?.unwrap_or_default();
@@ -471,10 +452,9 @@ where
 }
 
 #[async_trait]
-impl<E, T> QueueOperations<T> for DynamoDbContext<E>
+impl<T> QueueOperations<T> for DynamoDbContext
 where
     T: Serialize + DeserializeOwned + Send + Sync + 'static,
-    E: Clone + Send + Sync,
 {
     async fn indices(&mut self) -> Result<Range<usize>, Self::Error> {
         let range = self.get_item(&()).await?.unwrap_or_default();
@@ -526,11 +506,10 @@ where
 }
 
 #[async_trait]
-impl<E, I, V> MapOperations<I, V> for DynamoDbContext<E>
+impl<I, V> MapOperations<I, V> for DynamoDbContext
 where
     I: Eq + Ord + Send + Sync + Serialize + DeserializeOwned + Clone + 'static,
     V: Serialize + DeserializeOwned + Send + Sync + 'static,
-    E: Clone + Send + Sync,
 {
     async fn get(&mut self, index: &I) -> Result<Option<V>, Self::Error> {
         Ok(self.get_item(&index).await?)
@@ -559,10 +538,7 @@ where
     }
 }
 
-impl<E> HashingContext for DynamoDbContext<E>
-where
-    E: Clone + Send + Sync,
-{
+impl HashingContext for DynamoDbContext {
     type Hasher = sha2::Sha512;
 }
 
@@ -583,10 +559,9 @@ enum CollectionKey<I> {
 }
 
 #[async_trait]
-impl<E, I> CollectionOperations<I> for DynamoDbContext<E>
+impl<I> CollectionOperations<I> for DynamoDbContext
 where
     I: serde::Serialize + serde::de::DeserializeOwned + Send + Sync + 'static,
-    E: Clone + Send + Sync,
 {
     fn clone_with_scope(&self, index: &I) -> Self {
         DynamoDbContext {
@@ -594,7 +569,6 @@ where
             table: self.table.clone(),
             lock: self.lock.clone(),
             key_prefix: self.extend_prefix(&CollectionKey::Subview(index)),
-            extra: self.extra.clone(),
         }
     }
 

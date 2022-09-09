@@ -19,6 +19,7 @@ use linera_storage2::{MemoryStoreClient, RocksdbStoreClient, Store};
 use once_cell::sync::Lazy;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
+    future::Future,
     str::FromStr,
     sync::Arc,
 };
@@ -110,8 +111,8 @@ where
 // * When using `LocalValidatorClient`, clients communicate with an exact quorum then stops.
 // * Most tests have 1 faulty validator out 4 so that there is exactly only 1 quorum to
 // communicate with.
-struct TestBuilder<S> {
-    store_builder: fn() -> S,
+struct TestBuilder<S, B> {
+    store_builder: B,
     initial_committee: Committee,
     admin_id: ChainId,
     genesis_store_builder: GenesisStoreBuilder,
@@ -141,18 +142,11 @@ impl GenesisStoreBuilder {
         })
     }
 
-    async fn build<S, F>(
-        &self,
-        store_builder: F,
-        initial_committee: Committee,
-        admin_id: ChainId,
-    ) -> S
+    async fn build<S>(&self, store: S, initial_committee: Committee, admin_id: ChainId) -> S
     where
         S: Store + Clone + Send + Sync + 'static,
         Error: From<S::Error>,
-        F: Fn() -> S,
     {
-        let store = store_builder();
         for account in &self.accounts {
             store
                 .create_chain(
@@ -169,12 +163,14 @@ impl GenesisStoreBuilder {
     }
 }
 
-impl<S> TestBuilder<S>
+impl<S, B, F> TestBuilder<S, B>
 where
     S: Store + Clone + Send + Sync + 'static,
+    B: Fn() -> F,
+    F: Future<Output = S>,
     Error: From<S::Error>,
 {
-    fn new(store_builder: fn() -> S, count: usize, with_faulty_validators: usize) -> Self {
+    async fn new(store_builder: B, count: usize, with_faulty_validators: usize) -> Self {
         let mut key_pairs = Vec::new();
         let mut validators = Vec::new();
         for _ in 0..count {
@@ -189,7 +185,7 @@ where
         let mut faulty_validators = HashSet::new();
         for (i, key_pair) in key_pairs.into_iter().enumerate() {
             let name = ValidatorName(key_pair.public());
-            let store = store_builder();
+            let store = store_builder().await;
             let state = WorkerState::new(format!("Node {}", i), Some(key_pair), store.clone())
                 .allow_inactive_chains(false);
             let validator = if i < with_faulty_validators {
@@ -279,7 +275,7 @@ where
         let store = self
             .genesis_store_builder
             .build(
-                self.store_builder,
+                (self.store_builder)().await,
                 self.initial_committee.clone(),
                 self.admin_id,
             )
@@ -344,16 +340,24 @@ static TEMP_DIRS: Lazy<std::sync::Mutex<Vec<tempfile::TempDir>>> =
 /// Need a guard to avoid "too many open files" error
 static GUARD: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
-fn make_rocksdb_client() -> RocksdbStoreClient {
+async fn make_memory_store_client() -> MemoryStoreClient {
+    MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient")
+}
+
+async fn make_rocksdb_client() -> RocksdbStoreClient {
     let dir = tempfile::TempDir::new().unwrap();
     let path = dir.path().to_path_buf();
     TEMP_DIRS.lock().unwrap().push(dir);
     RocksdbStoreClient::new(path)
+        .await
+        .expect("Failed to create RocksdbStoreClient")
 }
 
 #[test(tokio::test)]
 async fn test_memory_initiating_valid_transfer() {
-    run_test_initiating_valid_transfer(MemoryStoreClient::default).await
+    run_test_initiating_valid_transfer(make_memory_store_client).await
 }
 
 #[test(tokio::test)]
@@ -362,12 +366,13 @@ async fn test_rocksdb_initiating_valid_transfer() {
     run_test_initiating_valid_transfer(make_rocksdb_client).await
 }
 
-async fn run_test_initiating_valid_transfer<S>(store_builder: fn() -> S)
+async fn run_test_initiating_valid_transfer<F, S>(store_builder: impl Fn() -> F)
 where
+    F: Future<Output = S>,
     S: Store + Clone + Send + Sync + 'static,
     Error: From<S::Error>,
 {
-    let mut builder = TestBuilder::new(store_builder, 4, 1);
+    let mut builder = TestBuilder::new(store_builder, 4, 1).await;
     let mut sender = builder
         .add_initial_chain(ChainDescription::Root(1), Balance::from(4))
         .await;
@@ -394,7 +399,7 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_rotate_key_pair() {
-    run_test_rotate_key_pair(MemoryStoreClient::default).await
+    run_test_rotate_key_pair(make_memory_store_client).await
 }
 
 #[test(tokio::test)]
@@ -403,12 +408,13 @@ async fn test_rocksdb_rotate_key_pair() {
     run_test_rotate_key_pair(make_rocksdb_client).await
 }
 
-async fn run_test_rotate_key_pair<S>(store_builder: fn() -> S)
+async fn run_test_rotate_key_pair<F, S>(store_builder: impl Fn() -> F)
 where
+    F: Future<Output = S>,
     S: Store + Clone + Send + Sync + 'static,
     Error: From<S::Error>,
 {
-    let mut builder = TestBuilder::new(store_builder, 4, 1);
+    let mut builder = TestBuilder::new(store_builder, 4, 1).await;
     let mut sender = builder
         .add_initial_chain(ChainDescription::Root(1), Balance::from(4))
         .await;
@@ -440,7 +446,7 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_transfer_ownership() {
-    run_test_transfer_ownership(MemoryStoreClient::default).await
+    run_test_transfer_ownership(make_memory_store_client).await
 }
 
 #[test(tokio::test)]
@@ -449,12 +455,13 @@ async fn test_rocksdb_transfer_ownership() {
     run_test_transfer_ownership(make_rocksdb_client).await
 }
 
-async fn run_test_transfer_ownership<S>(store_builder: fn() -> S)
+async fn run_test_transfer_ownership<F, S>(store_builder: impl Fn() -> F)
 where
+    F: Future<Output = S>,
     S: Store + Clone + Send + Sync + 'static,
     Error: From<S::Error>,
 {
-    let mut builder = TestBuilder::new(store_builder, 4, 1);
+    let mut builder = TestBuilder::new(store_builder, 4, 1).await;
     let mut sender = builder
         .add_initial_chain(ChainDescription::Root(1), Balance::from(4))
         .await;
@@ -487,7 +494,7 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_share_ownership() {
-    run_test_share_ownership(MemoryStoreClient::default).await
+    run_test_share_ownership(make_memory_store_client).await
 }
 
 #[test(tokio::test)]
@@ -496,12 +503,13 @@ async fn test_rocksdb_share_ownership() {
     run_test_share_ownership(make_rocksdb_client).await
 }
 
-async fn run_test_share_ownership<S>(store_builder: fn() -> S)
+async fn run_test_share_ownership<F, S>(store_builder: impl Fn() -> F)
 where
+    F: Future<Output = S>,
     S: Store + Clone + Send + Sync + 'static,
     Error: From<S::Error>,
 {
-    let mut builder = TestBuilder::new(store_builder, 4, 1);
+    let mut builder = TestBuilder::new(store_builder, 4, 1).await;
     let mut sender = builder
         .add_initial_chain(ChainDescription::Root(1), Balance::from(4))
         .await;
@@ -555,7 +563,7 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_open_chain_then_close_it() {
-    run_test_open_chain_then_close_it(MemoryStoreClient::default).await
+    run_test_open_chain_then_close_it(make_memory_store_client).await
 }
 
 #[test(tokio::test)]
@@ -564,42 +572,46 @@ async fn test_rocksdb_open_chain_then_close_it() {
     run_test_open_chain_then_close_it(make_rocksdb_client).await
 }
 
-async fn run_test_open_chain_then_close_it<S>(store_builder: fn() -> S)
+async fn run_test_open_chain_then_close_it<F, S>(store_builder: impl Fn() -> F)
 where
+    F: Future<Output = S>,
     S: Store + Clone + Send + Sync + 'static,
     Error: From<S::Error>,
 {
-    let mut builder = TestBuilder::new(store_builder, 4, 1);
+    let mut builder = TestBuilder::new(store_builder, 4, 1).await;
     // New chains use the admin chain to verify their creation certificate.
     builder
-        .add_initial_chain(ChainDescription::Root(0), Balance::from(0))
+        .add_initial_chain(dbg!(ChainDescription::Root(0)), Balance::from(0))
         .await;
     let mut sender = builder
-        .add_initial_chain(ChainDescription::Root(1), Balance::from(4))
+        .add_initial_chain(dbg!(ChainDescription::Root(1)), Balance::from(4))
         .await;
     let new_key_pair = KeyPair::generate();
-    let new_owner = Owner(new_key_pair.public());
+    let new_owner = dbg!(Owner(new_key_pair.public()));
     // Open the new chain.
     let (new_id, certificate) = sender.open_chain(new_owner).await.unwrap();
-    assert_eq!(sender.next_block_height, BlockHeight::from(1));
+    assert_eq!(sender.next_block_height, dbg!(BlockHeight::from(1)));
     assert!(sender.pending_block.is_none());
     assert!(sender.key_pair().await.is_ok());
     // Make a client to try the new chain.
     let mut client = builder
-        .make_client(new_id, new_key_pair, None, BlockHeight::from(0))
+        .make_client(new_id, new_key_pair, None, dbg!(BlockHeight::from(0)))
         .await;
-    client.receive_certificate(certificate).await.unwrap();
+    client.receive_certificate(dbg!(certificate)).await.unwrap();
     assert_eq!(
         client.synchronize_balance().await.unwrap(),
-        Balance::from(0)
+        dbg!(Balance::from(0))
     );
-    assert_eq!(client.local_balance().await.unwrap(), Balance::from(0));
+    assert_eq!(
+        client.local_balance().await.unwrap(),
+        dbg!(Balance::from(0))
+    );
     client.close_chain().await.unwrap();
 }
 
 #[test(tokio::test)]
 async fn test_memory_transfer_then_open_chain() {
-    run_test_transfer_then_open_chain(MemoryStoreClient::default).await
+    run_test_transfer_then_open_chain(make_memory_store_client).await
 }
 
 #[test(tokio::test)]
@@ -608,12 +620,13 @@ async fn test_rocksdb_transfer_then_open_chain() {
     run_test_transfer_then_open_chain(make_rocksdb_client).await
 }
 
-async fn run_test_transfer_then_open_chain<S>(store_builder: fn() -> S)
+async fn run_test_transfer_then_open_chain<F, S>(store_builder: impl Fn() -> F)
 where
+    F: Future<Output = S>,
     S: Store + Clone + Send + Sync + 'static,
     Error: From<S::Error>,
 {
-    let mut builder = TestBuilder::new(store_builder, 4, 1);
+    let mut builder = TestBuilder::new(store_builder, 4, 1).await;
     // New chains use the admin chain to verify their creation certificate.
     builder
         .add_initial_chain(ChainDescription::Root(0), Balance::from(0))
@@ -667,7 +680,7 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_open_chain_then_transfer() {
-    run_test_open_chain_then_transfer(MemoryStoreClient::default).await
+    run_test_open_chain_then_transfer(make_memory_store_client).await
 }
 
 #[test(tokio::test)]
@@ -676,12 +689,13 @@ async fn test_rocksdb_open_chain_then_transfer() {
     run_test_open_chain_then_transfer(make_rocksdb_client).await
 }
 
-async fn run_test_open_chain_then_transfer<S>(store_builder: fn() -> S)
+async fn run_test_open_chain_then_transfer<F, S>(store_builder: impl Fn() -> F)
 where
+    F: Future<Output = S>,
     S: Store + Clone + Send + Sync + 'static,
     Error: From<S::Error>,
 {
-    let mut builder = TestBuilder::new(store_builder, 4, 1);
+    let mut builder = TestBuilder::new(store_builder, 4, 1).await;
     // New chains use the admin chain to verify their creation certificate.
     builder
         .add_initial_chain(ChainDescription::Root(0), Balance::from(0))
@@ -725,7 +739,7 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_close_chain() {
-    run_test_close_chain(MemoryStoreClient::default).await
+    run_test_close_chain(make_memory_store_client).await
 }
 
 #[test(tokio::test)]
@@ -734,12 +748,13 @@ async fn test_rocksdb_close_chain() {
     run_test_close_chain(make_rocksdb_client).await
 }
 
-async fn run_test_close_chain<S>(store_builder: fn() -> S)
+async fn run_test_close_chain<F, S>(store_builder: impl Fn() -> F)
 where
+    F: Future<Output = S>,
     S: Store + Clone + Send + Sync + 'static,
     Error: From<S::Error>,
 {
-    let mut builder = TestBuilder::new(store_builder, 4, 1);
+    let mut builder = TestBuilder::new(store_builder, 4, 1).await;
     let mut sender = builder
         .add_initial_chain(ChainDescription::Root(1), Balance::from(4))
         .await;
@@ -774,7 +789,7 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_initiating_valid_transfer_too_many_faults() {
-    run_test_initiating_valid_transfer_too_many_faults(MemoryStoreClient::default).await
+    run_test_initiating_valid_transfer_too_many_faults(make_memory_store_client).await
 }
 
 #[test(tokio::test)]
@@ -783,12 +798,13 @@ async fn test_rocksdb_initiating_valid_transfer_too_many_faults() {
     run_test_initiating_valid_transfer_too_many_faults(make_rocksdb_client).await
 }
 
-async fn run_test_initiating_valid_transfer_too_many_faults<S>(store_builder: fn() -> S)
+async fn run_test_initiating_valid_transfer_too_many_faults<F, S>(store_builder: impl Fn() -> F)
 where
+    F: Future<Output = S>,
     S: Store + Clone + Send + Sync + 'static,
     Error: From<S::Error>,
 {
-    let mut builder = TestBuilder::new(store_builder, 4, 2);
+    let mut builder = TestBuilder::new(store_builder, 4, 2).await;
     let mut sender = builder
         .add_initial_chain(ChainDescription::Root(1), Balance::from(4))
         .await;
@@ -807,7 +823,7 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_bidirectional_transfer() {
-    run_test_bidirectional_transfer(MemoryStoreClient::default).await
+    run_test_bidirectional_transfer(make_memory_store_client).await
 }
 
 #[test(tokio::test)]
@@ -816,12 +832,13 @@ async fn test_rocksdb_bidirectional_transfer() {
     run_test_bidirectional_transfer(make_rocksdb_client).await
 }
 
-async fn run_test_bidirectional_transfer<S>(store_builder: fn() -> S)
+async fn run_test_bidirectional_transfer<F, S>(store_builder: impl Fn() -> F)
 where
+    F: Future<Output = S>,
     S: Store + Clone + Send + Sync + 'static,
     Error: From<S::Error>,
 {
-    let mut builder = TestBuilder::new(store_builder, 4, 1);
+    let mut builder = TestBuilder::new(store_builder, 4, 1).await;
     let mut client1 = builder
         .add_initial_chain(ChainDescription::Root(1), Balance::from(3))
         .await;
@@ -873,7 +890,7 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_receiving_unconfirmed_transfer() {
-    run_test_receiving_unconfirmed_transfer(MemoryStoreClient::default).await
+    run_test_receiving_unconfirmed_transfer(make_memory_store_client).await
 }
 
 #[test(tokio::test)]
@@ -882,12 +899,13 @@ async fn test_rocksdb_receiving_unconfirmed_transfer() {
     run_test_receiving_unconfirmed_transfer(make_rocksdb_client).await
 }
 
-async fn run_test_receiving_unconfirmed_transfer<S>(store_builder: fn() -> S)
+async fn run_test_receiving_unconfirmed_transfer<F, S>(store_builder: impl Fn() -> F)
 where
+    F: Future<Output = S>,
     S: Store + Clone + Send + Sync + 'static,
     Error: From<S::Error>,
 {
-    let mut builder = TestBuilder::new(store_builder, 4, 1);
+    let mut builder = TestBuilder::new(store_builder, 4, 1).await;
     let mut client1 = builder
         .add_initial_chain(ChainDescription::Root(1), Balance::from(3))
         .await;
@@ -913,7 +931,7 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_receiving_unconfirmed_transfer_with_lagging_sender_balances() {
-    run_test_receiving_unconfirmed_transfer_with_lagging_sender_balances(MemoryStoreClient::default)
+    run_test_receiving_unconfirmed_transfer_with_lagging_sender_balances(make_memory_store_client)
         .await
 }
 
@@ -923,13 +941,14 @@ async fn test_rocksdb_receiving_unconfirmed_transfer_with_lagging_sender_balance
     run_test_receiving_unconfirmed_transfer_with_lagging_sender_balances(make_rocksdb_client).await
 }
 
-async fn run_test_receiving_unconfirmed_transfer_with_lagging_sender_balances<S>(
-    store_builder: fn() -> S,
+async fn run_test_receiving_unconfirmed_transfer_with_lagging_sender_balances<F, S>(
+    store_builder: impl Fn() -> F,
 ) where
     S: Store + Clone + Send + Sync + 'static,
+    F: Future<Output = S>,
     Error: From<S::Error>,
 {
-    let mut builder = TestBuilder::new(store_builder, 4, 1);
+    let mut builder = TestBuilder::new(store_builder, 4, 1).await;
     let mut client1 = builder
         .add_initial_chain(ChainDescription::Root(1), Balance::from(3))
         .await;
@@ -1005,7 +1024,7 @@ async fn run_test_receiving_unconfirmed_transfer_with_lagging_sender_balances<S>
 
 #[test(tokio::test)]
 async fn test_memory_change_voting_rights() {
-    run_test_change_voting_rights(MemoryStoreClient::default).await
+    run_test_change_voting_rights(make_memory_store_client).await
 }
 
 #[test(tokio::test)]
@@ -1014,12 +1033,13 @@ async fn test_rocksdb_change_voting_rights() {
     run_test_change_voting_rights(make_rocksdb_client).await
 }
 
-async fn run_test_change_voting_rights<S>(store_builder: fn() -> S)
+async fn run_test_change_voting_rights<F, S>(store_builder: impl Fn() -> F)
 where
+    F: Future<Output = S>,
     S: Store + Clone + Send + Sync + 'static,
     Error: From<S::Error>,
 {
-    let mut builder = TestBuilder::new(store_builder, 4, 1);
+    let mut builder = TestBuilder::new(store_builder, 4, 1).await;
     let mut admin = builder
         .add_initial_chain(ChainDescription::Root(0), Balance::from(3))
         .await;

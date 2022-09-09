@@ -4,6 +4,7 @@
 pub mod chain;
 mod memory;
 mod rocksdb;
+pub mod view;
 
 pub use crate::{memory::MemoryStoreClient, rocksdb::RocksdbStoreClient};
 
@@ -17,14 +18,13 @@ use linera_base::{
     messages::{Certificate, ChainDescription, ChainId, Epoch, Owner},
     system::Balance,
 };
-use linera_views::views::View;
 use std::fmt::Debug;
 
 /// Communicate with a persistent storage using the "views" abstraction.
 #[async_trait]
 pub trait Store {
     /// The `context` data-type provided by the storage implementation in use.
-    type Context: chain::ChainStateViewContext<Extra = ChainId, Error = Self::Error>;
+    type Context: chain::ChainStateViewContext<Error = Self::Error>;
     type Error: std::error::Error + Debug + Sync + Send;
 
     /// Load the view of a chain state.
@@ -100,9 +100,8 @@ pub trait Store {
         state.system.committees.insert(Epoch::from(0), committee);
         state.system.manager = ChainManager::single(owner);
         state.system.balance = balance;
-        chain
-            .execution_state_hash
-            .set(Some(HashValue::new(&*state)));
+        let state_hash = HashValue::new(&*state);
+        chain.execution_state_hash.set(Some(state_hash));
         chain.commit().await?;
         Ok(())
     }

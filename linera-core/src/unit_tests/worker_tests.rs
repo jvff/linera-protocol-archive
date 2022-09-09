@@ -195,14 +195,18 @@ fn make_transfer_certificate<S>(
 
 #[test(tokio::test)]
 async fn test_memory_handle_block_proposal_bad_signature() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_handle_block_proposal_bad_signature(client).await;
 }
 
 #[test(tokio::test)]
 async fn test_rocksdb_handle_block_proposal_bad_signature() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_handle_block_proposal_bad_signature(client).await;
 }
 
@@ -260,14 +264,18 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_handle_block_proposal_zero_amount() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_handle_block_proposal_zero_amount(client).await;
 }
 
 #[test(tokio::test)]
 async fn test_rocksdb_handle_block_proposal_zero_amount() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_handle_block_proposal_zero_amount(client).await;
 }
 
@@ -322,14 +330,18 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_handle_block_proposal_unknown_sender() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_handle_block_proposal_unknown_sender(client).await;
 }
 
 #[test(tokio::test)]
 async fn test_rocksdb_handle_block_proposal_unknown_sender() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_handle_block_proposal_unknown_sender(client).await;
 }
 
@@ -386,14 +398,18 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_handle_block_proposal_with_chaining() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_handle_block_proposal_with_chaining(client).await;
 }
 
 #[test(tokio::test)]
 async fn test_rocksdb_handle_block_proposal_with_chaining() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_handle_block_proposal_with_chaining(client).await;
 }
 
@@ -490,14 +506,18 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_handle_block_proposal_with_incoming_messages() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_handle_block_proposal_with_incoming_messages(client).await;
 }
 
 #[test(tokio::test)]
 async fn test_rocksdb_handle_block_proposal_with_incoming_messages() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_handle_block_proposal_with_incoming_messages(client).await;
 }
 
@@ -873,14 +893,18 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_handle_block_proposal_exceed_balance() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_handle_block_proposal_exceed_balance(client).await;
 }
 
 #[test(tokio::test)]
 async fn test_rocksdb_handle_block_proposal_exceed_balance() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_handle_block_proposal_exceed_balance(client).await;
 }
 
@@ -931,14 +955,18 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_handle_block_proposal() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_handle_block_proposal(client).await;
 }
 
 #[test(tokio::test)]
 async fn test_rocksdb_handle_block_proposal() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_handle_block_proposal(client).await;
 }
 
@@ -991,14 +1019,18 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_handle_block_proposal_replay() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_handle_block_proposal_replay(client).await;
 }
 
 #[test(tokio::test)]
 async fn test_rocksdb_handle_block_proposal_replay() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_handle_block_proposal_replay(client).await;
 }
 
@@ -1052,14 +1084,18 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_handle_certificate_unknown_sender() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_handle_certificate_unknown_sender(client).await;
 }
 
 #[test(tokio::test)]
 async fn test_rocksdb_handle_certificate_unknown_sender() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_handle_certificate_unknown_sender(client).await;
 }
 
@@ -1094,14 +1130,18 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_handle_certificate_bad_block_height() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_handle_certificate_bad_block_height(client).await;
 }
 
 #[test(tokio::test)]
 async fn test_rocksdb_handle_certificate_bad_block_height() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_handle_certificate_bad_block_height(client).await;
 }
 
@@ -1148,14 +1188,18 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_handle_certificate_with_anticipated_incoming_message() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_handle_certificate_with_anticipated_incoming_message(client).await;
 }
 
 #[test(tokio::test)]
 async fn test_rocksdb_handle_certificate_with_anticipated_incoming_message() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_handle_certificate_with_anticipated_incoming_message(client).await;
 }
 
@@ -1261,14 +1305,18 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_handle_certificate_receiver_balance_overflow() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_handle_certificate_receiver_balance_overflow(client).await;
 }
 
 #[test(tokio::test)]
 async fn test_rocksdb_handle_certificate_receiver_balance_overflow() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_handle_certificate_receiver_balance_overflow(client).await;
 }
 
@@ -1341,14 +1389,18 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_handle_certificate_receiver_equal_sender() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_handle_certificate_receiver_equal_sender(client).await;
 }
 
 #[test(tokio::test)]
 async fn test_rocksdb_handle_certificate_receiver_equal_sender() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_handle_certificate_receiver_equal_sender(client).await;
 }
 
@@ -1411,14 +1463,18 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_handle_cross_chain_request() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_handle_cross_chain_request(client).await;
 }
 
 #[test(tokio::test)]
 async fn test_rocksdb_handle_cross_chain_request() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_handle_cross_chain_request(client).await;
 }
 
@@ -1492,14 +1548,18 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_handle_cross_chain_request_no_recipient_chain() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_handle_cross_chain_request_no_recipient_chain(client).await;
 }
 
 #[test(tokio::test)]
 async fn test_rocksdb_handle_cross_chain_request_no_recipient_chain() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_handle_cross_chain_request_no_recipient_chain(client).await;
 }
 
@@ -1543,7 +1603,9 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_handle_cross_chain_request_no_recipient_chain_with_inactive_chains_allowed() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_handle_cross_chain_request_no_recipient_chain_with_inactive_chains_allowed(client)
         .await;
 }
@@ -1551,7 +1613,9 @@ async fn test_memory_handle_cross_chain_request_no_recipient_chain_with_inactive
 #[test(tokio::test)]
 async fn test_rocksdb_handle_cross_chain_request_no_recipient_chain_with_inactive_chains_allowed() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_handle_cross_chain_request_no_recipient_chain_with_inactive_chains_allowed(client)
         .await;
 }
@@ -1604,14 +1668,18 @@ async fn run_test_handle_cross_chain_request_no_recipient_chain_with_inactive_ch
 
 #[test(tokio::test)]
 async fn test_memory_handle_certificate_to_active_recipient() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_handle_certificate_to_active_recipient(client).await;
 }
 
 #[test(tokio::test)]
 async fn test_rocksdb_handle_certificate_to_active_recipient() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_handle_certificate_to_active_recipient(client).await;
 }
 
@@ -1725,14 +1793,18 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_handle_certificate_to_inactive_recipient() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_handle_certificate_to_inactive_recipient(client).await;
 }
 
 #[test(tokio::test)]
 async fn test_rocksdb_handle_certificate_to_inactive_recipient() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_handle_certificate_to_inactive_recipient(client).await;
 }
 
@@ -1777,14 +1849,18 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_chain_creation_with_committee_creation() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_chain_creation_with_committee_creation(client).await;
 }
 
 #[test(tokio::test)]
 async fn test_rocksdb_chain_creation_with_committee_creation() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_chain_creation_with_committee_creation(client).await;
 }
 
@@ -2251,14 +2327,18 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_transfers_and_committee_creation() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_transfers_and_committee_creation(client).await;
 }
 
 #[test(tokio::test)]
 async fn test_rocksdb_transfers_and_committee_creation() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_transfers_and_committee_creation(client).await;
 }
 
@@ -2439,14 +2519,18 @@ where
 
 #[test(tokio::test)]
 async fn test_memory_transfers_and_committee_removal() {
-    let client = MemoryStoreClient::default();
+    let client = MemoryStoreClient::new()
+        .await
+        .expect("Failed to create MemoryStoreClient");
     run_test_transfers_and_committee_removal(client).await;
 }
 
 #[test(tokio::test)]
 async fn test_rocksdb_transfers_and_committee_removal() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf())
+        .await
+        .expect("Failed to create RocksdbStoreClient");
     run_test_transfers_and_committee_removal(client).await;
 }
 
