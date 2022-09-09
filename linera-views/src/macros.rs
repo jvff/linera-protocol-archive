@@ -70,9 +70,9 @@ pub trait [< $name Context >]: $crate::hash::HashingContext
     $( + $operations )*
 {}
 
-impl<AllContexts> [< $name Context >] for AllContexts
+impl<AnyContext> [< $name Context >] for AnyContext
 where
-    AllContexts: $crate::hash::HashingContext
+    AnyContext: $crate::hash::HashingContext
         + Send
         + Sync
         + Clone
