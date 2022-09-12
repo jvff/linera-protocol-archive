@@ -4,7 +4,7 @@
 #[macro_export]
 macro_rules! impl_view {
 
-    ($name: ident { $($field:ident),* $(,)? }; $( $operation:path ),* $(,)? ) => {
+    ($name: ident { $($field:ident),* $(,)? }; $( $ops_trait:path ),* $(,)? ) => {
 
 #[$crate::async_trait]
 impl<C> $crate::views::View<C> for $name<C>
@@ -15,7 +15,7 @@ where
         + Clone
         + 'static
         + $crate::views::ScopedOperations
-        $( + $operation )*
+        $( + $ops_trait )*
 {
     async fn load(context: C) -> Result<Self, C::Error> {
         $( let $field = ScopedView::load(context.clone()).await?; )*
@@ -48,7 +48,7 @@ where
         + Clone
         + 'static
         + $crate::views::ScopedOperations
-        $( + $operation )*
+        $( + $ops_trait )*
 {
     async fn hash(&mut self) -> Result<<C::Hasher as $crate::hash::Hasher>::Output, C::Error> {
         use $crate::hash::{Hasher, HashView};
@@ -67,7 +67,7 @@ pub trait [< $name Context >]: $crate::hash::HashingContext
     + Clone
     + 'static
     + $crate::views::ScopedOperations
-    $( + $operation )*
+    $( + $ops_trait )*
 {}
 
 impl<AnyContext> [< $name Context >] for AnyContext
@@ -78,7 +78,7 @@ where
         + Clone
         + 'static
         + $crate::views::ScopedOperations
-        $( + $operation )*
+        $( + $ops_trait )*
 {}
 
 }
