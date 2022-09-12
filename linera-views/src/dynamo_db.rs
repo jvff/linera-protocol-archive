@@ -705,6 +705,16 @@ pub enum DynamoDbContextError {
 
     #[error(transparent)]
     View(#[from] ViewError),
+
+    // TODO: Remove the following variants
+    #[error("Unknown BCS serialization/deserialization error")]
+    UnknownBcsError(#[from] bcs::Error),
+
+    #[error(transparent)]
+    CreateTable(#[from] Box<CreateTableError>),
+
+    #[error("Item not found in DynamoDB table: {0}")]
+    NotFound(String),
 }
 
 impl<InnerError> From<SdkError<InnerError>> for DynamoDbContextError
@@ -712,6 +722,12 @@ where
     DynamoDbContextError: From<Box<SdkError<InnerError>>>,
 {
     fn from(error: SdkError<InnerError>) -> Self {
+        Box::new(error).into()
+    }
+}
+
+impl From<CreateTableError> for DynamoDbContextError {
+    fn from(error: CreateTableError) -> Self {
         Box::new(error).into()
     }
 }
