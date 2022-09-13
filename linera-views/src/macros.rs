@@ -79,10 +79,10 @@ where
         + $crate::views::ScopedOperations
         $( + $ops_trait )*
 {
-    pub async fn write_commit(mut self) -> Result<(), C::Error> {
+    pub async fn write_commit(self) -> Result<(), C::Error> {
         use $crate::views::View;
 
-        let context = self.context_mut().clone();
+        let context = self.context().clone();
         context.run_with_batch(move |batch| {
             Box::pin(async move {
                 $( self.$field.commit(batch).await?; )*
@@ -91,10 +91,10 @@ where
         }).await
     }
 
-    pub async fn write_delete(mut self) -> Result<(), C::Error> {
+    pub async fn write_delete(self) -> Result<(), C::Error> {
         use $crate::views::View;
 
-        let context = self.context_mut().clone();
+        let context = self.context().clone();
         context.run_with_batch(move |batch| {
             Box::pin(async move {
                 $( self.$field.delete(batch).await?; )*
