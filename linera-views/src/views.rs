@@ -39,7 +39,7 @@ pub trait Context {
 #[async_trait]
 pub trait View<C: Context>: Sized {
     /// Obtain a mutable reference to the internal context.
-    fn context_mut(&mut self) -> &mut C;
+    fn context(&self) -> &C;
 
     /// Create a view or a subview.
     async fn load(context: C) -> Result<Self, C::Error>;
@@ -100,8 +100,8 @@ where
     C: Context + Send + Sync + ScopedOperations + 'static,
     W: View<C> + Send,
 {
-    fn context_mut(&mut self) -> &mut C {
-        self.view.context_mut()
+    fn context(&self) -> &C {
+        self.view.context()
     }
 
     async fn load(context: C) -> Result<Self, C::Error> {
@@ -149,8 +149,8 @@ where
     C: RegisterOperations<T> + Send + Sync,
     T: Send + Sync,
 {
-    fn context_mut(&mut self) -> &mut C {
-        &mut self.context
+    fn context(&self) -> &C {
+        &self.context
     }
 
     async fn load(mut context: C) -> Result<Self, C::Error> {
@@ -259,8 +259,8 @@ where
     C: AppendOnlyLogOperations<T> + Send + Sync,
     T: Send + Sync + Clone,
 {
-    fn context_mut(&mut self) -> &mut C {
-        &mut self.context
+    fn context(&self) -> &C {
+        &self.context
     }
 
     async fn load(mut context: C) -> Result<Self, C::Error> {
@@ -387,8 +387,8 @@ where
     I: Eq + Ord + Send + Sync,
     V: Clone + Send + Sync,
 {
-    fn context_mut(&mut self) -> &mut C {
-        &mut self.context
+    fn context(&self) -> &C {
+        &self.context
     }
 
     async fn load(context: C) -> Result<Self, C::Error> {
@@ -526,8 +526,8 @@ where
     C: QueueOperations<T> + Send + Sync,
     T: Send + Sync + Clone,
 {
-    fn context_mut(&mut self) -> &mut C {
-        &mut self.context
+    fn context(&self) -> &C {
+        &self.context
     }
 
     async fn load(mut context: C) -> Result<Self, C::Error> {
@@ -700,8 +700,8 @@ where
     I: Send + Sync + Debug + Clone,
     W: View<C> + Send,
 {
-    fn context_mut(&mut self) -> &mut C {
-        &mut self.context
+    fn context(&self) -> &C {
+        &self.context
     }
 
     async fn load(context: C) -> Result<Self, C::Error> {

@@ -18,8 +18,8 @@ where
         $( + $ops_trait )*
 {
     #[allow(unreachable_code)]
-    fn context_mut(&mut self) -> &mut C {
-        $( return self.$field.context_mut(); )*
+    fn context(&self) -> &C {
+        $( return self.$field.context(); )*
     }
 
     async fn load(context: C) -> Result<Self, C::Error> {
