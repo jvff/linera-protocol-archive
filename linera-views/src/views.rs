@@ -39,7 +39,7 @@ pub trait Context {
 #[async_trait]
 pub trait View<C: Context>: Sized {
     /// Obtain a mutable reference to the internal context.
-    fn context(&mut self) -> &mut C;
+    fn context_mut(&mut self) -> &mut C;
 
     /// Create a view or a subview.
     async fn load(context: C) -> Result<Self, C::Error>;
@@ -100,8 +100,8 @@ where
     C: Context + Send + Sync + ScopedOperations + 'static,
     W: View<C> + Send,
 {
-    fn context(&mut self) -> &mut C {
-        self.view.context()
+    fn context_mut(&mut self) -> &mut C {
+        self.view.context_mut()
     }
 
     async fn load(context: C) -> Result<Self, C::Error> {
@@ -149,7 +149,7 @@ where
     C: RegisterOperations<T> + Send + Sync,
     T: Send + Sync,
 {
-    fn context(&mut self) -> &mut C {
+    fn context_mut(&mut self) -> &mut C {
         &mut self.context
     }
 
@@ -259,7 +259,7 @@ where
     C: AppendOnlyLogOperations<T> + Send + Sync,
     T: Send + Sync + Clone,
 {
-    fn context(&mut self) -> &mut C {
+    fn context_mut(&mut self) -> &mut C {
         &mut self.context
     }
 
@@ -387,7 +387,7 @@ where
     I: Eq + Ord + Send + Sync,
     V: Clone + Send + Sync,
 {
-    fn context(&mut self) -> &mut C {
+    fn context_mut(&mut self) -> &mut C {
         &mut self.context
     }
 
@@ -526,7 +526,7 @@ where
     C: QueueOperations<T> + Send + Sync,
     T: Send + Sync + Clone,
 {
-    fn context(&mut self) -> &mut C {
+    fn context_mut(&mut self) -> &mut C {
         &mut self.context
     }
 
@@ -700,7 +700,7 @@ where
     I: Send + Sync + Debug + Clone,
     W: View<C> + Send,
 {
-    fn context(&mut self) -> &mut C {
+    fn context_mut(&mut self) -> &mut C {
         &mut self.context
     }
 
