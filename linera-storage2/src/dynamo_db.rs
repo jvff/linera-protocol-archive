@@ -3,17 +3,21 @@
 
 use crate::{chain::ChainStateView, Store};
 use async_trait::async_trait;
+use futures::Future;
 use linera_base::{
     crypto::HashValue,
     messages::{Certificate, ChainId},
 };
 use linera_views::{
-    dynamo_db::{CreateTableError, DynamoDbContext, DynamoDbContextError, TableName},
+    dynamo_db::{
+        Config, CreateTableError, DynamoDbContext, DynamoDbContextError, LocalStackError,
+        TableName, TableStatus,
+    },
     views::{MapView, View},
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, OwnedMutexGuard};
 
 struct DynamoDbStore {
     context: DynamoDbContext<()>,
@@ -29,13 +33,55 @@ impl DynamoDbStoreClient {
             DynamoDbStore::new(table).await?,
         ))))
     }
+
+    pub async fn from_config(
+        config: impl Into<Config>,
+        table: TableName,
+    ) -> Result<Self, CreateTableError> {
+        Ok(DynamoDbStoreClient(Arc::new(Mutex::new(
+            DynamoDbStore::from_config(config.into(), table).await?,
+        ))))
+    }
+
+    pub async fn with_localstack(table: TableName) -> Result<Self, LocalStackError> {
+        Ok(DynamoDbStoreClient(Arc::new(Mutex::new(
+            DynamoDbStore::with_localstack(table).await?,
+        ))))
+    }
 }
 
 impl DynamoDbStore {
     pub async fn new(table: TableName) -> Result<Self, CreateTableError> {
-        let dummy_lock = Arc::new(Mutex::new(()));
-        let (context, _) =
-            DynamoDbContext::new(table, dummy_lock.lock_owned().await, vec![], ()).await?;
+        Self::with_context(|lock, key_prefix, extra| {
+            DynamoDbContext::new(table, lock, key_prefix, extra)
+        })
+        .await
+    }
+
+    pub async fn from_config(config: Config, table: TableName) -> Result<Self, CreateTableError> {
+        Self::with_context(|lock, key_prefix, extra| {
+            DynamoDbContext::from_config(config, table, lock, key_prefix, extra)
+        })
+        .await
+    }
+
+    pub async fn with_localstack(table: TableName) -> Result<Self, LocalStackError> {
+        Self::with_context(|lock, key_prefix, extra| {
+            DynamoDbContext::with_localstack(table, lock, key_prefix, extra)
+        })
+        .await
+    }
+
+    async fn with_context<F, E>(
+        create_context: impl FnOnce(OwnedMutexGuard<()>, Vec<u8>, ()) -> F,
+    ) -> Result<Self, E>
+    where
+        F: Future<Output = Result<(DynamoDbContext<()>, TableStatus), E>>,
+    {
+        let dummy_lock = Arc::new(Mutex::new(())).lock_owned().await;
+        let empty_prefix = vec![];
+        let dummy_extra = ();
+        let (context, _) = create_context(dummy_lock, empty_prefix, dummy_extra).await?;
         Ok(Self {
             context,
             locks: HashMap::new(),
@@ -58,20 +104,19 @@ impl Store for DynamoDbStoreClient {
         &self,
         id: ChainId,
     ) -> Result<ChainStateView<Self::Context>, DynamoDbContextError> {
-        let lock = self
-            .0
-            .lock()
-            .await
+        let mut store = self.0.lock().await;
+        let lock = store
             .locks
             .entry(id)
             .or_insert_with(|| Arc::new(Mutex::new(())))
             .clone();
         log::trace!("Acquiring lock on {:?}", id);
-        let table_name = "linera".parse().expect("Invalid hard-coded table name");
-        let key_prefix = bcs::to_bytes(&BaseKey::ChainState(id))?;
-        let (context, _) =
-            DynamoDbContext::new(table_name, lock.lock_owned().await, key_prefix, id).await?;
-        ChainStateView::load(context).await
+        let chain_context = store.context.clone_with_sub_scope(
+            lock.lock_owned().await,
+            &BaseKey::ChainState(id),
+            id,
+        );
+        ChainStateView::load(chain_context).await
     }
 
     async fn read_certificate(&self, hash: HashValue) -> Result<Certificate, DynamoDbContextError> {
@@ -91,7 +136,7 @@ impl Store for DynamoDbStoreClient {
     ) -> Result<(), DynamoDbContextError> {
         let store = self.0.lock().await;
         let mut certificates = MapView::load(store.context.clone()).await?;
-        certificates.insert(certificate.hash, certificate);
-        certificates.commit().await
+        certificates.insert(BaseKey::Certificate(certificate.hash), certificate);
+        certificates.commit(&mut ()).await
     }
 }
