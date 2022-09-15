@@ -1349,6 +1349,7 @@ dependencies = [
  "linera-base",
  "log",
  "paste",
+ "rand 0.7.3",
  "rocksdb",
  "serde",
  "sha2",

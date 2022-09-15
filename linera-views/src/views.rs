@@ -480,6 +480,7 @@ pub struct QueueView<C, T> {
     stored_indices: Range<usize>,
     front_delete_count: usize,
     new_back_values: VecDeque<T>,
+    id: u8,
 }
 
 /// The context operations supporting [`QueueView`].
@@ -531,21 +532,26 @@ where
     }
 
     async fn load(mut context: C) -> Result<Self, C::Error> {
+        let id = rand::random();
         let stored_indices = context.indices().await?;
+        println!("{id} load({stored_indices:?})");
         Ok(Self {
             context,
             stored_indices,
             front_delete_count: 0,
             new_back_values: VecDeque::new(),
+            id,
         })
     }
 
     fn rollback(&mut self) {
+        println!("{} rollback", self.id);
         self.front_delete_count = 0;
         self.new_back_values.clear();
     }
 
     async fn commit(mut self, batch: &mut C::Batch) -> Result<(), C::Error> {
+        println!("{} commit", self.id);
         self.context
             .delete_front(&mut self.stored_indices, batch, self.front_delete_count)
             .await?;
@@ -560,6 +566,7 @@ where
     }
 
     async fn delete(mut self, batch: &mut C::Batch) -> Result<(), C::Error> {
+        println!("{} delete", self.id);
         self.context.delete(self.stored_indices, batch).await
     }
 }
@@ -571,6 +578,7 @@ where
 {
     /// Read the front value, if any.
     pub async fn front(&mut self) -> Result<Option<T>, C::Error> {
+        println!("{} front", self.id);
         let stored_remainder = self.stored_indices.len() - self.front_delete_count;
         if stored_remainder > 0 {
             self.context
@@ -583,6 +591,7 @@ where
 
     /// Read the back value, if any.
     pub async fn back(&mut self) -> Result<Option<T>, C::Error> {
+        println!("{} back", self.id);
         match self.new_back_values.back() {
             Some(value) => Ok(Some(value.clone())),
             None if self.stored_indices.len() > self.front_delete_count => {
@@ -594,6 +603,7 @@ where
 
     /// Delete the front value, if any.
     pub fn delete_front(&mut self) {
+        println!("{} delete_front", self.id);
         if self.front_delete_count < self.stored_indices.len() {
             self.front_delete_count += 1;
         } else {
@@ -603,12 +613,15 @@ where
 
     /// Push a value to the end of the queue.
     pub fn push_back(&mut self, value: T) {
+        println!("{} push_back", self.id);
         self.new_back_values.push_back(value);
     }
 
     /// Read the size of the queue.
     pub fn count(&self) -> usize {
-        self.stored_indices.len() - self.front_delete_count + self.new_back_values.len()
+        let ret = self.stored_indices.len() - self.front_delete_count + self.new_back_values.len();
+        println!("{} count -> {ret}", self.id);
+        ret
     }
 
     pub fn extra(&self) -> &C::Extra {
@@ -617,6 +630,7 @@ where
 
     /// Read the `count` next values in the queue (including staged ones).
     pub async fn read_front(&mut self, mut count: usize) -> Result<Vec<T>, C::Error> {
+        println!("{} read_front({count})", self.id);
         if count > self.count() {
             count = self.count();
         }
@@ -642,6 +656,7 @@ where
 
     /// Read the `count` last values in the queue (including staged ones).
     pub async fn read_back(&mut self, mut count: usize) -> Result<Vec<T>, C::Error> {
+        println!("{} read_back({count})", self.id);
         if count > self.count() {
             count = self.count();
         }

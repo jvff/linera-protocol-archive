@@ -271,13 +271,15 @@ where
     /// Verify that this chain is up-to-date and all the messages executed ahead of time
     /// have been properly received by now.
     pub async fn validate_incoming_messages(&mut self) -> Result<(), Error> {
+        let chanid = self.chain_id();
         for id in self.communication_states.indices().await? {
             let state = self.communication_states.load_entry(id).await?;
             for origin in state.inboxes.indices().await? {
                 let inbox = state.inboxes.load_entry(origin.clone()).await?;
                 let expected_event = inbox.expected_events.front().await?;
+                dbg!(chanid);
                 ensure!(
-                    expected_event.is_none(),
+                    dbg!(expected_event.is_none()),
                     Error::MissingCrossChainUpdate {
                         application_id: id,
                         origin,

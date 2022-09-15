@@ -66,6 +66,13 @@ impl<E> DynamoDbContext<E> {
         DynamoDbContext::from_config(&config, table, lock, key_prefix, extra).await
     }
 
+    fn key_prefix_hex(&self) -> String {
+        self.key_prefix
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect()
+    }
+
     /// Create a new [`DynamoDbContext`] instance using the provided `config` parameters.
     pub async fn from_config(
         config: impl Into<Config>,
@@ -226,7 +233,7 @@ impl<E> DynamoDbContext<E> {
         key: &impl Serialize,
     ) -> Result<Option<Item>, DynamoDbContextError>
     where
-        Item: DeserializeOwned,
+        Item: DeserializeOwned + std::fmt::Debug,
     {
         let response = self
             .client
@@ -237,7 +244,7 @@ impl<E> DynamoDbContext<E> {
             .await?;
 
         match response.item() {
-            Some(item) => Ok(Some(Self::extract_value(item)?)),
+            Some(item) => Ok(Some(dbg!(Self::extract_value(item)?))),
             None => Ok(None),
         }
     }
@@ -321,10 +328,10 @@ impl<E> DynamoDbContext<E> {
     async fn put_item(
         &self,
         key: &impl Serialize,
-        value: &impl Serialize,
+        value: &(impl Serialize + std::fmt::Debug),
     ) -> Result<(), DynamoDbContextError> {
         let mut item = self.build_key(key);
-        item.extend([self.build_value(value)]);
+        item.extend([self.build_value(dbg!(value))]);
 
         self.client
             .put_item()
@@ -437,7 +444,7 @@ where
 #[async_trait]
 impl<E, T> RegisterOperations<T> for DynamoDbContext<E>
 where
-    T: Default + Serialize + DeserializeOwned + Send + Sync + 'static,
+    T: Default + Serialize + DeserializeOwned + Send + Sync + 'static + std::fmt::Debug,
     E: Clone + Send + Sync,
 {
     async fn get(&mut self) -> Result<T, Self::Error> {
@@ -459,7 +466,7 @@ where
 #[async_trait]
 impl<E, T> AppendOnlyLogOperations<T> for DynamoDbContext<E>
 where
-    T: Serialize + DeserializeOwned + Send + Sync + 'static,
+    T: Serialize + DeserializeOwned + Send + Sync + 'static + std::fmt::Debug,
     E: Clone + Send + Sync,
 {
     async fn count(&mut self) -> Result<usize, Self::Error> {
@@ -514,19 +521,22 @@ where
 #[async_trait]
 impl<E, T> QueueOperations<T> for DynamoDbContext<E>
 where
-    T: Serialize + DeserializeOwned + Send + Sync + 'static,
+    T: Serialize + DeserializeOwned + Send + Sync + 'static + std::fmt::Debug,
     E: Clone + Send + Sync,
 {
     async fn indices(&mut self) -> Result<Range<usize>, Self::Error> {
         let range = self.get_item(&()).await?.unwrap_or_default();
+        println!("{} indices -> {range:?}", self.key_prefix_hex());
         Ok(range)
     }
 
     async fn get(&mut self, index: usize) -> Result<Option<T>, Self::Error> {
+        println!("{} get({index})", self.key_prefix_hex());
         Ok(self.get_item(&index).await?)
     }
 
     async fn read(&mut self, range: Range<usize>) -> Result<Vec<T>, Self::Error> {
+        println!("{} read({range:?})", self.key_prefix_hex());
         let mut values = Vec::new();
         for index in range {
             match self.get_item(&index).await? {
@@ -543,9 +553,14 @@ where
         _batch: &mut Self::Batch,
         count: usize,
     ) -> Result<(), Self::Error> {
+        println!(
+            "{} delete_front({count}, {stored_indices:?})",
+            self.key_prefix_hex()
+        );
         let deletion_range = stored_indices.clone().take(count);
         stored_indices.start += count;
         self.put_item(&(), &stored_indices).await?;
+        println!("{}  stored range {stored_indices:?}", self.key_prefix_hex());
         for index in deletion_range {
             self.remove_item(&index).await?;
         }
@@ -558,6 +573,10 @@ where
         _batch: &mut Self::Batch,
         values: Vec<T>,
     ) -> Result<(), Self::Error> {
+        println!(
+            "{} append_back({values:?}, {stored_indices:?})",
+            self.key_prefix_hex()
+        );
         for value in values {
             self.put_item(&stored_indices.end, &value).await?;
             stored_indices.end += 1;
@@ -570,6 +589,7 @@ where
         stored_indices: Range<usize>,
         _batch: &mut Self::Batch,
     ) -> Result<(), Self::Error> {
+        println!("{} delete({stored_indices:?})", self.key_prefix_hex());
         self.remove_item(&()).await?;
         for index in stored_indices {
             self.remove_item(&index).await?;
@@ -582,7 +602,7 @@ where
 impl<E, I, V> MapOperations<I, V> for DynamoDbContext<E>
 where
     I: Eq + Ord + Send + Sync + Serialize + DeserializeOwned + Clone + 'static,
-    V: Serialize + DeserializeOwned + Send + Sync + 'static,
+    V: Serialize + DeserializeOwned + Send + Sync + 'static + std::fmt::Debug,
     E: Clone + Send + Sync,
 {
     async fn get(&mut self, index: &I) -> Result<Option<V>, Self::Error> {
