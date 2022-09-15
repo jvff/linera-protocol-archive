@@ -722,6 +722,7 @@ where
         block: Block,
         with_confirmation: bool,
     ) -> Result<Certificate> {
+        dbg!("next round");
         let next_round = self.next_round;
         ensure!(
             matches!(&self.pending_block, None)
@@ -737,8 +738,10 @@ where
             "Unexpected previous block hash"
         );
         // Remember what we are trying to do
+        dbg!("remember");
         self.pending_block = Some(block.clone());
         // Build the initial query.
+        dbg!("build initial query");
         let key_pair = self.key_pair().await?;
         let proposal = BlockProposal::new(
             BlockAndRound {
@@ -748,10 +751,12 @@ where
             key_pair,
         );
         // Try to execute the block locally first.
+        dbg!("try to execute block locally");
         self.node_client
             .handle_block_proposal(proposal.clone())
             .await?;
         // Send the query to validators.
+        dbg!("send query to validators");
         let committee = self.committee().await?;
         let final_certificate = match self.chain_info().await?.manager {
             ChainManager::Multi(_) => {
@@ -788,25 +793,32 @@ where
             }
             ChainManager::None => unreachable!("chain is active"),
         };
+        dbg!("by now ");
         // By now the block should be final.
         ensure!(
             final_certificate.value.confirmed_block() == Some(&proposal.content.block),
             "A different operation was executed in parallel (consider retrying the operation)"
         );
+        dbg!("process ceritificate");
         self.process_certificate(final_certificate.clone()).await?;
+        dbg!("pending block none");
         self.pending_block = None;
         // Communicate the new certificate now if needed.
+        dbg!("communicate the new certificate");
         if with_confirmation {
+            dbg!("communicate chain updates");
             self.communicate_chain_updates(
                 &committee,
                 self.chain_id,
                 CommunicateAction::AdvanceToNextBlockHeight(self.next_block_height),
             )
             .await?;
+            dbg!("committee.await");
             if let Ok(new_committee) = self.committee().await {
                 if new_committee != committee {
                     // If the configuration just changed, communicate to the new committee as well.
                     // (This is actually more important that updating the previous committee.)
+                    dbg!("If the configuration just changed");
                     self.communicate_chain_updates(
                         &new_committee,
                         self.chain_id,
@@ -1023,9 +1035,13 @@ where
         &mut self,
         validators: BTreeMap<ValidatorName, ValidatorState>,
     ) -> Result<Certificate> {
+        dbg!("prepare_chain");
         self.prepare_chain().await?;
+        dbg!("new Committee");
         let committee = Committee::new(validators);
+        dbg!("epoch");
         let epoch = self.epoch().await?;
+        dbg!("block");
         let block = Block {
             epoch,
             chain_id: self.chain_id,
@@ -1041,9 +1057,11 @@ where
             previous_block_hash: self.block_hash,
             height: self.next_block_height,
         };
+        dbg!("propose block");
         let certificate = self
             .propose_block(block, /* with_confirmation */ true)
             .await?;
+        dbg!("ok certificate");
         Ok(certificate)
     }
 

@@ -320,7 +320,7 @@ impl<E> DynamoDbContext<E> {
     /// The value is serialized using [`bcs`].
     async fn put_item(
         &self,
-        key: &impl Serialize,
+        key: &(impl Serialize + std::fmt::Debug),
         value: &impl Serialize,
     ) -> Result<(), DynamoDbContextError> {
         let mut item = self.build_key(key);
@@ -582,7 +582,7 @@ where
 #[async_trait]
 impl<E, I, V> MapOperations<I, V> for DynamoDbContext<E>
 where
-    I: Eq + Ord + Send + Sync + Serialize + DeserializeOwned + Clone + 'static,
+    I: Eq + Ord + Send + Sync + Serialize + DeserializeOwned + std::fmt::Debug + Clone + 'static,
     V: Serialize + DeserializeOwned + Send + Sync + 'static,
     E: Clone + Send + Sync,
 {
@@ -635,7 +635,7 @@ where
 /// The solution to this is to use a marker type to have two sets of keys, where
 /// [`CollectionKey::Index`] serves to indicate the existence of an entry in the collection, and
 /// [`CollectionKey::Subvie`] serves as the prefix for the sub-view.
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 enum CollectionKey<I> {
     Index(I),
     Subview(I),
@@ -644,7 +644,7 @@ enum CollectionKey<I> {
 #[async_trait]
 impl<E, I> CollectionOperations<I> for DynamoDbContext<E>
 where
-    I: serde::Serialize + serde::de::DeserializeOwned + Send + Sync + 'static,
+    I: serde::Serialize + serde::de::DeserializeOwned + Send + Sync + std::fmt::Debug + 'static,
     E: Clone + Send + Sync,
 {
     fn clone_with_scope(&self, index: &I) -> Self {
