@@ -1173,18 +1173,14 @@ where
         .await?;
 
     // Create a new committee.
-    dbg!("Create new committee");
     let validators = builder.initial_committee.validators;
-    dbg!("stage_new_committee");
     admin.stage_new_committee(validators).await.unwrap();
-    dbg!("asserts");
     assert_eq!(admin.next_block_height, BlockHeight::from(1));
     assert!(admin.pending_block.is_none());
     assert!(admin.key_pair().await.is_ok());
     assert_eq!(admin.epoch().await.unwrap(), Epoch::from(1));
 
     // Sending money from the admin chain is supported.
-    dbg!("Sending money");
     let cert = admin
         .transfer_to_chain(Amount::from(2), ChainId::root(1), UserData(None))
         .await
@@ -1196,52 +1192,43 @@ where
 
     // User is still at the initial epoch, but we can receive transfers from future
     // epochs AFTER synchronizing the client with the admin chain.
-    dbg!("User is still");
     assert!(user.receive_certificate(cert).await.is_err());
     assert_eq!(user.epoch().await.unwrap(), Epoch::from(0));
     assert_eq!(user.synchronize_balance().await.unwrap(), Balance::from(3));
 
     // User is a genesis chain so the migration message is not even in the inbox yet.
-    dbg!("User is a genesis");
     user.process_inbox().await.unwrap();
     assert_eq!(user.epoch().await.unwrap(), Epoch::from(0));
 
     // Now subscribe explicitly to migrations.
-    dbg!("Now subs");
     let cert = user.subscribe_to_new_committees().await.unwrap();
     admin.receive_certificate(cert).await.unwrap();
     admin.process_inbox().await.unwrap();
 
     // Have the admin chain deprecate the previous epoch.
-    dbg!("Have the ");
     admin.finalize_committee().await.unwrap();
 
     // Try to make a transfer back to the admin chain.
-    dbg!("Try to");
     let cert = user
         .transfer_to_chain(Amount::from(2), ChainId::root(0), UserData(None))
         .await
         .unwrap();
     assert!(admin.receive_certificate(cert).await.is_err());
     // Transfer is blocked because the epoch #0 has been retired by admin.
-    dbg!("Transfer is blocked");
     assert_eq!(admin.synchronize_balance().await.unwrap(), Balance::from(0));
 
     // Have the user receive the notification to migrate to epoch #1.
-    dbg!("Have the user receiver the notification");
     user.synchronize_balance().await.unwrap();
     user.process_inbox().await.unwrap();
     assert_eq!(user.epoch().await.unwrap(), Epoch::from(1));
 
     // Try again to make a transfer back to the admin chain.
-    dbg!("Try to make a transfer back to the admin chain");
     let cert = user
         .transfer_to_chain(Amount::from(1), ChainId::root(0), UserData(None))
         .await
         .unwrap();
     admin.receive_certificate(cert).await.unwrap();
     // Transfer goes through and the previous one as well thanks to block chaining.
-    dbg!("Transfer goes through");
     assert_eq!(admin.synchronize_balance().await.unwrap(), Balance::from(3));
     Ok(())
 }
