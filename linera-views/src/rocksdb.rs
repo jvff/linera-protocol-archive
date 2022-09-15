@@ -333,7 +333,7 @@ where
 
     async fn delete_front(
         &mut self,
-        mut range: Range<usize>,
+        range: &mut Range<usize>,
         batch: &mut Self::Batch,
         count: usize,
     ) -> Result<(), Self::Error> {
@@ -350,7 +350,7 @@ where
 
     async fn append_back(
         &mut self,
-        mut range: Range<usize>,
+        range: &mut Range<usize>,
         batch: &mut Self::Batch,
         values: Vec<T>,
     ) -> Result<(), Self::Error> {

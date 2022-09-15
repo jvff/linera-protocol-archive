@@ -539,14 +539,14 @@ where
 
     async fn delete_front(
         &mut self,
-        stored_indices: Range<usize>,
+        stored_indices: &mut Range<usize>,
         _batch: &mut Self::Batch,
         count: usize,
     ) -> Result<(), Self::Error> {
-        let mut range = stored_indices.clone();
-        range.start += count;
-        self.put_item(&(), &range).await?;
-        for index in (0..count).map(|offset| offset + stored_indices.start) {
+        let deletion_range = stored_indices.clone().take(count);
+        stored_indices.start += count;
+        self.put_item(&(), &stored_indices).await?;
+        for index in deletion_range {
             self.remove_item(&index).await?;
         }
         Ok(())
@@ -554,16 +554,15 @@ where
 
     async fn append_back(
         &mut self,
-        stored_indices: Range<usize>,
+        stored_indices: &mut Range<usize>,
         _batch: &mut Self::Batch,
         values: Vec<T>,
     ) -> Result<(), Self::Error> {
-        let mut range = stored_indices;
         for value in values {
-            self.put_item(&range.end, &value).await?;
-            range.end += 1;
+            self.put_item(&stored_indices.end, &value).await?;
+            stored_indices.end += 1;
         }
-        self.put_item(&(), &range).await
+        self.put_item(&(), &stored_indices).await
     }
 
     async fn delete(
