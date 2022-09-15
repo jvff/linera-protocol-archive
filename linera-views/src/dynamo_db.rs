@@ -543,10 +543,10 @@ where
         _batch: &mut Self::Batch,
         count: usize,
     ) -> Result<(), Self::Error> {
-        let mut range = stored_indices;
+        let mut range = stored_indices.clone();
         range.start += count;
         self.put_item(&(), &range).await?;
-        for index in 0..count {
+        for index in (0..count).map(|offset| offset + stored_indices.start) {
             self.remove_item(&index).await?;
         }
         Ok(())
