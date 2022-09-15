@@ -104,18 +104,22 @@ impl Store for DynamoDbStoreClient {
         &self,
         id: ChainId,
     ) -> Result<ChainStateView<Self::Context>, DynamoDbContextError> {
-        let mut store = self.0.lock().await;
-        let lock = store
+        let lock = self
+            .0
+            .lock()
+            .await
             .locks
             .entry(id)
             .or_insert_with(|| Arc::new(Mutex::new(())))
             .clone();
         log::trace!("Acquiring lock on {:?}", id);
-        let chain_context = store.context.clone_with_sub_scope(
-            lock.lock_owned().await,
-            &BaseKey::ChainState(id),
-            id,
-        );
+        let locked = lock.lock_owned().await;
+        let chain_context =
+            self.0
+                .lock()
+                .await
+                .context
+                .clone_with_sub_scope(locked, &BaseKey::ChainState(id), id);
         ChainStateView::load(chain_context).await
     }
 
