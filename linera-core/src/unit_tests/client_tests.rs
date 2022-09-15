@@ -375,6 +375,7 @@ impl StoreBuilder for MakeRocksdbStoreClient {
 
 #[derive(Default)]
 pub struct MakeDynamoDbStoreClient {
+    instance_counter: usize,
     localstack: Option<LocalStackTestContext>,
 }
 
@@ -387,7 +388,8 @@ impl StoreBuilder for MakeDynamoDbStoreClient {
             self.localstack = Some(LocalStackTestContext::new().await?);
         }
         let config = self.localstack.as_ref().unwrap().dynamo_db_config();
-        let table = "linera".parse()?;
+        let table = format!("linera{}", self.instance_counter).parse()?;
+        self.instance_counter += 1;
         Ok(DynamoDbStoreClient::from_config(config, table).await?)
     }
 }
