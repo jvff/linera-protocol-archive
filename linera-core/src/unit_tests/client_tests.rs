@@ -390,7 +390,8 @@ impl StoreBuilder for MakeDynamoDbStoreClient {
         let config = self.localstack.as_ref().unwrap().dynamo_db_config();
         let table = format!("linera{}", self.instance_counter).parse()?;
         self.instance_counter += 1;
-        Ok(DynamoDbStoreClient::from_config(config, table).await?)
+        let (store, _) = DynamoDbStoreClient::from_config(config, table).await?;
+        Ok(store)
     }
 }
 
