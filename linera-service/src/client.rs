@@ -397,15 +397,15 @@ struct ClientOptions {
     genesis_config_path: PathBuf,
 
     /// Timeout for sending queries (us)
-    #[structopt(long, default_value = "4000000")]
+    #[structopt(long, default_value = "40000000")]
     send_timeout_us: u64,
 
     /// Timeout for receiving responses (us)
-    #[structopt(long, default_value = "4000000")]
+    #[structopt(long, default_value = "40000000")]
     recv_timeout_us: u64,
 
     /// Time between attempts while waiting on cross-chain updates (ms)
-    #[structopt(long, default_value = "4000")]
+    #[structopt(long, default_value = "40000")]
     cross_chain_delay_ms: u64,
 
     #[structopt(long, default_value = "10")]
