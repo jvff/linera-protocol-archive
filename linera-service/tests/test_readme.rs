@@ -60,8 +60,8 @@ const DYNAMO_DB_STORAGE: &str = "--storage dynamodb:server-\"$I\":localstack";
 
 #[tokio::test]
 #[ignore]
-async fn test_examples_in_readme_with_dynamo_db() -> std::io::Result<()> {
-    let _localstack_guard = LocalStackTestContext::new().await;
+async fn test_examples_in_readme_with_dynamo_db() -> anyhow::Result<()> {
+    let _localstack_guard = LocalStackTestContext::new().await?;
     let dir = tempdir().unwrap();
     let file = std::io::BufReader::new(std::fs::File::open("../README.md")?);
     let mut quotes = get_bash_quotes(file)?;
