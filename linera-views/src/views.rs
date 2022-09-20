@@ -803,7 +803,7 @@ where
 
     /// Mark the entry so that it is removed in the next commit.
     pub fn remove_entry(&mut self, index: I) {
-        self.updates.get_mut(&index).unwrap().as_mut().unwrap().reset_to_default();
+        self.updates.insert(index, None);
     }
 
     /// Return the list of indices in the collection.
