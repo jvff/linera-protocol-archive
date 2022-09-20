@@ -587,8 +587,8 @@ where
     }
 
     fn reset_to_default(&mut self) {
-        self.front_delete_count = 0;
         self.new_back_values.clear();
+        self.front_delete_count = self.count();
     }
 }
 
