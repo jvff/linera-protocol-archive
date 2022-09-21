@@ -857,3 +857,36 @@ where
         self.context.extra()
     }
 }
+
+#[cfg(test)]
+mod more_tests {
+    use super::*;
+    use crate::memory::MemoryContext;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
+    #[tokio::test]
+    async fn test_collection_removal() -> anyhow::Result<()> {
+        type EntryType = RegisterView<MemoryContext<()>, u8>;
+        type CollectionViewType = CollectionView<MemoryContext<()>, u8, EntryType>;
+
+        let state = Arc::new(Mutex::new(BTreeMap::new()));
+        let context = MemoryContext::new(state.lock_owned().await, ());
+        // Write a dummy entry into the collection.
+        let mut collection = CollectionViewType::load(context.clone()).await?;
+        let entry = collection.load_entry(1).await?;
+        entry.set(1);
+        collection.commit(&mut ()).await?;
+
+        // Remove the entry from the collection.
+        let mut collection = CollectionViewType::load(context.clone()).await?;
+        collection.remove_entry(1);
+        collection.commit(&mut ()).await?;
+
+        // Check that the entry was removed.
+        let mut collection = CollectionViewType::load(context).await?;
+        assert!(!collection.indices().await?.contains(&1));
+
+        Ok(())
+    }
+}
