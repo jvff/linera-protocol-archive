@@ -352,6 +352,7 @@ async fn test_removal_api() -> anyhow::Result<()> {
         // Now, read the entry with a different value if a certain condition is true
         if first_condition {
             let entry = collection.load_entry(1).await?;
+            assert_eq!(*entry.get(), 0); // Entry should have an empty default value
             entry.set(200);
         }
 
