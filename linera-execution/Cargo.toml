@@ -6,6 +6,8 @@ edition = "2021"
 
 [features]
 test = ["tokio/macros"]
+wasmer = []
+wasmtime = []
 
 [dependencies]
 async-trait = "0.1.52"
