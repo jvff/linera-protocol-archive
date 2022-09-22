@@ -7,6 +7,9 @@ members = [
         "linera-storage2",
         "linera-views",
 ]
+exclude = [
+        "linera-contracts/example"
+]
 
 [profile.release]
 debug = true
