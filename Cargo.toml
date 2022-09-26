@@ -8,7 +8,8 @@ members = [
         "linera-views",
 ]
 exclude = [
-        "linera-contracts/example"
+        "linera-contracts",
+        "linera-contracts/example",
 ]
 
 [profile.release]
