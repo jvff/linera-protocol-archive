@@ -1,5 +1,7 @@
+#[cfg(feature = "wasmtime")]
 use wasmtime::{Engine, Instance, Module, Store};
 
+#[cfg(feature = "wasmtime")]
 fn main() -> Result<(), anyhow::Error> {
     let engine = Engine::default();
     let module = Module::from_file(
