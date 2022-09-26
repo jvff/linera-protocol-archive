@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Linera <contact@linera.io>"]
 edition = "2021"
 
+[features]
+wasmtime = ["dep:wasmtime"]
+
 [dependencies]
 anyhow = "1.0.65"
-wasmtime = "1.0.0"
+wasmtime = { version = "1.0.0", optional = true }
