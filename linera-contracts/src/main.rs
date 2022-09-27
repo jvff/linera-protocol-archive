@@ -14,9 +14,11 @@ fn main() -> Result<(), anyhow::Error> {
     let instance = Instance::new(&module, &import_object)?;
     let entry_point = instance.exports.get_function("example")?;
 
-    let result = entry_point.call(&[Value::I32(100)])?;
+    for _ in 0..3 {
+        let result = entry_point.call(&[Value::I32(100)])?;
 
-    println!("{result:?}");
+        println!("{result:?}");
+    }
 
     Ok(())
 }
@@ -32,9 +34,11 @@ fn main() -> Result<(), anyhow::Error> {
     let instance = Instance::new(&mut store, &module, &[])?;
     let entry_point = instance.get_typed_func::<(u32,), (u32,), _>(&mut store, "example")?;
 
-    let result = entry_point.call(&mut store, (50,))?.0;
+    for _ in 0..3 {
+        let result = entry_point.call(&mut store, (50,))?.0;
 
-    println!("{result}");
+        println!("{result}");
+    }
 
     Ok(())
 }
