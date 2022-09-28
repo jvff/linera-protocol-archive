@@ -1,10 +1,14 @@
 #[cfg(feature = "wasmer")]
 use wasmer::{imports, Instance, Module, Store, Value};
 #[cfg(feature = "wasmtime")]
-use wasmtime::{Engine, Instance, Module, Store};
+use wasmtime::{Engine, Linker, Module, Store};
+
+#[cfg(feature = "wasmtime")]
+wit_bindgen_host_wasmtime_rust::import!("contract.wit");
 
 #[cfg(feature = "wasmer")]
 fn main() -> Result<(), anyhow::Error> {
+    todo!();
     let store = Store::default();
     let module = Module::from_file(
         &store,
@@ -15,7 +19,7 @@ fn main() -> Result<(), anyhow::Error> {
     let entry_point = instance.exports.get_function("example")?;
 
     for _ in 0..3 {
-        let result = entry_point.call(&[Value::I32(100)])?;
+        let result = entry_point.call(&[])?;
 
         println!("{result:?}");
     }
@@ -26,18 +30,27 @@ fn main() -> Result<(), anyhow::Error> {
 #[cfg(feature = "wasmtime")]
 fn main() -> Result<(), anyhow::Error> {
     let engine = Engine::default();
+    let mut linker = Linker::new(&engine);
     let module = Module::from_file(
         &engine,
         "example/target/wasm32-unknown-unknown/debug/linera_contract_example.wasm",
     )?;
-    let mut store = Store::new(&engine, ());
-    let instance = Instance::new(&mut store, &module, &[])?;
-    let entry_point = instance.get_typed_func::<(u32,), (u32,), _>(&mut store, "example")?;
+    let data = contract::ContractData {};
+    let mut store = Store::new(&engine, data);
+    let (contract, instance) =
+        contract::Contract::instantiate(&mut store, &module, &mut linker, |data| data)?;
 
-    for _ in 0..3 {
-        let result = entry_point.call(&mut store, (50,))?.0;
-
-        println!("{result}");
+    loop {
+        match contract.example(&mut store)? {
+            contract::Poll::Pending => {
+                println!("pending");
+                continue;
+            }
+            contract::Poll::Ready(result) => {
+                println!("{result}");
+                break;
+            }
+        }
     }
 
     Ok(())
