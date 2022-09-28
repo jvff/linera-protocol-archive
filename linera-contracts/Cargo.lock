@@ -648,6 +648,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "heck"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d621efb26863f0e9924c6ac577e8275e5e6b77455db64ffa6c65c904e9e132c"
+dependencies = [
+ "unicode-segmentation",
+]
+
+[[package]]
 name = "hermit-abi"
 version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -661,6 +670,12 @@ name = "humantime"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
+
+[[package]]
+name = "id-arena"
+version = "2.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25a2bc672d1148e28034f176e01fffebb08b35768468cc954630da77a1449005"
 
 [[package]]
 name = "ident_case"
@@ -776,6 +791,7 @@ dependencies = [
  "anyhow",
  "wasmer",
  "wasmtime",
+ "wit-bindgen-host-wasmtime-rust",
 ]
 
 [[package]]
@@ -995,6 +1011,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "pulldown-cmark"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ffade02495f22453cd593159ea2f59827aae7f53fa8323f756799b670881dcf8"
+dependencies = [
+ "bitflags",
+ "memchr",
+ "unicase",
 ]
 
 [[package]]
@@ -1340,6 +1367,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "tinyvec"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87cc5ceb3875bb20c2890005a4e226a4651264a5c75edb2421b52861a0a0cb50"
+dependencies = [
+ "tinyvec_macros",
+]
+
+[[package]]
+name = "tinyvec_macros"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
+
+[[package]]
 name = "toml"
 version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1388,16 +1430,46 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcf81ac59edc17cc8697ff311e8f5ef2d99fcbd9817b34cec66f90b6c3dfd987"
 
 [[package]]
+name = "unicase"
+version = "2.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50f37be617794602aabbeee0be4f259dc1778fabe05e2d67ee8f79326d5cb4f6"
+dependencies = [
+ "version_check",
+]
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcc811dc4066ac62f84f11307873c4850cb653bfa9b1719cee2bd2204a4bc5dd"
 
 [[package]]
+name = "unicode-normalization"
+version = "0.1.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c5713f0fc4b5db668a2ac63cdb7bb4469d8c9fed047b1d0292cc7b0ce2ba921"
+dependencies = [
+ "tinyvec",
+]
+
+[[package]]
+name = "unicode-segmentation"
+version = "1.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0fdbf052a0783de01e944a6ce7a8cb939e295b1e7be835a1112c3b9a7f047a5a"
+
+[[package]]
 name = "unicode-width"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c0edd1e5b14653f783770bce4a4dabb4a5108a5370a5f5d8cfe8710c361f6c8b"
+
+[[package]]
+name = "unicode-xid"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f962df74c8c05a667b5ee8bcf162993134c104e96440b663c8daa176dc772d8c"
 
 [[package]]
 name = "version_check"
@@ -2056,6 +2128,69 @@ name = "windows_x86_64_msvc"
 version = "0.36.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c811ca4a8c853ef420abd8592ba53ddbbac90410fab6903b3e79972a631f7680"
+
+[[package]]
+name = "wit-bindgen-core"
+version = "0.2.0"
+source = "git+https://github.com/bytecodealliance/wit-bindgen#4ddd546a30a9429bd0ec4c1812b9a955a1a57348"
+dependencies = [
+ "anyhow",
+ "wit-parser",
+]
+
+[[package]]
+name = "wit-bindgen-gen-host-wasmtime-rust"
+version = "0.2.0"
+source = "git+https://github.com/bytecodealliance/wit-bindgen#4ddd546a30a9429bd0ec4c1812b9a955a1a57348"
+dependencies = [
+ "heck",
+ "wit-bindgen-core",
+ "wit-bindgen-gen-rust-lib",
+]
+
+[[package]]
+name = "wit-bindgen-gen-rust-lib"
+version = "0.2.0"
+source = "git+https://github.com/bytecodealliance/wit-bindgen#4ddd546a30a9429bd0ec4c1812b9a955a1a57348"
+dependencies = [
+ "heck",
+ "wit-bindgen-core",
+]
+
+[[package]]
+name = "wit-bindgen-host-wasmtime-rust"
+version = "0.2.0"
+source = "git+https://github.com/bytecodealliance/wit-bindgen#4ddd546a30a9429bd0ec4c1812b9a955a1a57348"
+dependencies = [
+ "anyhow",
+ "bitflags",
+ "thiserror",
+ "wasmtime",
+ "wit-bindgen-host-wasmtime-rust-macro",
+]
+
+[[package]]
+name = "wit-bindgen-host-wasmtime-rust-macro"
+version = "0.2.0"
+source = "git+https://github.com/bytecodealliance/wit-bindgen#4ddd546a30a9429bd0ec4c1812b9a955a1a57348"
+dependencies = [
+ "proc-macro2",
+ "syn",
+ "wit-bindgen-core",
+ "wit-bindgen-gen-host-wasmtime-rust",
+]
+
+[[package]]
+name = "wit-parser"
+version = "0.2.0"
+source = "git+https://github.com/bytecodealliance/wit-bindgen#4ddd546a30a9429bd0ec4c1812b9a955a1a57348"
+dependencies = [
+ "anyhow",
+ "id-arena",
+ "pulldown-cmark",
+ "unicode-normalization",
+ "unicode-xid",
+]
 
 [[package]]
 name = "zstd"
