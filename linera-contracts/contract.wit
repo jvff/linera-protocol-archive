@@ -1,0 +1,5 @@
+variant poll {
+    pending,
+    ready(u32),
+}
+example: func() -> poll
