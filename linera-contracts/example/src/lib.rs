@@ -1,7 +1,10 @@
-use std::{
-    future::Future,
-    pin::Pin,
-    task::{Context, Poll, RawWaker, RawWakerVTable, Waker},
+use {
+    futures::{channel::oneshot, join},
+    std::{
+        future::Future,
+        pin::Pin,
+        task::{Context, Poll, RawWaker, RawWakerVTable, Waker},
+    },
 };
 
 wit_bindgen_rust::export!("../contract.wit");
@@ -25,8 +28,16 @@ impl contract::Contract for Contract {
 }
 
 pub async fn future() -> u32 {
-    futures::pending!();
-    10
+    let (sender, receiver) = oneshot::channel();
+
+    let sender_task = async move {
+        sender.send(10).expect("Receiver task dropped unexpectedly");
+    };
+
+    let receiver_task = async move { receiver.await.expect("Sender task stopped without sending") };
+
+    let (value, ()) = join!(receiver_task, sender_task);
+    value
 }
 
 const WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(clone, wake, wake_by_ref, drop);
