@@ -9,6 +9,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98161a4e3e2184da77bb14f02184cdd111e83bbbcc9979dfee3c44b9a85f5602"
 
 [[package]]
+name = "async-trait"
+version = "0.1.57"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76464446b8bc32758d7e88ee1a804d9914cd9b1cb264c029899680b0be29826f"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -129,7 +140,7 @@ name = "linera-contract-example"
 version = "0.1.0"
 dependencies = [
  "futures",
- "wit-bindgen-guest-rust",
+ "wit-bindgen-rust",
 ]
 
 [[package]]
@@ -257,57 +268,52 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
-name = "wit-bindgen-core"
-version = "0.2.0"
-source = "git+http://github.com/bytecodealliance/wit-bindgen#4ddd546a30a9429bd0ec4c1812b9a955a1a57348"
+name = "wit-bindgen-gen-core"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "wit-parser",
 ]
 
 [[package]]
-name = "wit-bindgen-gen-guest-rust"
-version = "0.2.0"
-source = "git+http://github.com/bytecodealliance/wit-bindgen#4ddd546a30a9429bd0ec4c1812b9a955a1a57348"
+name = "wit-bindgen-gen-rust"
+version = "0.1.0"
 dependencies = [
  "heck",
- "wit-bindgen-core",
- "wit-bindgen-gen-rust-lib",
+ "wit-bindgen-gen-core",
 ]
 
 [[package]]
-name = "wit-bindgen-gen-rust-lib"
-version = "0.2.0"
-source = "git+http://github.com/bytecodealliance/wit-bindgen#4ddd546a30a9429bd0ec4c1812b9a955a1a57348"
+name = "wit-bindgen-gen-rust-wasm"
+version = "0.1.0"
 dependencies = [
  "heck",
- "wit-bindgen-core",
+ "wit-bindgen-gen-core",
+ "wit-bindgen-gen-rust",
 ]
 
 [[package]]
-name = "wit-bindgen-guest-rust"
-version = "0.2.0"
-source = "git+http://github.com/bytecodealliance/wit-bindgen#4ddd546a30a9429bd0ec4c1812b9a955a1a57348"
+name = "wit-bindgen-rust"
+version = "0.1.0"
 dependencies = [
+ "async-trait",
  "bitflags",
- "wit-bindgen-guest-rust-macro",
+ "wit-bindgen-rust-impl",
 ]
 
 [[package]]
-name = "wit-bindgen-guest-rust-macro"
-version = "0.2.0"
-source = "git+http://github.com/bytecodealliance/wit-bindgen#4ddd546a30a9429bd0ec4c1812b9a955a1a57348"
+name = "wit-bindgen-rust-impl"
+version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "syn",
- "wit-bindgen-core",
- "wit-bindgen-gen-guest-rust",
+ "wit-bindgen-gen-core",
+ "wit-bindgen-gen-rust-wasm",
 ]
 
 [[package]]
 name = "wit-parser"
-version = "0.2.0"
-source = "git+http://github.com/bytecodealliance/wit-bindgen#4ddd546a30a9429bd0ec4c1812b9a955a1a57348"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "id-arena",

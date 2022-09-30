@@ -4,7 +4,7 @@ use std::{
     task::{Context, Poll, RawWaker, RawWakerVTable, Waker},
 };
 
-wit_bindgen_guest_rust::export!("../contract.wit");
+wit_bindgen_rust::export!("../contract.wit");
 
 pub struct Contract;
 
