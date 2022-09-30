@@ -1,30 +1,34 @@
 #[cfg(feature = "wasmer")]
-use wasmer::{imports, Instance, Module, Store, Value};
+use wasmer::{imports, Module};
 #[cfg(feature = "wasmtime")]
-use wasmtime::{Engine, Linker, Module, Store};
+use wasmtime::{Engine, Linker, Module};
+
+#[cfg(feature = "wasmer")]
+wit_bindgen_wasmer::import!("contract.wit");
+#[cfg(feature = "wasmtime")]
+wit_bindgen_wasmtime::import!("contract.wit");
+
+#[cfg(feature = "wasmer")]
+type Contract = contract::Contract;
+#[cfg(feature = "wasmer")]
+type Store = wasmer::Store;
 
 #[cfg(feature = "wasmtime")]
-wit_bindgen_host_wasmtime_rust::import!("contract.wit");
+type Contract = contract::Contract<contract::ContractData>;
+#[cfg(feature = "wasmtime")]
+type Store = wasmtime::Store<contract::ContractData>;
 
 #[cfg(feature = "wasmer")]
 fn main() -> Result<(), anyhow::Error> {
-    todo!();
-    let store = Store::default();
+    let mut store = Store::default();
     let module = Module::from_file(
         &store,
         "example/target/wasm32-unknown-unknown/debug/linera_contract_example.wasm",
     )?;
-    let import_object = imports! {};
-    let instance = Instance::new(&module, &import_object)?;
-    let entry_point = instance.exports.get_function("example")?;
+    let mut imports = imports! {};
+    let (contract, _instance) = contract::Contract::instantiate(&mut store, &module, &mut imports)?;
 
-    for _ in 0..3 {
-        let result = entry_point.call(&[])?;
-
-        println!("{result:?}");
-    }
-
-    Ok(())
+    run_contract(contract, &mut store)
 }
 
 #[cfg(feature = "wasmtime")]
@@ -37,11 +41,15 @@ fn main() -> Result<(), anyhow::Error> {
     )?;
     let data = contract::ContractData {};
     let mut store = Store::new(&engine, data);
-    let (contract, instance) =
+    let (contract, _instance) =
         contract::Contract::instantiate(&mut store, &module, &mut linker, |data| data)?;
 
+    run_contract(contract, &mut store)
+}
+
+fn run_contract(contract: Contract, store: &mut Store) -> Result<(), anyhow::Error> {
     loop {
-        match contract.example(&mut store)? {
+        match contract.example(&mut *store)? {
             contract::Poll::Pending => {
                 println!("pending");
                 continue;
