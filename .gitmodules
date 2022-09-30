@@ -1,0 +1,6 @@
+[submodule "linera-contracts/wit-bindgen"]
+	path = linera-contracts/wit-bindgen
+	url = https://github.com/wasmerio/wit-bindgen
+[submodule "linera-contracts/wasmer"]
+	path = linera-contracts/wasmer
+	url = https://github.com/wasmerio/wasmer
