@@ -310,18 +310,16 @@ where
             .await)
     }
 
-    async fn for_each<F>(&mut self, mut f: F) -> Result<(),MemoryViewError>
+    async fn for_each<F>(&mut self, mut f: F) -> Result<(), MemoryViewError>
     where
         F: FnMut(I) -> () + Send,
     {
-        self.with_ref(|m: Option<&BTreeMap<I, V>>| match m {
-            None => {},
-            Some(m) => {
-                for index in m.keys() {
-                    f(index.clone());
-                }
-            },
-        }).await;
+        self.with_ref(|maybe_map: Option<&BTreeMap<I, V>>| {
+            for index in maybe_map.into_iter().flat_map(|map| map.keys()) {
+                f(index.clone());
+            }
+        })
+        .await;
         Ok(())
     }
 
