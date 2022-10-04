@@ -10,6 +10,8 @@ wasmtime = ["dep:wasmtime", "wit-bindgen-wasmtime"]
 
 [dependencies]
 anyhow = "1.0.65"
+pin-project = "1.0.12"
+tokio = { version = "1.21.2", features = ["full"] }
 wasmer = { path = "wasmer/lib/api", optional = true }
 wasmtime = { version = "0.38.0", optional = true }
 wit-bindgen-wasmer = { path = "wit-bindgen/crates/wasmer", optional = true }
