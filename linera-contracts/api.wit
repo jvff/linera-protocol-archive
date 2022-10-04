@@ -1,0 +1,8 @@
+variant poll {
+    pending,
+    ready(u32),
+}
+resource exported {
+    static new: func(value: u32) -> exported
+    poll: func() -> poll
+}
