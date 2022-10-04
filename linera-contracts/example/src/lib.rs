@@ -8,6 +8,7 @@ use {
 };
 
 wit_bindgen_rust::export!("../contract.wit");
+wit_bindgen_rust::import!("../api.wit");
 
 pub struct Contract;
 
@@ -37,7 +38,22 @@ pub async fn future() -> u32 {
     let receiver_task = async move { receiver.await.expect("Sender task stopped without sending") };
 
     let (value, ()) = join!(receiver_task, sender_task);
-    value
+    exported(value).await
+}
+
+fn exported(input: u32) -> api::Exported {
+    api::Exported::new(input)
+}
+
+impl Future for api::Exported {
+    type Output = u32;
+
+    fn poll(self: Pin<&mut Self>, _context: &mut Context) -> Poll<Self::Output> {
+        match api::Exported::poll(&self) {
+            api::Poll::Ready(value) => Poll::Ready(value),
+            api::Poll::Pending => Poll::Pending,
+        }
+    }
 }
 
 const WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(clone, wake, wake_by_ref, drop);
