@@ -2,16 +2,13 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    chain_guards::{ChainGuard, ChainGuards},
-    codec,
-    transport::*,
-};
+use crate::{codec, transport::*};
 use async_trait::async_trait;
 use futures::{channel::mpsc, sink::SinkExt, stream::StreamExt};
 use linera_base::{error::*, messages::*, rpc};
 use linera_core::{node::ValidatorNode, worker::*};
 use linera_storage::Store;
+use linera_views::chain_guards::{ChainGuard, ChainGuards};
 use log::*;
 use serde::{Deserialize, Serialize};
 use std::{io, time::Duration};
