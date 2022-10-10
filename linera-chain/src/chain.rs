@@ -640,7 +640,7 @@ where
         }
 
         // Update the channels.
-        if let Some((name, id)) = application.unsubscribe {
+        for (name, id) in application.unsubscribe {
             let channel = channels.load_entry(name.to_string()).await?;
             // Remove subscriber. Do not remove the channel outbox yet.
             channel.subscribers.remove(id);
@@ -653,7 +653,7 @@ where
             }
             channel.block_height.set(Some(height));
         }
-        if let Some((name, id)) = application.subscribe {
+        for (name, id) in application.subscribe {
             let channel = channels.load_entry(name.to_string()).await?;
             // Add subscriber.
             if channel.subscribers.get(&id).await?.is_none() {
