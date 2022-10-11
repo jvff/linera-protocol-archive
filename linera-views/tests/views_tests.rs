@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
+use linera_base::messages::ChainId;
 use linera_views::{
+    chain_guards::ChainGuards,
     dynamo_db::{DynamoDbContext, DynamoDbContextError},
     hash::{HashView, Hasher, HashingContext},
     impl_view,
@@ -77,14 +79,14 @@ impl StateStore for MemoryTestStore {
 
 pub struct RocksdbTestStore {
     db: Arc<DB>,
-    locks: HashMap<usize, Arc<Mutex<()>>>,
+    guards: ChainGuards,
 }
 
 impl RocksdbTestStore {
     fn new(db: DB) -> Self {
         Self {
             db: Arc::new(db),
-            locks: HashMap::new(),
+            guards: ChainGuards::default(),
         }
     }
 }
@@ -94,14 +96,10 @@ impl StateStore for RocksdbTestStore {
     type Context = RocksdbContext<usize>;
 
     async fn load(&mut self, id: usize) -> Result<StateView<Self::Context>, RocksdbViewError> {
-        let lock = self
-            .locks
-            .entry(id)
-            .or_insert_with(|| Arc::new(Mutex::new(())));
         log::trace!("Acquiring lock on {:?}", id);
         let context = RocksdbContext::new(
             self.db.clone(),
-            lock.clone().lock_owned().await,
+            self.guards.guard(ChainId::root(id)).await,
             bcs::to_bytes(&id)?,
             id,
         );
@@ -344,7 +342,7 @@ async fn test_views_in_rocksdb() {
     let db = DB::open(&options, &dir).unwrap();
     let mut store = RocksdbTestStore::new(db);
     let hash = test_store(&mut store).await;
-    assert_eq!(store.locks.len(), 1);
+    assert_eq!(store.guards.active_guards(), 1);
     assert_eq!(store.db.count_keys().await.unwrap(), 0);
 
     let mut store = MemoryTestStore::default();
