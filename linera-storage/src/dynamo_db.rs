@@ -83,15 +83,14 @@ impl DynamoDbStore {
     }
 
     async fn with_context<F, E>(
-        create_context: impl FnOnce(OwnedMutexGuard<()>, Vec<u8>, ()) -> F,
+        create_context: impl FnOnce(Option<OwnedMutexGuard<()>>, Vec<u8>, ()) -> F,
     ) -> Result<(Self, TableStatus), E>
     where
         F: Future<Output = Result<(DynamoDbContext<()>, TableStatus), E>>,
     {
-        let dummy_lock = Arc::new(Mutex::new(())).lock_owned().await;
         let empty_prefix = vec![];
         let dummy_extra = ();
-        let (context, table_status) = create_context(dummy_lock, empty_prefix, dummy_extra).await?;
+        let (context, table_status) = create_context(None, empty_prefix, dummy_extra).await?;
         Ok((
             Self {
                 context,
@@ -105,10 +104,9 @@ impl DynamoDbStore {
     async fn certificates(
         &self,
     ) -> Result<MapView<DynamoDbContext<()>, HashValue, Certificate>, DynamoDbContextError> {
-        let dummy_lock = Arc::new(Mutex::new(())).lock_owned().await;
         MapView::load(
             self.context
-                .clone_with_sub_scope(dummy_lock, &BaseKey::Certificate, ()),
+                .clone_with_sub_scope(None, &BaseKey::Certificate, ()),
         )
         .await
     }
