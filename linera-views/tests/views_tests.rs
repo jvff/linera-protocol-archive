@@ -109,14 +109,14 @@ impl StateStore for RocksdbTestStore {
 
 pub struct DynamoDbTestStore {
     localstack: LocalStackTestContext,
-    locks: HashMap<usize, Arc<Mutex<()>>>,
+    guards: ChainGuards,
 }
 
 impl DynamoDbTestStore {
     pub async fn new() -> Result<Self, anyhow::Error> {
         Ok(DynamoDbTestStore {
             localstack: LocalStackTestContext::new().await?,
-            locks: HashMap::new(),
+            guards: ChainGuards::default(),
         })
     }
 }
@@ -127,14 +127,11 @@ impl StateStore for DynamoDbTestStore {
 
     async fn load(&mut self, id: usize) -> Result<StateView<Self::Context>, DynamoDbContextError> {
         log::trace!("Acquiring lock on {:?}", id);
-        let lock = self
-            .locks
-            .entry(id)
-            .or_insert_with(|| Arc::new(Mutex::new(())));
+        let guard = self.guards.guard(ChainId::root(id)).await;
         let (context, _) = DynamoDbContext::from_config(
             self.localstack.dynamo_db_config(),
             "test_table".parse().expect("Invalid table name"),
-            lock.clone().lock_owned().await,
+            guard,
             vec![0],
             id,
         )
@@ -355,7 +352,7 @@ async fn test_views_in_rocksdb() {
 async fn test_views_in_dynamo_db() -> Result<(), anyhow::Error> {
     let mut store = DynamoDbTestStore::new().await?;
     let hash = test_store(&mut store).await;
-    assert_eq!(store.locks.len(), 1);
+    assert_eq!(store.guards.active_guards(), 1);
 
     let mut store = MemoryTestStore::default();
     let hash2 = test_store(&mut store).await;
