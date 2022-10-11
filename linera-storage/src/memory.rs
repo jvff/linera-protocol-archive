@@ -16,7 +16,7 @@ use std::{collections::BTreeMap, sync::Arc};
 use tokio::sync::Mutex;
 
 #[derive(Clone, Default)]
-pub struct MemoryStore {
+struct MemoryStore {
     chains: DashMap<ChainId, Arc<Mutex<MemoryStoreMap>>>,
     certificates: DashMap<HashValue, Certificate>,
 }
