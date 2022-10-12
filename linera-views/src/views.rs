@@ -37,6 +37,9 @@ pub trait Context {
         F: FnOnce(&mut Self::Batch) -> futures::future::BoxFuture<Result<(), Self::Error>>
             + Send
             + Sync;
+
+    fn create_batch(&self) -> Self::Batch;
+    async fn write_batch(&self, batch: Self::Batch) -> Result<(), Self::Error>;
 }
 
 /// A view gives an exclusive access to read and write the data stored at an underlying
