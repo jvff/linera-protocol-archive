@@ -511,7 +511,6 @@ where
                 }
                 // Execute the received effect.
                 let context = EffectContext {
-                    chain_id,
                     height: block.height,
                     effect_id: EffectId {
                         chain_id: message_group.origin.chain_id,
@@ -540,7 +539,6 @@ where
                 .load_entry(*application_id)
                 .await?;
             let context = OperationContext {
-                chain_id,
                 height: block.height,
                 index,
             };

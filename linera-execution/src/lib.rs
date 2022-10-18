@@ -71,7 +71,6 @@ pub trait UserApplication {
     /// NOTE: This is not meant to be metered and may not be exposed by all validators.
     async fn query_application(
         &self,
-        context: &QueryContext,
         storage: &dyn QueryableStorageContext,
         argument: &[u8],
     ) -> Result<Vec<u8>, Error>;
@@ -80,11 +79,14 @@ pub trait UserApplication {
 /// The result of calling into an application (or one of its open sessions).
 #[derive(Default)]
 pub struct RawCallResult {
-    return_value: Vec<u8>,
-    chain_effect: RawApplicationResult<Vec<u8>>,
-    new_sessions: Vec<NewSession>,
+    /// The return value.
+    pub value: Vec<u8>,
+    /// The externally-visible result.
+    pub application_result: RawApplicationResult<Vec<u8>>,
+    /// The new sessions that were just created by the callee for us.
+    pub create_sessions: Vec<NewSession>,
     /// If `call_session` was called, this tells the system to clean up the session.
-    close_session: bool,
+    pub close_session: bool,
 }
 
 #[derive(Default)]
@@ -120,33 +122,36 @@ pub trait ExecutionRuntimeContext {
 
 #[derive(Debug, Clone)]
 pub struct OperationContext {
-    pub chain_id: ChainId,
+    /// The current blockheight.
     pub height: BlockHeight,
+    /// The current index of the operation.
     pub index: usize,
 }
 
 #[derive(Debug, Clone)]
 pub struct EffectContext {
-    pub chain_id: ChainId,
+    /// The current blockheight.
     pub height: BlockHeight,
+    /// The id of the effect (based on the operation height and index in the remote
+    /// chain that created the effect).
     pub effect_id: EffectId,
 }
 
 #[derive(Debug, Clone)]
 pub struct CalleeContext {
-    pub chain_id: ChainId,
     /// `None` if the caller doesn't want this particular call to be authenticated (e.g.
     /// for safety reasons).
     pub authenticated_caller_id: Option<ApplicationId>,
 }
 
-#[derive(Debug, Clone)]
-pub struct QueryContext {
-    pub chain_id: ChainId,
-}
-
 #[async_trait]
 pub trait ReadableStorageContext: Send + Sync {
+    /// The current chain id.
+    fn chain_id(&self) -> ChainId;
+
+    /// The current application id.
+    fn application_id(&self) -> ApplicationId;
+
     /// Read the system balance.
     async fn try_read_system_balance(&self) -> Result<crate::system::Balance, Error>;
 
@@ -275,16 +280,6 @@ impl<Effect> Default for RawApplicationResult<Effect> {
             effects: Vec::new(),
             subscribe: Vec::new(),
             unsubscribe: Vec::new(),
-        }
-    }
-}
-
-impl From<OperationContext> for EffectId {
-    fn from(context: OperationContext) -> Self {
-        Self {
-            chain_id: context.chain_id,
-            height: context.height,
-            index: context.index,
         }
     }
 }

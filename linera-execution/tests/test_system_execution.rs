@@ -7,8 +7,8 @@ use linera_base::messages::{BlockHeight, ChainDescription, ChainId, EffectId};
 use linera_execution::{
     system::{Address, Amount, Balance, UserData, SYSTEM},
     ApplicationResult, Effect, EffectContext, ExecutionStateView, Operation, OperationContext,
-    Query, QueryContext, RawApplicationResult, Response, SystemEffect, SystemExecutionState,
-    SystemOperation, SystemQuery, SystemResponse, TestExecutionRuntimeContext,
+    Query, RawApplicationResult, Response, SystemEffect, SystemExecutionState, SystemOperation,
+    SystemQuery, SystemResponse, TestExecutionRuntimeContext,
 };
 use linera_views::memory::MemoryContext;
 
@@ -26,7 +26,6 @@ async fn test_simple_system_operation() {
         user_data: UserData::default(),
     };
     let context = OperationContext {
-        chain_id: ChainId::root(0),
         height: BlockHeight(0),
         index: 0,
     };
@@ -53,7 +52,6 @@ async fn test_simple_system_effect() {
         recipient: ChainId::root(0),
     };
     let context = EffectContext {
-        chain_id: ChainId::root(0),
         height: BlockHeight(0),
         effect_id: EffectId {
             chain_id: ChainId::root(1),
@@ -80,11 +78,8 @@ async fn test_simple_system_query() {
     let mut view =
         ExecutionStateView::<MemoryContext<TestExecutionRuntimeContext>>::from_system_state(state)
             .await;
-    let context = QueryContext {
-        chain_id: ChainId::root(0),
-    };
     let response = view
-        .query_application(SYSTEM, &context, &Query::System(SystemQuery))
+        .query_application(SYSTEM, &Query::System(SystemQuery))
         .await
         .unwrap();
     assert_eq!(

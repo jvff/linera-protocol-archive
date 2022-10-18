@@ -5,7 +5,7 @@ use crate::{
     runtime::{ExecutionRuntime, SessionManager},
     system::{SystemExecutionStateView, SystemExecutionStateViewContext, SYSTEM},
     ApplicationResult, Effect, EffectContext, ExecutionRuntimeContext, Operation, OperationContext,
-    Query, QueryContext, Response,
+    Query, Response,
 };
 use linera_base::{
     ensure,
@@ -89,10 +89,13 @@ where
     C::Extra: ExecutionRuntimeContext,
     Error: From<C::Error>,
 {
+    fn chain_id(&self) -> ChainId {
+        self.context().extra().chain_id()
+    }
+
     async fn run_user_action(
         &mut self,
         application_id: ApplicationId,
-        chain_id: ChainId,
         action: UserAction<'_>,
     ) -> Result<Vec<ApplicationResult>, Error> {
         // Load the application.
@@ -100,6 +103,7 @@ where
             .context()
             .extra()
             .get_user_application(application_id)?;
+        let chain_id = self.chain_id();
         // Create the execution runtime for this transaction.
         let mut session_manager = SessionManager::default();
         let mut results = Vec::new();
@@ -151,12 +155,8 @@ where
             match operation {
                 Operation::System(_) => Err(Error::InvalidOperation),
                 Operation::User(operation) => {
-                    self.run_user_action(
-                        application_id,
-                        context.chain_id,
-                        UserAction::Operation(context, operation),
-                    )
-                    .await
+                    self.run_user_action(application_id, UserAction::Operation(context, operation))
+                        .await
                 }
             }
         }
@@ -180,12 +180,8 @@ where
             match effect {
                 Effect::System(_) => Err(Error::InvalidEffect),
                 Effect::User(effect) => {
-                    self.run_user_action(
-                        application_id,
-                        context.chain_id,
-                        UserAction::Effect(context, effect),
-                    )
-                    .await
+                    self.run_user_action(application_id, UserAction::Effect(context, effect))
+                        .await
                 }
             }
         }
@@ -194,13 +190,12 @@ where
     pub async fn query_application(
         &mut self,
         application_id: ApplicationId,
-        context: &QueryContext,
         query: &Query,
     ) -> Result<Response, Error> {
         if application_id == SYSTEM {
             match query {
                 Query::System(query) => {
-                    let response = self.system.query_application(context, query).await?;
+                    let response = self.system.query_application(query).await?;
                     Ok(Response::System(response))
                 }
                 _ => Err(Error::InvalidQuery),
@@ -214,21 +209,20 @@ where
                         .context()
                         .extra()
                         .get_user_application(application_id)?;
+                    let chain_id = self.chain_id();
                     // Create the execution runtime for this transaction.
                     let mut session_manager = SessionManager::default();
                     let mut results = Vec::new();
                     let mut application_ids = vec![application_id];
                     let runtime = ExecutionRuntime::new(
-                        context.chain_id,
+                        chain_id,
                         &mut application_ids,
                         self,
                         &mut session_manager,
                         &mut results,
                     );
                     // Run the query.
-                    let response = application
-                        .query_application(context, &runtime, query)
-                        .await?;
+                    let response = application.query_application(&runtime, query).await?;
                     assert_eq!(application_ids, vec![application_id]);
                     Ok(Response::User(response))
                 }

@@ -6,7 +6,7 @@
 use async_trait::async_trait;
 use linera_base::{
     error::Error,
-    messages::{ApplicationId, BlockHeight, ChainDescription, ChainId},
+    messages::{ApplicationId, BlockHeight, ChainDescription},
 };
 use linera_execution::*;
 use linera_views::{
@@ -26,7 +26,6 @@ async fn test_missing_user_application() {
     let app_id = ApplicationId(1);
 
     let context = OperationContext {
-        chain_id: ChainId::root(0),
         height: BlockHeight(0),
         index: 0,
     };
@@ -48,9 +47,14 @@ impl UserApplication for TestApplication {
         storage: &dyn WritableStorageContext,
         operation: &[u8],
     ) -> Result<RawApplicationResult<Vec<u8>>, Error> {
+        // Modify our state.
         let mut state = storage.try_load_my_state().await?;
         state.extend(operation);
         storage.try_save_my_state(state).await?;
+        // Call ourselves after the state => ok.
+        storage
+            .try_call_application(/* authenticate */ true, ApplicationId(1), &[], vec![])
+            .await?;
         Ok(RawApplicationResult::default())
     }
 
@@ -58,9 +62,15 @@ impl UserApplication for TestApplication {
     async fn apply_effect(
         &self,
         _context: &EffectContext,
-        _storage: &dyn WritableStorageContext,
+        storage: &dyn WritableStorageContext,
         _effect: &[u8],
     ) -> Result<RawApplicationResult<Vec<u8>>, Error> {
+        let state = storage.try_load_my_state().await?;
+        // Call ourselves while the state is locked => not ok.
+        storage
+            .try_call_application(/* authenticate */ true, ApplicationId(1), &[], vec![])
+            .await?;
+        storage.try_save_my_state(state).await?;
         Ok(RawApplicationResult::default())
     }
 
@@ -80,20 +90,26 @@ impl UserApplication for TestApplication {
     async fn call_session(
         &self,
         _context: &CalleeContext,
-        _storage: &dyn WritableStorageContext,
+        storage: &dyn WritableStorageContext,
         _session_kind: u64,
         _session_data: &mut Vec<u8>,
         _argument: &[u8],
         _forwarded_sessions: Vec<SessionId>,
     ) -> Result<RawCallResult, Error> {
-        Ok(RawCallResult::default())
+        // Attempt to read our state.
+        let state = storage.try_read_my_state().await?;
+        let result = RawCallResult {
+            value: state,
+            ..RawCallResult::default()
+        };
+        // .. and return it.
+        Ok(result)
     }
 
     /// Allow an end user to execute read-only queries on the state of this application.
     /// NOTE: This is not meant to be metered and may not be exposed by all validators.
     async fn query_application(
         &self,
-        _context: &QueryContext,
         storage: &dyn QueryableStorageContext,
         _argument: &[u8],
     ) -> Result<Vec<u8>, Error> {
@@ -116,7 +132,6 @@ async fn test_simple_user_operation() {
         .insert(app_id, Arc::new(TestApplication));
 
     let context = OperationContext {
-        chain_id: ChainId::root(0),
         height: BlockHeight(0),
         index: 0,
     };
@@ -126,17 +141,14 @@ async fn test_simple_user_operation() {
         .unwrap();
     assert_eq!(
         result,
-        vec![ApplicationResult::User(
-            app_id,
-            RawApplicationResult::default()
-        )]
+        vec![
+            ApplicationResult::User(app_id, RawApplicationResult::default()),
+            ApplicationResult::User(app_id, RawApplicationResult::default())
+        ]
     );
 
-    let context = QueryContext {
-        chain_id: ChainId::root(0),
-    };
     assert_eq!(
-        view.query_application(app_id, &context, &Query::User(vec![]))
+        view.query_application(app_id, &Query::User(vec![]))
             .await
             .unwrap(),
         Response::User(vec![1])

@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    ChainOwnership, Effect, EffectContext, OperationContext, QueryContext, RawApplicationResult,
+    ChainOwnership, Effect, EffectContext, ExecutionRuntimeContext, OperationContext,
+    RawApplicationResult,
 };
 use linera_base::{
     committee::Committee,
@@ -193,6 +194,7 @@ impl_view!(
 impl<C> SystemExecutionStateView<C>
 where
     C: SystemExecutionStateViewContext,
+    C::Extra: ExecutionRuntimeContext,
     Error: From<C::Error>,
 {
     /// Invariant for the states of active chains.
@@ -207,6 +209,10 @@ where
             && self.admin_id.get().is_some()
     }
 
+    pub fn chain_id(&self) -> ChainId {
+        self.context().extra().chain_id()
+    }
+
     /// Execute the sender's side of the operation.
     /// Return a list of recipients who need to be notified.
     pub async fn apply_operation(
@@ -214,6 +220,7 @@ where
         context: &OperationContext,
         operation: &SystemOperation,
     ) -> Result<RawApplicationResult<SystemEffect>, Error> {
+        let this_chain_id = self.chain_id();
         use SystemOperation::*;
         match operation {
             OpenChain {
@@ -223,7 +230,11 @@ where
                 admin_id,
                 epoch,
             } => {
-                let expected_id = ChainId::child(context.clone().into());
+                let expected_id = ChainId::child(EffectId {
+                    chain_id: this_chain_id,
+                    height: context.height,
+                    index: context.index,
+                });
                 ensure!(id == &expected_id, Error::InvalidNewChainId(*id));
                 ensure!(
                     self.admin_id.get().as_ref() == Some(admin_id),
@@ -285,7 +296,7 @@ where
                         effects.push((
                             Destination::Recipient(channel.chain_id),
                             SystemEffect::Unsubscribe {
-                                id: context.chain_id,
+                                id: this_chain_id,
                                 channel,
                             },
                         ));
@@ -332,10 +343,7 @@ where
                 committee,
             } => {
                 // We are the admin chain and want to create a committee.
-                ensure!(
-                    *admin_id == context.chain_id,
-                    Error::InvalidCommitteeCreation
-                );
+                ensure!(*admin_id == this_chain_id, Error::InvalidCommitteeCreation);
                 ensure!(
                     Some(admin_id) == self.admin_id.get().as_ref(),
                     Error::InvalidCommitteeCreation
@@ -362,10 +370,7 @@ where
             }
             RemoveCommittee { admin_id, epoch } => {
                 // We are the admin chain and want to remove a committee.
-                ensure!(
-                    *admin_id == context.chain_id,
-                    Error::InvalidCommitteeRemoval
-                );
+                ensure!(*admin_id == this_chain_id, Error::InvalidCommitteeRemoval);
                 ensure!(
                     Some(admin_id) == self.admin_id.get().as_ref(),
                     Error::InvalidCommitteeRemoval
@@ -391,12 +396,12 @@ where
             SubscribeToNewCommittees { admin_id } => {
                 // We should not subscribe to ourself in this case.
                 ensure!(
-                    context.chain_id != *admin_id,
-                    Error::InvalidSubscriptionToNewCommittees(context.chain_id)
+                    this_chain_id != *admin_id,
+                    Error::InvalidSubscriptionToNewCommittees(this_chain_id)
                 );
                 ensure!(
                     self.admin_id.get().as_ref() == Some(admin_id),
-                    Error::InvalidSubscriptionToNewCommittees(context.chain_id)
+                    Error::InvalidSubscriptionToNewCommittees(this_chain_id)
                 );
                 let channel_id = ChannelId {
                     chain_id: *admin_id,
@@ -404,14 +409,14 @@ where
                 };
                 ensure!(
                     self.subscriptions.get(&channel_id).await?.is_none(),
-                    Error::InvalidSubscriptionToNewCommittees(context.chain_id)
+                    Error::InvalidSubscriptionToNewCommittees(this_chain_id)
                 );
                 self.subscriptions.insert(channel_id, ());
                 let application = RawApplicationResult {
                     effects: vec![(
                         Destination::Recipient(*admin_id),
                         SystemEffect::Subscribe {
-                            id: context.chain_id,
+                            id: this_chain_id,
                             channel: ChannelId {
                                 chain_id: *admin_id,
                                 name: ADMIN_CHANNEL.into(),
@@ -430,14 +435,14 @@ where
                 };
                 ensure!(
                     self.subscriptions.get(&channel_id).await?.is_some(),
-                    Error::InvalidUnsubscriptionToNewCommittees(context.chain_id)
+                    Error::InvalidUnsubscriptionToNewCommittees(this_chain_id)
                 );
                 self.subscriptions.remove(channel_id);
                 let application = RawApplicationResult {
                     effects: vec![(
                         Destination::Recipient(*admin_id),
                         SystemEffect::Unsubscribe {
-                            id: context.chain_id,
+                            id: this_chain_id,
                             channel: ChannelId {
                                 chain_id: *admin_id,
                                 name: ADMIN_CHANNEL.into(),
@@ -456,12 +461,13 @@ where
     /// Effects must be executed by order of heights in the sender's chain.
     pub fn apply_effect(
         &mut self,
-        context: &EffectContext,
+        _context: &EffectContext,
         effect: &SystemEffect,
     ) -> Result<RawApplicationResult<SystemEffect>, Error> {
         use SystemEffect::*;
+        let this_chain_id = self.chain_id();
         match effect {
-            Credit { amount, recipient } if context.chain_id == *recipient => {
+            Credit { amount, recipient } if this_chain_id == *recipient => {
                 let new_balance = self
                     .balance
                     .get()
@@ -484,7 +490,7 @@ where
                 self.committees.set(committees.clone());
                 Ok(RawApplicationResult::default())
             }
-            Subscribe { id, channel } if channel.chain_id == context.chain_id => {
+            Subscribe { id, channel } if channel.chain_id == this_chain_id => {
                 // Notify the subscriber about this block, so that it is included in the
                 // receive_log of the subscriber and correctly synchronized.
                 let application = RawApplicationResult {
@@ -497,7 +503,7 @@ where
                 };
                 Ok(application)
             }
-            Unsubscribe { id, channel } if channel.chain_id == context.chain_id => {
+            Unsubscribe { id, channel } if channel.chain_id == this_chain_id => {
                 let application = RawApplicationResult {
                     effects: vec![(
                         Destination::Recipient(*id),
@@ -563,11 +569,10 @@ where
 
     pub async fn query_application(
         &mut self,
-        context: &QueryContext,
         _query: &SystemQuery,
     ) -> Result<SystemResponse, Error> {
         let response = SystemResponse {
-            chain_id: context.chain_id,
+            chain_id: self.chain_id(),
             balance: *self.balance.get(),
         };
         Ok(response)
