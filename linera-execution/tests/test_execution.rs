@@ -44,7 +44,7 @@ impl UserApplication for TestApplication {
     async fn apply_operation(
         &self,
         _context: &OperationContext,
-        storage: &dyn WritableStorageContext,
+        storage: &dyn WritableStorage,
         operation: &[u8],
     ) -> Result<RawApplicationResult<Vec<u8>>, Error> {
         // Modify our state.
@@ -62,7 +62,7 @@ impl UserApplication for TestApplication {
     async fn apply_effect(
         &self,
         _context: &EffectContext,
-        storage: &dyn WritableStorageContext,
+        storage: &dyn WritableStorage,
         _effect: &[u8],
     ) -> Result<RawApplicationResult<Vec<u8>>, Error> {
         let state = storage.try_load_my_state().await?;
@@ -79,7 +79,7 @@ impl UserApplication for TestApplication {
     async fn call_application(
         &self,
         _context: &CalleeContext,
-        _storage: &dyn WritableStorageContext,
+        _storage: &dyn WritableStorage,
         _argument: &[u8],
         _forwarded_sessions: Vec<SessionId>,
     ) -> Result<RawCallResult, Error> {
@@ -90,7 +90,7 @@ impl UserApplication for TestApplication {
     async fn call_session(
         &self,
         _context: &CalleeContext,
-        storage: &dyn WritableStorageContext,
+        storage: &dyn WritableStorage,
         _session_kind: u64,
         _session_data: &mut Vec<u8>,
         _argument: &[u8],
@@ -110,7 +110,7 @@ impl UserApplication for TestApplication {
     /// NOTE: This is not meant to be metered and may not be exposed by all validators.
     async fn query_application(
         &self,
-        storage: &dyn QueryableStorageContext,
+        storage: &dyn QueryableStorage,
         _argument: &[u8],
     ) -> Result<Vec<u8>, Error> {
         let state = storage.try_read_my_state().await?;

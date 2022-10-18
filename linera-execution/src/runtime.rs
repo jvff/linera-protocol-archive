@@ -3,8 +3,8 @@
 
 use crate::{
     execution::{ExecutionStateView, ExecutionStateViewContext},
-    ApplicationResult, CallResult, ExecutionRuntimeContext, NewSession, QueryableStorageContext,
-    ReadableStorageContext, SessionId, WritableStorageContext,
+    ApplicationResult, CallResult, ExecutionRuntimeContext, NewSession, QueryableStorage,
+    ReadableStorage, SessionId, WritableStorage,
 };
 use async_trait::async_trait;
 use linera_base::{
@@ -224,7 +224,7 @@ where
 }
 
 #[async_trait]
-impl<'a, C, const W: bool> ReadableStorageContext for ExecutionRuntime<'a, C, W>
+impl<'a, C, const W: bool> ReadableStorage for ExecutionRuntime<'a, C, W>
 where
     C: ExecutionStateViewContext,
     C::Extra: ExecutionRuntimeContext,
@@ -262,7 +262,7 @@ where
 }
 
 #[async_trait]
-impl<'a, C> QueryableStorageContext for ExecutionRuntime<'a, C, false>
+impl<'a, C> QueryableStorage for ExecutionRuntime<'a, C, false>
 where
     C: ExecutionStateViewContext,
     C::Extra: ExecutionRuntimeContext,
@@ -288,7 +288,7 @@ where
 }
 
 #[async_trait]
-impl<'a, C> WritableStorageContext for ExecutionRuntime<'a, C, true>
+impl<'a, C> WritableStorage for ExecutionRuntime<'a, C, true>
 where
     C: ExecutionStateViewContext,
     C::Extra: ExecutionRuntimeContext,
