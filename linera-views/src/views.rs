@@ -961,27 +961,27 @@ where
     /// was removed before then a default entry is put on this index.
     pub async fn load_entry(&mut self, index: I) -> Result<&mut W, C::Error> {
         match self.updates.entry(index.clone()) {
-            btree_map::Entry::Occupied(e) => {
-                let f = e.into_mut();
-                match f {
+            btree_map::Entry::Occupied(entry) => {
+                let entry = entry.into_mut();
+                match entry {
                     Some(view) => Ok(view),
                     None => {
                         let context = self.context.clone_with_scope(&index);
                         // Obtain a view and set its pending state to the default (e.g. empty) state
                         let mut view = W::load(context).await?;
                         view.reset_to_default();
-                        *f = Some(view);
-                        Ok(f.as_mut().unwrap())
+                        *entry = Some(view);
+                        Ok(entry.as_mut().unwrap())
                     }
                 }
             }
-            btree_map::Entry::Vacant(e) => {
+            btree_map::Entry::Vacant(entry) => {
                 let context = self.context.clone_with_scope(&index);
                 let mut view = W::load(context).await?;
                 if self.was_reset_to_default {
                     view.reset_to_default();
                 }
-                Ok(e.insert(Some(view)).as_mut().unwrap())
+                Ok(entry.insert(Some(view)).as_mut().unwrap())
             }
         }
     }
