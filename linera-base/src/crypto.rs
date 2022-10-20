@@ -5,6 +5,7 @@
 use crate::error::Error;
 use ed25519_dalek as dalek;
 use ed25519_dalek::{Signer, Verifier};
+#[cfg(feature = "rand")]
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -49,6 +50,7 @@ impl PublicKey {
 
 impl KeyPair {
     /// Generate a new key-pair.
+    #[cfg(feature = "rand")]
     pub fn generate() -> Self {
         let mut csprng = OsRng;
         let keypair = dalek::Keypair::generate(&mut csprng);

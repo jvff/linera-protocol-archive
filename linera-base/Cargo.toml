@@ -5,25 +5,30 @@ authors = ["Linera <contact@linera.io>"]
 edition = "2021"
 
 [features]
+default = [
+    "messages", "bcs", "bincode", "hex", "log", "once_cell", "rand", "ed25519", "serde_json",
+    "serde-name", "sha2", "structopt", "thiserror",
+]
+messages = []
 test = ["test-strategy", "proptest"]
 
 [dependencies]
-bcs = "0.1.3"
-bincode = "1.3.3"
+bcs = { version = "0.1.3", optional = true }
+bincode = { version = "1.3.3", optional = true }
 generic-array = { version = "0.14.4", features = ["serde"] }
-hex = "0.4.3"
-log = "0.4.14"
-once_cell = "1.13.0"
-rand = "0.7.3"
+hex = { version = "0.4.3", optional = true }
+log = { version = "0.4.14", optional = true }
+once_cell = { version = "1.13.0", optional = true }
+rand = { version = "0.7.3", optional = true }
 serde = { version = "1.0.130", features = ["derive"] }
-ed25519 = "1.2.0"
+ed25519 = { version = "1.2.0", optional = true }
 ed25519-dalek = { version = "1.0.1", features = ["batch", "serde"] }
 proptest = { version = "1.0.0", optional = true }
-serde_json = "1.0.68"
-serde-name = "0.2.0"
-sha2 = "0.9.8"
-structopt = "0.3.23"
-thiserror = "1.0.31"
+serde_json = { version = "1.0.68", optional = true }
+serde-name = { version = "0.2.0", optional = true }
+sha2 = { version = "0.9.8", optional = true }
+structopt = { version = "0.3.23", optional = true }
+thiserror = { version = "1.0.31", optional = true }
 test-strategy = { version = "0.2.0", optional = true }
 
 [dev-dependencies]
