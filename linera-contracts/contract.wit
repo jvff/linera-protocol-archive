@@ -59,7 +59,9 @@ record callee-context {
     authenticated-caller-id: option<application-id>,
 }
 
-type query-context = chain-id
+record query-context {
+    chain-id: chain-id,
+}
 
 type chain-id = hash-value
 type hash-value = list<u8>

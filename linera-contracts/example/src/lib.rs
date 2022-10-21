@@ -2,8 +2,8 @@ use {
     async_trait::async_trait,
     futures::{channel::oneshot, future::BoxFuture, join},
     linera_sdk::{
-        Application, ApplicationResult, BlockHeight, CalleeContext, ChainId, Destination,
-        EffectContext, ExportedFuture, OperationContext, QueryContext,
+        Application, ApplicationId, ApplicationResult, BlockHeight, CalleeContext, ChainId,
+        Destination, EffectContext, EffectId, ExportedFuture, OperationContext, QueryContext,
     },
     std::task::Poll,
     thiserror::Error,
@@ -94,27 +94,41 @@ impl contract::ApplyEffect for ApplyEffect {
     }
 }
 
-pub struct Call;
+pub struct Call {
+    future: ExportedFuture<Result<(Vec<u8>, ApplicationResult), Error>>,
+}
 
 impl contract::Call for Call {
     fn new(context: contract::CalleeContext, name: String, argument: Vec<u8>) -> Handle<Self> {
-        todo!();
+        Handle::new(Call {
+            future: ExportedFuture::new(async move {
+                let mut contract = Contract;
+                contract.call(&context.into(), &name, &argument).await
+            }),
+        })
     }
 
     fn poll(&self) -> contract::PollCall {
-        todo!();
+        self.future.poll()
     }
 }
 
-pub struct Query;
+pub struct Query {
+    future: ExportedFuture<Result<Vec<u8>, Error>>,
+}
 
 impl contract::Query for Query {
     fn new(context: contract::QueryContext, name: String, argument: Vec<u8>) -> Handle<Self> {
-        todo!();
+        Handle::new(Query {
+            future: ExportedFuture::new(async move {
+                let contract = Contract;
+                contract.query(&context.into(), &name, &argument).await
+            }),
+        })
     }
 
     fn poll(&self) -> contract::PollQuery {
-        todo!();
+        self.future.poll()
     }
 }
 
@@ -127,6 +141,43 @@ impl From<contract::OperationContext> for OperationContext {
             chain_id: ChainId::from_bytes_unchecked(&contract_context.chain_id),
             height: BlockHeight(contract_context.height),
             index: contract_context.index,
+        }
+    }
+}
+
+impl From<contract::EffectContext> for EffectContext {
+    fn from(contract_context: contract::EffectContext) -> Self {
+        EffectContext {
+            chain_id: ChainId::from_bytes_unchecked(&contract_context.chain_id),
+            height: BlockHeight(contract_context.height),
+            effect_id: contract_context.effect_id.into(),
+        }
+    }
+}
+
+impl From<contract::EffectId> for EffectId {
+    fn from(effect_id: contract::EffectId) -> Self {
+        EffectId {
+            chain_id: ChainId::from_bytes_unchecked(&effect_id.chain_id),
+            height: BlockHeight(effect_id.height),
+            index: effect_id.index,
+        }
+    }
+}
+
+impl From<contract::CalleeContext> for CalleeContext {
+    fn from(contract_context: contract::CalleeContext) -> Self {
+        CalleeContext {
+            chain_id: ChainId::from_bytes_unchecked(&contract_context.chain_id),
+            authenticated_caller_id: contract_context.authenticated_caller_id.map(ApplicationId),
+        }
+    }
+}
+
+impl From<contract::QueryContext> for QueryContext {
+    fn from(contract_context: contract::QueryContext) -> Self {
+        QueryContext {
+            chain_id: ChainId::from_bytes_unchecked(&contract_context.chain_id),
         }
     }
 }
@@ -177,6 +228,28 @@ impl From<Poll<Result<ApplicationResult, Error>>> for contract::PollApplicationR
             Poll::Pending => PollApplicationResult::Pending,
             Poll::Ready(Ok(value)) => PollApplicationResult::Ready(Ok(value.into())),
             Poll::Ready(Err(value)) => PollApplicationResult::Ready(Err(value.to_string())),
+        }
+    }
+}
+
+impl From<Poll<Result<(Vec<u8>, ApplicationResult), Error>>> for contract::PollCall {
+    fn from(poll: Poll<Result<(Vec<u8>, ApplicationResult), Error>>) -> Self {
+        use contract::PollCall;
+        match poll {
+            Poll::Pending => PollCall::Pending,
+            Poll::Ready(Ok((response, result))) => PollCall::Ready(Ok((response, result.into()))),
+            Poll::Ready(Err(value)) => PollCall::Ready(Err(value.to_string())),
+        }
+    }
+}
+
+impl From<Poll<Result<Vec<u8>, Error>>> for contract::PollQuery {
+    fn from(poll: Poll<Result<Vec<u8>, Error>>) -> Self {
+        use contract::PollQuery;
+        match poll {
+            Poll::Pending => PollQuery::Pending,
+            Poll::Ready(Ok(response)) => PollQuery::Ready(Ok(response)),
+            Poll::Ready(Err(value)) => PollQuery::Ready(Err(value.to_string())),
         }
     }
 }
