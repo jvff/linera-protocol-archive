@@ -1,8 +1,20 @@
-variant poll {
+resource get {
+    static new: func() -> get
+    poll: func() -> poll-get
+}
+
+variant poll-get {
     pending,
-    ready(u32),
+    ready(list<u8>),
 }
-resource exported {
-    static new: func(value: u32) -> exported
-    poll: func() -> poll
+
+resource set {
+    static new: func(value: list<u8>) -> get
+    poll: func() -> poll-set
 }
+
+variant poll-set {
+    pending,
+    ready,
+}
+

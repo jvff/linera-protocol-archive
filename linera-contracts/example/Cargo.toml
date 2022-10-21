@@ -9,5 +9,8 @@ path = "src/lib.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
+async-trait = "0.1.52"
 futures = "0.3.24"
+linera-sdk = { path = "../../linera-sdk" }
+thiserror = "1.0.31"
 wit-bindgen-rust = { path = "../wit-bindgen/crates/rust-wasm" }

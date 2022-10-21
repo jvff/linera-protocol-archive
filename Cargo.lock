@@ -1227,6 +1227,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "linera-sdk"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+]
+
+[[package]]
 name = "linera-service"
 version = "0.1.0"
 dependencies = [
