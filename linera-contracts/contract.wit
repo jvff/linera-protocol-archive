@@ -1,5 +1,96 @@
-variant poll {
-    pending,
-    ready(u32),
+resource apply-operation {
+    static new: func(
+        context: operation-context,
+        operation: list<u8>,
+    ) -> apply-operation
+
+    poll: func() -> poll-application-result
 }
-example: func() -> poll
+
+resource apply-effect {
+    static new: func(
+        context: effect-context,
+        effect: list<u8>,
+    ) -> apply-effect
+
+    poll: func() -> poll-application-result
+}
+
+resource call {
+    static new: func(
+        context: callee-context,
+        name: string,
+        argument: list<u8>,
+    ) -> call
+
+    poll: func() -> poll-call
+}
+
+resource query {
+    static new: func(
+        context: query-context,
+        name: string,
+        argument: list<u8>,
+    ) -> query
+
+    poll: func() -> poll-query
+}
+
+record operation-context {
+    chain-id: chain-id,
+    height: block-height,
+    index: u64,
+}
+
+record effect-context {
+    chain-id: chain-id,
+    height: block-height,
+    effect-id: effect-id,
+}
+
+record effect-id {
+    chain-id: chain-id,
+    height: block-height,
+    index: u64,
+}
+
+record callee-context {
+    chain-id: chain-id,
+    authenticated-caller-id: option<application-id>,
+}
+
+type query-context = chain-id
+
+type chain-id = hash-value
+type hash-value = list<u8>
+
+type block-height = u64
+type application-id = u64
+
+variant poll-application-result {
+    pending,
+    ready(expected<application-result, string>),
+}
+
+variant poll-call {
+    pending,
+    ready(expected<tuple<list<u8>, application-result>, string>),
+}
+
+variant poll-query {
+    pending,
+    ready(expected<list<u8>, string>),
+}
+
+record application-result {
+    effects: list<tuple<destination, effect>>,
+    subscribe: list<tuple<string, chain-id>>,
+    unsubscribe: list<tuple<string, chain-id>>,
+}
+
+variant destination {
+    recipient(chain-id),
+    subscribers(string),
+}
+
+type effect = list<u8>
