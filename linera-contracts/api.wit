@@ -9,7 +9,7 @@ variant poll-get {
 }
 
 resource set {
-    static new: func(value: list<u8>) -> get
+    static new: func(value: list<u8>) -> set
     poll: func() -> poll-set
 }
 

@@ -1,10 +1,11 @@
 use {
     async_trait::async_trait,
-    futures::{channel::oneshot, future::BoxFuture, join},
+    futures::{channel::oneshot, future, join},
     linera_sdk::{
         Application, ApplicationId, ApplicationResult, BlockHeight, CalleeContext, ChainId,
         Destination, EffectContext, EffectId, ExportedFuture, OperationContext, QueryContext,
     },
+    serde::{Deserialize, Serialize},
     std::task::Poll,
     thiserror::Error,
     wit_bindgen_rust::Handle,
@@ -13,9 +14,29 @@ use {
 wit_bindgen_rust::export!("../contract.wit");
 wit_bindgen_rust::import!("../api.wit");
 
-pub struct Contract;
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
+pub struct Contract {
+    balance: u128,
+}
 
 impl contract::Contract for Contract {}
+
+impl Contract {
+    async fn load() -> Self {
+        let future = api::Get::new();
+        let bytes: Vec<u8> = future::poll_fn(|_context| future.poll().into()).await;
+        if bytes.is_empty() {
+            Self::default()
+        } else {
+            bcs::from_bytes(&bytes).expect("Invalid contract state")
+        }
+    }
+
+    async fn store(self) {
+        let future = api::Set::new(&bcs::to_bytes(&self).expect("State serialization failed"));
+        future::poll_fn(|_context| Poll::<()>::from(future.poll())).await;
+    }
+}
 
 #[async_trait]
 impl Application for Contract {
@@ -64,8 +85,12 @@ impl contract::ApplyOperation for ApplyOperation {
     fn new(context: contract::OperationContext, operation: Vec<u8>) -> Handle<Self> {
         Handle::new(ApplyOperation {
             future: ExportedFuture::new(async move {
-                let mut contract = Contract;
-                contract.apply_operation(&context.into(), &operation).await
+                let mut contract = Contract::load().await;
+                let result = contract.apply_operation(&context.into(), &operation).await;
+                if result.is_ok() {
+                    contract.store().await;
+                }
+                result
             }),
         })
     }
@@ -83,8 +108,12 @@ impl contract::ApplyEffect for ApplyEffect {
     fn new(context: contract::EffectContext, effect: Vec<u8>) -> Handle<Self> {
         Handle::new(ApplyEffect {
             future: ExportedFuture::new(async move {
-                let mut contract = Contract;
-                contract.apply_effect(&context.into(), &effect).await
+                let mut contract = Contract::load().await;
+                let result = contract.apply_effect(&context.into(), &effect).await;
+                if result.is_ok() {
+                    contract.store().await;
+                }
+                result
             }),
         })
     }
@@ -102,8 +131,12 @@ impl contract::Call for Call {
     fn new(context: contract::CalleeContext, name: String, argument: Vec<u8>) -> Handle<Self> {
         Handle::new(Call {
             future: ExportedFuture::new(async move {
-                let mut contract = Contract;
-                contract.call(&context.into(), &name, &argument).await
+                let mut contract = Contract::load().await;
+                let result = contract.call(&context.into(), &name, &argument).await;
+                if result.is_ok() {
+                    contract.store().await;
+                }
+                result
             }),
         })
     }
@@ -121,7 +154,7 @@ impl contract::Query for Query {
     fn new(context: contract::QueryContext, name: String, argument: Vec<u8>) -> Handle<Self> {
         Handle::new(Query {
             future: ExportedFuture::new(async move {
-                let contract = Contract;
+                let contract = Contract::load().await;
                 contract.query(&context.into(), &name, &argument).await
             }),
         })
@@ -250,6 +283,24 @@ impl From<Poll<Result<Vec<u8>, Error>>> for contract::PollQuery {
             Poll::Pending => PollQuery::Pending,
             Poll::Ready(Ok(response)) => PollQuery::Ready(Ok(response)),
             Poll::Ready(Err(value)) => PollQuery::Ready(Err(value.to_string())),
+        }
+    }
+}
+
+impl From<api::PollGet> for Poll<Vec<u8>> {
+    fn from(poll_get: api::PollGet) -> Poll<Vec<u8>> {
+        match poll_get {
+            api::PollGet::Ready(bytes) => Poll::Ready(bytes),
+            api::PollGet::Pending => Poll::Pending,
+        }
+    }
+}
+
+impl From<api::PollSet> for Poll<()> {
+    fn from(poll_set: api::PollSet) -> Poll<()> {
+        match poll_set {
+            api::PollSet::Ready => Poll::Ready(()),
+            api::PollSet::Pending => Poll::Pending,
         }
     }
 }
