@@ -15,14 +15,15 @@ where
         + Clone
         + 'static
         + $crate::views::ScopedOperations
-        $( + $ops_trait )*
+        $( + $ops_trait )*,
+    $crate::views::ViewError: From<C::Error>,
 {
     #[allow(unreachable_code)]
     fn context(&self) -> &C {
         $( return self.$field.context(); )*
     }
 
-    async fn load(context: C) -> Result<Self, C::Error> {
+    async fn load(context: C) -> Result<Self, $crate::views::ViewError> {
         $( let $field = $crate::views::ScopedView::load(context.clone()).await?; )*
         Ok(Self {
             $( $field ),*
@@ -33,21 +34,21 @@ where
         $( self.$field.rollback(); )*
     }
 
-    async fn commit(self, batch: &mut C::Batch) -> Result<(), C::Error> {
+    async fn commit(self, batch: &mut C::Batch) -> Result<(), $crate::views::ViewError> {
         use $crate::views::View;
 
         $( self.$field.commit(batch).await?; )*
         Ok(())
     }
 
-    async fn flush(&mut self, batch: &mut C::Batch) -> Result<(), C::Error> {
+    async fn flush(&mut self, batch: &mut C::Batch) -> Result<(), $crate::views::ViewError> {
         use $crate::views::View;
 
         $( self.$field.flush(batch).await?; )*
         Ok(())
     }
 
-    async fn delete(self, batch: &mut C::Batch) -> Result<(), C::Error> {
+    async fn delete(self, batch: &mut C::Batch) -> Result<(), $crate::views::ViewError> {
         use $crate::views::View;
 
         $( self.$field.delete(batch).await?; )*
@@ -68,9 +69,10 @@ where
         + Clone
         + 'static
         + $crate::views::ScopedOperations
-        $( + $ops_trait )*
+        $( + $ops_trait )*,
+    $crate::views::ViewError: From<C::Error>,
 {
-    async fn hash(&mut self) -> Result<<C::Hasher as $crate::hash::Hasher>::Output, C::Error> {
+    async fn hash(&mut self) -> Result<<C::Hasher as $crate::hash::Hasher>::Output, $crate::views::ViewError> {
         use $crate::hash::{Hasher, HashView};
         use std::io::Write;
 
@@ -88,9 +90,10 @@ where
         + Clone
         + 'static
         + $crate::views::ScopedOperations
-        $( + $ops_trait )*
+        $( + $ops_trait )*,
+    $crate::views::ViewError: From<C::Error>,
 {
-    pub async fn write_commit(self) -> Result<(), C::Error> {
+    pub async fn write_commit(self) -> Result<(), $crate::views::ViewError> {
         use $crate::views::View;
 
         let context = self.context().clone();
@@ -102,7 +105,7 @@ where
         }).await
     }
 
-    pub async fn do_flush(&mut self) -> Result<(), C::Error> {
+    pub async fn do_flush(&mut self) -> Result<(), $crate::views::ViewError> {
         use $crate::views::View;
 
         let mut batch = self.context().create_batch();
@@ -110,7 +113,7 @@ where
         self.context().write_batch(batch).await
      }
 
-    pub async fn write_delete(self) -> Result<(), C::Error> {
+    pub async fn write_delete(self) -> Result<(), $crate::views::ViewError> {
         use $crate::views::View;
 
         let context = self.context().clone();
@@ -142,14 +145,16 @@ where
         + Clone
         + 'static
         + $crate::views::ScopedOperations
-        $( + $ops_trait )*
+        $( + $ops_trait )*,
+    $crate::views::ViewError: From<AnyContext::Error>,
 {}
 
 impl<C> $name<C>
 where
-    C: [< $name Context >]
+    C: [< $name Context >],
+    $crate::views::ViewError: From<C::Error>,
 {
-    pub async fn hash_value(&mut self) -> Result<$crate::crypto::HashValue, C::Error> {
+    pub async fn hash_value(&mut self) -> Result<$crate::crypto::HashValue, $crate::views::ViewError> {
         use $crate::crypto::{BcsSignable, HashValue};
         use $crate::generic_array::GenericArray;
         use $crate::hash::HashView;
