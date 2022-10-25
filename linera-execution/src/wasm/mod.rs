@@ -1,17 +1,20 @@
+#[cfg(feature = "wasmer")]
+#[path = "wasmer.rs"]
+mod runtime;
+#[cfg(feature = "wasmtime")]
+#[path = "wasmtime.rs"]
+mod runtime;
+
 use crate::{
     ApplicationCallResult, CalleeContext, EffectContext, OperationContext, QueryContext,
     QueryableStorage, RawExecutionResult, SessionCallResult, SessionId, UserApplication,
     WritableStorage,
 };
 use async_trait::async_trait;
+use futures::future;
 use linera_base::error::Error;
 
-#[cfg(feature = "wasmer")]
-mod wasmer;
-#[cfg(feature = "wasmtime")]
-mod wasmtime;
-
-pub struct WasmApplication {}
+pub use self::runtime::WasmApplication;
 
 #[async_trait]
 impl UserApplication for WasmApplication {
@@ -21,12 +24,9 @@ impl UserApplication for WasmApplication {
         storage: &dyn WritableStorage,
         operation: &[u8],
     ) -> Result<RawExecutionResult<Vec<u8>>, Error> {
-        let (contract, store, context) = self.prepare_runtime(storage);
-        let external_future = contract.apply_operation_new();
-        // self.call_async(
-        // future::poll_fn(|context| {
-
-        // })
+        self.prepare_runtime(storage)?
+            .apply_operation(context, operation)
+            .await
     }
 
     async fn execute_effect(
