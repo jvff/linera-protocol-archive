@@ -288,10 +288,8 @@ where
                 let state = chain.communication_states.load_entry(id).await?;
                 for origin in state.inboxes.indices().await? {
                     let inbox = state.inboxes.load_entry(origin.clone()).await?;
-                    let next_height = info.entry(origin.chain_id).or_default();
-                    if *next_height < *inbox.next_height_to_receive.get() {
-                        *next_height = *inbox.next_height_to_receive.get();
-                    }
+                    let next_height: &mut BlockHeight = info.entry(origin.chain_id).or_default();
+                    *next_height = (*next_height).max(*inbox.next_height_to_receive.get());
                 }
             }
         }
