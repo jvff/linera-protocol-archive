@@ -11,7 +11,6 @@ use crate::{
     WritableStorage,
 };
 use async_trait::async_trait;
-use futures::future;
 use linera_base::error::Error;
 
 pub use self::runtime::WasmApplication;
