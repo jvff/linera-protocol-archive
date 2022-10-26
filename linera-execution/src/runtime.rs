@@ -3,8 +3,8 @@
 
 use crate::{
     execution::{ExecutionStateView, ExecutionStateViewContext},
-    CallResult, ExecutionResult, ExecutionRuntimeContext, NewSession, QueryableStorage,
-    ReadableStorage, SessionId, WritableStorage,
+    ApplicationStateNotLocked, CallResult, ExecutionResult, ExecutionRuntimeContext, NewSession,
+    QueryableStorage, ReadableStorage, SessionId, WritableStorage,
 };
 use async_trait::async_trait;
 use linera_base::{
@@ -330,11 +330,14 @@ where
         Ok(state)
     }
 
-    fn save_and_unlock_my_state(&self, state: Vec<u8>) {
+    fn save_and_unlock_my_state(&self, state: Vec<u8>) -> Result<(), ApplicationStateNotLocked> {
         // Make the view available again.
         if let Some(mut view) = self.active_user_states_mut().remove(&self.application_id()) {
             // Set the state.
             view.set(state);
+            Ok(())
+        } else {
+            Err(ApplicationStateNotLocked)
         }
     }
 
