@@ -323,14 +323,14 @@ where
         // Remember the view. This will prevent reentrancy.
         self.active_user_states_mut()
             .insert(self.application_id(), view);
-        Ok(state)
+        Ok(dbg!(state))
     }
 
     fn save_and_unlock_my_state(&self, state: Vec<u8>) {
         // Make the view available again.
         if let Some(mut view) = self.active_user_states_mut().remove(&self.application_id()) {
             // Set the state.
-            view.set(state);
+            view.set(dbg!(state));
         }
     }
 

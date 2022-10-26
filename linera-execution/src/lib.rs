@@ -15,6 +15,7 @@ pub use system::{
     SystemEffect, SystemExecutionStateView, SystemExecutionStateViewContext, SystemOperation,
     SystemQuery, SystemResponse,
 };
+pub use wasm::WasmApplication;
 
 use async_trait::async_trait;
 use dashmap::DashMap;

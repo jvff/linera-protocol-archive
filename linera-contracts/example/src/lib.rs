@@ -24,7 +24,9 @@ impl contract::Contract for Contract {}
 impl Contract {
     async fn load() -> Self {
         let future = api::Get::new();
-        let bytes: Vec<u8> = future::poll_fn(|_context| future.poll().into()).await;
+        let load_result: Result<Vec<u8>, String> =
+            future::poll_fn(|_context| future.poll().into()).await;
+        let bytes = load_result.expect("Failed to load application state");
         if bytes.is_empty() {
             Self::default()
         } else {
@@ -33,8 +35,7 @@ impl Contract {
     }
 
     async fn store(self) {
-        let future = api::Set::new(&bcs::to_bytes(&self).expect("State serialization failed"));
-        future::poll_fn(|_context| Poll::<()>::from(future.poll())).await;
+        api::set(&bcs::to_bytes(&self).expect("State serialization failed"));
     }
 }
 
@@ -47,7 +48,12 @@ impl Application for Contract {
         context: &OperationContext,
         operation: &[u8],
     ) -> Result<ApplicationResult, Self::Error> {
-        todo!();
+        self.balance += 1;
+        Ok(ApplicationResult {
+            effects: vec![],
+            subscribe: vec![],
+            unsubscribe: vec![],
+        })
     }
 
     async fn apply_effect(
@@ -287,20 +293,11 @@ impl From<Poll<Result<Vec<u8>, Error>>> for contract::PollQuery {
     }
 }
 
-impl From<api::PollGet> for Poll<Vec<u8>> {
-    fn from(poll_get: api::PollGet) -> Poll<Vec<u8>> {
+impl From<api::PollGet> for Poll<Result<Vec<u8>, String>> {
+    fn from(poll_get: api::PollGet) -> Poll<Result<Vec<u8>, String>> {
         match poll_get {
             api::PollGet::Ready(bytes) => Poll::Ready(bytes),
             api::PollGet::Pending => Poll::Pending,
-        }
-    }
-}
-
-impl From<api::PollSet> for Poll<()> {
-    fn from(poll_set: api::PollSet) -> Poll<()> {
-        match poll_set {
-            api::PollSet::Ready => Poll::Ready(()),
-            api::PollSet::Pending => Poll::Pending,
         }
     }
 }

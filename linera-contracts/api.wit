@@ -5,16 +5,7 @@ resource get {
 
 variant poll-get {
     pending,
-    ready(list<u8>),
+    ready(expected<list<u8>, string>),
 }
 
-resource set {
-    static new: func(value: list<u8>) -> set
-    poll: func() -> poll-set
-}
-
-variant poll-set {
-    pending,
-    ready,
-}
-
+set: func(value: list<u8>) -> bool
