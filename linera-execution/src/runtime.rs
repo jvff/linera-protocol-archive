@@ -332,12 +332,13 @@ where
 
     fn save_and_unlock_my_state(&self, state: Vec<u8>) -> Result<(), ApplicationStateNotLocked> {
         // Make the view available again.
-        if let Some(mut view) = self.active_user_states_mut().remove(&self.application_id()) {
-            // Set the state.
-            view.set(state);
-            Ok(())
-        } else {
-            Err(ApplicationStateNotLocked)
+        match self.active_user_states_mut().remove(&self.application_id()) {
+            Some(mut view) => {
+                // Set the state.
+                view.set(state);
+                Ok(())
+            }
+            None => Err(ApplicationStateNotLocked),
         }
     }
 
