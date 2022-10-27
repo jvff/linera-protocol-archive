@@ -4,7 +4,7 @@ resource apply-operation {
         operation: list<u8>,
     ) -> apply-operation
 
-    poll: func() -> poll-application-result
+    poll: func() -> poll-execution-result
 }
 
 resource apply-effect {
@@ -13,17 +13,28 @@ resource apply-effect {
         effect: list<u8>,
     ) -> apply-effect
 
-    poll: func() -> poll-application-result
+    poll: func() -> poll-execution-result
 }
 
-resource call {
+resource call-application {
     static new: func(
         context: callee-context,
-        name: string,
         argument: list<u8>,
-    ) -> call
+        forwarded-sessions: list<session-id>,
+    ) -> call-application
 
-    poll: func() -> poll-call
+    poll: func() -> poll-call-application
+}
+
+resource call-session {
+    static new: func(
+        context: callee-context,
+        session: session,
+        argument: list<u8>,
+        forwarded-sessions: list<session-id>,
+    ) -> call-session
+
+    poll: func() -> poll-call-session
 }
 
 resource query {
@@ -69,14 +80,19 @@ type hash-value = list<u8>
 type block-height = u64
 type application-id = u64
 
-variant poll-application-result {
+variant poll-execution-result {
     pending,
-    ready(expected<application-result, string>),
+    ready(expected<execution-result, string>),
 }
 
-variant poll-call {
+variant poll-call-application {
     pending,
-    ready(expected<tuple<list<u8>, application-result>, string>),
+    ready(expected<application-call-result, string>),
+}
+
+variant poll-call-session {
+    pending,
+    ready(expected<session-call-result, string>),
 }
 
 variant poll-query {
@@ -84,7 +100,29 @@ variant poll-query {
     ready(expected<list<u8>, string>),
 }
 
-record application-result {
+record application-call-result {
+    value: list<u8>,
+    execution-result: execution-result,
+    create-sessions: list<session>,
+}
+
+record session-id {
+    application-id: application-id,
+    kind: u64,
+    index: u64,
+}
+
+record session {
+    kind: u64,
+    data: list<u8>,
+}
+
+record session-call-result {
+    inner: application-call-result,
+    data: option<list<u8>>,
+}
+
+record execution-result {
     effects: list<tuple<destination, effect>>,
     subscribe: list<tuple<string, chain-id>>,
     unsubscribe: list<tuple<string, chain-id>>,

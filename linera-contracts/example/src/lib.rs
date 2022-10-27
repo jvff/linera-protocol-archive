@@ -2,8 +2,9 @@ use {
     async_trait::async_trait,
     futures::{channel::oneshot, future, join},
     linera_sdk::{
-        Application, ApplicationId, ApplicationResult, BlockHeight, CalleeContext, ChainId,
-        Destination, EffectContext, EffectId, ExportedFuture, OperationContext, QueryContext,
+        Application, ApplicationCallResult, ApplicationId, BlockHeight, CalleeContext, ChainId,
+        Destination, EffectContext, EffectId, ExecutionResult, ExportedFuture, OperationContext,
+        QueryContext, Session, SessionCallResult, SessionId,
     },
     serde::{Deserialize, Serialize},
     std::task::Poll,
@@ -47,9 +48,9 @@ impl Application for Contract {
         &mut self,
         context: &OperationContext,
         operation: &[u8],
-    ) -> Result<ApplicationResult, Self::Error> {
+    ) -> Result<ExecutionResult, Self::Error> {
         self.balance += 1;
-        Ok(ApplicationResult {
+        Ok(ExecutionResult {
             effects: vec![],
             subscribe: vec![],
             unsubscribe: vec![],
@@ -60,16 +61,26 @@ impl Application for Contract {
         &mut self,
         context: &EffectContext,
         effect: &[u8],
-    ) -> Result<ApplicationResult, Self::Error> {
+    ) -> Result<ExecutionResult, Self::Error> {
         todo!();
     }
 
-    async fn call(
+    async fn call_application(
         &mut self,
         context: &CalleeContext,
-        name: &str,
         argument: &[u8],
-    ) -> Result<(Vec<u8>, ApplicationResult), Self::Error> {
+        forwarded_sessions: Vec<SessionId>,
+    ) -> Result<ApplicationCallResult, Self::Error> {
+        todo!();
+    }
+
+    async fn call_session(
+        &mut self,
+        context: &CalleeContext,
+        session: Session,
+        argument: &[u8],
+        forwarded_sessions: Vec<SessionId>,
+    ) -> Result<SessionCallResult, Self::Error> {
         todo!();
     }
 
@@ -84,7 +95,7 @@ impl Application for Contract {
 }
 
 pub struct ApplyOperation {
-    future: ExportedFuture<Result<ApplicationResult, Error>>,
+    future: ExportedFuture<Result<ExecutionResult, Error>>,
 }
 
 impl contract::ApplyOperation for ApplyOperation {
@@ -101,13 +112,13 @@ impl contract::ApplyOperation for ApplyOperation {
         })
     }
 
-    fn poll(&self) -> contract::PollApplicationResult {
+    fn poll(&self) -> contract::PollExecutionResult {
         self.future.poll()
     }
 }
 
 pub struct ApplyEffect {
-    future: ExportedFuture<Result<ApplicationResult, Error>>,
+    future: ExportedFuture<Result<ExecutionResult, Error>>,
 }
 
 impl contract::ApplyEffect for ApplyEffect {
@@ -124,21 +135,33 @@ impl contract::ApplyEffect for ApplyEffect {
         })
     }
 
-    fn poll(&self) -> contract::PollApplicationResult {
+    fn poll(&self) -> contract::PollExecutionResult {
         self.future.poll()
     }
 }
 
-pub struct Call {
-    future: ExportedFuture<Result<(Vec<u8>, ApplicationResult), Error>>,
+pub struct CallApplication {
+    future: ExportedFuture<Result<ApplicationCallResult, Error>>,
 }
 
-impl contract::Call for Call {
-    fn new(context: contract::CalleeContext, name: String, argument: Vec<u8>) -> Handle<Self> {
-        Handle::new(Call {
+impl contract::CallApplication for CallApplication {
+    fn new(
+        context: contract::CalleeContext,
+        argument: Vec<u8>,
+        forwarded_sessions: Vec<contract::SessionId>,
+    ) -> Handle<Self> {
+        Handle::new(CallApplication {
             future: ExportedFuture::new(async move {
                 let mut contract = Contract::load().await;
-                let result = contract.call(&context.into(), &name, &argument).await;
+
+                let forwarded_sessions = forwarded_sessions
+                    .into_iter()
+                    .map(SessionId::from)
+                    .collect();
+
+                let result = contract
+                    .call_application(&context.into(), &argument, forwarded_sessions)
+                    .await;
                 if result.is_ok() {
                     contract.store().await;
                 }
@@ -147,7 +170,48 @@ impl contract::Call for Call {
         })
     }
 
-    fn poll(&self) -> contract::PollCall {
+    fn poll(&self) -> contract::PollCallApplication {
+        self.future.poll()
+    }
+}
+
+pub struct CallSession {
+    future: ExportedFuture<Result<SessionCallResult, Error>>,
+}
+
+impl contract::CallSession for CallSession {
+    fn new(
+        context: contract::CalleeContext,
+        session: contract::Session,
+        argument: Vec<u8>,
+        forwarded_sessions: Vec<contract::SessionId>,
+    ) -> Handle<Self> {
+        Handle::new(CallSession {
+            future: ExportedFuture::new(async move {
+                let mut contract = Contract::load().await;
+
+                let forwarded_sessions = forwarded_sessions
+                    .into_iter()
+                    .map(SessionId::from)
+                    .collect();
+
+                let result = contract
+                    .call_session(
+                        &context.into(),
+                        session.into(),
+                        &argument,
+                        forwarded_sessions,
+                    )
+                    .await;
+                if result.is_ok() {
+                    contract.store().await;
+                }
+                result
+            }),
+        })
+    }
+
+    fn poll(&self) -> contract::PollCallSession {
         self.future.poll()
     }
 }
@@ -221,8 +285,61 @@ impl From<contract::QueryContext> for QueryContext {
     }
 }
 
-impl From<ApplicationResult> for contract::ApplicationResult {
-    fn from(result: ApplicationResult) -> Self {
+impl From<contract::SessionId> for SessionId {
+    fn from(session_id: contract::SessionId) -> Self {
+        SessionId {
+            application_id: ApplicationId(session_id.application_id),
+            kind: session_id.kind,
+            index: session_id.index,
+        }
+    }
+}
+
+impl From<contract::Session> for Session {
+    fn from(session: contract::Session) -> Self {
+        Session {
+            kind: session.kind,
+            data: session.data,
+        }
+    }
+}
+
+impl From<ApplicationCallResult> for contract::ApplicationCallResult {
+    fn from(result: ApplicationCallResult) -> Self {
+        let create_sessions = result
+            .create_sessions
+            .into_iter()
+            .map(contract::Session::from)
+            .collect();
+
+        contract::ApplicationCallResult {
+            create_sessions,
+            execution_result: result.execution_result.into(),
+            value: result.value,
+        }
+    }
+}
+
+impl From<Session> for contract::Session {
+    fn from(new_session: Session) -> Self {
+        contract::Session {
+            kind: new_session.kind,
+            data: new_session.data,
+        }
+    }
+}
+
+impl From<SessionCallResult> for contract::SessionCallResult {
+    fn from(result: SessionCallResult) -> Self {
+        contract::SessionCallResult {
+            inner: result.inner.into(),
+            data: result.data,
+        }
+    }
+}
+
+impl From<ExecutionResult> for contract::ExecutionResult {
+    fn from(result: ExecutionResult) -> Self {
         let effects = result
             .effects
             .into_iter()
@@ -241,7 +358,7 @@ impl From<ApplicationResult> for contract::ApplicationResult {
             .map(|(channel_id, chain_id)| (channel_id, chain_id.to_bytes().to_vec()))
             .collect();
 
-        contract::ApplicationResult {
+        contract::ExecutionResult {
             effects,
             subscribe,
             unsubscribe,
@@ -260,24 +377,35 @@ impl From<Destination> for contract::Destination {
     }
 }
 
-impl From<Poll<Result<ApplicationResult, Error>>> for contract::PollApplicationResult {
-    fn from(poll: Poll<Result<ApplicationResult, Error>>) -> Self {
-        use contract::PollApplicationResult;
+impl From<Poll<Result<ExecutionResult, Error>>> for contract::PollExecutionResult {
+    fn from(poll: Poll<Result<ExecutionResult, Error>>) -> Self {
+        use contract::PollExecutionResult;
         match poll {
-            Poll::Pending => PollApplicationResult::Pending,
-            Poll::Ready(Ok(value)) => PollApplicationResult::Ready(Ok(value.into())),
-            Poll::Ready(Err(value)) => PollApplicationResult::Ready(Err(value.to_string())),
+            Poll::Pending => PollExecutionResult::Pending,
+            Poll::Ready(Ok(value)) => PollExecutionResult::Ready(Ok(value.into())),
+            Poll::Ready(Err(value)) => PollExecutionResult::Ready(Err(value.to_string())),
         }
     }
 }
 
-impl From<Poll<Result<(Vec<u8>, ApplicationResult), Error>>> for contract::PollCall {
-    fn from(poll: Poll<Result<(Vec<u8>, ApplicationResult), Error>>) -> Self {
-        use contract::PollCall;
+impl From<Poll<Result<ApplicationCallResult, Error>>> for contract::PollCallApplication {
+    fn from(poll: Poll<Result<ApplicationCallResult, Error>>) -> Self {
+        use contract::PollCallApplication;
         match poll {
-            Poll::Pending => PollCall::Pending,
-            Poll::Ready(Ok((response, result))) => PollCall::Ready(Ok((response, result.into()))),
-            Poll::Ready(Err(value)) => PollCall::Ready(Err(value.to_string())),
+            Poll::Pending => PollCallApplication::Pending,
+            Poll::Ready(Ok(result)) => PollCallApplication::Ready(Ok(result.into())),
+            Poll::Ready(Err(value)) => PollCallApplication::Ready(Err(value.to_string())),
+        }
+    }
+}
+
+impl From<Poll<Result<SessionCallResult, Error>>> for contract::PollCallSession {
+    fn from(poll: Poll<Result<SessionCallResult, Error>>) -> Self {
+        use contract::PollCallSession;
+        match poll {
+            Poll::Pending => PollCallSession::Pending,
+            Poll::Ready(Ok(result)) => PollCallSession::Ready(Ok(result.into())),
+            Poll::Ready(Err(value)) => PollCallSession::Ready(Err(value.to_string())),
         }
     }
 }

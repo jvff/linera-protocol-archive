@@ -3,11 +3,20 @@ wit_bindgen_wasmtime::import!("../linera-contracts/contract.wit");
 
 use self::{
     api::{ApiTables, PollGet},
-    contract::{ApplicationResult, ApplyOperation, Contract, ContractData, PollApplicationResult},
+    contract::{
+        ApplyEffect, ApplyOperation, CallApplication, CallSession, Contract, ContractData,
+        PollCallApplication, PollCallSession, PollExecutionResult,
+    },
 };
-use crate::{OperationContext, RawExecutionResult, WritableStorage};
+use crate::{
+    ApplicationCallResult, CalleeContext, EffectContext, NewSession, OperationContext,
+    RawExecutionResult, SessionCallResult, SessionId, WritableStorage,
+};
 use futures::future::BoxFuture;
-use linera_base::{crypto::IncorrectHashSize, messages::Destination};
+use linera_base::{
+    crypto::IncorrectHashSize,
+    messages::{Destination, EffectId},
+};
 use std::{
     any::type_name,
     fmt::{self, Debug, Formatter},
@@ -68,6 +77,83 @@ impl<'data> WritableRuntimeContext<'data> {
         let future = self
             .contract
             .apply_operation_new(&mut self.store, context.into(), operation);
+
+        ExternalFuture::new(
+            future,
+            self.context_forwarder.clone(),
+            self.contract,
+            self.store,
+        )
+    }
+
+    pub fn apply_effect(
+        mut self,
+        context: &EffectContext,
+        effect: &[u8],
+    ) -> ExternalFuture<'data, ApplyEffect> {
+        let future = self
+            .contract
+            .apply_effect_new(&mut self.store, context.into(), effect);
+
+        ExternalFuture::new(
+            future,
+            self.context_forwarder.clone(),
+            self.contract,
+            self.store,
+        )
+    }
+
+    pub fn call_application(
+        mut self,
+        context: &CalleeContext,
+        argument: &[u8],
+        forwarded_sessions: Vec<SessionId>,
+    ) -> ExternalFuture<'data, CallApplication> {
+        let forwarded_sessions: Vec<_> = forwarded_sessions
+            .into_iter()
+            .map(contract::SessionId::from)
+            .collect();
+
+        let future = self.contract.call_application_new(
+            &mut self.store,
+            context.into(),
+            argument,
+            &forwarded_sessions,
+        );
+
+        ExternalFuture::new(
+            future,
+            self.context_forwarder.clone(),
+            self.contract,
+            self.store,
+        )
+    }
+
+    pub fn call_session(
+        mut self,
+        context: &CalleeContext,
+        session_kind: u64,
+        session_data: &mut Vec<u8>,
+        argument: &[u8],
+        forwarded_sessions: Vec<SessionId>,
+    ) -> ExternalFuture<'data, CallSession> {
+        let forwarded_sessions: Vec<_> = forwarded_sessions
+            .into_iter()
+            .map(contract::SessionId::from)
+            .collect();
+
+        let session = contract::SessionParam {
+            kind: session_kind,
+            data: &*session_data,
+        };
+
+        let future = self.contract.call_session_new(
+            &mut self.store,
+            context.into(),
+            session,
+            argument,
+            &forwarded_sessions,
+        );
 
         ExternalFuture::new(
             future,
@@ -156,6 +242,48 @@ impl<'argument> From<&'argument OperationContext> for contract::OperationContext
     }
 }
 
+impl<'argument> From<&'argument EffectContext> for contract::EffectContext<'argument> {
+    fn from(host: &'argument EffectContext) -> Self {
+        contract::EffectContext {
+            chain_id: host.chain_id.0.as_bytes().as_slice(),
+            height: host.height.0,
+            effect_id: (&host.effect_id).into(),
+        }
+    }
+}
+
+impl<'argument> From<&'argument EffectId> for contract::EffectId<'argument> {
+    fn from(host: &'argument EffectId) -> Self {
+        contract::EffectId {
+            chain_id: host.chain_id.0.as_bytes().as_slice(),
+            height: host.height.0,
+            index: host
+                .index
+                .try_into()
+                .expect("Effect index should fit in an `u64`"),
+        }
+    }
+}
+
+impl<'argument> From<&'argument CalleeContext> for contract::CalleeContext<'argument> {
+    fn from(host: &'argument CalleeContext) -> Self {
+        contract::CalleeContext {
+            chain_id: host.chain_id.0.as_bytes().as_slice(),
+            authenticated_caller_id: host.authenticated_caller_id.map(|app_id| app_id.0),
+        }
+    }
+}
+
+impl From<SessionId> for contract::SessionId {
+    fn from(host: SessionId) -> Self {
+        contract::SessionId {
+            application_id: host.application_id.0,
+            kind: host.kind,
+            index: host.index,
+        }
+    }
+}
+
 pub enum ExternalFuture<'data, Future> {
     FailedToCreate(Trap),
     Active {
@@ -228,20 +356,106 @@ impl ExternalFutureInterface for ApplyOperation {
         store: &mut Store<Data<'data>>,
     ) -> Poll<Result<Self::Output, linera_base::error::Error>> {
         match contract.apply_operation_poll(store, self) {
-            Ok(PollApplicationResult::Ready(Ok(result))) => Poll::Ready(result.try_into()),
-            Ok(PollApplicationResult::Ready(Err(_message))) => {
+            Ok(PollExecutionResult::Ready(Ok(result))) => Poll::Ready(result.try_into()),
+            Ok(PollExecutionResult::Ready(Err(_message))) => {
                 Poll::Ready(Err(linera_base::error::Error::UnknownApplication))
             }
-            Ok(PollApplicationResult::Pending) => Poll::Pending,
+            Ok(PollExecutionResult::Pending) => Poll::Pending,
             Err(_) => Poll::Ready(Err(linera_base::error::Error::UnknownApplication)),
         }
     }
 }
 
-impl TryFrom<ApplicationResult> for RawExecutionResult<Vec<u8>> {
+impl ExternalFutureInterface for ApplyEffect {
+    type Output = RawExecutionResult<Vec<u8>>;
+
+    fn poll<'data>(
+        &self,
+        contract: &Contract<Data<'data>>,
+        store: &mut Store<Data<'data>>,
+    ) -> Poll<Result<Self::Output, linera_base::error::Error>> {
+        match contract.apply_effect_poll(store, self) {
+            Ok(PollExecutionResult::Ready(Ok(result))) => Poll::Ready(result.try_into()),
+            Ok(PollExecutionResult::Ready(Err(_message))) => {
+                Poll::Ready(Err(linera_base::error::Error::UnknownApplication))
+            }
+            Ok(PollExecutionResult::Pending) => Poll::Pending,
+            Err(_) => Poll::Ready(Err(linera_base::error::Error::UnknownApplication)),
+        }
+    }
+}
+
+impl ExternalFutureInterface for CallApplication {
+    type Output = ApplicationCallResult;
+
+    fn poll<'data>(
+        &self,
+        contract: &Contract<Data<'data>>,
+        store: &mut Store<Data<'data>>,
+    ) -> Poll<Result<Self::Output, linera_base::error::Error>> {
+        match contract.call_application_poll(store, self) {
+            Ok(PollCallApplication::Ready(Ok(result))) => Poll::Ready(result.try_into()),
+            Ok(PollCallApplication::Ready(Err(_message))) => {
+                Poll::Ready(Err(linera_base::error::Error::UnknownApplication))
+            }
+            Ok(PollCallApplication::Pending) => Poll::Pending,
+            Err(_) => Poll::Ready(Err(linera_base::error::Error::UnknownApplication)),
+        }
+    }
+}
+
+impl ExternalFutureInterface for CallSession {
+    type Output = SessionCallResult;
+
+    fn poll<'data>(
+        &self,
+        contract: &Contract<Data<'data>>,
+        store: &mut Store<Data<'data>>,
+    ) -> Poll<Result<Self::Output, linera_base::error::Error>> {
+        match contract.call_session_poll(store, self) {
+            Ok(PollCallSession::Ready(Ok(result))) => Poll::Ready(result.try_into()),
+            Ok(PollCallSession::Ready(Err(_message))) => {
+                Poll::Ready(Err(linera_base::error::Error::UnknownApplication))
+            }
+            Ok(PollCallSession::Pending) => Poll::Pending,
+            Err(_) => Poll::Ready(Err(linera_base::error::Error::UnknownApplication)),
+        }
+    }
+}
+
+impl TryFrom<contract::SessionCallResult> for SessionCallResult {
     type Error = linera_base::error::Error;
 
-    fn try_from(result: ApplicationResult) -> Result<Self, Self::Error> {
+    fn try_from(result: contract::SessionCallResult) -> Result<Self, Self::Error> {
+        Ok(SessionCallResult {
+            inner: result.inner.try_into()?,
+            close_session: result.data.is_some(),
+        })
+    }
+}
+
+impl TryFrom<contract::ApplicationCallResult> for ApplicationCallResult {
+    type Error = linera_base::error::Error;
+
+    fn try_from(result: contract::ApplicationCallResult) -> Result<Self, Self::Error> {
+        let create_sessions = result
+            .create_sessions
+            .into_iter()
+            .map(NewSession::from)
+            .collect();
+
+        Ok(ApplicationCallResult {
+            create_sessions,
+            execution_result: result.execution_result.try_into()?,
+            value: result.value,
+        })
+    }
+}
+
+impl TryFrom<contract::ExecutionResult> for RawExecutionResult<Vec<u8>> {
+    type Error = linera_base::error::Error;
+
+    fn try_from(result: contract::ExecutionResult) -> Result<Self, Self::Error> {
         let effects = result
             .effects
             .into_iter()
@@ -281,6 +495,15 @@ impl TryFrom<contract::Destination> for Destination {
             }
             contract::Destination::Subscribers(channel_id) => Destination::Subscribers(channel_id),
         })
+    }
+}
+
+impl From<contract::SessionResult> for NewSession {
+    fn from(guest: contract::SessionResult) -> Self {
+        NewSession {
+            kind: guest.kind,
+            data: guest.data,
+        }
     }
 }
 

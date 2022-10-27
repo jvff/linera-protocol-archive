@@ -34,7 +34,9 @@ impl UserApplication for WasmApplication {
         storage: &dyn WritableStorage,
         effect: &[u8],
     ) -> Result<RawExecutionResult<Vec<u8>>, Error> {
-        todo!();
+        self.prepare_runtime(storage)?
+            .apply_effect(context, effect)
+            .await
     }
 
     async fn call_application(
@@ -44,7 +46,9 @@ impl UserApplication for WasmApplication {
         argument: &[u8],
         forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallResult, Error> {
-        todo!();
+        self.prepare_runtime(storage)?
+            .call_application(context, argument, forwarded_sessions)
+            .await
     }
 
     async fn call_session(
@@ -56,7 +60,15 @@ impl UserApplication for WasmApplication {
         argument: &[u8],
         forwarded_sessions: Vec<SessionId>,
     ) -> Result<SessionCallResult, Error> {
-        todo!();
+        self.prepare_runtime(storage)?
+            .call_session(
+                context,
+                session_kind,
+                session_data,
+                argument,
+                forwarded_sessions,
+            )
+            .await
     }
 
     async fn query_application(
