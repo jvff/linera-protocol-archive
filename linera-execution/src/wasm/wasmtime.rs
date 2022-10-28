@@ -2,15 +2,15 @@ wit_bindgen_wasmtime::export!("../linera-contracts/api.wit");
 wit_bindgen_wasmtime::import!("../linera-contracts/contract.wit");
 
 use self::{
-    api::{ApiTables, PollGet},
+    api::{ApiTables, PollLoad},
     contract::{
         ApplyEffect, ApplyOperation, CallApplication, CallSession, Contract, ContractData,
-        PollCallApplication, PollCallSession, PollExecutionResult,
+        PollCallApplication, PollCallSession, PollExecutionResult, PollQuery, QueryApplication,
     },
 };
 use crate::{
     ApplicationCallResult, CalleeContext, EffectContext, NewSession, OperationContext,
-    RawExecutionResult, SessionCallResult, SessionId, WritableStorage,
+    QueryContext, RawExecutionResult, SessionCallResult, SessionId, WritableStorage,
 };
 use futures::future::BoxFuture;
 use linera_base::{
@@ -162,6 +162,23 @@ impl<'data> WritableRuntimeContext<'data> {
             self.store,
         )
     }
+
+    pub fn query_application(
+        mut self,
+        context: &QueryContext,
+        argument: &[u8],
+    ) -> ExternalFuture<'data, QueryApplication> {
+        let future = self
+            .contract
+            .query_application_new(&mut self.store, context.into(), argument);
+
+        ExternalFuture::new(
+            future,
+            self.context_forwarder.clone(),
+            self.contract,
+            self.store,
+        )
+    }
 }
 
 pub struct Data<'storage> {
@@ -194,22 +211,34 @@ pub struct Api<'storage> {
 }
 
 impl<'storage> api::Api for Api<'storage> {
-    type Get = ExportedFuture<'storage, Result<Vec<u8>, linera_base::error::Error>>;
+    type Load = ExportedFuture<'storage, Result<Vec<u8>, linera_base::error::Error>>;
+    type LoadAndLock = ExportedFuture<'storage, Result<Vec<u8>, linera_base::error::Error>>;
 
-    fn get_new(&mut self) -> Self::Get {
-        let future = self.storage.try_read_and_lock_my_state();
-        ExportedFuture::new(self.storage.try_read_and_lock_my_state())
+    fn load_new(&mut self) -> Self::Load {
+        ExportedFuture::new(self.storage.try_read_my_state())
     }
 
-    fn get_poll(&mut self, future: &Self::Get) -> PollGet {
+    fn load_poll(&mut self, future: &Self::Load) -> PollLoad {
         match future.poll(&mut self.context) {
-            Poll::Pending => PollGet::Pending,
-            Poll::Ready(Ok(bytes)) => PollGet::Ready(Ok(bytes)),
-            Poll::Ready(Err(error)) => PollGet::Ready(Err(error.to_string())),
+            Poll::Pending => PollLoad::Pending,
+            Poll::Ready(Ok(bytes)) => PollLoad::Ready(Ok(bytes)),
+            Poll::Ready(Err(error)) => PollLoad::Ready(Err(error.to_string())),
         }
     }
 
-    fn set(&mut self, state: &[u8]) -> bool {
+    fn load_and_lock_new(&mut self) -> Self::LoadAndLock {
+        ExportedFuture::new(self.storage.try_read_and_lock_my_state())
+    }
+
+    fn load_and_lock_poll(&mut self, future: &Self::LoadAndLock) -> PollLoad {
+        match future.poll(&mut self.context) {
+            Poll::Pending => PollLoad::Pending,
+            Poll::Ready(Ok(bytes)) => PollLoad::Ready(Ok(bytes)),
+            Poll::Ready(Err(error)) => PollLoad::Ready(Err(error.to_string())),
+        }
+    }
+
+    fn store_and_unlock(&mut self, state: &[u8]) -> bool {
         self.storage.save_and_unlock_my_state(state.to_owned());
         // TODO
         true
@@ -270,6 +299,14 @@ impl<'argument> From<&'argument CalleeContext> for contract::CalleeContext<'argu
         contract::CalleeContext {
             chain_id: host.chain_id.0.as_bytes().as_slice(),
             authenticated_caller_id: host.authenticated_caller_id.map(|app_id| app_id.0),
+        }
+    }
+}
+
+impl<'argument> From<&'argument QueryContext> for contract::QueryContext<'argument> {
+    fn from(host: &'argument QueryContext) -> Self {
+        contract::QueryContext {
+            chain_id: host.chain_id.0.as_bytes().as_slice(),
         }
     }
 }
@@ -419,6 +456,25 @@ impl ExternalFutureInterface for CallSession {
             }
             Ok(PollCallSession::Pending) => Poll::Pending,
             Err(_) => Poll::Ready(Err(linera_base::error::Error::UnknownApplication)),
+        }
+    }
+}
+
+impl ExternalFutureInterface for QueryApplication {
+    type Output = Vec<u8>;
+
+    fn poll<'data>(
+        &self,
+        contract: &Contract<Data<'data>>,
+        store: &mut Store<Data<'data>>,
+    ) -> Poll<Result<Self::Output, linera_base::error::Error>> {
+        match contract.query_application_poll(store, self) {
+            Ok(PollQuery::Ready(Ok(result))) => Poll::Ready(Ok(result)),
+            Ok(PollQuery::Ready(Err(message))) => {
+                Poll::Ready(Err(linera_base::error::Error::UnknownApplication))
+            }
+            Ok(PollQuery::Pending) => Poll::Pending,
+            Err(error) => Poll::Ready(Err(linera_base::error::Error::UnknownApplication)),
         }
     }
 }

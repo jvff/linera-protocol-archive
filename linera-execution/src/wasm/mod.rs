@@ -6,12 +6,15 @@ mod runtime;
 mod runtime;
 
 use crate::{
-    ApplicationCallResult, CalleeContext, EffectContext, OperationContext, QueryContext,
-    QueryableStorage, RawExecutionResult, SessionCallResult, SessionId, UserApplication,
-    WritableStorage,
+    system::Balance, ApplicationCallResult, CallResult, CalleeContext, EffectContext,
+    OperationContext, QueryContext, QueryableStorage, RawExecutionResult, ReadableStorage,
+    SessionCallResult, SessionId, UserApplication, WritableStorage,
 };
 use async_trait::async_trait;
-use linera_base::error::Error;
+use linera_base::{
+    error::Error,
+    messages::{ApplicationId, ChainId},
+};
 
 pub use self::runtime::WasmApplication;
 
@@ -77,6 +80,64 @@ impl UserApplication for WasmApplication {
         storage: &dyn QueryableStorage,
         argument: &[u8],
     ) -> Result<Vec<u8>, Error> {
-        todo!();
+        let wrapped_storage = WrappedQueryableStorage(storage);
+        let storage_reference = &wrapped_storage;
+        let result = self
+            .prepare_runtime(storage_reference)?
+            .query_application(context, argument)
+            .await;
+        result
+    }
+}
+
+struct WrappedQueryableStorage<'storage>(&'storage dyn QueryableStorage);
+
+#[async_trait]
+impl ReadableStorage for WrappedQueryableStorage<'_> {
+    fn chain_id(&self) -> ChainId {
+        self.0.chain_id()
+    }
+
+    fn application_id(&self) -> ApplicationId {
+        self.0.application_id()
+    }
+
+    fn read_system_balance(&self) -> Balance {
+        self.0.read_system_balance()
+    }
+
+    async fn try_read_my_state(&self) -> Result<Vec<u8>, Error> {
+        self.0.try_read_my_state().await
+    }
+}
+
+#[async_trait]
+impl WritableStorage for WrappedQueryableStorage<'_> {
+    async fn try_read_and_lock_my_state(&self) -> Result<Vec<u8>, Error> {
+        Err(Error::UnknownApplication)
+    }
+
+    fn save_and_unlock_my_state(&self, state: Vec<u8>) {}
+
+    fn unlock_my_state(&self) {}
+
+    async fn try_call_application(
+        &self,
+        authenticated: bool,
+        callee_id: ApplicationId,
+        argument: &[u8],
+        forwarded_sessions: Vec<SessionId>,
+    ) -> Result<CallResult, Error> {
+        Err(Error::UnknownApplication)
+    }
+
+    async fn try_call_session(
+        &self,
+        authenticated: bool,
+        session_id: SessionId,
+        argument: &[u8],
+        forwarded_sessions: Vec<SessionId>,
+    ) -> Result<CallResult, Error> {
+        Err(Error::UnknownApplication)
     }
 }

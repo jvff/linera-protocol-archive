@@ -37,12 +37,11 @@ resource call-session {
     poll: func() -> poll-call-session
 }
 
-resource query {
+resource query-application {
     static new: func(
         context: query-context,
-        name: string,
         argument: list<u8>,
-    ) -> query
+    ) -> query-application
 
     poll: func() -> poll-query
 }

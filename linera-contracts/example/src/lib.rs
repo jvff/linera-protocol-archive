@@ -7,7 +7,7 @@ use {
         QueryContext, Session, SessionCallResult, SessionId,
     },
     serde::{Deserialize, Serialize},
-    std::task::Poll,
+    std::{future::Future, task::Poll},
     thiserror::Error,
     wit_bindgen_rust::Handle,
 };
@@ -24,10 +24,17 @@ impl contract::Contract for Contract {}
 
 impl Contract {
     async fn load() -> Self {
-        let future = api::Get::new();
-        let load_result: Result<Vec<u8>, String> =
-            future::poll_fn(|_context| future.poll().into()).await;
-        let bytes = load_result.expect("Failed to load application state");
+        let future = api::Load::new();
+        Self::load_using(future::poll_fn(|_context| future.poll().into())).await
+    }
+
+    async fn load_and_lock() -> Self {
+        let future = api::LoadAndLock::new();
+        Self::load_using(future::poll_fn(|_context| future.poll().into())).await
+    }
+
+    async fn load_using(future: impl Future<Output = Result<Vec<u8>, String>>) -> Self {
+        let bytes = future.await.expect("Failed to load application state");
         if bytes.is_empty() {
             Self::default()
         } else {
@@ -35,8 +42,8 @@ impl Contract {
         }
     }
 
-    async fn store(self) {
-        api::set(&bcs::to_bytes(&self).expect("State serialization failed"));
+    async fn store_and_unlock(self) {
+        api::store_and_unlock(&bcs::to_bytes(&self).expect("State serialization failed"));
     }
 }
 
@@ -84,13 +91,12 @@ impl Application for Contract {
         todo!();
     }
 
-    async fn query(
+    async fn query_application(
         &self,
         context: &QueryContext,
-        name: &str,
         argument: &[u8],
     ) -> Result<Vec<u8>, Self::Error> {
-        todo!();
+        Ok(bcs::to_bytes(&self.balance).expect("Serialization should not fail"))
     }
 }
 
@@ -102,10 +108,10 @@ impl contract::ApplyOperation for ApplyOperation {
     fn new(context: contract::OperationContext, operation: Vec<u8>) -> Handle<Self> {
         Handle::new(ApplyOperation {
             future: ExportedFuture::new(async move {
-                let mut contract = Contract::load().await;
+                let mut contract = Contract::load_and_lock().await;
                 let result = contract.apply_operation(&context.into(), &operation).await;
                 if result.is_ok() {
-                    contract.store().await;
+                    contract.store_and_unlock().await;
                 }
                 result
             }),
@@ -125,10 +131,10 @@ impl contract::ApplyEffect for ApplyEffect {
     fn new(context: contract::EffectContext, effect: Vec<u8>) -> Handle<Self> {
         Handle::new(ApplyEffect {
             future: ExportedFuture::new(async move {
-                let mut contract = Contract::load().await;
+                let mut contract = Contract::load_and_lock().await;
                 let result = contract.apply_effect(&context.into(), &effect).await;
                 if result.is_ok() {
-                    contract.store().await;
+                    contract.store_and_unlock().await;
                 }
                 result
             }),
@@ -152,7 +158,7 @@ impl contract::CallApplication for CallApplication {
     ) -> Handle<Self> {
         Handle::new(CallApplication {
             future: ExportedFuture::new(async move {
-                let mut contract = Contract::load().await;
+                let mut contract = Contract::load_and_lock().await;
 
                 let forwarded_sessions = forwarded_sessions
                     .into_iter()
@@ -163,7 +169,7 @@ impl contract::CallApplication for CallApplication {
                     .call_application(&context.into(), &argument, forwarded_sessions)
                     .await;
                 if result.is_ok() {
-                    contract.store().await;
+                    contract.store_and_unlock().await;
                 }
                 result
             }),
@@ -188,7 +194,7 @@ impl contract::CallSession for CallSession {
     ) -> Handle<Self> {
         Handle::new(CallSession {
             future: ExportedFuture::new(async move {
-                let mut contract = Contract::load().await;
+                let mut contract = Contract::load_and_lock().await;
 
                 let forwarded_sessions = forwarded_sessions
                     .into_iter()
@@ -204,7 +210,7 @@ impl contract::CallSession for CallSession {
                     )
                     .await;
                 if result.is_ok() {
-                    contract.store().await;
+                    contract.store_and_unlock().await;
                 }
                 result
             }),
@@ -216,16 +222,16 @@ impl contract::CallSession for CallSession {
     }
 }
 
-pub struct Query {
+pub struct QueryApplication {
     future: ExportedFuture<Result<Vec<u8>, Error>>,
 }
 
-impl contract::Query for Query {
-    fn new(context: contract::QueryContext, name: String, argument: Vec<u8>) -> Handle<Self> {
-        Handle::new(Query {
+impl contract::QueryApplication for QueryApplication {
+    fn new(context: contract::QueryContext, argument: Vec<u8>) -> Handle<Self> {
+        Handle::new(QueryApplication {
             future: ExportedFuture::new(async move {
                 let contract = Contract::load().await;
-                contract.query(&context.into(), &name, &argument).await
+                contract.query_application(&context.into(), &argument).await
             }),
         })
     }
@@ -421,11 +427,11 @@ impl From<Poll<Result<Vec<u8>, Error>>> for contract::PollQuery {
     }
 }
 
-impl From<api::PollGet> for Poll<Result<Vec<u8>, String>> {
-    fn from(poll_get: api::PollGet) -> Poll<Result<Vec<u8>, String>> {
+impl From<api::PollLoad> for Poll<Result<Vec<u8>, String>> {
+    fn from(poll_get: api::PollLoad) -> Poll<Result<Vec<u8>, String>> {
         match poll_get {
-            api::PollGet::Ready(bytes) => Poll::Ready(bytes),
-            api::PollGet::Pending => Poll::Pending,
+            api::PollLoad::Ready(bytes) => Poll::Ready(bytes),
+            api::PollLoad::Pending => Poll::Pending,
         }
     }
 }

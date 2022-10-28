@@ -45,10 +45,9 @@ pub trait Application {
 
     /// Allow an end user to execute read-only queries on the state of this application.
     /// NOTE: This is not meant to be metered and may not be exposed by validators.
-    async fn query(
+    async fn query_application(
         &self,
         context: &QueryContext,
-        name: &str,
         argument: &[u8],
     ) -> Result<Vec<u8>, Self::Error>;
 }

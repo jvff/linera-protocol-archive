@@ -7,7 +7,8 @@ use linera_base::{
 };
 use linera_execution::{
     ExecutionResult, ExecutionRuntimeContext, ExecutionStateView, Operation, OperationContext,
-    RawExecutionResult, SystemExecutionState, TestExecutionRuntimeContext, WasmApplication,
+    Query, QueryContext, RawExecutionResult, Response, SystemExecutionState,
+    TestExecutionRuntimeContext, WasmApplication,
 };
 use linera_views::{
     memory::MemoryContext,
@@ -42,13 +43,13 @@ async fn test_wasm_application() {
         vec![ExecutionResult::User(app_id, RawExecutionResult::default())]
     );
 
-    // let context = QueryContext {
-    // chain_id: ChainId::root(0),
-    // };
-    // assert_eq!(
-    // view.query_application(app_id, &context, &Query::User(vec![]))
-    // .await
-    // .unwrap(),
-    // Response::User(vec![1])
-    // );
+    let context = QueryContext {
+        chain_id: ChainId::root(0),
+    };
+    assert_eq!(
+        view.query_application(app_id, &context, &Query::User(vec![]))
+            .await
+            .unwrap(),
+        Response::User(vec![1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    );
 }
