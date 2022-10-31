@@ -1,5 +1,5 @@
-wit_bindgen_wasmer::export!("../linera-contracts/api.wit");
-wit_bindgen_wasmer::import!("../linera-contracts/contract.wit");
+wit_bindgen_host_wasmer_rust::export!("../linera-contracts/api.wit");
+wit_bindgen_host_wasmer_rust::import!("../linera-contracts/contract.wit");
 
 use self::{api::PollLoad, contract::Contract};
 use super::{
@@ -35,7 +35,7 @@ impl WasmApplication {
         let module = Module::from_file(
             &store,
             "/project/linera-contracts/example/target/wasm32-unknown-unknown/debug/linera_contract_example.wasm",
-        ).map_err(wit_bindgen_wasmer::anyhow::Error::from)?; // TODO: Remove `map_err` if Wasmer issue #3267 is fixed
+        ).map_err(wit_bindgen_host_wasmer_rust::anyhow::Error::from)?; // TODO: Remove `map_err` if Wasmer issue #3267 is fixed
         let mut imports = imports! {};
         let context_forwarder = ContextForwarder::default();
         let (api, storage_guard) = Api::new(context_forwarder.clone(), storage);
@@ -57,7 +57,7 @@ impl WasmApplication {
 #[derive(Debug, Error)]
 pub enum PrepareRuntimeError {
     #[error("Failed to instantiate smart contract Wasm module")]
-    Instantiate(#[from] wit_bindgen_wasmer::anyhow::Error),
+    Instantiate(#[from] wit_bindgen_host_wasmer_rust::anyhow::Error),
 }
 
 impl From<PrepareRuntimeError> for linera_base::error::Error {

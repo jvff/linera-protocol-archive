@@ -9,11 +9,11 @@ use {
     serde::{Deserialize, Serialize},
     std::{future::Future, task::Poll},
     thiserror::Error,
-    wit_bindgen_rust::Handle,
+    wit_bindgen_guest_rust::Handle,
 };
 
-wit_bindgen_rust::export!("../contract.wit");
-wit_bindgen_rust::import!("../api.wit");
+wit_bindgen_guest_rust::export!("../contract.wit");
+wit_bindgen_guest_rust::import!("../api.wit");
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
 pub struct Contract {

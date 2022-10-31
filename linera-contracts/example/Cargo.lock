@@ -155,7 +155,7 @@ dependencies = [
  "linera-sdk",
  "serde",
  "thiserror",
- "wit-bindgen-rust",
+ "wit-bindgen-guest-rust",
 ]
 
 [[package]]
@@ -330,58 +330,58 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
-name = "wit-bindgen-gen-core"
-version = "0.1.0"
-source = "git+https://github.com/jvff/wit-bindgen?rev=00fda0f0091849e35191075b29b1b3680c733239#00fda0f0091849e35191075b29b1b3680c733239"
+name = "wit-bindgen-core"
+version = "0.2.0"
+source = "git+https://github.com/jvff/wit-bindgen?rev=e433051287ed5c9549ee97b179b5101404173c9d#e433051287ed5c9549ee97b179b5101404173c9d"
 dependencies = [
  "anyhow",
  "wit-parser",
 ]
 
 [[package]]
-name = "wit-bindgen-gen-rust"
-version = "0.1.0"
-source = "git+https://github.com/jvff/wit-bindgen?rev=00fda0f0091849e35191075b29b1b3680c733239#00fda0f0091849e35191075b29b1b3680c733239"
+name = "wit-bindgen-gen-guest-rust"
+version = "0.2.0"
+source = "git+https://github.com/jvff/wit-bindgen?rev=e433051287ed5c9549ee97b179b5101404173c9d#e433051287ed5c9549ee97b179b5101404173c9d"
 dependencies = [
  "heck",
- "wit-bindgen-gen-core",
+ "wit-bindgen-core",
+ "wit-bindgen-gen-rust-lib",
 ]
 
 [[package]]
-name = "wit-bindgen-gen-rust-wasm"
-version = "0.1.0"
-source = "git+https://github.com/jvff/wit-bindgen?rev=00fda0f0091849e35191075b29b1b3680c733239#00fda0f0091849e35191075b29b1b3680c733239"
+name = "wit-bindgen-gen-rust-lib"
+version = "0.2.0"
+source = "git+https://github.com/jvff/wit-bindgen?rev=e433051287ed5c9549ee97b179b5101404173c9d#e433051287ed5c9549ee97b179b5101404173c9d"
 dependencies = [
  "heck",
- "wit-bindgen-gen-core",
- "wit-bindgen-gen-rust",
+ "wit-bindgen-core",
 ]
 
 [[package]]
-name = "wit-bindgen-rust"
-version = "0.1.0"
-source = "git+https://github.com/jvff/wit-bindgen?rev=00fda0f0091849e35191075b29b1b3680c733239#00fda0f0091849e35191075b29b1b3680c733239"
+name = "wit-bindgen-guest-rust"
+version = "0.2.0"
+source = "git+https://github.com/jvff/wit-bindgen?rev=e433051287ed5c9549ee97b179b5101404173c9d#e433051287ed5c9549ee97b179b5101404173c9d"
 dependencies = [
  "async-trait",
  "bitflags",
- "wit-bindgen-rust-impl",
+ "wit-bindgen-guest-rust-macro",
 ]
 
 [[package]]
-name = "wit-bindgen-rust-impl"
-version = "0.1.0"
-source = "git+https://github.com/jvff/wit-bindgen?rev=00fda0f0091849e35191075b29b1b3680c733239#00fda0f0091849e35191075b29b1b3680c733239"
+name = "wit-bindgen-guest-rust-macro"
+version = "0.2.0"
+source = "git+https://github.com/jvff/wit-bindgen?rev=e433051287ed5c9549ee97b179b5101404173c9d#e433051287ed5c9549ee97b179b5101404173c9d"
 dependencies = [
  "proc-macro2",
  "syn",
- "wit-bindgen-gen-core",
- "wit-bindgen-gen-rust-wasm",
+ "wit-bindgen-core",
+ "wit-bindgen-gen-guest-rust",
 ]
 
 [[package]]
 name = "wit-parser"
-version = "0.1.0"
-source = "git+https://github.com/jvff/wit-bindgen?rev=00fda0f0091849e35191075b29b1b3680c733239#00fda0f0091849e35191075b29b1b3680c733239"
+version = "0.2.0"
+source = "git+https://github.com/jvff/wit-bindgen?rev=e433051287ed5c9549ee97b179b5101404173c9d#e433051287ed5c9549ee97b179b5101404173c9d"
 dependencies = [
  "anyhow",
  "id-arena",

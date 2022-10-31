@@ -5,8 +5,8 @@ authors = ["Linera <contact@linera.io>"]
 edition = "2021"
 
 [features]
-wasmer = ["dep:wasmer", "wit-bindgen-wasmer"]
-wasmtime = ["dep:wasmtime", "wit-bindgen-wasmtime"]
+wasmer = ["dep:wasmer", "wit-bindgen-host-wasmer-rust"]
+wasmtime = ["dep:wasmtime", "wit-bindgen-host-wasmtime-rust"]
 test = []
 
 [dependencies]
@@ -22,5 +22,5 @@ thiserror = "1.0.31"
 tokio = "1.12.0"
 wasmer = { version = "3.0.0-rc.1", optional = true }
 wasmtime = { version = "0.39.1", optional = true }
-wit-bindgen-wasmer = { git = "https://github.com/jvff/wit-bindgen", rev = "00fda0f0091849e35191075b29b1b3680c733239", optional = true }
-wit-bindgen-wasmtime = { git = "https://github.com/jvff/wit-bindgen", rev = "00fda0f0091849e35191075b29b1b3680c733239", optional = true }
+wit-bindgen-host-wasmer-rust = { git = "https://github.com/jvff/wit-bindgen", rev = "4a9e7cc6899a9736e2a2d23dcfc4f8744b6107a1", optional = true }
+wit-bindgen-host-wasmtime-rust = { git = "https://github.com/jvff/wit-bindgen", rev = "4a9e7cc6899a9736e2a2d23dcfc4f8744b6107a1", optional = true }

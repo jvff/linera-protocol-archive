@@ -1,5 +1,5 @@
-wit_bindgen_wasmtime::export!("../linera-contracts/api.wit");
-wit_bindgen_wasmtime::import!("../linera-contracts/contract.wit");
+wit_bindgen_host_wasmtime_rust::export!("../linera-contracts/api.wit");
+wit_bindgen_host_wasmtime_rust::import!("../linera-contracts/contract.wit");
 
 use self::{
     api::{ApiTables, PollLoad},
@@ -214,7 +214,7 @@ impl<'storage> api::Api for Api<'storage> {
 #[derive(Debug, Error)]
 pub enum PrepareRuntimeError {
     #[error("Failed to instantiate smart contract Wasm module")]
-    Instantiate(#[from] wit_bindgen_wasmtime::anyhow::Error),
+    Instantiate(#[from] wit_bindgen_host_wasmtime_rust::anyhow::Error),
 }
 
 impl From<PrepareRuntimeError> for linera_base::error::Error {
