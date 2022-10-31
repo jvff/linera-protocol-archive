@@ -15,4 +15,4 @@ futures = "0.3.24"
 linera-sdk = { path = "../../linera-sdk" }
 serde = { version = "1.0.130", features = ["derive"] }
 thiserror = "1.0.31"
-wit-bindgen-rust = { path = "../wit-bindgen/crates/rust-wasm" }
+wit-bindgen-rust = { git = "https://github.com/jvff/wit-bindgen", rev = "00fda0f0091849e35191075b29b1b3680c733239" }
