@@ -203,12 +203,7 @@ where
             .contract
             .apply_operation_new(&mut self.store, context.into(), operation);
 
-        GuestFuture::new(
-            future,
-            self.context_forwarder.clone(),
-            self.contract,
-            self.store,
-        )
+        GuestFuture::new(future, self)
     }
 
     pub fn apply_effect(
@@ -220,12 +215,7 @@ where
             .contract
             .apply_effect_new(&mut self.store, context.into(), effect);
 
-        GuestFuture::new(
-            future,
-            self.context_forwarder.clone(),
-            self.contract,
-            self.store,
-        )
+        GuestFuture::new(future, self)
     }
 
     pub fn call_application(
@@ -246,12 +236,7 @@ where
             &forwarded_sessions,
         );
 
-        GuestFuture::new(
-            future,
-            self.context_forwarder.clone(),
-            self.contract,
-            self.store,
-        )
+        GuestFuture::new(future, self)
     }
 
     pub fn call_session(
@@ -280,12 +265,7 @@ where
             &forwarded_sessions,
         );
 
-        GuestFuture::new(
-            future,
-            self.context_forwarder.clone(),
-            self.contract,
-            self.store,
-        )
+        GuestFuture::new(future, self)
     }
 
     pub fn query_application(
@@ -297,12 +277,7 @@ where
             .contract
             .query_application_new(&mut self.store, context.into(), argument);
 
-        GuestFuture::new(
-            future,
-            self.context_forwarder.clone(),
-            self.contract,
-            self.store,
-        )
+        GuestFuture::new(future, self)
     }
 }
 

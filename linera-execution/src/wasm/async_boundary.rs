@@ -1,3 +1,4 @@
+use super::WritableRuntimeContext;
 use futures::future::BoxFuture;
 use std::{
     any::type_name,
@@ -55,10 +56,8 @@ where
 {
     FailedToCreate,
     Active {
-        context_forwarder: ContextForwarder,
-        contract: Runtime::Contract,
-        store: Runtime::Store,
         future: Future,
+        context: WritableRuntimeContext<Runtime>,
     },
 }
 
@@ -68,17 +67,10 @@ where
 {
     pub fn new<Trap>(
         creation_result: Result<Future, Trap>,
-        context_forwarder: ContextForwarder,
-        contract: Runtime::Contract,
-        store: Runtime::Store,
+        context: WritableRuntimeContext<Runtime>,
     ) -> Self {
         match creation_result {
-            Ok(future) => GuestFuture::Active {
-                context_forwarder,
-                contract,
-                store,
-                future,
-            },
+            Ok(future) => GuestFuture::Active { future, context },
             Err(trap) => GuestFuture::FailedToCreate,
         }
     }
@@ -90,22 +82,18 @@ where
     Runtime: super::Runtime,
     Runtime::Contract: Unpin,
     Runtime::Store: Unpin,
+    Runtime::StorageGuard: Unpin,
 {
     type Output = Result<InnerFuture::Output, linera_base::error::Error>;
 
-    fn poll(self: Pin<&mut Self>, context: &mut Context) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, task_context: &mut Context) -> Poll<Self::Output> {
         match self.get_mut() {
             GuestFuture::FailedToCreate => {
                 Poll::Ready(Err(linera_base::error::Error::UnknownApplication))
             }
-            GuestFuture::Active {
-                context_forwarder,
-                contract,
-                store,
-                future,
-            } => {
-                let _context_guard = context_forwarder.forward(context);
-                future.poll(contract, store)
+            GuestFuture::Active { future, context } => {
+                let _context_guard = context.context_forwarder.forward(task_context);
+                future.poll(&context.contract, &mut context.store)
             }
         }
     }
