@@ -49,9 +49,9 @@ impl<'future, Output> HostFuture<'future, Output> {
     }
 }
 
-pub enum GuestFuture<'storage, Future, Runtime>
+pub enum GuestFuture<Future, Runtime>
 where
-    Runtime: super::Runtime<'storage>,
+    Runtime: super::Runtime,
 {
     FailedToCreate,
     Active {
@@ -62,9 +62,9 @@ where
     },
 }
 
-impl<'storage, Future, Runtime> GuestFuture<'storage, Future, Runtime>
+impl<Future, Runtime> GuestFuture<Future, Runtime>
 where
-    Runtime: super::Runtime<'storage>,
+    Runtime: super::Runtime,
 {
     pub fn new<Trap>(
         creation_result: Result<Future, Trap>,
@@ -84,10 +84,10 @@ where
     }
 }
 
-impl<'storage, InnerFuture, Runtime> Future for GuestFuture<'storage, InnerFuture, Runtime>
+impl<InnerFuture, Runtime> Future for GuestFuture<InnerFuture, Runtime>
 where
-    InnerFuture: GuestFutureInterface<'storage, Runtime> + Unpin,
-    Runtime: super::Runtime<'storage>,
+    InnerFuture: GuestFutureInterface<Runtime> + Unpin,
+    Runtime: super::Runtime,
     Runtime::Contract: Unpin,
     Runtime::Store: Unpin,
 {
@@ -111,9 +111,9 @@ where
     }
 }
 
-pub trait GuestFutureInterface<'storage, Runtime>
+pub trait GuestFutureInterface<Runtime>
 where
-    Runtime: super::Runtime<'storage>,
+    Runtime: super::Runtime,
 {
     type Output;
 

@@ -1,16 +1,13 @@
 wit_bindgen_wasmer::export!("../linera-contracts/api.wit");
 wit_bindgen_wasmer::import!("../linera-contracts/contract.wit");
 
-use self::{
-    api::PollLoad,
-    contract::{ApplyOperation, Contract},
-};
+use self::{api::PollLoad, contract::Contract};
 use super::{
-    async_boundary::{ContextForwarder, GuestFutureInterface, HostFuture},
+    async_boundary::{ContextForwarder, HostFuture},
     Runtime, WritableRuntimeContext,
 };
 use crate::WritableStorage;
-use std::{marker::PhantomData, sync::Arc, task::Poll};
+use std::{marker::PhantomData, mem, sync::Arc, task::Poll};
 use thiserror::Error;
 use tokio::sync::Mutex;
 use wasmer::{imports, Module, RuntimeError, Store};
@@ -19,7 +16,7 @@ pub struct Wasmer<'storage> {
     _lifetime: PhantomData<&'storage ()>,
 }
 
-impl<'storage> Runtime<'storage> for Wasmer<'storage> {
+impl<'storage> Runtime for Wasmer<'storage> {
     type Contract = Contract;
     type Store = Store;
     type StorageGuard = StorageGuard<'storage>;
@@ -33,7 +30,7 @@ impl WasmApplication {
     pub fn prepare_runtime<'storage>(
         &self,
         storage: &'storage dyn WritableStorage,
-    ) -> Result<WritableRuntimeContext<'storage, Wasmer<'storage>>, PrepareRuntimeError> {
+    ) -> Result<WritableRuntimeContext<Wasmer<'storage>>, PrepareRuntimeError> {
         let mut store = Store::default();
         let module = Module::from_file(
             &store,
@@ -70,14 +67,93 @@ impl From<PrepareRuntimeError> for linera_base::error::Error {
     }
 }
 
-impl<'storage> super::Contract<'storage, Wasmer<'storage>> for Contract {
+impl<'storage> super::Contract<Wasmer<'storage>> for Contract {
     fn apply_operation_new(
         &self,
         store: &mut Store,
-        context: contract::OperationContext<'storage>,
+        context: contract::OperationContext<'_>,
         operation: &[u8],
-    ) -> Result<ApplyOperation, RuntimeError> {
+    ) -> Result<contract::ApplyOperation, RuntimeError> {
         Contract::apply_operation_new(self, store, context, operation)
+    }
+
+    fn apply_operation_poll(
+        &self,
+        store: &mut Store,
+        future: &contract::ApplyOperation,
+    ) -> Result<contract::PollExecutionResult, RuntimeError> {
+        Contract::apply_operation_poll(self, store, future)
+    }
+
+    fn apply_effect_new(
+        &self,
+        store: &mut Store,
+        context: contract::EffectContext<'_>,
+        effect: &[u8],
+    ) -> Result<contract::ApplyEffect, RuntimeError> {
+        Contract::apply_effect_new(self, store, context, effect)
+    }
+
+    fn apply_effect_poll(
+        &self,
+        store: &mut Store,
+        future: &contract::ApplyEffect,
+    ) -> Result<contract::PollExecutionResult, RuntimeError> {
+        Contract::apply_effect_poll(self, store, future)
+    }
+
+    fn call_application_new(
+        &self,
+        store: &mut Store,
+        context: contract::CalleeContext<'_>,
+        argument: &[u8],
+        forwarded_sessions: &[contract::SessionId],
+    ) -> Result<contract::CallApplication, RuntimeError> {
+        Contract::call_application_new(self, store, context, argument, forwarded_sessions)
+    }
+
+    fn call_application_poll(
+        &self,
+        store: &mut Store,
+        future: &contract::CallApplication,
+    ) -> Result<contract::PollCallApplication, RuntimeError> {
+        Contract::call_application_poll(self, store, future)
+    }
+
+    fn call_session_new(
+        &self,
+        store: &mut Store,
+        context: contract::CalleeContext<'_>,
+        session: contract::SessionParam,
+        argument: &[u8],
+        forwarded_sessions: &[contract::SessionId],
+    ) -> Result<contract::CallSession, RuntimeError> {
+        Contract::call_session_new(self, store, context, session, argument, forwarded_sessions)
+    }
+
+    fn call_session_poll(
+        &self,
+        store: &mut Store,
+        future: &contract::CallSession,
+    ) -> Result<contract::PollCallSession, RuntimeError> {
+        Contract::call_session_poll(self, store, future)
+    }
+
+    fn query_application_new(
+        &self,
+        store: &mut Store,
+        context: contract::QueryContext<'_>,
+        argument: &[u8],
+    ) -> Result<contract::QueryApplication, RuntimeError> {
+        contract::Contract::query_application_new(self, store, context, argument)
+    }
+
+    fn query_application_poll(
+        &self,
+        store: &mut Store,
+        future: &contract::QueryApplication,
+    ) -> Result<contract::PollQuery, RuntimeError> {
+        Contract::query_application_poll(self, store, future)
     }
 }
 
@@ -88,7 +164,7 @@ pub struct Api {
 
 impl Api {
     pub fn new(context: ContextForwarder, storage: &dyn WritableStorage) -> (Self, StorageGuard) {
-        let storage_without_lifetime = unsafe { &*(storage as *const _) };
+        let storage_without_lifetime = unsafe { mem::transmute(storage) };
         let storage = Arc::new(Mutex::new(Some(storage_without_lifetime)));
 
         let guard = StorageGuard {
@@ -99,7 +175,7 @@ impl Api {
         (Api { context, storage }, guard)
     }
 
-    fn storage(&self) -> &dyn WritableStorage {
+    fn storage(&self) -> &'static dyn WritableStorage {
         *self
             .storage
             .try_lock()

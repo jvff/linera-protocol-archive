@@ -18,15 +18,12 @@ pub struct Wasmtime<'storage> {
     _lifetime: PhantomData<&'storage ()>,
 }
 
-impl<'storage> Runtime<'storage> for Wasmtime<'storage> {
+impl<'storage> Runtime for Wasmtime<'storage> {
     type Contract = Contract<Data<'storage>>;
     type Store = Store<Data<'storage>>;
     type StorageGuard = ();
     type Error = Trap;
 }
-
-type GuestFuture<'storage, Future> =
-    super::async_boundary::GuestFuture<'storage, Future, Wasmtime<'storage>>;
 
 #[derive(Default)]
 pub struct WasmApplication {}
@@ -35,7 +32,7 @@ impl WasmApplication {
     pub fn prepare_runtime<'storage>(
         &self,
         storage: &'storage dyn WritableStorage,
-    ) -> Result<WritableRuntimeContext<'storage, Wasmtime<'storage>>, PrepareRuntimeError> {
+    ) -> Result<WritableRuntimeContext<Wasmtime<'storage>>, PrepareRuntimeError> {
         let engine = Engine::default();
         let mut linker = Linker::new(&engine);
 
@@ -84,11 +81,11 @@ impl<'storage> Data<'storage> {
     }
 }
 
-impl<'storage> super::Contract<'storage, Wasmtime<'storage>> for Contract<Data<'storage>> {
+impl<'storage> super::Contract<Wasmtime<'storage>> for Contract<Data<'storage>> {
     fn apply_operation_new(
         &self,
         store: &mut Store<Data<'storage>>,
-        context: contract::OperationContext<'storage>,
+        context: contract::OperationContext<'_>,
         operation: &[u8],
     ) -> Result<contract::ApplyOperation, Trap> {
         Contract::apply_operation_new(self, store, context, operation)
@@ -105,7 +102,7 @@ impl<'storage> super::Contract<'storage, Wasmtime<'storage>> for Contract<Data<'
     fn apply_effect_new(
         &self,
         store: &mut Store<Data<'storage>>,
-        context: contract::EffectContext<'storage>,
+        context: contract::EffectContext<'_>,
         effect: &[u8],
     ) -> Result<contract::ApplyEffect, Trap> {
         Contract::apply_effect_new(self, store, context, effect)
@@ -122,7 +119,7 @@ impl<'storage> super::Contract<'storage, Wasmtime<'storage>> for Contract<Data<'
     fn call_application_new(
         &self,
         store: &mut Store<Data<'storage>>,
-        context: contract::CalleeContext<'storage>,
+        context: contract::CalleeContext<'_>,
         argument: &[u8],
         forwarded_sessions: &[contract::SessionId],
     ) -> Result<contract::CallApplication, Trap> {
@@ -140,7 +137,7 @@ impl<'storage> super::Contract<'storage, Wasmtime<'storage>> for Contract<Data<'
     fn call_session_new(
         &self,
         store: &mut Store<Data<'storage>>,
-        context: contract::CalleeContext<'storage>,
+        context: contract::CalleeContext<'_>,
         session: contract::SessionParam,
         argument: &[u8],
         forwarded_sessions: &[contract::SessionId],
@@ -159,7 +156,7 @@ impl<'storage> super::Contract<'storage, Wasmtime<'storage>> for Contract<Data<'
     fn query_application_new(
         &self,
         store: &mut Store<Data<'storage>>,
-        context: contract::QueryContext<'storage>,
+        context: contract::QueryContext<'_>,
         argument: &[u8],
     ) -> Result<contract::QueryApplication, Trap> {
         contract::Contract::query_application_new(self, store, context, argument)

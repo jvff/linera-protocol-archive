@@ -103,21 +103,18 @@ impl UserApplication for WasmApplication {
     }
 }
 
-trait Runtime<'storage>: Sized {
-    type Contract: Contract<'storage, Self>;
+pub trait Runtime: Sized {
+    type Contract: Contract<Self>;
     type Store;
     type StorageGuard;
     type Error;
 }
 
-trait Contract<'storage, R>
-where
-    R: Runtime<'storage>,
-{
+pub trait Contract<R: Runtime> {
     fn apply_operation_new(
         &self,
         store: &mut R::Store,
-        context: contract::OperationContext<'storage>,
+        context: contract::OperationContext<'_>,
         operation: &[u8],
     ) -> Result<contract::ApplyOperation, R::Error>;
 
@@ -130,7 +127,7 @@ where
     fn apply_effect_new(
         &self,
         store: &mut R::Store,
-        context: contract::EffectContext<'storage>,
+        context: contract::EffectContext<'_>,
         effect: &[u8],
     ) -> Result<contract::ApplyEffect, R::Error>;
 
@@ -143,7 +140,7 @@ where
     fn call_application_new(
         &self,
         store: &mut R::Store,
-        context: contract::CalleeContext<'storage>,
+        context: contract::CalleeContext<'_>,
         argument: &[u8],
         forwarded_sessions: &[contract::SessionId],
     ) -> Result<contract::CallApplication, R::Error>;
@@ -157,7 +154,7 @@ where
     fn call_session_new(
         &self,
         store: &mut R::Store,
-        context: contract::CalleeContext<'storage>,
+        context: contract::CalleeContext<'_>,
         session: contract::SessionParam,
         argument: &[u8],
         forwarded_sessions: &[contract::SessionId],
@@ -172,7 +169,7 @@ where
     fn query_application_new(
         &self,
         store: &mut R::Store,
-        context: contract::QueryContext<'storage>,
+        context: contract::QueryContext<'_>,
         argument: &[u8],
     ) -> Result<contract::QueryApplication, R::Error>;
 
@@ -183,9 +180,9 @@ where
     ) -> Result<contract::PollQuery, R::Error>;
 }
 
-pub struct WritableRuntimeContext<'storage, R>
+pub struct WritableRuntimeContext<R>
 where
-    R: Runtime<'storage>,
+    R: Runtime,
 {
     context_forwarder: ContextForwarder,
     contract: R::Contract,
@@ -193,15 +190,15 @@ where
     storage_guard: R::StorageGuard,
 }
 
-impl<'storage, R> WritableRuntimeContext<'storage, R>
+impl<R> WritableRuntimeContext<R>
 where
-    R: Runtime<'storage>,
+    R: Runtime,
 {
     pub fn apply_operation(
         mut self,
         context: &OperationContext,
         operation: &[u8],
-    ) -> GuestFuture<'storage, ApplyOperation, R> {
+    ) -> GuestFuture<ApplyOperation, R> {
         let future = self
             .contract
             .apply_operation_new(&mut self.store, context.into(), operation);
@@ -216,9 +213,9 @@ where
 
     pub fn apply_effect(
         mut self,
-        context: &'storage EffectContext,
+        context: &EffectContext,
         effect: &[u8],
-    ) -> GuestFuture<'storage, ApplyEffect, R> {
+    ) -> GuestFuture<ApplyEffect, R> {
         let future = self
             .contract
             .apply_effect_new(&mut self.store, context.into(), effect);
@@ -233,10 +230,10 @@ where
 
     pub fn call_application(
         mut self,
-        context: &'storage CalleeContext,
+        context: &CalleeContext,
         argument: &[u8],
         forwarded_sessions: Vec<SessionId>,
-    ) -> GuestFuture<'storage, CallApplication, R> {
+    ) -> GuestFuture<CallApplication, R> {
         let forwarded_sessions: Vec<_> = forwarded_sessions
             .into_iter()
             .map(contract::SessionId::from)
@@ -259,12 +256,12 @@ where
 
     pub fn call_session(
         mut self,
-        context: &'storage CalleeContext,
+        context: &CalleeContext,
         session_kind: u64,
         session_data: &mut Vec<u8>,
         argument: &[u8],
         forwarded_sessions: Vec<SessionId>,
-    ) -> GuestFuture<'storage, CallSession, R> {
+    ) -> GuestFuture<CallSession, R> {
         let forwarded_sessions: Vec<_> = forwarded_sessions
             .into_iter()
             .map(contract::SessionId::from)
@@ -293,9 +290,9 @@ where
 
     pub fn query_application(
         mut self,
-        context: &'storage QueryContext,
+        context: &QueryContext,
         argument: &[u8],
-    ) -> GuestFuture<'storage, QueryApplication, R> {
+    ) -> GuestFuture<QueryApplication, R> {
         let future = self
             .contract
             .query_application_new(&mut self.store, context.into(), argument);
@@ -372,9 +369,9 @@ impl From<SessionId> for contract::SessionId {
     }
 }
 
-impl<'storage, R> GuestFutureInterface<'storage, R> for ApplyOperation
+impl<'storage, R> GuestFutureInterface<R> for ApplyOperation
 where
-    R: Runtime<'storage>,
+    R: Runtime,
 {
     type Output = RawExecutionResult<Vec<u8>>;
 
@@ -394,9 +391,9 @@ where
     }
 }
 
-impl<'storage, R> GuestFutureInterface<'storage, R> for ApplyEffect
+impl<'storage, R> GuestFutureInterface<R> for ApplyEffect
 where
-    R: Runtime<'storage>,
+    R: Runtime,
 {
     type Output = RawExecutionResult<Vec<u8>>;
 
@@ -416,9 +413,9 @@ where
     }
 }
 
-impl<'storage, R> GuestFutureInterface<'storage, R> for CallApplication
+impl<'storage, R> GuestFutureInterface<R> for CallApplication
 where
-    R: Runtime<'storage>,
+    R: Runtime,
 {
     type Output = ApplicationCallResult;
 
@@ -438,9 +435,9 @@ where
     }
 }
 
-impl<'storage, R> GuestFutureInterface<'storage, R> for CallSession
+impl<'storage, R> GuestFutureInterface<R> for CallSession
 where
-    R: Runtime<'storage>,
+    R: Runtime,
 {
     type Output = SessionCallResult;
 
@@ -460,9 +457,9 @@ where
     }
 }
 
-impl<'storage, R> GuestFutureInterface<'storage, R> for QueryApplication
+impl<'storage, R> GuestFutureInterface<R> for QueryApplication
 where
-    R: Runtime<'storage>,
+    R: Runtime,
 {
     type Output = Vec<u8>;
 
@@ -599,20 +596,20 @@ impl WritableStorage for WrappedQueryableStorage<'_> {
 
     async fn try_call_application(
         &self,
-        authenticated: bool,
-        callee_id: ApplicationId,
-        argument: &[u8],
-        forwarded_sessions: Vec<SessionId>,
+        _authenticated: bool,
+        _callee_id: ApplicationId,
+        _argument: &[u8],
+        _forwarded_sessions: Vec<SessionId>,
     ) -> Result<CallResult, Error> {
         Err(Error::UnknownApplication)
     }
 
     async fn try_call_session(
         &self,
-        authenticated: bool,
-        session_id: SessionId,
-        argument: &[u8],
-        forwarded_sessions: Vec<SessionId>,
+        _authenticated: bool,
+        _session_id: SessionId,
+        _argument: &[u8],
+        _forwarded_sessions: Vec<SessionId>,
     ) -> Result<CallResult, Error> {
         Err(Error::UnknownApplication)
     }
