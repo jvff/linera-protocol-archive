@@ -27,9 +27,19 @@ use linera_base::{
     error::Error,
     messages::{ApplicationId, ChainId, Destination},
 };
-use std::task::Poll;
+use std::{path::PathBuf, task::Poll};
 
-pub use self::runtime::WasmApplication;
+pub struct WasmApplication {
+    bytecode_file: PathBuf,
+}
+
+impl WasmApplication {
+    pub fn new(bytecode_file: impl Into<PathBuf>) -> Self {
+        WasmApplication {
+            bytecode_file: bytecode_file.into(),
+        }
+    }
+}
 
 #[async_trait]
 impl UserApplication for WasmApplication {

@@ -24,10 +24,12 @@ async fn test_wasm_application() {
         ExecutionStateView::<MemoryContext<TestExecutionRuntimeContext>>::from_system_state(state)
             .await;
     let app_id = ApplicationId(1);
-    view.context()
-        .extra()
-        .user_applications()
-        .insert(app_id, Arc::new(WasmApplication::default()));
+    view.context().extra().user_applications().insert(
+        app_id,
+        Arc::new(WasmApplication::new(
+            "../linera-contracts/example/target/wasm32-unknown-unknown/debug/linera_contract_example.wasm",
+        )),
+    );
 
     let context = OperationContext {
         chain_id: ChainId::root(0),

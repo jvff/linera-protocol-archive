@@ -4,7 +4,7 @@ wit_bindgen_host_wasmer_rust::import!("../linera-contracts/contract.wit");
 use self::{api::PollLoad, contract::Contract};
 use super::{
     async_boundary::{ContextForwarder, HostFuture},
-    Runtime, WritableRuntimeContext,
+    Runtime, WasmApplication, WritableRuntimeContext,
 };
 use crate::WritableStorage;
 use std::{marker::PhantomData, mem, sync::Arc, task::Poll};
@@ -23,19 +23,15 @@ impl<'storage> Runtime for Wasmer<'storage> {
     type Error = RuntimeError;
 }
 
-#[derive(Default)]
-pub struct WasmApplication {}
-
 impl WasmApplication {
     pub fn prepare_runtime<'storage>(
         &self,
         storage: &'storage dyn WritableStorage,
     ) -> Result<WritableRuntimeContext<Wasmer<'storage>>, PrepareRuntimeError> {
         let mut store = Store::default();
-        let module = Module::from_file(
-            &store,
-            "/project/linera-contracts/example/target/wasm32-unknown-unknown/debug/linera_contract_example.wasm",
-        ).map_err(wit_bindgen_host_wasmer_rust::anyhow::Error::from)?; // TODO: Remove `map_err` if Wasmer issue #3267 is fixed
+        let module = Module::from_file(&store, &self.bytecode_file)
+            // TODO: Remove `map_err` if Wasmer issue #3267 is fixed
+            .map_err(wit_bindgen_host_wasmer_rust::anyhow::Error::from)?;
         let mut imports = imports! {};
         let context_forwarder = ContextForwarder::default();
         let (api, storage_guard) = Api::new(context_forwarder.clone(), storage);

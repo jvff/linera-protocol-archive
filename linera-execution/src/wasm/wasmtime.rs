@@ -7,7 +7,7 @@ use self::{
 };
 use super::{
     async_boundary::{ContextForwarder, HostFuture},
-    Runtime, WritableRuntimeContext,
+    Runtime, WasmApplication, WritableRuntimeContext,
 };
 use crate::WritableStorage;
 use std::{fmt::Debug, marker::PhantomData, task::Poll};
@@ -25,9 +25,6 @@ impl<'storage> Runtime for Wasmtime<'storage> {
     type Error = Trap;
 }
 
-#[derive(Default)]
-pub struct WasmApplication {}
-
 impl WasmApplication {
     pub fn prepare_runtime<'storage>(
         &self,
@@ -38,10 +35,7 @@ impl WasmApplication {
 
         api::add_to_linker(&mut linker, Data::api)?;
 
-        let module = Module::from_file(
-            &engine,
-            "/project/linera-contracts/example/target/wasm32-unknown-unknown/debug/linera_contract_example.wasm",
-        )?;
+        let module = Module::from_file(&engine, &self.bytecode_file)?;
         let context_forwarder = ContextForwarder::default();
         let data = Data::new(storage, context_forwarder.clone());
         let mut store = Store::new(&engine, data);
