@@ -1662,6 +1662,11 @@ name = "linera-sdk"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "bcs",
+ "futures",
+ "serde",
+ "thiserror",
+ "wit-bindgen-guest-rust",
 ]
 
 [[package]]
@@ -3757,6 +3762,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "wit-bindgen-gen-guest-rust"
+version = "0.2.0"
+source = "git+https://github.com/jvff/wit-bindgen?rev=4a9e7cc6899a9736e2a2d23dcfc4f8744b6107a1#4a9e7cc6899a9736e2a2d23dcfc4f8744b6107a1"
+dependencies = [
+ "heck",
+ "wit-bindgen-core",
+ "wit-bindgen-gen-rust-lib",
+]
+
+[[package]]
 name = "wit-bindgen-gen-host-wasmer-rust"
 version = "0.2.0"
 source = "git+https://github.com/jvff/wit-bindgen?rev=4a9e7cc6899a9736e2a2d23dcfc4f8744b6107a1#4a9e7cc6899a9736e2a2d23dcfc4f8744b6107a1"
@@ -3783,6 +3798,27 @@ source = "git+https://github.com/jvff/wit-bindgen?rev=4a9e7cc6899a9736e2a2d23dcf
 dependencies = [
  "heck",
  "wit-bindgen-core",
+]
+
+[[package]]
+name = "wit-bindgen-guest-rust"
+version = "0.2.0"
+source = "git+https://github.com/jvff/wit-bindgen?rev=4a9e7cc6899a9736e2a2d23dcfc4f8744b6107a1#4a9e7cc6899a9736e2a2d23dcfc4f8744b6107a1"
+dependencies = [
+ "async-trait",
+ "bitflags",
+ "wit-bindgen-guest-rust-macro",
+]
+
+[[package]]
+name = "wit-bindgen-guest-rust-macro"
+version = "0.2.0"
+source = "git+https://github.com/jvff/wit-bindgen?rev=4a9e7cc6899a9736e2a2d23dcfc4f8744b6107a1#4a9e7cc6899a9736e2a2d23dcfc4f8744b6107a1"
+dependencies = [
+ "proc-macro2",
+ "syn",
+ "wit-bindgen-core",
+ "wit-bindgen-gen-guest-rust",
 ]
 
 [[package]]

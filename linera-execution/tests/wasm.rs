@@ -27,7 +27,7 @@ async fn test_wasm_application() {
     view.context().extra().user_applications().insert(
         app_id,
         Arc::new(WasmApplication::new(
-            "../linera-contracts/example/target/wasm32-unknown-unknown/debug/linera_contract_example.wasm",
+            "../target/wasm32-unknown-unknown/debug/examples/counter.wasm",
         )),
     );
 

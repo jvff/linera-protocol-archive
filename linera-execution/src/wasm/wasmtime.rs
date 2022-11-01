@@ -1,5 +1,5 @@
-wit_bindgen_host_wasmtime_rust::export!("../linera-contracts/api.wit");
-wit_bindgen_host_wasmtime_rust::import!("../linera-contracts/contract.wit");
+wit_bindgen_host_wasmtime_rust::export!("../linera-sdk/api.wit");
+wit_bindgen_host_wasmtime_rust::import!("../linera-sdk/contract.wit");
 
 use self::{
     api::{ApiTables, PollLoad},
