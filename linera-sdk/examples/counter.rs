@@ -1,6 +1,8 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#![cfg(target_arch = "wasm32")]
+
 use async_trait::async_trait;
 use linera_sdk::{
     Application, ApplicationCallResult, CalleeContext, EffectContext, ExecutionResult,
