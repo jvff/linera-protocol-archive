@@ -23,8 +23,8 @@ jobs:
         target: wasm32-unknown-unknown
     - name: Report warnings as errors
       run: echo 'RUSTFLAGS=-D warnings' >> $GITHUB_ENV
-    - uses: Swatinem/rust-cache@v1
+    - uses: Swatinem/rust-cache@v2
     - name: Build example contract
-      run:
-        - cd linera-contracts/example
-        - cargo build --target wasm32-unknown-unknown
+      run: |
+        cd linera-contracts/example
+        cargo build --target wasm32-unknown-unknown
