@@ -1,4 +1,5 @@
 use super::WritableRuntimeContext;
+use crate::ExecutionError;
 use futures::future::BoxFuture;
 use std::{
     any::type_name,
@@ -84,13 +85,11 @@ where
     Runtime::Store: Unpin,
     Runtime::StorageGuard: Unpin,
 {
-    type Output = Result<InnerFuture::Output, linera_base::error::Error>;
+    type Output = Result<InnerFuture::Output, ExecutionError>;
 
     fn poll(self: Pin<&mut Self>, task_context: &mut Context) -> Poll<Self::Output> {
         match self.get_mut() {
-            GuestFuture::FailedToCreate => {
-                Poll::Ready(Err(linera_base::error::Error::UnknownApplication))
-            }
+            GuestFuture::FailedToCreate => Poll::Ready(Err(ExecutionError::UnknownApplication)),
             GuestFuture::Active { future, context } => {
                 let _context_guard = context.context_forwarder.forward(task_context);
                 future.poll(&context.application, &mut context.store)
@@ -109,7 +108,7 @@ where
         &self,
         application: &Runtime::Application,
         store: &mut Runtime::Store,
-    ) -> Poll<Result<Self::Output, linera_base::error::Error>>;
+    ) -> Poll<Result<Self::Output, ExecutionError>>;
 }
 
 #[derive(Clone, Default)]

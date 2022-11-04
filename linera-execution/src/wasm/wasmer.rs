@@ -6,7 +6,7 @@ use super::{
     async_boundary::{ContextForwarder, HostFuture},
     Runtime, WasmApplication, WritableRuntimeContext,
 };
-use crate::WritableStorage;
+use crate::{ExecutionError, WritableStorage};
 use std::{marker::PhantomData, mem, sync::Arc, task::Poll};
 use thiserror::Error;
 use tokio::sync::Mutex;
@@ -56,10 +56,10 @@ pub enum PrepareRuntimeError {
     Instantiate(#[from] wit_bindgen_host_wasmer_rust::anyhow::Error),
 }
 
-impl From<PrepareRuntimeError> for linera_base::error::Error {
+impl From<PrepareRuntimeError> for ExecutionError {
     fn from(error: PrepareRuntimeError) -> Self {
         // TODO
-        linera_base::error::Error::UnknownApplication
+        ExecutionError::UnknownApplication
     }
 }
 
@@ -182,8 +182,8 @@ impl SystemApi {
 }
 
 impl system::System for SystemApi {
-    type Load = HostFuture<'static, Result<Vec<u8>, linera_base::error::Error>>;
-    type LoadAndLock = HostFuture<'static, Result<Vec<u8>, linera_base::error::Error>>;
+    type Load = HostFuture<'static, Result<Vec<u8>, ExecutionError>>;
+    type LoadAndLock = HostFuture<'static, Result<Vec<u8>, ExecutionError>>;
 
     fn load_new(&mut self) -> Self::Load {
         HostFuture::new(self.storage().try_read_my_state())
