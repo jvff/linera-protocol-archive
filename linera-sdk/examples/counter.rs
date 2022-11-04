@@ -86,9 +86,9 @@ pub enum Error {
     #[error("Counter application doesn't support any cross-application sessions")]
     SessionsNotSupported,
 
-    /// Invalid increment argument for cross-application call.
-    #[error("Invalid increment argument for cross-application call")]
-    InvalidArgument(#[from] bcs::Error),
+    /// Invalid serialized increment value.
+    #[error("Invalid serialized increment value")]
+    InvalidIncrement(#[from] bcs::Error),
 
     /// Invalid query argument; Counter application only supports a single (empty) query.
     #[error("Invalid query argument; Counter application only supports a single (empty) query")]
