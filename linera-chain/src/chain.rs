@@ -398,6 +398,7 @@ where
 
     /// Verify that the incoming_messages are in the right order. This matters for inbox
     /// invariants, notably the fact that inbox.expected_events is sorted.
+    #[allow(clippy::result_large_err)]
     fn check_incoming_messages(&self, messages: &[MessageGroup]) -> Result<(), Error> {
         let mut next_messages: HashMap<(ApplicationId, Origin), (BlockHeight, usize)> =
             HashMap::new();

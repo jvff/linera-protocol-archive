@@ -145,6 +145,7 @@ impl ChainManager {
     }
 
     /// Verify the safety of the block w.r.t. voting rules.
+    #[allow(clippy::result_large_err)]
     pub fn check_proposed_block(
         &self,
         block_hash: Option<HashValue>,
@@ -215,6 +216,7 @@ impl ChainManager {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn check_validated_block(
         &self,
         next_block_height: BlockHeight,
