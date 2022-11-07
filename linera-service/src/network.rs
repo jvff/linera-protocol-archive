@@ -251,27 +251,20 @@ where
         Box::pin(async move {
             let reply = match message {
                 Message::BlockProposal(message) => {
-                    match self.server.state.handle_block_proposal(*message).await {
-                        Ok(info) => Ok(Some(info.into())),
-                        Err(error) => Err(error.into()),
-                    }
+                    let info = self.server.state.handle_block_proposal(*message).await?;
+                    Ok(Some(info.into()))
                 }
                 Message::Certificate(message) => {
-                    match self.server.state.handle_certificate(*message).await {
-                        Ok((info, continuation)) => {
-                            // Cross-shard requests
-                            self.handle_continuation(continuation).await;
-                            // Response
-                            Ok(Some(info.into()))
-                        }
-                        Err(error) => Err(error.into()),
-                    }
+                    let (info, continuation) =
+                        self.server.state.handle_certificate(*message).await?;
+                    // Cross-shard requests
+                    self.handle_continuation(continuation).await;
+                    // Response
+                    Ok(Some(info.into()))
                 }
                 Message::ChainInfoQuery(message) => {
-                    match self.server.state.handle_chain_info_query(*message).await {
-                        Ok(info) => Ok(Some(info.into())),
-                        Err(error) => Err(error.into()),
-                    }
+                    let info = self.server.state.handle_chain_info_query(*message).await?;
+                    Ok(Some(info.into()))
                 }
                 Message::CrossChainRequest(request) => {
                     match self.server.state.handle_cross_chain_request(*request).await {
