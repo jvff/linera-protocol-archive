@@ -86,6 +86,8 @@ pub enum ExecutionError {
     BalanceUnderflow,
     #[error("Cannot set epoch to a lower value")]
     CannotRewindEpoch,
+    #[error("Error reported from user application: {0}")]
+    UserApplication(String),
 }
 
 impl From<ViewError> for ExecutionError {
