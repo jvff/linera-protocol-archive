@@ -1601,10 +1601,10 @@ name = "linera-execution"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "bcs",
  "dashmap",
  "futures",
  "linera-base",
- "linera-execution",
  "linera-views",
  "log",
  "once_cell",
