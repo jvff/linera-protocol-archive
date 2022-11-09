@@ -213,7 +213,7 @@ pub trait ExecutionRuntimeContext {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Copy, Debug)]
 pub struct OperationContext {
     /// The current chain id.
     pub chain_id: ChainId,
@@ -223,7 +223,7 @@ pub struct OperationContext {
     pub index: usize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Copy, Debug)]
 pub struct EffectContext {
     /// The current chain id.
     pub chain_id: ChainId,
@@ -234,7 +234,7 @@ pub struct EffectContext {
     pub effect_id: EffectId,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Copy, Debug)]
 pub struct CalleeContext {
     /// The current chain id.
     pub chain_id: ChainId,
@@ -243,7 +243,7 @@ pub struct CalleeContext {
     pub authenticated_caller_id: Option<ApplicationId>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Copy, Debug)]
 pub struct QueryContext {
     /// The current chain id.
     pub chain_id: ChainId,
