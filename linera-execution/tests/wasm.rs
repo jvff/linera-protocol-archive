@@ -18,7 +18,7 @@ use std::sync::Arc;
 /// Test if the "counter" example application in `linera-sdk` compiled to a WASM module can be
 /// called correctly.
 #[tokio::test]
-async fn test_counter_wasm_application() {
+async fn test_counter_wasm_application() -> anyhow::Result<()> {
     let mut state = SystemExecutionState::default();
     state.description = Some(ChainDescription::Root(0));
     let mut view =
@@ -42,8 +42,7 @@ async fn test_counter_wasm_application() {
         let operation = bcs::to_bytes(increment).expect("Serialization of u128 failed");
         let result = view
             .execute_operation(app_id, &context, &operation.into())
-            .await
-            .unwrap();
+            .await?;
         assert_eq!(
             result,
             vec![ExecutionResult::User(app_id, RawExecutionResult::default())]
@@ -58,8 +57,9 @@ async fn test_counter_wasm_application() {
         bcs::to_bytes(&expected_value).expect("Serialization of u128 failed");
     assert_eq!(
         view.query_application(app_id, &context, &Query::User(vec![]))
-            .await
-            .unwrap(),
+            .await?,
         Response::User(expected_serialized_value)
     );
+
+    Ok(())
 }
