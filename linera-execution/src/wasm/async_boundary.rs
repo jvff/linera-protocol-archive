@@ -26,9 +26,11 @@ pub struct HostFuture<'future, Output> {
 
 impl<Output> Debug for HostFuture<'_, Output> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        formatter
-            .debug_struct(&format!("HostFuture<'_, {}>", type_name::<Output>()))
-            .finish_non_exhaustive()
+        write!(
+            formatter,
+            "HostFuture<'_, {}> {{ .. }}",
+            type_name::<Output>()
+        )
     }
 }
 
