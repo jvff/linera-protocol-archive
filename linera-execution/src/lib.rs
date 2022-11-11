@@ -90,18 +90,25 @@ pub enum ExecutionError {
     BalanceUnderflow,
     #[error("Cannot set epoch to a lower value")]
     CannotRewindEpoch,
+    #[error(transparent)]
+    Wasm(#[from] WasmExecutionError),
+}
+
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+#[derive(Debug, Error)]
+pub enum WasmExecutionError {
     #[cfg(feature = "wasmer")]
     #[error("Failed to load WASM module")]
-    LoadWasmModule(#[from] wit_bindgen_host_wasmer_rust::anyhow::Error),
+    LoadModule(#[from] wit_bindgen_host_wasmer_rust::anyhow::Error),
     #[cfg(feature = "wasmtime")]
     #[error("Failed to load WASM module")]
-    LoadWasmModule(#[from] wit_bindgen_host_wasmtime_rust::anyhow::Error),
+    LoadModule(#[from] wit_bindgen_host_wasmtime_rust::anyhow::Error),
     #[cfg(feature = "wasmer")]
     #[error("Failed to execute WASM module")]
-    ExecuteWasm(#[from] wasmer::RuntimeError),
+    ExecuteModule(#[from] wasmer::RuntimeError),
     #[cfg(feature = "wasmtime")]
     #[error("Failed to execute WASM module")]
-    ExecuteWasm(#[from] wasmtime::Trap),
+    ExecuteModule(#[from] wasmtime::Trap),
     #[error("Error reported from user application: {0}")]
     UserApplication(String),
 }

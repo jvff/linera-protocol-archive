@@ -53,9 +53,11 @@ impl UserApplication for WasmApplication {
         storage: &dyn WritableStorage,
         operation: &[u8],
     ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
-        self.prepare_runtime(storage)?
+        let result = self
+            .prepare_runtime(storage)?
             .execute_operation(context, operation)
-            .await
+            .await?;
+        Ok(result)
     }
 
     async fn execute_effect(
@@ -64,9 +66,11 @@ impl UserApplication for WasmApplication {
         storage: &dyn WritableStorage,
         effect: &[u8],
     ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
-        self.prepare_runtime(storage)?
+        let result = self
+            .prepare_runtime(storage)?
             .execute_effect(context, effect)
-            .await
+            .await?;
+        Ok(result)
     }
 
     async fn call_application(
@@ -76,9 +80,11 @@ impl UserApplication for WasmApplication {
         argument: &[u8],
         forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallResult, ExecutionError> {
-        self.prepare_runtime(storage)?
+        let result = self
+            .prepare_runtime(storage)?
             .call_application(context, argument, forwarded_sessions)
-            .await
+            .await?;
+        Ok(result)
     }
 
     async fn call_session(
@@ -90,7 +96,8 @@ impl UserApplication for WasmApplication {
         argument: &[u8],
         forwarded_sessions: Vec<SessionId>,
     ) -> Result<SessionCallResult, ExecutionError> {
-        self.prepare_runtime(storage)?
+        let result = self
+            .prepare_runtime(storage)?
             .call_session(
                 context,
                 session_kind,
@@ -98,7 +105,8 @@ impl UserApplication for WasmApplication {
                 argument,
                 forwarded_sessions,
             )
-            .await
+            .await?;
+        Ok(result)
     }
 
     async fn query_application(
@@ -112,7 +120,7 @@ impl UserApplication for WasmApplication {
         let result = self
             .prepare_runtime(storage_reference)?
             .query_application(context, argument)
-            .await;
-        result
+            .await?;
+        Ok(result)
     }
 }

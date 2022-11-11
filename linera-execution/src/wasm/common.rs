@@ -13,7 +13,8 @@ use super::{
 use crate::{
     system::Balance, ApplicationCallResult, ApplicationStateNotLocked, CallResult, CalleeContext,
     EffectContext, ExecutionError, OperationContext, QueryContext, QueryableStorage,
-    RawExecutionResult, ReadableStorage, SessionCallResult, SessionId, WritableStorage,
+    RawExecutionResult, ReadableStorage, SessionCallResult, SessionId, WasmExecutionError,
+    WritableStorage,
 };
 use async_trait::async_trait;
 use linera_base::messages::{ApplicationId, ChainId};
@@ -31,7 +32,7 @@ pub trait Runtime: Sized {
     type StorageGuard;
 
     /// The error emitted by the runtime when the application traps (panics).
-    type Error: Into<ExecutionError>;
+    type Error: Into<WasmExecutionError>;
 }
 
 /// Common interface to calling a user application in a WebAssembly module.
@@ -149,7 +150,7 @@ where
     ///     mut self,
     ///     context: &OperationContext,
     ///     operation: &[u8],
-    /// ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError>
+    /// ) -> Result<RawExecutionResult<Vec<u8>>, WasmExecutionError>
     /// ```
     pub fn execute_operation(
         mut self,
@@ -173,7 +174,7 @@ where
     ///     mut self,
     ///     context: &EffectContext,
     ///     effect: &[u8],
-    /// ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError>
+    /// ) -> Result<RawExecutionResult<Vec<u8>>, WasmExecutionError>
     /// ```
     pub fn execute_effect(
         mut self,
@@ -198,7 +199,7 @@ where
     ///     context: &CalleeContext,
     ///     argument: &[u8],
     ///     forwarded_sessions: Vec<SessionId>,
-    /// ) -> Result<ApplicationCallResult, ExecutionError>
+    /// ) -> Result<ApplicationCallResult, WasmExecutionError>
     /// ```
     pub fn call_application(
         mut self,
@@ -234,7 +235,7 @@ where
     ///     session_data: &mut Vec<u8>,
     ///     argument: &[u8],
     ///     forwarded_sessions: Vec<SessionId>,
-    /// ) -> Result<SessionCallResult, ExecutionError>
+    /// ) -> Result<SessionCallResult, WasmExecutionError>
     /// ```
     pub fn call_session(
         mut self,
@@ -275,7 +276,7 @@ where
     ///     mut self,
     ///     context: &QueryContext,
     ///     argument: &[u8],
-    /// ) -> Result<Vec<u8>, ExecutionError>
+    /// ) -> Result<Vec<u8>, WasmExecutionError>
     /// ```
     pub fn query_application(
         mut self,
@@ -361,7 +362,7 @@ macro_rules! impl_guest_future_interface {
             impl<'storage, R> GuestFutureInterface<R> for $future
             where
                 R: Runtime,
-                ExecutionError: From<R::Error>,
+                WasmExecutionError: From<R::Error>,
             {
                 type Output = $output;
 
@@ -369,11 +370,11 @@ macro_rules! impl_guest_future_interface {
                     &self,
                     application: &R::Application,
                     store: &mut R::Store,
-                ) -> Poll<Result<Self::Output, ExecutionError>> {
+                ) -> Poll<Result<Self::Output, WasmExecutionError>> {
                     match application.$poll_func(store, self)? {
                         $poll_type::Ready(Ok(result)) => Poll::Ready(Ok(result.into())),
                         $poll_type::Ready(Err(message)) => {
-                            Poll::Ready(Err(ExecutionError::UserApplication(message)))
+                            Poll::Ready(Err(WasmExecutionError::UserApplication(message)))
                         }
                         $poll_type::Pending => Poll::Pending,
                     }

@@ -18,7 +18,7 @@ use super::{
     common::{self, Runtime, WritableRuntimeContext},
     WasmApplication,
 };
-use crate::{ExecutionError, WritableStorage};
+use crate::{ExecutionError, WasmExecutionError, WritableStorage};
 use std::{marker::PhantomData, task::Poll};
 use wasmtime::{Engine, Linker, Module, Store, Trap};
 
@@ -42,7 +42,7 @@ impl WasmApplication {
     pub fn prepare_runtime<'storage>(
         &self,
         storage: &'storage dyn WritableStorage,
-    ) -> Result<WritableRuntimeContext<Wasmtime<'storage>>, ExecutionError> {
+    ) -> Result<WritableRuntimeContext<Wasmtime<'storage>>, WasmExecutionError> {
         let engine = Engine::default();
         let mut linker = Linker::new(&engine);
 

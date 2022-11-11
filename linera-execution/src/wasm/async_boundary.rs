@@ -5,7 +5,7 @@
 //! modules.
 
 use super::common::{self, WritableRuntimeContext};
-use crate::ExecutionError;
+use crate::WasmExecutionError;
 use futures::future::BoxFuture;
 use std::{
     any::type_name,
@@ -118,7 +118,7 @@ where
     Runtime::StorageGuard: Unpin,
     Runtime::Error: Unpin,
 {
-    type Output = Result<InnerFuture::Output, ExecutionError>;
+    type Output = Result<InnerFuture::Output, WasmExecutionError>;
 
     /// Poll the guest future.
     ///
@@ -150,12 +150,12 @@ where
 
     /// Poll the guest future to attempt to progress it.
     ///
-    /// May return an [`ExecutionError`] if the guest WASM module panics, for example.
+    /// May return an [`WasmExecutionError`] if the guest WASM module panics, for example.
     fn poll(
         &self,
         application: &Runtime::Application,
         store: &mut Runtime::Store,
-    ) -> Poll<Result<Self::Output, ExecutionError>>;
+    ) -> Poll<Result<Self::Output, WasmExecutionError>>;
 }
 
 /// A type to keep track of a [`std::task::Context`] so that it can be forwarded to any async code

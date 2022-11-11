@@ -14,7 +14,7 @@ use super::{
     common::{self, Runtime, WritableRuntimeContext},
     WasmApplication,
 };
-use crate::{ExecutionError, WritableStorage};
+use crate::{ExecutionError, WasmExecutionError, WritableStorage};
 use std::{marker::PhantomData, mem, sync::Arc, task::Poll};
 use tokio::sync::Mutex;
 use wasmer::{imports, Module, RuntimeError, Store};
@@ -39,7 +39,7 @@ impl WasmApplication {
     pub fn prepare_runtime<'storage>(
         &self,
         storage: &'storage dyn WritableStorage,
-    ) -> Result<WritableRuntimeContext<Wasmer<'storage>>, ExecutionError> {
+    ) -> Result<WritableRuntimeContext<Wasmer<'storage>>, WasmExecutionError> {
         let mut store = Store::default();
         let module = Module::new(&store, &self.bytecode)
             .map_err(wit_bindgen_host_wasmer_rust::anyhow::Error::from)?;
