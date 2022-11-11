@@ -86,7 +86,14 @@ pub enum ExecutionError {
     BalanceUnderflow,
     #[error("Cannot set epoch to a lower value")]
     CannotRewindEpoch,
+    #[error(transparent)]
+    Wasm(#[from] WasmExecutionError),
 }
+
+/// Errors that can occur when executing a user application in a WebAssembly module.
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+#[derive(Debug, Error)]
+pub enum WasmExecutionError {}
 
 impl From<ViewError> for ExecutionError {
     fn from(error: ViewError) -> Self {
