@@ -1605,6 +1605,7 @@ dependencies = [
  "dashmap",
  "futures",
  "linera-base",
+ "linera-execution",
  "linera-views",
  "log",
  "once_cell",
