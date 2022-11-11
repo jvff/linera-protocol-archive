@@ -90,6 +90,7 @@ pub enum ExecutionError {
     BalanceUnderflow,
     #[error("Cannot set epoch to a lower value")]
     CannotRewindEpoch,
+    #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
     #[error(transparent)]
     Wasm(#[from] WasmExecutionError),
 }
