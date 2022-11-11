@@ -44,6 +44,11 @@ pub struct Signature(dalek::Signature);
 pub enum CryptoError {
     #[error("Signature for object {type_name} is not valid: {error}")]
     InvalidSignature { error: String, type_name: String },
+    #[error(
+        "Byte slice has length {0} but a `HashValue` requires exactly {expected} bytes",
+        expected = <sha2::Sha512 as sha2::Digest>::OutputSize::to_usize(),
+    )]
+    IncorrectHashSize(usize),
 }
 
 impl PublicKey {
@@ -405,23 +410,16 @@ impl Signature {
 }
 
 impl TryFrom<&[u8]> for HashValue {
-    type Error = IncorrectHashSize;
+    type Error = CryptoError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         if bytes.len() == <sha2::Sha512 as sha2::Digest>::OutputSize::to_usize() {
             Ok(HashValue(*generic_array::GenericArray::from_slice(bytes)))
         } else {
-            Err(IncorrectHashSize(bytes.len()))
+            Err(CryptoError::IncorrectHashSize(bytes.len()))
         }
     }
 }
-
-#[derive(Clone, Copy, Debug, Error)]
-#[error(
-    "Byte slice has length {0} but a `HashValue` requires exactly {expected} bytes",
-    expected = <sha2::Sha512 as sha2::Digest>::OutputSize::to_usize(),
-)]
-pub struct IncorrectHashSize(usize);
 
 #[cfg(any(test, feature = "test"))]
 impl Arbitrary for HashValue {
