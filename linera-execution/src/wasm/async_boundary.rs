@@ -46,6 +46,11 @@ impl<'future, Output> HostFuture<'future, Output> {
     /// or if the context for a task other than the task used to call the WASM module code is
     /// provided, the call may panic or the future may not be scheduled to resume afterwards,
     /// leading the module to hang.
+    ///
+    /// # Panics
+    ///
+    /// If the `context` does not contain a valid exclusive task [`Context`] reference, or if this
+    /// future is polled concurrently in different tasks.
     pub fn poll(&self, context: &mut ContextForwarder) -> Poll<Output> {
         let mut context_reference = context
             .0
