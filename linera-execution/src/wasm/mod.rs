@@ -28,19 +28,20 @@ use crate::{
     UserApplication, WritableStorage,
 };
 use async_trait::async_trait;
-use std::path::PathBuf;
+use std::{io, path::Path};
+use tokio::fs;
 
 /// A user application in a compiled WebAssembly module.
 pub struct WasmApplication {
-    bytecode_file: PathBuf,
+    bytecode: Vec<u8>,
 }
 
 impl WasmApplication {
     /// Create a new [`WasmApplication`] using the WebAssembly module in `bytecode_file`.
-    pub fn new(bytecode_file: impl Into<PathBuf>) -> Self {
-        WasmApplication {
-            bytecode_file: bytecode_file.into(),
-        }
+    pub async fn from_file(bytecode_file: impl AsRef<Path>) -> Result<Self, io::Error> {
+        Ok(WasmApplication {
+            bytecode: fs::read(bytecode_file).await?,
+        })
     }
 }
 

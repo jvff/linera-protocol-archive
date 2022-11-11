@@ -48,7 +48,7 @@ impl WasmApplication {
 
         system::add_to_linker(&mut linker, Data::system_api)?;
 
-        let module = Module::from_file(&engine, &self.bytecode_file)?;
+        let module = Module::new(&engine, &self.bytecode)?;
         let context_forwarder = ContextForwarder::default();
         let data = Data::new(storage, context_forwarder.clone());
         let mut store = Store::new(&engine, data);

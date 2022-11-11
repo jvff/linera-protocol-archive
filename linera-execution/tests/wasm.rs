@@ -27,9 +27,12 @@ async fn test_counter_wasm_application() -> anyhow::Result<()> {
     let app_id = ApplicationId(1);
     view.context().extra().user_applications().insert(
         app_id,
-        Arc::new(WasmApplication::new(
-            "../target/wasm32-unknown-unknown/debug/examples/counter.wasm",
-        )),
+        Arc::new(
+            WasmApplication::from_file(
+                "../target/wasm32-unknown-unknown/debug/examples/counter.wasm",
+            )
+            .await?,
+        ),
     );
 
     let context = OperationContext {

@@ -41,8 +41,7 @@ impl WasmApplication {
         storage: &'storage dyn WritableStorage,
     ) -> Result<WritableRuntimeContext<Wasmer<'storage>>, ExecutionError> {
         let mut store = Store::default();
-        let module = Module::from_file(&store, &self.bytecode_file)
-            // TODO: Remove `map_err` if Wasmer issue #3267 is fixed
+        let module = Module::new(&store, &self.bytecode)
             .map_err(wit_bindgen_host_wasmer_rust::anyhow::Error::from)?;
         let mut imports = imports! {};
         let context_forwarder = ContextForwarder::default();
