@@ -161,8 +161,15 @@ impl SystemApi {
     /// Create a new [`SystemApi`] instance, ensuring that the lifetime of the [`WritableStorage`]
     /// trait object is respected.
     ///
-    /// The lifetime is guarded by the returned [`StorageGuard`] instance, which must be kept alive
-    /// while the trait object is still expected to be alive and usable by the WASM application.
+    /// # Safety
+    ///
+    /// This method uses a [`mem::transmute`] call to erase the lifetime of the `storage` trait
+    /// object reference. However, this is safe because the lifetime is transfered to the returned
+    /// [`StorageGuard`], which removes the unsafe reference from memory when it is dropped,
+    /// ensuring the lifetime is respected.
+    ///
+    /// The [`StorageGuard`] instance must be kept alive while the trait object is still expected to
+    /// be alive and usable by the WASM application.
     pub fn new(context: ContextForwarder, storage: &dyn WritableStorage) -> (Self, StorageGuard) {
         let storage_without_lifetime = unsafe { mem::transmute(storage) };
         let storage = Arc::new(Mutex::new(Some(storage_without_lifetime)));

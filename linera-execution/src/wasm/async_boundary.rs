@@ -179,6 +179,13 @@ pub struct ContextForwarder(Arc<Mutex<Option<&'static mut Context<'static>>>>);
 
 impl ContextForwarder {
     /// Forwards the task `context` into shared memory so that it can be obtained later.
+    ///
+    /// # Safety
+    ///
+    /// This method uses a [`mem::transmute`] call to erase the lifetime of the `context`
+    /// reference. However, this is safe because the lifetime is transfered to the returned
+    /// [`ActiveContextGuard`], which removes the unsafe reference from memory when it is dropped,
+    /// ensuring the lifetime is respected.
     pub fn forward<'context>(
         &mut self,
         context: &'context mut Context,
