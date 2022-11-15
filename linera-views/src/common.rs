@@ -172,9 +172,7 @@ where
     }
 
     fn derive_key_bytes(&self, index: &[u8]) -> Vec<u8> {
-        let mut key = self.base_key.clone();
-        key.extend_from_slice(index);
-        key
+        self.base_key.iter().chain(index).copied().collect()
     }
 
     async fn read_key<Item>(&self, key: &[u8]) -> Result<Option<Item>, Self::Error>
