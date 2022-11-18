@@ -6,7 +6,7 @@
 extern crate core;
 
 use async_trait::async_trait;
-use linera_base::messages::{ApplicationId, BlockHeight, ChainDescription, ChainId};
+use linera_base::messages::{ApplicationId, BlockHeight, ChainDescription, ChainId, EffectId};
 use linera_execution::*;
 use linera_views::{common::Context, memory::MemoryContext, views::View};
 use std::sync::Arc;
@@ -19,7 +19,7 @@ async fn test_missing_user_application() {
         ExecutionStateView::<MemoryContext<TestExecutionRuntimeContext>>::from_system_state(state)
             .await;
 
-    let app_id = ApplicationId(1);
+    let app_id = create_dummy_user_application_id();
 
     let context = OperationContext {
         chain_id: ChainId::root(0),
@@ -142,7 +142,7 @@ async fn test_simple_user_operation() {
     let mut view =
         ExecutionStateView::<MemoryContext<TestExecutionRuntimeContext>>::from_system_state(state)
             .await;
-    let app_id = ApplicationId(1);
+    let app_id = create_dummy_user_application_id();
     view.context()
         .extra()
         .user_applications()
@@ -184,7 +184,7 @@ async fn test_simple_user_operation_with_leaking_session() {
     let mut view =
         ExecutionStateView::<MemoryContext<TestExecutionRuntimeContext>>::from_system_state(state)
             .await;
-    let app_id = ApplicationId(1);
+    let app_id = create_dummy_user_application_id();
     view.context()
         .extra()
         .user_applications()
@@ -201,4 +201,21 @@ async fn test_simple_user_operation_with_leaking_session() {
         .await;
 
     assert!(matches!(result, Err(ExecutionError::SessionWasNotClosed)))
+}
+
+fn create_dummy_user_application_id() -> ApplicationId {
+    let chain_id = ChainId::root(1);
+    ApplicationId::User {
+        bytecode: EffectId {
+            chain_id,
+            height: BlockHeight(1),
+            index: 0,
+        }
+        .into(),
+        creation: EffectId {
+            chain_id,
+            height: BlockHeight(1),
+            index: 1,
+        },
+    }
 }

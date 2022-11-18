@@ -11,8 +11,8 @@ use linera_base::{
     crypto::HashValue,
     ensure,
     messages::{
-        ApplicationId, BytecodeId, BytecodeLocation, ChainDescription, ChainId, ChannelId,
-        Destination, EffectId, Epoch, Owner,
+        BytecodeId, BytecodeLocation, ChainDescription, ChainId, ChannelId, Destination, EffectId,
+        Epoch, Owner,
     },
 };
 use linera_views::{
@@ -153,9 +153,6 @@ pub struct SystemResponse {
     pub chain_id: ChainId,
     pub balance: Balance,
 }
-
-/// The id of the "system" application.
-pub static SYSTEM: ApplicationId = ApplicationId(0);
 
 /// The name of the channel for the admin chain to broadcast reconfigurations.
 pub const ADMIN_CHANNEL: &str = "ADMIN";

@@ -11,8 +11,8 @@ use linera_base::{
     messages::{ApplicationId, BlockHeight, ChainId, Destination, EffectId, Medium, Origin},
 };
 use linera_execution::{
-    system::SYSTEM, Effect, EffectContext, ExecutionResult, ExecutionRuntimeContext,
-    ExecutionStateView, ExecutionStateViewContext, OperationContext, RawExecutionResult,
+    Effect, EffectContext, ExecutionResult, ExecutionRuntimeContext, ExecutionStateView,
+    ExecutionStateViewContext, OperationContext, RawExecutionResult,
 };
 use linera_views::{
     collection_view::{CollectionOperations, CollectionView},
@@ -354,7 +354,7 @@ where
                 }
             }
             was_a_recipient = true;
-            if app_id == SYSTEM {
+            if let ApplicationId::System = app_id {
                 let effect_id = EffectId {
                     chain_id: origin.chain_id,
                     height,
@@ -600,7 +600,12 @@ where
             match result {
                 ExecutionResult::System(raw) => {
                     Self::process_raw_execution_result(
-                        SYSTEM, outboxes, channels, effects, height, raw,
+                        ApplicationId::System,
+                        outboxes,
+                        channels,
+                        effects,
+                        height,
+                        raw,
                     )
                     .await?;
                 }
