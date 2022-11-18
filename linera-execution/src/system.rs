@@ -8,9 +8,7 @@ use crate::{
 use linera_base::{
     committee::Committee,
     ensure,
-    messages::{
-        ApplicationId, ChainDescription, ChainId, ChannelId, Destination, EffectId, Epoch, Owner,
-    },
+    messages::{ChainDescription, ChainId, ChannelId, Destination, EffectId, Epoch, Owner},
 };
 use linera_views::{
     impl_view,
@@ -149,9 +147,6 @@ pub struct SystemResponse {
     pub chain_id: ChainId,
     pub balance: Balance,
 }
-
-/// The id of the "system" application.
-pub static SYSTEM: ApplicationId = ApplicationId(0);
 
 /// The name of the channel for the admin chain to broadcast reconfigurations.
 pub const ADMIN_CHANNEL: &str = "ADMIN";
