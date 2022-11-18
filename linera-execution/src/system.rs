@@ -10,11 +10,13 @@ use linera_base::{
     committee::Committee,
     ensure,
     messages::{
-        ApplicationId, ChainDescription, ChainId, ChannelId, Destination, EffectId, Epoch, Owner,
+        ApplicationId, BytecodeId, ChainDescription, ChainId, ChannelId, Destination, EffectId,
+        Epoch, Owner,
     },
 };
 use linera_views::{
     impl_view,
+    log_view::{LogOperations, LogView},
     map_view::{MapOperations, MapView},
     register_view::{RegisterOperations, RegisterView},
     scoped_view::ScopedView,
@@ -46,6 +48,8 @@ pub struct SystemExecutionStateView<C> {
     pub ownership: ScopedView<5, RegisterView<C, ChainOwnership>>,
     /// Balance of the chain.
     pub balance: ScopedView<6, RegisterView<C, Balance>>,
+    /// The application bytecodes that have been published.
+    pub published_bytecodes: ScopedView<7, LogView<C, BytecodeId>>,
 }
 
 /// For testing only.
@@ -190,6 +194,7 @@ impl_view!(
         committees,
         ownership,
         balance,
+        published_bytecodes,
     };
     RegisterOperations<Option<ChainDescription>>,
     RegisterOperations<Option<Epoch>>,
@@ -198,6 +203,7 @@ impl_view!(
     RegisterOperations<BTreeMap<Epoch, Committee>>,
     RegisterOperations<ChainOwnership>,
     RegisterOperations<Balance>,
+    LogOperations<BytecodeId>,
 );
 
 impl<C> SystemExecutionStateView<C>
@@ -530,6 +536,11 @@ where
                     unsubscribe: vec![(channel.name.clone(), *id)],
                 };
                 Ok(application)
+            }
+            BytecodePublished => {
+                let bytecode_id = context.effect_id.into();
+                self.published_bytecodes.push(bytecode_id);
+                Ok(RawExecutionResult::default())
             }
             Notify { .. } => Ok(RawExecutionResult::default()),
             OpenChain { .. } => {
