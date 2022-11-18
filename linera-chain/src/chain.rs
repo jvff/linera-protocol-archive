@@ -361,11 +361,12 @@ where
                     index,
                 };
                 // Handle special effects to be executed immediately.
-                if self
-                    .execution_state
-                    .system
-                    .apply_immediate_effect(chain_id, effect_id, &effect)
-                {
+                if self.execution_state.system.apply_immediate_effect(
+                    chain_id,
+                    effect_id,
+                    &effect,
+                    certificate_id,
+                ) {
                     // Recompute the state hash.
                     let hash = self.execution_state.hash_value().await?;
                     self.execution_state_hash.set(Some(hash));

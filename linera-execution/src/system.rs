@@ -8,9 +8,11 @@ use crate::{
 };
 use linera_base::{
     committee::Committee,
+    crypto::HashValue,
     ensure,
     messages::{
-        ApplicationId, ChainDescription, ChainId, ChannelId, Destination, EffectId, Epoch, Owner,
+        ApplicationId, BytecodeId, BytecodeLocation, ChainDescription, ChainId, ChannelId,
+        Destination, EffectId, Epoch, Owner,
     },
 };
 use linera_views::{
@@ -46,6 +48,8 @@ pub struct SystemExecutionStateView<C> {
     pub ownership: ScopedView<5, RegisterView<C, ChainOwnership>>,
     /// Balance of the chain.
     pub balance: ScopedView<6, RegisterView<C, Balance>>,
+    /// The application bytecodes that have been published.
+    pub published_bytecodes: ScopedView<7, MapView<C, BytecodeId, BytecodeLocation>>,
 }
 
 /// For testing only.
@@ -193,6 +197,7 @@ impl_view!(
         committees,
         ownership,
         balance,
+        published_bytecodes,
     };
     RegisterOperations<Option<ChainDescription>>,
     RegisterOperations<Option<Epoch>>,
@@ -201,6 +206,7 @@ impl_view!(
     RegisterOperations<BTreeMap<Epoch, Committee>>,
     RegisterOperations<ChainOwnership>,
     RegisterOperations<Balance>,
+    MapOperations<BytecodeId, BytecodeLocation>,
 );
 
 impl<C> SystemExecutionStateView<C>
@@ -534,6 +540,10 @@ where
                 };
                 Ok(application)
             }
+            BytecodePublished => {
+                // This special effect is executed immediately when cross-chain requests are received.
+                Ok(RawExecutionResult::default())
+            }
             Notify { .. } => Ok(RawExecutionResult::default()),
             OpenChain { .. } => {
                 // This special effect is executed immediately when cross-chain requests are received.
@@ -552,6 +562,7 @@ where
         this_chain_id: ChainId,
         effect_id: EffectId,
         effect: &Effect,
+        certificate_id: HashValue,
     ) -> bool {
         // Chain creation effects are special and executed (only) in this callback.
         // For simplicity, they will still appear in the received messages.
@@ -581,6 +592,16 @@ where
                     (),
                 );
                 self.ownership.set(ChainOwnership::single(*owner));
+                true
+            }
+            Effect::System(SystemEffect::BytecodePublished) => {
+                let bytecode_id = effect_id.into();
+                let bytecode_location = BytecodeLocation {
+                    certificate_id,
+                    operation_index: effect_id.index,
+                };
+                self.published_bytecodes
+                    .insert(bytecode_id, bytecode_location);
                 true
             }
             _ => false,
