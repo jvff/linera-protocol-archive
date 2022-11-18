@@ -125,6 +125,12 @@ impl Origin {
     }
 }
 
+impl From<EffectId> for BytecodeId {
+    fn from(effect_id: EffectId) -> Self {
+        BytecodeId(effect_id)
+    }
+}
+
 impl std::fmt::Display for BlockHeight {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
