@@ -8,7 +8,10 @@ use crate::{
 use linera_base::{
     crypto::HashValue,
     ensure,
-    messages::{ApplicationId, BlockHeight, ChainId, Destination, EffectId, Medium, Origin},
+    messages::{
+        ApplicationId, BlockHeight, BytecodeId, BytecodeLocation, ChainId, Destination, EffectId,
+        Medium, Origin,
+    },
 };
 use linera_execution::{
     system::{SystemEffect, SYSTEM},
@@ -51,6 +54,9 @@ pub struct ChainStateView<C> {
     /// Communication state of applications.
     pub communication_states:
         ScopedView<6, CollectionView<C, ApplicationId, CommunicationStateView<C>>>,
+
+    /// The application bytecodes that have been published.
+    pub published_bytecodes: ScopedView<7, MapView<C, BytecodeId, BytecodeLocation>>,
 }
 
 impl_view!(
@@ -62,6 +68,7 @@ impl_view!(
         confirmed_log,
         received_log,
         communication_states,
+        published_bytecodes,
     };
     RegisterOperations<Option<HashValue>>,
     RegisterOperations<ChainTipState>,
@@ -70,6 +77,7 @@ impl_view!(
     CollectionOperations<ApplicationId>,
     CommunicationStateViewContext,
     ExecutionStateViewContext,
+    MapOperations<BytecodeId, BytecodeLocation>,
 );
 
 /// Block-chaining state.
@@ -366,9 +374,11 @@ where
                     effect_id,
                     &effect,
                     chain_id,
+                    certificate_id,
                     &mut self.execution_state,
                     &mut self.execution_state_hash,
                     &mut self.manager,
+                    &mut self.published_bytecodes,
                 )
                 .await?;
             }
@@ -411,9 +421,11 @@ where
         effect_id: EffectId,
         effect: &Effect,
         chain_id: ChainId,
+        certificate_id: HashValue,
         execution_state: &mut ExecutionStateView<C>,
         execution_state_hash: &mut RegisterView<C, Option<HashValue>>,
         manager: &mut RegisterView<C, ChainManager>,
+        published_bytecodes: &mut MapView<C, BytecodeId, BytecodeLocation>,
     ) -> Result<(), ChainError> {
         match &effect {
             Effect::System(SystemEffect::OpenChain {
@@ -438,6 +450,14 @@ where
                 manager
                     .get_mut()
                     .reset(execution_state.system.ownership.get());
+            }
+            Effect::System(SystemEffect::BytecodePublished) => {
+                let bytecode_id = effect_id.into();
+                let bytecode_location = BytecodeLocation {
+                    certificate_id,
+                    operation_index: effect_id.index,
+                };
+                published_bytecodes.insert(bytecode_id, bytecode_location);
             }
             _ => {}
         }
