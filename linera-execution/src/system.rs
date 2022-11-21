@@ -537,7 +537,7 @@ where
                 };
                 Ok(application)
             }
-            BytecodePublished => {
+            PublishBytecode => {
                 let bytecode_id = context.effect_id.into();
                 self.published_bytecodes.push(bytecode_id);
                 Ok(RawExecutionResult::default())
