@@ -25,6 +25,14 @@ pub struct ApplicationId(pub u64);
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct BytecodeId(EffectId);
 
+/// A reference to where the application bytecode is stored.
+pub struct BytecodeLocation {
+    /// The certificate that published the bytecode.
+    certificate: HashValue,
+    /// The index of the operation in the certificate that published the bytecode.
+    operation_index: usize,
+}
+
 /// A block height to identify blocks in a chain.
 #[derive(
     Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Default, Debug, Serialize, Deserialize,
