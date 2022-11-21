@@ -135,7 +135,7 @@ pub enum SystemEffect {
     /// Unsubscribe to a channel.
     Unsubscribe { id: ChainId, channel: ChannelId },
     /// Notify that a new application bytecode was published.
-    BytecodePublished,
+    PublishBytecode,
     /// Does nothing. Used to debug the intended recipients of a block.
     Notify { id: ChainId },
 }
@@ -472,7 +472,7 @@ where
                 let application = RawExecutionResult {
                     effects: vec![(
                         Destination::Subscribers(PUBLISHED_BYTECODES_CHANNEL.into()),
-                        SystemEffect::BytecodePublished,
+                        SystemEffect::PublishBytecode,
                     )],
                     subscribe: vec![],
                     unsubscribe: vec![],
