@@ -499,5 +499,3 @@ pub struct ApplicationStateNotLocked;
 /// A WebAssembly module's bytecode.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct Bytecode(Vec<u8>);
-
-impl linera_base::crypto::BcsSignable for Bytecode {}
