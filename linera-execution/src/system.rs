@@ -3,16 +3,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    Bytecode, ChainOwnership, Effect, EffectContext, ExecutionError, OperationContext,
-    QueryContext, RawExecutionResult,
+    Bytecode, ChainOwnership, EffectContext, ExecutionError, OperationContext, QueryContext,
+    RawExecutionResult,
 };
 use linera_base::{
     committee::Committee,
-    crypto::HashValue,
     ensure,
     messages::{
-        ApplicationId, BytecodeId, BytecodeLocation, ChainDescription, ChainId, ChannelId,
-        Destination, EffectId, Epoch, Owner,
+        ApplicationId, ChainDescription, ChainId, ChannelId, Destination, EffectId, Epoch, Owner,
     },
 };
 use linera_views::{
@@ -48,8 +46,6 @@ pub struct SystemExecutionStateView<C> {
     pub ownership: ScopedView<5, RegisterView<C, ChainOwnership>>,
     /// Balance of the chain.
     pub balance: ScopedView<6, RegisterView<C, Balance>>,
-    /// The application bytecodes that have been published.
-    pub published_bytecodes: ScopedView<7, MapView<C, BytecodeId, BytecodeLocation>>,
 }
 
 /// For testing only.
@@ -197,7 +193,6 @@ impl_view!(
         committees,
         ownership,
         balance,
-        published_bytecodes,
     };
     RegisterOperations<Option<ChainDescription>>,
     RegisterOperations<Option<Epoch>>,
@@ -206,7 +201,6 @@ impl_view!(
     RegisterOperations<BTreeMap<Epoch, Committee>>,
     RegisterOperations<ChainOwnership>,
     RegisterOperations<Balance>,
-    MapOperations<BytecodeId, BytecodeLocation>,
 );
 
 impl<C> SystemExecutionStateView<C>
@@ -553,31 +547,6 @@ where
                 log::error!("Skipping unexpected received effect: {effect:?}");
                 Ok(RawExecutionResult::default())
             }
-        }
-    }
-
-    /// Execute certain effects immediately upon receiving a message.
-    pub fn apply_immediate_effect(
-        &mut self,
-        _this_chain_id: ChainId,
-        effect_id: EffectId,
-        effect: &Effect,
-        certificate_id: HashValue,
-    ) -> bool {
-        // Chain creation effects are special and executed (only) in this callback.
-        // For simplicity, they will still appear in the received messages.
-        match &effect {
-            Effect::System(SystemEffect::BytecodePublished) => {
-                let bytecode_id = effect_id.into();
-                let bytecode_location = BytecodeLocation {
-                    certificate_id,
-                    operation_index: effect_id.index,
-                };
-                self.published_bytecodes
-                    .insert(bytecode_id, bytecode_location);
-                true
-            }
-            _ => false,
         }
     }
 
