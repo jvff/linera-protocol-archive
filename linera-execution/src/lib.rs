@@ -20,7 +20,9 @@ pub use wasm::WasmApplication;
 
 use async_trait::async_trait;
 use dashmap::DashMap;
-use linera_base::messages::{ApplicationId, BlockHeight, ChainId, Destination, EffectId, Epoch};
+use linera_base::messages::{
+    ApplicationId, ApplicationRef, BlockHeight, ChainId, Destination, EffectId, Epoch,
+};
 use linera_views::views::ViewError;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -216,11 +218,11 @@ pub trait ExecutionRuntimeContext {
 
     fn get_user_application(
         &self,
-        application_id: ApplicationId,
+        application: &ApplicationRef,
     ) -> Result<UserApplicationCode, ExecutionError> {
         Ok(self
             .user_applications()
-            .get(&application_id)
+            .get(&application.into())
             .ok_or(ExecutionError::UnknownApplication)?
             .clone())
     }

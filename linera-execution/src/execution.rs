@@ -9,7 +9,7 @@ use crate::{
 };
 use linera_base::{
     ensure,
-    messages::{ApplicationId, ChainId},
+    messages::{ApplicationId, ApplicationRef, ChainId},
 };
 use linera_views::{
     collection_view::{CollectionOperations, ReentrantCollectionView},
@@ -91,7 +91,7 @@ where
 {
     async fn run_user_action(
         &mut self,
-        application_id: ApplicationId,
+        application_ref: &ApplicationRef,
         chain_id: ChainId,
         action: UserAction<'_>,
     ) -> Result<Vec<ExecutionResult>, ExecutionError> {
@@ -99,7 +99,8 @@ where
         let application = self
             .context()
             .extra()
-            .get_user_application(application_id)?;
+            .get_user_application(application_ref)?;
+        let application_id = ApplicationId::from(application_ref);
         // Create the execution runtime for this transaction.
         let mut session_manager = SessionManager::default();
         let mut results = Vec::new();
@@ -137,12 +138,12 @@ where
 
     pub async fn execute_operation(
         &mut self,
-        application_id: ApplicationId,
+        application_ref: &ApplicationRef,
         context: &OperationContext,
         operation: &Operation,
     ) -> Result<Vec<ExecutionResult>, ExecutionError> {
         assert_eq!(context.chain_id, self.context().extra().chain_id());
-        if let ApplicationId::System = application_id {
+        if let ApplicationRef::System = application_ref {
             match operation {
                 Operation::System(op) => {
                     let result = self.system.execute_operation(context, op).await?;
@@ -155,7 +156,7 @@ where
                 Operation::System(_) => Err(ExecutionError::InvalidOperation),
                 Operation::User(operation) => {
                     self.run_user_action(
-                        application_id,
+                        application_ref,
                         context.chain_id,
                         UserAction::Operation(context, operation),
                     )
@@ -167,12 +168,12 @@ where
 
     pub async fn execute_effect(
         &mut self,
-        application_id: ApplicationId,
+        application_ref: &ApplicationRef,
         context: &EffectContext,
         effect: &Effect,
     ) -> Result<Vec<ExecutionResult>, ExecutionError> {
         assert_eq!(context.chain_id, self.context().extra().chain_id());
-        if let ApplicationId::System = application_id {
+        if let ApplicationRef::System = application_ref {
             match effect {
                 Effect::System(effect) => {
                     let result = self.system.execute_effect(context, effect)?;
@@ -185,7 +186,7 @@ where
                 Effect::System(_) => Err(ExecutionError::InvalidEffect),
                 Effect::User(effect) => {
                     self.run_user_action(
-                        application_id,
+                        application_ref,
                         context.chain_id,
                         UserAction::Effect(context, effect),
                     )
@@ -197,12 +198,12 @@ where
 
     pub async fn query_application(
         &mut self,
-        application_id: ApplicationId,
+        application_ref: &ApplicationRef,
         context: &QueryContext,
         query: &Query,
     ) -> Result<Response, ExecutionError> {
         assert_eq!(context.chain_id, self.context().extra().chain_id());
-        if let ApplicationId::System = application_id {
+        if let ApplicationRef::System = application_ref {
             match query {
                 Query::System(query) => {
                     let response = self.system.query_application(context, query).await?;
@@ -218,7 +219,8 @@ where
                     let application = self
                         .context()
                         .extra()
-                        .get_user_application(application_id)?;
+                        .get_user_application(application_ref)?;
+                    let application_id = ApplicationId::from(application_ref);
                     // Create the execution runtime for this transaction.
                     let mut session_manager = SessionManager::default();
                     let mut results = Vec::new();
