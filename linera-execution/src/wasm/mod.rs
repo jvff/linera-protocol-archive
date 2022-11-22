@@ -37,6 +37,11 @@ pub struct WasmApplication {
 }
 
 impl WasmApplication {
+    /// Create a new [`WasmApplication`] using the WebAssembly module with the provided `bytecode`.
+    pub fn new(bytecode: Bytecode) -> Self {
+        WasmApplication { bytecode }
+    }
+
     /// Create a new [`WasmApplication`] using the WebAssembly module in `bytecode_file`.
     pub async fn from_file(bytecode_file: impl AsRef<Path>) -> Result<Self, io::Error> {
         Ok(WasmApplication {

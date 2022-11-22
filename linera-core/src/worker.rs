@@ -7,12 +7,13 @@ use async_trait::async_trait;
 use linera_base::{
     crypto::{HashValue, KeyPair},
     ensure,
-    messages::{ApplicationId, BlockHeight, ChainId, Epoch, Medium, Origin},
+    messages::{ApplicationId, BlockHeight, BytecodeLocation, ChainId, Epoch, Medium, Origin},
 };
 use linera_chain::{
     messages::{Block, BlockProposal, Certificate, MessageGroup, Value},
     ChainManagerOutcome, ChainStateView,
 };
+use linera_execution::{Bytecode, Operation, SystemOperation};
 use linera_storage::Store;
 use linera_views::{
     log_view::LogView,
@@ -160,10 +161,35 @@ where
         block: &Block,
     ) -> Result<ChainInfoResponse, WorkerError> {
         let mut chain = self.storage.load_active_chain(block.chain_id).await?;
-        chain.execute_block(block).await?;
+        chain
+            .execute_block(block /* |location| self.fetch_bytecode(location)*/)
+            .await?;
         let info = ChainInfoResponse::new(&chain, None);
         // Do not save the new state.
         Ok(info)
+    }
+
+    async fn fetch_bytecode(
+        &self,
+        location: BytecodeLocation,
+    ) -> Result<Option<Bytecode>, ViewError> {
+        let certificate = self
+            .storage
+            .read_certificate(location.certificate_id)
+            .await?;
+        let maybe_publish_operation = certificate
+            .value
+            .block()
+            .operations
+            .get(location.operation_index);
+
+        match maybe_publish_operation {
+            Some((
+                ApplicationId::System,
+                Operation::System(SystemOperation::PublishBytecode { contract, .. }),
+            )) => Ok(Some(contract.clone())),
+            _ => Ok(None),
+        }
     }
 
     /// Get a reference to the [`KeyPair`], if available.
@@ -308,7 +334,9 @@ where
         // Persist certificate.
         self.storage.write_certificate(certificate.clone()).await?;
         // Execute the block.
-        let verified_effects = chain.execute_block(block).await?;
+        let verified_effects = chain
+            .execute_block(block /*, |location| self.fetch_bytecode(location)*/)
+            .await?;
         ensure!(effects == verified_effects, WorkerError::IncorrectEffects);
         // Advance to next block height.
         let tip = chain.tip_state.get_mut();
@@ -438,7 +466,13 @@ where
             return Ok(ChainInfoResponse::new(&chain, self.key_pair()));
         }
         let (effects, state_hash) = {
-            let effects = chain.execute_block(&proposal.content.block).await?;
+            let effects = chain
+                .execute_block(
+                    &proposal.content.block, /* |location| {
+                                                 self.fetch_bytecode(location)
+                                             }*/
+                )
+                .await?;
             let hash = chain.execution_state_hash.get().expect("was just computed");
             // Verify that the resulting chain would have no unconfirmed incoming
             // messages.

@@ -11,8 +11,8 @@ use linera_base::{
     crypto::HashValue,
     ensure,
     messages::{
-        BytecodeId, BytecodeLocation, ChainDescription, ChainId, ChannelId, Destination, EffectId,
-        Epoch, Owner,
+        ApplicationId, BytecodeId, BytecodeLocation, ChainDescription, ChainId, ChannelId,
+        Destination, EffectId, Epoch, Owner,
     },
 };
 use linera_views::{
@@ -111,6 +111,11 @@ pub enum SystemOperation {
     PublishBytecode {
         contract: Bytecode,
         service: Bytecode,
+    },
+    /// Create a new application.
+    NewApplication {
+        bytecode: BytecodeId,
+        argument: Vec<u8>,
     },
 }
 
@@ -229,8 +234,16 @@ where
         &mut self,
         context: &OperationContext,
         operation: &SystemOperation,
-    ) -> Result<RawExecutionResult<SystemEffect>, ExecutionError> {
+    ) -> Result<
+        (
+            RawExecutionResult<SystemEffect>,
+            Option<(ApplicationId, Vec<u8>)>,
+        ),
+        ExecutionError,
+    > {
         use SystemOperation::*;
+        let mut result = RawExecutionResult::default();
+        let mut new_application = None;
         match operation {
             OpenChain {
                 id,
@@ -276,21 +289,14 @@ where
                         },
                     },
                 );
-                let application = RawExecutionResult {
-                    effects: vec![e1, e2],
-                    subscribe: vec![],
-                    unsubscribe: vec![],
-                };
-                Ok(application)
+                result.effects = vec![e1, e2];
             }
             ChangeOwner { new_owner } => {
                 self.ownership.set(ChainOwnership::single(*new_owner));
-                Ok(RawExecutionResult::default())
             }
             ChangeMultipleOwners { new_owners } => {
                 self.ownership
                     .set(ChainOwnership::multiple(new_owners.clone()));
-                Ok(RawExecutionResult::default())
             }
             CloseChain => {
                 self.ownership.set(ChainOwnership::default());
@@ -308,12 +314,7 @@ where
                     })
                     .await?;
                 self.subscriptions.clear();
-                let application = RawExecutionResult {
-                    effects,
-                    subscribe: vec![],
-                    unsubscribe: vec![],
-                };
-                Ok(application)
+                result.effects = effects;
             }
             Transfer {
                 amount, recipient, ..
@@ -329,21 +330,15 @@ where
                     }
                 );
                 self.balance.get_mut().try_sub_assign((*amount).into())?;
-                let application = match recipient {
-                    Address::Burn => RawExecutionResult::default(),
-                    Address::Account(id) => RawExecutionResult {
-                        effects: vec![(
-                            Destination::Recipient(*id),
-                            SystemEffect::Credit {
-                                amount: *amount,
-                                recipient: *id,
-                            },
-                        )],
-                        subscribe: vec![],
-                        unsubscribe: vec![],
-                    },
-                };
-                Ok(application)
+                if let Address::Account(id) = recipient {
+                    result.effects = vec![(
+                        Destination::Recipient(*id),
+                        SystemEffect::Credit {
+                            amount: *amount,
+                            recipient: *id,
+                        },
+                    )];
+                }
             }
             CreateCommittee {
                 admin_id,
@@ -365,19 +360,14 @@ where
                 );
                 self.committees.get_mut().insert(*epoch, committee.clone());
                 self.epoch.set(Some(*epoch));
-                let application = RawExecutionResult {
-                    effects: vec![(
-                        Destination::Subscribers(ADMIN_CHANNEL.into()),
-                        SystemEffect::SetCommittees {
-                            admin_id: *admin_id,
-                            epoch: self.epoch.get().expect("chain is active"),
-                            committees: self.committees.get().clone(),
-                        },
-                    )],
-                    subscribe: vec![],
-                    unsubscribe: vec![],
-                };
-                Ok(application)
+                result.effects = vec![(
+                    Destination::Subscribers(ADMIN_CHANNEL.into()),
+                    SystemEffect::SetCommittees {
+                        admin_id: *admin_id,
+                        epoch: self.epoch.get().expect("chain is active"),
+                        committees: self.committees.get().clone(),
+                    },
+                )];
             }
             RemoveCommittee { admin_id, epoch } => {
                 // We are the admin chain and want to remove a committee.
@@ -393,19 +383,14 @@ where
                     self.committees.get_mut().remove(epoch).is_some(),
                     ExecutionError::InvalidCommitteeRemoval
                 );
-                let application = RawExecutionResult {
-                    effects: vec![(
-                        Destination::Subscribers(ADMIN_CHANNEL.into()),
-                        SystemEffect::SetCommittees {
-                            admin_id: *admin_id,
-                            epoch: self.epoch.get().expect("chain is active"),
-                            committees: self.committees.get().clone(),
-                        },
-                    )],
-                    subscribe: vec![],
-                    unsubscribe: vec![],
-                };
-                Ok(application)
+                result.effects = vec![(
+                    Destination::Subscribers(ADMIN_CHANNEL.into()),
+                    SystemEffect::SetCommittees {
+                        admin_id: *admin_id,
+                        epoch: self.epoch.get().expect("chain is active"),
+                        committees: self.committees.get().clone(),
+                    },
+                )];
             }
             SubscribeToNewCommittees { admin_id } => {
                 // We should not subscribe to ourself in this case.
@@ -426,21 +411,16 @@ where
                     ExecutionError::InvalidSubscriptionToNewCommittees(context.chain_id)
                 );
                 self.subscriptions.insert(channel_id, ());
-                let application = RawExecutionResult {
-                    effects: vec![(
-                        Destination::Recipient(*admin_id),
-                        SystemEffect::Subscribe {
-                            id: context.chain_id,
-                            channel: ChannelId {
-                                chain_id: *admin_id,
-                                name: ADMIN_CHANNEL.into(),
-                            },
+                result.effects = vec![(
+                    Destination::Recipient(*admin_id),
+                    SystemEffect::Subscribe {
+                        id: context.chain_id,
+                        channel: ChannelId {
+                            chain_id: *admin_id,
+                            name: ADMIN_CHANNEL.into(),
                         },
-                    )],
-                    subscribe: vec![],
-                    unsubscribe: vec![],
-                };
-                Ok(application)
+                    },
+                )];
             }
             UnsubscribeToNewCommittees { admin_id } => {
                 let channel_id = ChannelId {
@@ -452,34 +432,35 @@ where
                     ExecutionError::InvalidUnsubscriptionToNewCommittees(context.chain_id)
                 );
                 self.subscriptions.remove(channel_id);
-                let application = RawExecutionResult {
-                    effects: vec![(
-                        Destination::Recipient(*admin_id),
-                        SystemEffect::Unsubscribe {
-                            id: context.chain_id,
-                            channel: ChannelId {
-                                chain_id: *admin_id,
-                                name: ADMIN_CHANNEL.into(),
-                            },
+                result.effects = vec![(
+                    Destination::Recipient(*admin_id),
+                    SystemEffect::Unsubscribe {
+                        id: context.chain_id,
+                        channel: ChannelId {
+                            chain_id: *admin_id,
+                            name: ADMIN_CHANNEL.into(),
                         },
-                    )],
-                    subscribe: vec![],
-                    unsubscribe: vec![],
-                };
-                Ok(application)
+                    },
+                )];
             }
             PublishBytecode { .. } => {
-                let application = RawExecutionResult {
-                    effects: vec![(
-                        Destination::Subscribers(PUBLISHED_BYTECODES_CHANNEL.into()),
-                        SystemEffect::BytecodePublished,
-                    )],
-                    subscribe: vec![],
-                    unsubscribe: vec![],
-                };
-                Ok(application)
+                result.effects = vec![(
+                    Destination::Subscribers(PUBLISHED_BYTECODES_CHANNEL.into()),
+                    SystemEffect::BytecodePublished,
+                )];
+            }
+            NewApplication { bytecode, argument } => {
+                new_application = Some((
+                    ApplicationId::User {
+                        bytecode: *bytecode,
+                        creation: (*context).into(),
+                    },
+                    argument.clone(),
+                ));
             }
         }
+
+        Ok((result, new_application))
     }
 
     /// Execute the recipient's side of an operation, aka a "remote effect".

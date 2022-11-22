@@ -36,6 +36,8 @@ pub enum ExecutionError {
     #[error("Error in view operation: {0}")]
     ViewError(ViewError),
 
+    #[error("Attempt to create an application using an unknown bytecode")]
+    UnknownBytecode,
     #[error("Unknown application")]
     UnknownApplication,
     #[error("A session is still opened at the end of a transaction")]
@@ -127,6 +129,14 @@ impl From<ViewError> for ExecutionError {
 /// The public entry points provided by an application.
 #[async_trait]
 pub trait UserApplication {
+    /// Initialize the application state on the chain that owns the application.
+    async fn initialize(
+        &self,
+        context: &OperationContext,
+        storage: &dyn WritableStorage,
+        argument: &[u8],
+    ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError>;
+
     /// Apply an operation from the current block.
     async fn execute_operation(
         &self,
