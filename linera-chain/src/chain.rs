@@ -416,6 +416,7 @@ where
         Ok(true)
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn execute_immediate_effect(
         effect_id: EffectId,
         effect: &Effect,
