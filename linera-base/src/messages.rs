@@ -27,6 +27,24 @@ pub enum ApplicationId {
     },
 }
 
+/// Description of the necessary information to run a user application.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum ApplicationDescription {
+    /// A special reference to the system application.
+    System,
+    /// A reference to a user application.
+    User {
+        /// The unique ID of the bytecode to use for the application.
+        bytecode_id: BytecodeId,
+        /// The location of the bytecode to use for the application.
+        bytecode: BytecodeLocation,
+        /// The unique ID of the application's creation.
+        creation: EffectId,
+        /// The argument used during application initialization.
+        initialization_argument: Vec<u8>,
+    },
+}
+
 /// A unique identifier for an application bytecode.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct BytecodeId(pub EffectId);
@@ -122,6 +140,22 @@ pub enum Destination {
     Recipient(ChainId),
     /// Broadcast to the current subscribers of our channel.
     Subscribers(String),
+}
+
+impl From<&ApplicationDescription> for ApplicationId {
+    fn from(reference: &ApplicationDescription) -> Self {
+        match reference {
+            ApplicationDescription::System => ApplicationId::System,
+            ApplicationDescription::User {
+                bytecode_id,
+                creation,
+                ..
+            } => ApplicationId::User {
+                bytecode: *bytecode_id,
+                creation: *creation,
+            },
+        }
+    }
 }
 
 impl Origin {
