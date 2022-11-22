@@ -10,7 +10,7 @@ use crate::{
 };
 use linera_base::{
     ensure,
-    messages::{ApplicationId, ChainId},
+    messages::{ApplicationDescription, ApplicationId, ChainId},
 };
 use linera_views::{
     collection_view::{CollectionOperations, ReentrantCollectionView},
@@ -93,11 +93,12 @@ where
 {
     async fn run_user_action(
         &mut self,
-        application_id: ApplicationId,
+        application: &ApplicationDescription,
         chain_id: ChainId,
         action: UserAction<'_>,
     ) -> Result<Vec<ExecutionResult>, ExecutionError> {
         // Load the application.
+        let application_id = ApplicationId::from(application);
         let application = self
             .context()
             .extra()
@@ -142,13 +143,13 @@ where
 
     pub async fn execute_operation(
         &mut self,
-        application_id: ApplicationId,
+        application: &ApplicationDescription,
         context: &OperationContext,
         operation: &Operation,
         applications: &mut ApplicationRegistryView<C>,
     ) -> Result<Vec<ExecutionResult>, ExecutionError> {
         assert_eq!(context.chain_id, self.context().extra().chain_id());
-        if let ApplicationId::System = application_id {
+        if let ApplicationDescription::System = application {
             match operation {
                 Operation::System(op) => {
                     let result = self.system.execute_operation(context, op).await?;
@@ -166,7 +167,7 @@ where
                 Operation::System(_) => Err(ExecutionError::InvalidOperation),
                 Operation::User(operation) => {
                     self.run_user_action(
-                        application_id,
+                        application,
                         context.chain_id,
                         UserAction::Operation(context, operation),
                     )
@@ -195,7 +196,7 @@ where
                 .register_new_application(new_application.clone())
                 .await?;
             let results = self
-                .run_user_action(new_application.id, context.chain_id, user_action)
+                .run_user_action(&application, context.chain_id, user_action)
                 .await?;
             Ok(results)
         } else {
@@ -205,12 +206,12 @@ where
 
     pub async fn execute_effect(
         &mut self,
-        application_id: ApplicationId,
+        application: &ApplicationDescription,
         context: &EffectContext,
         effect: &Effect,
     ) -> Result<Vec<ExecutionResult>, ExecutionError> {
         assert_eq!(context.chain_id, self.context().extra().chain_id());
-        if let ApplicationId::System = application_id {
+        if let ApplicationDescription::System = application {
             match effect {
                 Effect::System(effect) => {
                     let result = self.system.execute_effect(context, effect)?;
@@ -226,7 +227,7 @@ where
                 Effect::System(_) => Err(ExecutionError::InvalidEffect),
                 Effect::User(effect) => {
                     self.run_user_action(
-                        application_id,
+                        application,
                         context.chain_id,
                         UserAction::Effect(context, effect),
                     )
@@ -238,12 +239,12 @@ where
 
     pub async fn query_application(
         &mut self,
-        application_id: ApplicationId,
+        application: &ApplicationDescription,
         context: &QueryContext,
         query: &Query,
     ) -> Result<Response, ExecutionError> {
         assert_eq!(context.chain_id, self.context().extra().chain_id());
-        if let ApplicationId::System = application_id {
+        if let ApplicationDescription::System = application {
             match query {
                 Query::System(query) => {
                     let response = self.system.query_application(context, query).await?;
@@ -256,10 +257,11 @@ where
                 Query::System(_) => Err(ExecutionError::InvalidQuery),
                 Query::User(query) => {
                     // Load the application.
+                    let application_id = ApplicationId::from(application);
                     let application = self
                         .context()
                         .extra()
-                        .get_user_application(application_id)?;
+                        .get_user_application(application.into())?;
                     // Create the execution runtime for this transaction.
                     let mut session_manager = SessionManager::default();
                     let mut results = Vec::new();
