@@ -29,7 +29,7 @@ pub struct BytecodeId(EffectId);
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub struct BytecodeLocation {
     /// The certificate that published the bytecode.
-    pub certificate_id: HashValue,
+    pub certificate_hash: HashValue,
     /// The index in the certificate of the operation that published the bytecode.
     pub operation_index: usize,
 }
