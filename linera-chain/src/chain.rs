@@ -370,7 +370,7 @@ where
                     height,
                     index,
                 };
-                self.execute_immediate_effect(effect_id, &effect, chain_id, certificate_id)
+                self.execute_immediate_effect(effect_id, &effect, chain_id, certificate_hash)
                     .await?;
             }
             let communication_state = self.communication_states.load_entry(application_id).await?;
@@ -417,7 +417,7 @@ where
         effect_id: EffectId,
         effect: &Effect,
         chain_id: ChainId,
-        certificate_id: HashValue,
+        certificate_hash: HashValue,
     ) -> Result<(), ChainError> {
         match &effect {
             Effect::System(SystemEffect::OpenChain {
@@ -446,7 +446,7 @@ where
             Effect::System(SystemEffect::BytecodePublished) => {
                 let bytecode_id = effect_id.into();
                 let bytecode_location = BytecodeLocation {
-                    certificate_id,
+                    certificate_hash,
                     operation_index: effect_id.index,
                 };
                 self.published_bytecodes
