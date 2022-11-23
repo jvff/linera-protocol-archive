@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    Bytecode, ChainOwnership, EffectContext, OperationContext, QueryContext, RawExecutionResult,
+    Bytecode, ChainOwnership, EffectContext, ExecutionResult, OperationContext, QueryContext,
+    RawExecutionResult,
 };
 use linera_base::{
     committee::Committee,
@@ -262,7 +263,7 @@ where
         &mut self,
         context: &OperationContext,
         operation: &SystemOperation,
-    ) -> Result<RawExecutionResult<SystemEffect>, SystemExecutionError> {
+    ) -> Result<ExecutionResult, SystemExecutionError> {
         use SystemOperation::*;
         let mut result = RawExecutionResult::default();
         match operation {
@@ -475,7 +476,7 @@ where
             }
         }
 
-        Ok(result)
+        Ok(ExecutionResult::System(result))
     }
 
     /// Execute the recipient's side of an operation, aka a "remote effect".
