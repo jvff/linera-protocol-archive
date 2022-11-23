@@ -370,18 +370,14 @@ where
                     height,
                     index,
                 };
-                Self::execute_immediate_effect(
-                    effect_id,
-                    &effect,
-                    chain_id,
-                    certificate_id,
-                    &mut self.execution_state,
-                    &mut self.execution_state_hash,
-                    &mut self.manager,
-                    &mut self.published_bytecodes,
-                )
-                .await?;
+                self.execute_immediate_effect(effect_id, &effect, chain_id, certificate_id)
+                    .await?;
             }
+            let communication_state = self.communication_states.load_entry(application_id).await?;
+            let inbox = communication_state
+                .inboxes
+                .load_entry(origin.clone())
+                .await?;
             // Find if the message was executed ahead of time.
             match inbox.expected_events.front().await? {
                 Some(event) => {
@@ -416,16 +412,12 @@ where
         Ok(true)
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn execute_immediate_effect(
+        &mut self,
         effect_id: EffectId,
         effect: &Effect,
         chain_id: ChainId,
         certificate_id: HashValue,
-        execution_state: &mut ExecutionStateView<C>,
-        execution_state_hash: &mut RegisterView<C, Option<HashValue>>,
-        manager: &mut RegisterView<C, ChainManager>,
-        published_bytecodes: &mut MapView<C, BytecodeId, BytecodeLocation>,
     ) -> Result<(), ChainError> {
         match &effect {
             Effect::System(SystemEffect::OpenChain {
@@ -435,7 +427,7 @@ where
                 committees,
                 admin_id,
             }) if id == &chain_id => {
-                execution_state.system.open_chain(
+                self.execution_state.system.open_chain(
                     effect_id,
                     *id,
                     *owner,
@@ -444,12 +436,12 @@ where
                     *admin_id,
                 );
                 // Recompute the state hash.
-                let hash = execution_state.hash_value().await?;
-                execution_state_hash.set(Some(hash));
+                let hash = self.execution_state.hash_value().await?;
+                self.execution_state_hash.set(Some(hash));
                 // Last, reset the consensus state based on the current ownership.
-                manager
+                self.manager
                     .get_mut()
-                    .reset(execution_state.system.ownership.get());
+                    .reset(self.execution_state.system.ownership.get());
             }
             Effect::System(SystemEffect::BytecodePublished) => {
                 let bytecode_id = effect_id.into();
@@ -457,7 +449,8 @@ where
                     certificate_id,
                     operation_index: effect_id.index,
                 };
-                published_bytecodes.insert(bytecode_id, bytecode_location);
+                self.published_bytecodes
+                    .insert(bytecode_id, bytecode_location);
             }
             _ => {}
         }
