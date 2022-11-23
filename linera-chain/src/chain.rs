@@ -313,7 +313,7 @@ where
         origin: &Origin,
         height: BlockHeight,
         effects: Vec<(ApplicationId, Destination, Effect)>,
-        certificate_id: HashValue,
+        certificate_hash: HashValue,
     ) -> Result<bool, ChainError> {
         let chain_id = self.chain_id();
         let communication_state = self.communication_states.load_entry(application_id).await?;
@@ -340,7 +340,7 @@ where
         // Mark the block as received.
         inbox.next_height_to_receive.set(height.try_add_one()?);
 
-        self.received_log.push(certificate_id);
+        self.received_log.push(certificate_hash);
 
         let mut was_a_recipient = false;
         for (index, (app_id, destination, effect)) in effects.into_iter().enumerate() {
