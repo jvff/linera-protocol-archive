@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
+    application_registry::ApplicationRegistryView,
     runtime::{ExecutionRuntime, SessionManager},
     system::{SystemExecutionStateView, SystemExecutionStateViewContext},
     Effect, EffectContext, ExecutionError, ExecutionResult, ExecutionRuntimeContext, Operation,
@@ -144,6 +145,7 @@ where
         application_id: ApplicationId,
         context: &OperationContext,
         operation: &Operation,
+        applications: &mut ApplicationRegistryView<C>,
     ) -> Result<Vec<ExecutionResult>, ExecutionError> {
         assert_eq!(context.chain_id, self.context().extra().chain_id());
         if let ApplicationId::System = application_id {
@@ -152,7 +154,7 @@ where
                     let result = self.system.execute_operation(context, op).await?;
                     let mut results = vec![result];
                     results.extend(
-                        self.try_initialize_new_application(context, &results[0])
+                        self.try_initialize_new_application(context, &results[0], applications)
                             .await?,
                     );
                     Ok(results)
@@ -180,6 +182,7 @@ where
         &mut self,
         context: &OperationContext,
         result: &ExecutionResult,
+        applications: &mut ApplicationRegistryView<C>,
     ) -> Result<Vec<ExecutionResult>, ExecutionError> {
         if let ExecutionResult::System {
             new_application: Some(new_application),
@@ -188,9 +191,13 @@ where
         {
             let user_action =
                 UserAction::Initialize(context, &new_application.initialization_argument);
-
-            self.run_user_action(new_application.id, context.chain_id, user_action)
-                .await
+            let application = applications
+                .register_new_application(new_application.clone())
+                .await?;
+            let results = self
+                .run_user_action(new_application.id, context.chain_id, user_action)
+                .await?;
+            Ok(results)
         } else {
             Ok(vec![])
         }
