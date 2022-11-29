@@ -20,14 +20,15 @@ use linera_core::{
     worker::WorkerState,
 };
 use linera_execution::{
+    system::{Address, Amount, Balance, SystemOperation, UserData, SYSTEM},
     Operation,
-    system::{Address, Amount, Balance, SYSTEM, SystemOperation, UserData},
 };
 use linera_rpc::{
     config::NetworkProtocol,
     grpc_network::GrpcMassClient,
     mass::MassClient,
-    Message, simple_network,
+    node_provider::{GrpcNodeProvider, NodeProvider, SimpleNodeProvider},
+    simple_network, Message,
 };
 use linera_service::{
     config::{CommitteeConfig, Export, GenesisConfig, Import, UserChain, WalletState},
@@ -42,7 +43,6 @@ use std::{
     time::{Duration, Instant},
 };
 use structopt::StructOpt;
-use linera_rpc::node_provider::{GrpcNodeProvider, NodeProvider, SimpleNodeProvider};
 
 struct ClientContext {
     genesis_config: GenesisConfig,
