@@ -28,8 +28,11 @@ use linera_execution::{
 };
 use linera_rpc::node_provider::{GrpcNodeProvider, NodeProvider, SimpleNodeProvider};
 use linera_rpc::{
-    config::NetworkProtocol, grpc_network::GrpcMassClient, mass::MassClient, simple_network,
-    Message,
+    config::NetworkProtocol,
+    grpc_network::GrpcMassClient,
+    mass::MassClient,
+    node_provider::{GrpcNodeProvider, NodeProvider, SimpleNodeProvider},
+    simple_network, Message,
 };
 use linera_service::{
     config::{CommitteeConfig, Export, GenesisConfig, Import, UserChain, WalletState},
