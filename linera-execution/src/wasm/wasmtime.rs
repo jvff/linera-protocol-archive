@@ -26,7 +26,7 @@ use super::{
     common::{self, Runtime, WasmRuntimeContext},
     WasmApplication, WasmExecutionError,
 };
-use crate::{ExecutionError, QueryableStorage, WritableStorage};
+use crate::{CallResult, ExecutionError, QueryableStorage, SessionId, WritableStorage};
 use std::{marker::PhantomData, task::Poll};
 use wasmtime::{Engine, Linker, Module, Store, Trap};
 
@@ -299,6 +299,8 @@ pub struct SystemApi<S> {
 impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
     type Load = HostFuture<'storage, Result<Vec<u8>, ExecutionError>>;
     type LoadAndLock = HostFuture<'storage, Result<Vec<u8>, ExecutionError>>;
+    type TryCallApplication = HostFuture<'storage, Result<CallResult, ExecutionError>>;
+    type TryCallSession = HostFuture<'storage, Result<CallResult, ExecutionError>>;
 
     fn load_new(&mut self) -> Self::Load {
         HostFuture::new(self.storage.try_read_my_state())
@@ -330,6 +332,77 @@ impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
         self.storage
             .save_and_unlock_my_state(state.to_owned())
             .is_ok()
+    }
+
+    fn try_call_application_new(
+        &mut self,
+        authenticated: bool,
+        application: writable_system::ApplicationId,
+        argument: &[u8],
+        forwarded_sessions: Vec<writable_system::SessionId>,
+    ) -> Self::TryCallApplication {
+        let storage = self.storage;
+        let forwarded_sessions = forwarded_sessions
+            .into_iter()
+            .map(SessionId::from)
+            .collect();
+        let argument = Vec::from(argument);
+
+        HostFuture::new(async move {
+            storage
+                .try_call_application(
+                    authenticated,
+                    application.into(),
+                    &argument,
+                    forwarded_sessions,
+                )
+                .await
+        })
+    }
+
+    fn try_call_application_poll(
+        &mut self,
+        future: &Self::TryCallApplication,
+    ) -> writable_system::PollCallResult {
+        use writable_system::PollCallResult;
+        match future.poll(&mut self.context) {
+            Poll::Pending => PollCallResult::Pending,
+            Poll::Ready(Ok(result)) => PollCallResult::Ready(Ok(result.into())),
+            Poll::Ready(Err(error)) => PollCallResult::Ready(Err(error.to_string())),
+        }
+    }
+
+    fn try_call_session_new(
+        &mut self,
+        authenticated: bool,
+        session: writable_system::SessionId,
+        argument: &[u8],
+        forwarded_sessions: Vec<writable_system::SessionId>,
+    ) -> Self::TryCallApplication {
+        let storage = self.storage;
+        let forwarded_sessions = forwarded_sessions
+            .into_iter()
+            .map(SessionId::from)
+            .collect();
+        let argument = Vec::from(argument);
+
+        HostFuture::new(async move {
+            storage
+                .try_call_session(authenticated, session.into(), &argument, forwarded_sessions)
+                .await
+        })
+    }
+
+    fn try_call_session_poll(
+        &mut self,
+        future: &Self::TryCallApplication,
+    ) -> writable_system::PollCallResult {
+        use writable_system::PollCallResult;
+        match future.poll(&mut self.context) {
+            Poll::Pending => PollCallResult::Pending,
+            Poll::Ready(Ok(result)) => PollCallResult::Ready(Ok(result.into())),
+            Poll::Ready(Err(error)) => PollCallResult::Ready(Err(error.to_string())),
+        }
     }
 }
 
