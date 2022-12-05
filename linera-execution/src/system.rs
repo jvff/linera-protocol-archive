@@ -339,6 +339,7 @@ where
                                 channel,
                             },
                         ));
+                        Ok(())
                     })
                     .await?;
                 self.subscriptions.clear();
