@@ -82,7 +82,7 @@ where
                 .known_applications
                 .get(&id)
                 .await?
-                .ok_or(ExecutionError::UnknownApplication(id)),
+                .ok_or_else(|| ExecutionError::UnknownApplication(Box::new(id))),
         }
     }
 }
