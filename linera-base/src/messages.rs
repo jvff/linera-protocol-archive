@@ -26,6 +26,7 @@ pub enum ApplicationId {
 }
 
 /// Description of the necessary information to run a user application.
+#[allow(clippy::largo_enum_variant)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ApplicationDescription {
     /// A special reference to the system application.
