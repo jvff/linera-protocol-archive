@@ -69,7 +69,7 @@ pub enum ExecutionError {
     #[error("Attempt to create an application using unknown bytecode {0:?}")]
     UnknownBytecode(BytecodeId),
     #[error("Application {0:?} is not known by the chain")]
-    UnknownApplication(ApplicationId),
+    UnknownApplication(Box<ApplicationId>),
 }
 
 impl From<ViewError> for ExecutionError {
@@ -421,7 +421,7 @@ impl ExecutionRuntimeContext for TestExecutionRuntimeContext {
         Ok(self
             .user_applications()
             .get(&application_id)
-            .ok_or(ExecutionError::UnknownApplication(application_id))?
+            .ok_or_else(|| ExecutionError::UnknownApplication(Box::new(application_id)))?
             .clone())
     }
 }

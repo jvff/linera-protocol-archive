@@ -78,7 +78,7 @@ pub enum NodeError {
     )]
     MissingCrossChainUpdate {
         chain_id: ChainId,
-        application_id: ApplicationId,
+        application_id: Box<ApplicationId>,
         origin: Origin,
         height: BlockHeight,
     },
@@ -166,7 +166,7 @@ impl From<ChainError> for NodeError {
                 height,
             } => Self::MissingCrossChainUpdate {
                 chain_id,
-                application_id,
+                application_id: Box::new(application_id),
                 origin,
                 height,
             },
