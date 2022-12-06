@@ -70,7 +70,7 @@ pub enum WorkerError {
     #[error(transparent)]
     ViewError(#[from] linera_views::views::ViewError),
     #[error(transparent)]
-    ChainError(#[from] linera_chain::ChainError),
+    ChainError(#[from] Box<linera_chain::ChainError>),
 
     // Chain access control
     #[error("Block was not signed by an authorized owner")]
@@ -99,6 +99,11 @@ pub enum WorkerError {
     #[error("The given effects are not what we computed after executing the block")]
     IncorrectEffects,
 }
+
+impl From<ChainError> for WorkerError {
+    fn from(chain_error: ChainError) -> Self {
+        WorkerError::ChainError(Box::new(chain_error))
+    }
 
 /// State of a worker in a validator or a local node.
 #[derive(Clone)]
