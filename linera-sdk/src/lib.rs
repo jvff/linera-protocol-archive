@@ -186,9 +186,9 @@ pub enum Destination {
 #[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Debug)]
 pub struct ApplicationId {
     /// The bytecode to use for the application.
-    bytecode: BytecodeId,
+    pub bytecode: BytecodeId,
     /// The unique ID of the application's creation.
-    creation: EffectId,
+    pub creation: EffectId,
 }
 
 /// A unique identifier for an application bytecode.
