@@ -1,4 +1,5 @@
 use ed25519::signature::Signature as edSignature;
+use std::fmt::Debug;
 use thiserror::Error;
 use tonic::{Code, Status};
 
@@ -619,46 +620,50 @@ pub mod tests {
 
     /// A convenience macro for testing. It converts a type into its
     /// RPC equivalent and back - asserting that the two are equal.
-    macro_rules! compare {
-        ($msg:ident, $rpc:ident) => {
-            let rpc = $rpc::try_from($msg.clone()).unwrap();
-            assert_eq!($msg, rpc.try_into().unwrap());
-        };
+    fn roundtrip_check<T, M>(value: T)
+    where
+        T: TryFrom<M> + Clone + Debug + Eq,
+        M: TryFrom<T>,
+        T::Error: Debug,
+        M::Error: Debug,
+    {
+        let message = M::try_from(value.clone()).unwrap();
+        assert_eq!(value, message.try_into().unwrap());
     }
 
     #[test]
     pub fn test_public_key() {
         let public_key = KeyPair::generate().public();
-        compare!(public_key, PublicKeyRPC);
+        roundtrip_check::<_, PublicKeyRPC>(public_key);
     }
 
     #[test]
     pub fn test_origin() {
         let origin_direct = Origin::chain(ChainId::root(0));
-        compare!(origin_direct, OriginRpc);
+        roundtrip_check::<_, OriginRpc>(origin_direct);
 
         let origin_medium = Origin::channel(ChainId::root(0), "some channel".to_string());
-        compare!(origin_medium, OriginRpc);
+        roundtrip_check::<_, OriginRpc>(origin_medium);
     }
 
     #[test]
     pub fn test_signature() {
         let key_pair = KeyPair::generate();
         let signature = Signature::new(&Foo("test".into()), &key_pair);
-        compare!(signature, SignatureRPC);
+        roundtrip_check::<_, SignatureRPC>(signature);
     }
 
     #[test]
     pub fn test_owner() {
         let key_pair = KeyPair::generate();
         let owner = Owner::from(key_pair.public());
-        compare!(owner, OwnerRPC);
+        roundtrip_check::<_, OwnerRPC>(owner);
     }
 
     #[test]
     pub fn test_block_height() {
         let block_height = BlockHeight::from(10u64);
-        compare!(block_height, BlockHeightRPC);
+        roundtrip_check::<_, BlockHeightRPC>(block_height);
     }
 
     #[test]
@@ -666,19 +671,19 @@ pub mod tests {
         let validator_name = ValidatorName::from(KeyPair::generate().public());
         // This is a correct comparison - `ValidatorNameRpc` does not exist in our
         // proto definitions.
-        compare!(validator_name, PublicKeyRPC);
+        roundtrip_check::<_, PublicKeyRPC>(validator_name);
     }
 
     #[test]
     pub fn test_chain_id() {
         let chain_id = ChainId::root(0);
-        compare!(chain_id, ChainIdRPC);
+        roundtrip_check::<_, ChainIdRPC>(chain_id);
     }
 
     #[test]
     pub fn test_application_id() {
         let application_id = ApplicationId(10u64);
-        compare!(application_id, ApplicationIdRPC);
+        roundtrip_check::<_, ApplicationIdRPC>(application_id);
     }
 
     #[test]
@@ -687,13 +692,13 @@ pub mod tests {
             start: BlockHeight::from(10u64),
             limit: None,
         };
-        compare!(block_height_range_none, BlockHeightRangeRPC);
+        roundtrip_check::<_, BlockHeightRangeRPC>(block_height_range_none);
 
         let block_height_range_some = BlockHeightRange {
             start: BlockHeight::from(10u64),
             limit: Some(20),
         };
-        compare!(block_height_range_some, BlockHeightRangeRPC);
+        roundtrip_check::<_, BlockHeightRangeRPC>(block_height_range_some);
     }
 
     #[test]
@@ -719,20 +724,20 @@ pub mod tests {
             info: chain_info.clone(),
             signature: None,
         };
-        compare!(chain_info_response_none, ChainInfoResponseRPC);
+        roundtrip_check::<_, ChainInfoResponseRPC>(chain_info_response_none);
 
         let chain_info_response_some = ChainInfoResponse {
             // `info` is bcs so no need to test conversions extensively
             info: chain_info,
             signature: Some(Signature::new(&Foo("test".into()), &KeyPair::generate())),
         };
-        compare!(chain_info_response_some, ChainInfoResponseRPC);
+        roundtrip_check::<_, ChainInfoResponseRPC>(chain_info_response_some);
     }
 
     #[test]
     pub fn test_chain_info_query() {
         let chain_info_query_none = ChainInfoQuery::new(ChainId::root(0));
-        compare!(chain_info_query_none, ChainInfoQueryRpc);
+        roundtrip_check::<_, ChainInfoQueryRpc>(chain_info_query_none);
 
         let chain_info_query_some = ChainInfoQuery {
             chain_id: ChainId::root(0),
@@ -745,7 +750,7 @@ pub mod tests {
             }),
             request_received_certificates_excluding_first_nth: None,
         };
-        compare!(chain_info_query_some, ChainInfoQueryRpc);
+        roundtrip_check::<_, ChainInfoQueryRpc>(chain_info_query_some);
     }
 
     #[test]
@@ -764,7 +769,7 @@ pub mod tests {
             )],
         );
 
-        compare!(certificate_validated, CertificateRpc);
+        roundtrip_check::<_, CertificateRpc>(certificate_validated);
     }
 
     #[test]
@@ -775,7 +780,7 @@ pub mod tests {
             recipient: ChainId::root(0),
             certificates: vec![],
         };
-        compare!(cross_chain_request_update_recipient, CrossChainRequestRpc);
+        roundtrip_check::<_, CrossChainRequestRpc>(cross_chain_request_update_recipient);
 
         let cross_chain_request_confirm_updated_recipient =
             CrossChainRequest::ConfirmUpdatedRecipient {
@@ -784,10 +789,7 @@ pub mod tests {
                 recipient: ChainId::root(0),
                 height: Default::default(),
             };
-        compare!(
-            cross_chain_request_confirm_updated_recipient,
-            CrossChainRequestRpc
-        );
+        roundtrip_check::<_, CrossChainRequestRpc>(cross_chain_request_confirm_updated_recipient);
     }
 
     #[test]
@@ -801,6 +803,6 @@ pub mod tests {
             signature: Signature::new(&Foo("test".into()), &KeyPair::generate()),
         };
 
-        compare!(block_proposal, BlockProposalRpc);
+        roundtrip_check::<_, BlockProposalRpc>(block_proposal);
     }
 }
