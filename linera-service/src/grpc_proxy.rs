@@ -235,14 +235,7 @@ impl Proxyable for Certificate {
 
 impl Proxyable for ChainInfoQuery {
     fn chain_id(&self) -> Option<ChainId> {
-        match self
-            .chain_id
-            .as_ref()
-            .map(|id| ChainId::try_from(id.clone()))?
-        {
-            Ok(id) => Some(id),
-            Err(_) => None,
-        }
+        self.chain_id.clone()?.try_into().ok()
     }
 }
 
