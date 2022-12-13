@@ -264,28 +264,36 @@ impl From<CallResult> for writable_system::CallResult {
     }
 }
 
+impl Balance {
+    /// Helper function to obtain the 64 most significant bits of the balance.
+    fn upper_half(self) -> u64 {
+        (u128::from(self) >> 64)
+            .try_into()
+            .expect("Insufficient shift right for u128 -> u64 conversion")
+    }
+
+    /// Helper function to obtain the 64 least significant bits of the balance.
+    fn lower_half(self) -> u64 {
+        (u128::from(self) & 0xFFFF_FFFF_FFFF_FFFF)
+            .try_into()
+            .expect("Incorrect mask for u128 -> u64 conversion")
+    }
+}
+
 impl From<Balance> for queryable_system::SystemBalance {
     fn from(host: Balance) -> Self {
-        let msb = (u128::from(host) >> 64)
-            .try_into()
-            .expect("Insufficient shift right for u128 -> u64 conversion");
-        let lsb = (u128::from(host) & 0xFFFF_FFFF_FFFF_FFFF)
-            .try_into()
-            .expect("Incorrect mask for u128 -> u64 conversion");
-
-        queryable_system::SystemBalance { msb, lsb }
+        queryable_system::SystemBalance {
+            lower_half: host.lower_half(),
+            upper_half: host.upper_half(),
+        }
     }
 }
 
 impl From<Balance> for writable_system::SystemBalance {
     fn from(host: Balance) -> Self {
-        let msb = (u128::from(host) >> 64)
-            .try_into()
-            .expect("Insufficient shift right for u128 -> u64 conversion");
-        let lsb = (u128::from(host) & 0xFFFF_FFFF_FFFF_FFFF)
-            .try_into()
-            .expect("Incorrect mask for u128 -> u64 conversion");
-
-        writable_system::SystemBalance { msb, lsb }
+        writable_system::SystemBalance {
+            lower_half: host.lower_half(),
+            upper_half: host.upper_half(),
+        }
     }
 }

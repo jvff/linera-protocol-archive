@@ -85,6 +85,6 @@ record hash-value {
 }
 
 record system-balance {
-    lsb: u64,
-    msb: u64,
+    lower-half: u64,
+    upper-half: u64,
 }
