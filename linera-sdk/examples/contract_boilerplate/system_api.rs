@@ -3,7 +3,7 @@
 
 use super::{super::ApplicationState, writable_system as system};
 use futures::future;
-use linera_sdk::{ApplicationId, ChainId};
+use linera_sdk::{ApplicationId, ChainId, SystemBalance};
 use std::future::Future;
 
 impl ApplicationState {
@@ -42,5 +42,10 @@ impl ApplicationState {
     /// Retrieve the current application ID.
     pub fn current_application_id() -> ApplicationId {
         system::application_id().into()
+    }
+
+    /// Retrieve the current system balance.
+    pub fn current_system_balance() -> SystemBalance {
+        system::read_system_balance().into()
     }
 }
