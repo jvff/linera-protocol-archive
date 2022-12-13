@@ -8,7 +8,8 @@
 
 use super::runtime::{contract, queryable_system, service, writable_system};
 use crate::{
-    CallResult, CalleeContext, EffectContext, EffectId, OperationContext, QueryContext, SessionId,
+    system::Balance, CallResult, CalleeContext, EffectContext, EffectId, OperationContext,
+    QueryContext, SessionId,
 };
 use linera_base::{
     crypto::HashValue,
@@ -260,5 +261,31 @@ impl From<CallResult> for writable_system::CallResult {
                 .map(writable_system::SessionId::from)
                 .collect(),
         }
+    }
+}
+
+impl From<Balance> for queryable_system::SystemBalance {
+    fn from(host: Balance) -> Self {
+        let msb = (u128::from(host) >> 64)
+            .try_into()
+            .expect("Insufficient shift right for u128 -> u64 conversion");
+        let lsb = (u128::from(host) & 0xFFFF_FFFF_FFFF_FFFF)
+            .try_into()
+            .expect("Incorrect mask for u128 -> u64 conversion");
+
+        queryable_system::SystemBalance { msb, lsb }
+    }
+}
+
+impl From<Balance> for writable_system::SystemBalance {
+    fn from(host: Balance) -> Self {
+        let msb = (u128::from(host) >> 64)
+            .try_into()
+            .expect("Insufficient shift right for u128 -> u64 conversion");
+        let lsb = (u128::from(host) & 0xFFFF_FFFF_FFFF_FFFF)
+            .try_into()
+            .expect("Incorrect mask for u128 -> u64 conversion");
+
+        writable_system::SystemBalance { msb, lsb }
     }
 }
