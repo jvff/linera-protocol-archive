@@ -5,6 +5,7 @@ use ed25519_dalek::PublicKey;
 use linera_sdk::ApplicationId;
 use serde::{Deserialize, Serialize};
 use std::{cmp::Ordering, collections::BTreeMap};
+use thiserror::Error;
 
 /// The application state.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -53,7 +54,32 @@ impl FungibleToken {
     pub(crate) fn credit(&mut self, account: AccountOwner, amount: u128) {
         *self.accounts.entry(account).or_default() += amount;
     }
+
+    /// Try to debit the requested `amount` from an `account`.
+    pub(crate) fn debit(
+        &mut self,
+        account: AccountOwner,
+        amount: u128,
+    ) -> Result<(), InsufficientBalanceError> {
+        let balance = self
+            .accounts
+            .get_mut(&account)
+            .ok_or(InsufficientBalanceError)?;
+
+        if *balance < amount {
+            return Err(InsufficientBalanceError);
+        }
+
+        *balance -= amount;
+
+        Ok(())
+    }
 }
+
+/// Attempt to debit from an account with insufficient funds.
+#[derive(Clone, Copy, Debug, Error)]
+#[error("Insufficient balance for transfer")]
+pub struct InsufficientBalanceError;
 
 /// Alias to the application type, so that the boilerplate module can reference it.
 pub type ApplicationState = FungibleToken;
