@@ -7,6 +7,7 @@ mod state;
 
 use self::state::{AccountOwner, ApplicationState, FungibleToken};
 use async_trait::async_trait;
+use ed25519_dalek::{PublicKey, Signature};
 use linera_sdk::{
     ApplicationCallResult, CalleeContext, ChainId, Contract, EffectContext, ExecutionResult,
     OperationContext, Session, SessionCallResult, SessionId,
@@ -30,9 +31,15 @@ impl Contract for FungibleToken {
     async fn execute_operation(
         &mut self,
         _context: &OperationContext,
-        _operation: &[u8],
+        operation: &[u8],
     ) -> Result<ExecutionResult, Self::Error> {
-        todo!();
+        let signed_transfer: SignedTransfer =
+            bcs::from_bytes(operation).map_err(Error::InvalidOperation)?;
+        let (source, transfer) = signed_transfer.check()?;
+
+        self.debit(source, transfer.amount)?;
+
+        Ok(self.finish_transfer(transfer))
     }
 
     async fn execute_effect(
@@ -91,12 +98,36 @@ impl FungibleToken {
     }
 }
 
+/// The transfer operation.
+#[derive(Deserialize, Serialize)]
+pub struct SignedTransfer {
+    source: PublicKey,
+    signature: Signature,
+    transfer: Transfer,
+}
+
 /// A transfer request from an application.
+///
+/// This is also the payload to be signed for a transfer operation.
 #[derive(Deserialize, Serialize)]
 pub struct Transfer {
     destination_account: AccountOwner,
     destination_chain: ChainId,
     amount: u128,
+}
+
+impl SignedTransfer {
+    /// Check that the [`SignedTransfer`] is correctly signed.
+    ///
+    /// If correctly signed, returns the source of the transfer and the [`Transfer`].
+    pub fn check(self) -> Result<(AccountOwner, Transfer), Error> {
+        let transfer =
+            bcs::to_bytes(&self.transfer).expect("Serialization of transfer should not fail");
+
+        self.source.verify_strict(&transfer, &self.signature)?;
+
+        Ok((AccountOwner::Key(self.source), self.transfer))
+    }
 }
 
 /// The credit effect.
@@ -121,6 +152,14 @@ pub enum Error {
     /// Invalid serialized initial state.
     #[error("Serialized initial state is invalid")]
     InvalidInitialState(#[source] bcs::Error),
+
+    /// Invalid serialized [`SignedTransfer`].
+    #[error("Operation is not a valid serialized signed transfer")]
+    InvalidOperation(#[source] bcs::Error),
+
+    /// Incorrect signature for transfer.
+    #[error("Operation does not have a valid signature")]
+    IncorrectSignature(#[from] ed25519_dalek::SignatureError),
 
     /// Invalid serialized [`Credit`].
     #[error("Effect is not a valid serialized credit operation")]
