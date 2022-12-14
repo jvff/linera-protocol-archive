@@ -47,6 +47,7 @@ impl ApplicationState {
     }
 
     /// Retrieve the current system balance.
+    #[allow(dead_code)]
     pub fn current_system_balance() -> SystemBalance {
         system::read_system_balance().into()
     }
