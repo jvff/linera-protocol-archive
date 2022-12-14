@@ -4,7 +4,13 @@
 use ed25519_dalek::PublicKey;
 use linera_sdk::ApplicationId;
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
+use std::{cmp::Ordering, collections::BTreeMap};
+
+/// The application state.
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct FungibleToken {
+    accounts: BTreeMap<AccountOwner, u128>,
+}
 
 /// An account owner.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -35,3 +41,6 @@ impl Ord for AccountOwner {
         }
     }
 }
+
+/// Alias to the application type, so that the boilerplate module can reference it.
+pub type ApplicationState = FungibleToken;
