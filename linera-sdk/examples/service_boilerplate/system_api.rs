@@ -30,6 +30,7 @@ impl ApplicationState {
     }
 
     /// Retrieve the current application ID.
+    #[allow(dead_code)]
     pub fn current_application_id() -> ApplicationId {
         system::application_id().into()
     }
