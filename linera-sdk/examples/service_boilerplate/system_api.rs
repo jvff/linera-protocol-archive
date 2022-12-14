@@ -24,6 +24,7 @@ impl ApplicationState {
     }
 
     /// Retrieve the current chain ID.
+    #[allow(dead_code)]
     pub fn current_chain_id() -> ChainId {
         ChainId(system::chain_id().into())
     }
