@@ -24,7 +24,7 @@ impl Contract for FungibleToken {
         _context: &OperationContext,
         argument: &[u8],
     ) -> Result<ExecutionResult, Self::Error> {
-        *self = bcs::from_bytes(argument).map_err(Error::InvalidInitialState)?;
+        self.initialize_accounts(bcs::from_bytes(argument).map_err(Error::InvalidInitialState)?);
         Ok(ExecutionResult::default())
     }
 

@@ -45,6 +45,11 @@ impl Ord for AccountOwner {
 
 #[allow(dead_code)]
 impl FungibleToken {
+    /// Initialize the application state with some accounts with initial balances.
+    pub(crate) fn initialize_accounts(&mut self, accounts: BTreeMap<AccountOwner, u128>) {
+        self.accounts = accounts;
+    }
+
     /// Obtain the balance for an `account`.
     pub(crate) fn balance(&self, account: &AccountOwner) -> u128 {
         self.accounts.get(&account).copied().unwrap_or(0)
