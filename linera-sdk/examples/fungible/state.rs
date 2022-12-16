@@ -8,9 +8,10 @@ use std::{cmp::Ordering, collections::BTreeMap};
 use thiserror::Error;
 
 /// The application state.
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct FungibleToken {
     accounts: BTreeMap<AccountOwner, u128>,
+    nonces: BTreeMap<AccountOwner, Nonce>,
 }
 
 /// An account owner.
@@ -40,6 +41,19 @@ impl Ord for AccountOwner {
                 first.cmp(second)
             }
         }
+    }
+}
+
+/// A single-use number to prevent replay attacks.
+#[derive(Debug, Default, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+pub struct Nonce(u64);
+
+impl Nonce {
+    /// Obtain the next number to use, if there is one.
+    fn next(&self) -> Option<Self> {
+        let next_number = self.0.checked_add(1)?;
+
+        Some(Nonce(next_number))
     }
 }
 
@@ -76,6 +90,29 @@ impl FungibleToken {
         *balance -= amount;
 
         Ok(())
+    }
+
+    /// Obtain the minimum allowed [`Nonce`] for an `account`.
+    ///
+    /// The minimum allowed nonce is the value of the previously used nonce plus one, or zero if
+    /// this is the first transaction for the `account` on the current chain.
+    ///
+    /// If the increment to obtain the next nonce overflows, `None` is returned.
+    pub(crate) fn minimum_nonce(&self, account: &AccountOwner) -> Option<Nonce> {
+        self.nonces
+            .get(account)
+            .map(Nonce::next)
+            .unwrap_or(Some(Nonce::default()))
+    }
+
+    /// Mark the provided [`Nonce`] as used for the `account`.
+    pub(crate) fn mark_nonce_as_used(&mut self, account: AccountOwner, nonce: Nonce) {
+        let minimum_nonce = self.minimum_nonce(&account);
+
+        assert!(minimum_nonce.is_some());
+        assert!(nonce >= minimum_nonce.unwrap());
+
+        self.nonces.insert(account, nonce);
     }
 }
 
