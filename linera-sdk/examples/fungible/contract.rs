@@ -35,7 +35,7 @@ impl Contract for FungibleToken {
     ) -> Result<ExecutionResult, Self::Error> {
         let signed_transfer: SignedTransfer =
             bcs::from_bytes(operation).map_err(Error::InvalidOperation)?;
-        let (source, transfer) = signed_transfer.check()?;
+        let (source, transfer) = signed_transfer.check_signature()?;
 
         self.debit(source, transfer.amount)?;
 
@@ -180,7 +180,7 @@ impl SignedTransfer {
     /// Check that the [`SignedTransfer`] is correctly signed.
     ///
     /// If correctly signed, returns the source of the transfer and the [`Transfer`].
-    pub fn check(self) -> Result<(AccountOwner, Transfer), Error> {
+    pub fn check_signature(self) -> Result<(AccountOwner, Transfer), Error> {
         let transfer =
             bcs::to_bytes(&self.transfer).expect("Serialization of transfer should not fail");
 
