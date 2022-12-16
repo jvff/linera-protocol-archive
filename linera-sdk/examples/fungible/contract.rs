@@ -33,8 +33,7 @@ impl Contract for FungibleToken {
         _context: &OperationContext,
         operation: &[u8],
     ) -> Result<ExecutionResult, Self::Error> {
-        let signed_transfer: SignedTransfer =
-            bcs::from_bytes(operation).map_err(Error::InvalidOperation)?;
+        let signed_transfer = bcs::from_bytes(operation).map_err(Error::InvalidOperation)?;
 
         let (source, transfer, nonce) = self.check_signed_transfer(signed_transfer)?;
 
