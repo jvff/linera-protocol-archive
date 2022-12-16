@@ -5,11 +5,11 @@
 
 mod state;
 
-use self::state::{AccountOwner, ApplicationState, FungibleToken};
+use self::state::{AccountOwner, ApplicationState, FungibleToken, Nonce};
 use async_trait::async_trait;
 use ed25519_dalek::{PublicKey, Signature};
 use linera_sdk::{
-    ensure, ApplicationCallResult, CalleeContext, ChainId, Contract, EffectContext,
+    ensure, ApplicationCallResult, ApplicationId, CalleeContext, ChainId, Contract, EffectContext,
     ExecutionResult, OperationContext, Session, SessionCallResult, SessionId,
 };
 use serde::{Deserialize, Serialize};
@@ -35,9 +35,11 @@ impl Contract for FungibleToken {
     ) -> Result<ExecutionResult, Self::Error> {
         let signed_transfer: SignedTransfer =
             bcs::from_bytes(operation).map_err(Error::InvalidOperation)?;
-        let (source, transfer) = signed_transfer.check_signature()?;
+
+        let (source, transfer, nonce) = self.check_signed_transfer(signed_transfer)?;
 
         self.debit(source, transfer.amount)?;
+        self.mark_nonce_as_used(source, nonce);
 
         Ok(self.finish_transfer(transfer))
     }
@@ -102,6 +104,32 @@ impl Contract for FungibleToken {
 }
 
 impl FungibleToken {
+    /// Check if a signed transfer can be executed.
+    ///
+    /// If the transfer can be executed, return the source [`AccountOwner`], the [`Transfer`] to be
+    /// executed and the [`Nonce`] used to prevent the transfer from being replayed.
+    fn check_signed_transfer(
+        &self,
+        signed_transfer: SignedTransfer,
+    ) -> Result<(AccountOwner, Transfer, Nonce), Error> {
+        let (source, payload) = signed_transfer.check_signature()?;
+
+        ensure!(
+            payload.token_id == Self::current_application_id(),
+            Error::IncorrectTokenId
+        );
+        ensure!(
+            payload.source_chain == Self::current_chain_id(),
+            Error::IncorrectSourceChain
+        );
+        ensure!(
+            payload.nonce >= self.minimum_nonce(&source).ok_or(Error::ReusedNonce)?,
+            Error::ReusedNonce
+        );
+
+        Ok((source, payload.transfer, payload.nonce))
+    }
+
     /// Credit an account or forward it into a session or another micro-chain.
     fn finish_application_transfer(
         &mut self,
@@ -146,6 +174,22 @@ impl FungibleToken {
 pub struct SignedTransfer {
     source: PublicKey,
     signature: Signature,
+    payload: SignedTransferPayload,
+}
+
+/// The payload to be signed for a signed transfer.
+///
+/// Contains extra meta-data in to be included in signature to ensure that the transfer can't be
+/// replayed:
+///
+/// - on the same chain
+/// - on different chains
+/// - on different tokens
+#[derive(Deserialize, Serialize)]
+pub struct SignedTransferPayload {
+    token_id: ApplicationId,
+    source_chain: ChainId,
+    nonce: Nonce,
     transfer: Transfer,
 }
 
@@ -179,14 +223,14 @@ pub struct Transfer {
 impl SignedTransfer {
     /// Check that the [`SignedTransfer`] is correctly signed.
     ///
-    /// If correctly signed, returns the source of the transfer and the [`Transfer`].
-    pub fn check_signature(self) -> Result<(AccountOwner, Transfer), Error> {
-        let transfer =
-            bcs::to_bytes(&self.transfer).expect("Serialization of transfer should not fail");
+    /// If correctly signed, returns the source of the transfer and the [`SignedTransferPayload`].
+    pub fn check_signature(self) -> Result<(AccountOwner, SignedTransferPayload), Error> {
+        let payload =
+            bcs::to_bytes(&self.payload).expect("Serialization of transfer should not fail");
 
-        self.source.verify_strict(&transfer, &self.signature)?;
+        self.source.verify_strict(&payload, &self.signature)?;
 
-        Ok((AccountOwner::Key(self.source), self.transfer))
+        Ok((AccountOwner::Key(self.source), self.payload))
     }
 }
 
@@ -232,6 +276,18 @@ pub enum Error {
     /// Invalid serialized [`Transfer`].
     #[error("Cross-application call argument is not a valid serialized transfer")]
     InvalidArgument(#[source] bcs::Error),
+
+    /// Incorrect token ID in operation.
+    #[error("Operation attempts to transfer the incorrect token")]
+    IncorrectTokenId,
+
+    /// Incorrect source chain ID in operation.
+    #[error("Operation is not valid on the current chain")]
+    IncorrectSourceChain,
+
+    /// Attempt to reuse a nonce.
+    #[error("Operation uses a unique transaction number (nonce) that was previously used")]
+    ReusedNonce,
 
     /// Insufficient balance in source account.
     #[error("Source account does not have sufficient balance for transfer")]
