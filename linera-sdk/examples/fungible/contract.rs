@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use linera_sdk::{
     crypto::{BcsSignable, CryptoError, PublicKey, Signature},
     ensure, ApplicationCallResult, ApplicationId, CalleeContext, ChainId, Contract, EffectContext,
-    ExecutionResult, OperationContext, Session, SessionCallResult, SessionId,
+    ExecutionResult, FromBcsBytes, OperationContext, Session, SessionCallResult, SessionId,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -48,7 +48,7 @@ impl Contract for FungibleToken {
         _context: &EffectContext,
         effect: &[u8],
     ) -> Result<ExecutionResult, Self::Error> {
-        let credit: Credit = bcs::from_bytes(effect).map_err(Error::InvalidEffect)?;
+        let credit = Credit::from_bcs_bytes(effect).map_err(Error::InvalidEffect)?;
 
         self.credit(credit.destination, credit.amount);
 
@@ -61,8 +61,8 @@ impl Contract for FungibleToken {
         argument: &[u8],
         _forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallResult, Self::Error> {
-        let transfer: ApplicationTransfer =
-            bcs::from_bytes(argument).map_err(Error::InvalidArgument)?;
+        let transfer =
+            ApplicationTransfer::from_bcs_bytes(argument).map_err(Error::InvalidArgument)?;
         let caller = context
             .authenticated_caller_id
             .ok_or(Error::MissingSourceApplication)?;
@@ -80,10 +80,10 @@ impl Contract for FungibleToken {
         argument: &[u8],
         _forwarded_sessions: Vec<SessionId>,
     ) -> Result<SessionCallResult, Self::Error> {
-        let transfer: ApplicationTransfer =
-            bcs::from_bytes(argument).map_err(Error::InvalidArgument)?;
-        let mut balance: u128 =
-            bcs::from_bytes(&session.data).expect("Session contains corrupt data");
+        let transfer =
+            ApplicationTransfer::from_bcs_bytes(argument).map_err(Error::InvalidArgument)?;
+        let mut balance =
+            u128::from_bcs_bytes(&session.data).expect("Session contains corrupt data");
 
         ensure!(
             balance >= transfer.amount(),
