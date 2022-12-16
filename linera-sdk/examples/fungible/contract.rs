@@ -7,8 +7,8 @@ mod state;
 
 use self::state::{AccountOwner, ApplicationState, FungibleToken, Nonce};
 use async_trait::async_trait;
-use ed25519_dalek::{PublicKey, Signature};
 use linera_sdk::{
+    crypto::{BcsSignable, CryptoError, PublicKey, Signature},
     ensure, ApplicationCallResult, ApplicationId, CalleeContext, ChainId, Contract, EffectContext,
     ExecutionResult, OperationContext, Session, SessionCallResult, SessionId,
 };
@@ -185,7 +185,7 @@ pub struct SignedTransfer {
 /// - on the same chain
 /// - on different chains
 /// - on different tokens
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SignedTransferPayload {
     token_id: ApplicationId,
     source_chain: ChainId,
@@ -213,7 +213,7 @@ impl ApplicationTransfer {
 }
 
 /// A transfer payload.
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Transfer {
     destination_account: AccountOwner,
     destination_chain: ChainId,
@@ -225,14 +225,13 @@ impl SignedTransfer {
     ///
     /// If correctly signed, returns the source of the transfer and the [`SignedTransferPayload`].
     pub fn check_signature(self) -> Result<(AccountOwner, SignedTransferPayload), Error> {
-        let payload =
-            bcs::to_bytes(&self.payload).expect("Serialization of transfer should not fail");
-
-        self.source.verify_strict(&payload, &self.signature)?;
+        self.signature.check(&self.payload, self.source)?;
 
         Ok((AccountOwner::Key(self.source), self.payload))
     }
 }
+
+impl BcsSignable for SignedTransferPayload {}
 
 /// The credit effect.
 #[derive(Deserialize, Serialize)]
@@ -263,7 +262,7 @@ pub enum Error {
 
     /// Incorrect signature for transfer.
     #[error("Operation does not have a valid signature")]
-    IncorrectSignature(#[from] ed25519_dalek::SignatureError),
+    IncorrectSignature(#[from] CryptoError),
 
     /// Invalid serialized [`Credit`].
     #[error("Effect is not a valid serialized credit operation")]
