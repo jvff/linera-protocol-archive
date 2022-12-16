@@ -5,10 +5,13 @@
 pub mod crypto;
 mod ensure;
 mod exported_future;
+mod extensions;
 
 use async_trait::async_trait;
 use std::error::Error;
 
+#[cfg(feature = "serde")]
+pub use self::extensions::FromBcsBytes;
 #[cfg(feature = "serde")]
 use {
     serde::{Deserialize, Serialize},
