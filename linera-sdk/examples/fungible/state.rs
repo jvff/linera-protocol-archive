@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use ed25519_dalek::PublicKey;
-use linera_sdk::ApplicationId;
+use linera_sdk::{ensure, ApplicationId};
 use serde::{Deserialize, Serialize};
 use std::{cmp::Ordering, collections::BTreeMap};
 use thiserror::Error;
@@ -66,9 +66,7 @@ impl FungibleToken {
             .get_mut(&account)
             .ok_or(InsufficientBalanceError)?;
 
-        if *balance < amount {
-            return Err(InsufficientBalanceError);
-        }
+        ensure!(*balance >= amount, InsufficientBalanceError);
 
         *balance -= amount;
 

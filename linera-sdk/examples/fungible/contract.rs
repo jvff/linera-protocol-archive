@@ -9,8 +9,8 @@ use self::state::{AccountOwner, ApplicationState, FungibleToken};
 use async_trait::async_trait;
 use ed25519_dalek::{PublicKey, Signature};
 use linera_sdk::{
-    ApplicationCallResult, CalleeContext, ChainId, Contract, EffectContext, ExecutionResult,
-    OperationContext, Session, SessionCallResult, SessionId,
+    ensure, ApplicationCallResult, CalleeContext, ChainId, Contract, EffectContext,
+    ExecutionResult, OperationContext, Session, SessionCallResult, SessionId,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -84,9 +84,10 @@ impl Contract for FungibleToken {
         let mut balance: u128 =
             bcs::from_bytes(&session.data).expect("Session contains corrupt data");
 
-        if balance < transfer.amount() {
-            return Err(Error::InsufficientSessionBalance);
-        }
+        ensure!(
+            balance >= transfer.amount(),
+            Error::InsufficientSessionBalance
+        );
 
         balance -= transfer.amount();
 
