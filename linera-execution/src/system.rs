@@ -3,15 +3,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    Bytecode, BytecodeId, ChainOwnership, EffectContext, ExecutionResult, NewApplication,
-    OperationContext, QueryContext, RawExecutionResult, UserApplicationId,
+    Bytecode, BytecodeId, ChainOwnership, Destination, EffectContext, ExecutionResult,
+    NewApplication, OperationContext, QueryContext, RawExecutionResult, UserApplicationId,
 };
 use linera_base::{
     committee::Committee,
     ensure,
-    messages::{
-        ArithmeticError, ChainDescription, ChainId, ChannelId, Destination, EffectId, Epoch, Owner,
-    },
+    messages::{ArithmeticError, ChainDescription, ChainId, EffectId, Epoch, Owner},
 };
 use linera_views::{
     common::Context,
@@ -48,6 +46,13 @@ pub struct SystemExecutionStateView<C> {
     pub ownership: ScopedView<5, RegisterView<C, ChainOwnership>>,
     /// Balance of the chain.
     pub balance: ScopedView<6, RegisterView<C, Balance>>,
+}
+
+/// The identifier of a channel, relative to a particular application.
+#[derive(Eq, PartialEq, Ord, PartialOrd, Debug, Clone, Hash, Serialize, Deserialize)]
+pub struct ChannelId {
+    pub chain_id: ChainId,
+    pub name: String,
 }
 
 /// For testing only.

@@ -15,9 +15,11 @@ use linera_chain::{
     ChainError, Event,
 };
 use linera_execution::{
-    system::{Address, Amount, Balance, SystemEffect, SystemOperation, UserData, ADMIN_CHANNEL},
-    ApplicationDescription, ApplicationId, ChainOwnership, Effect, ExecutionStateView, Operation,
-    SystemExecutionState,
+    system::{
+        Address, Amount, Balance, ChannelId, SystemEffect, SystemOperation, UserData, ADMIN_CHANNEL,
+    },
+    ApplicationDescription, ApplicationId, ChainOwnership, Destination, Effect, ExecutionStateView,
+    Operation, SystemExecutionState,
 };
 use linera_storage::{DynamoDbStoreClient, MemoryStoreClient, RocksdbStoreClient, Store};
 use linera_views::{test_utils::LocalStackTestContext, views::ViewError};
