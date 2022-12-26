@@ -9,10 +9,10 @@ use crate::{
 use linera_base::{committee::Committee, crypto::*, data_types::*};
 use linera_chain::{
     data_types::{
-        Block, BlockAndRound, BlockProposal, Certificate, Message, Origin, SignatureAggregator,
-        Value, Vote,
+        Block, BlockAndRound, BlockProposal, Certificate, Event, Message, Origin,
+        SignatureAggregator, Value, Vote,
     },
-    ChainError, Event,
+    ChainError,
 };
 use linera_execution::{
     system::{
@@ -720,32 +720,38 @@ where
                 Message {
                     application_id: ApplicationId::System,
                     origin: Origin::chain(ChainId::root(1)),
-                    height: BlockHeight::from(0),
-                    index: 0,
-                    effect: Effect::System(SystemEffect::Credit {
-                        recipient: ChainId::root(2),
-                        amount: Amount::from(1),
-                    }),
+                    event: Event {
+                        height: BlockHeight::from(0),
+                        index: 0,
+                        effect: Effect::System(SystemEffect::Credit {
+                            recipient: ChainId::root(2),
+                            amount: Amount::from(1),
+                        }),
+                    },
                 },
                 Message {
                     application_id: ApplicationId::System,
                     origin: Origin::chain(ChainId::root(1)),
-                    height: BlockHeight::from(0),
-                    index: 1,
-                    effect: Effect::System(SystemEffect::Credit {
-                        recipient: ChainId::root(2),
-                        amount: Amount::from(2),
-                    }),
+                    event: Event {
+                        height: BlockHeight::from(0),
+                        index: 1,
+                        effect: Effect::System(SystemEffect::Credit {
+                            recipient: ChainId::root(2),
+                            amount: Amount::from(2),
+                        }),
+                    },
                 },
                 Message {
                     application_id: ApplicationId::System,
                     origin: Origin::chain(ChainId::root(1)),
-                    height: BlockHeight::from(1),
-                    index: 0,
-                    effect: Effect::System(SystemEffect::Credit {
-                        recipient: ChainId::root(2),
-                        amount: Amount::from(2), // wrong
-                    }),
+                    event: Event {
+                        height: BlockHeight::from(1),
+                        index: 0,
+                        effect: Effect::System(SystemEffect::Credit {
+                            recipient: ChainId::root(2),
+                            amount: Amount::from(2), // wrong
+                        }),
+                    },
                 },
             ],
             None,
@@ -754,7 +760,7 @@ where
         assert!(matches!(
             worker.handle_block_proposal(block_proposal).await,
             Err(WorkerError::ChainError(chain_error))
-                if matches!(*chain_error, ChainError::InvalidMessageContent { .. })
+                if matches!(*chain_error, ChainError::UnexpectedMessage { .. })
         ));
     }
     {
@@ -767,32 +773,38 @@ where
                 Message {
                     application_id: ApplicationId::System,
                     origin: Origin::chain(ChainId::root(1)),
-                    height: BlockHeight::from(0),
-                    index: 1,
-                    effect: Effect::System(SystemEffect::Credit {
-                        recipient: ChainId::root(2),
-                        amount: Amount::from(2),
-                    }),
+                    event: Event {
+                        height: BlockHeight::from(0),
+                        index: 1,
+                        effect: Effect::System(SystemEffect::Credit {
+                            recipient: ChainId::root(2),
+                            amount: Amount::from(2),
+                        }),
+                    },
                 },
                 Message {
                     application_id: ApplicationId::System,
                     origin: Origin::chain(ChainId::root(1)),
-                    height: BlockHeight::from(0),
-                    index: 0,
-                    effect: Effect::System(SystemEffect::Credit {
-                        recipient: ChainId::root(2),
-                        amount: Amount::from(1),
-                    }),
+                    event: Event {
+                        height: BlockHeight::from(0),
+                        index: 0,
+                        effect: Effect::System(SystemEffect::Credit {
+                            recipient: ChainId::root(2),
+                            amount: Amount::from(1),
+                        }),
+                    },
                 },
                 Message {
                     application_id: ApplicationId::System,
                     origin: Origin::chain(ChainId::root(1)),
-                    height: BlockHeight::from(1),
-                    index: 0,
-                    effect: Effect::System(SystemEffect::Credit {
-                        recipient: ChainId::root(2),
-                        amount: Amount::from(3),
-                    }),
+                    event: Event {
+                        height: BlockHeight::from(1),
+                        index: 0,
+                        effect: Effect::System(SystemEffect::Credit {
+                            recipient: ChainId::root(2),
+                            amount: Amount::from(3),
+                        }),
+                    },
                 },
             ],
             None,
@@ -801,7 +813,7 @@ where
         assert!(matches!(
             worker.handle_block_proposal(block_proposal).await,
             Err(WorkerError::ChainError(chain_error))
-                if matches!(*chain_error, ChainError::InvalidMessageOrder { .. })
+                if matches!(*chain_error, ChainError::IncorrectMessageOrder { .. })
         ));
     }
     {
@@ -814,32 +826,38 @@ where
                 Message {
                     application_id: ApplicationId::System,
                     origin: Origin::chain(ChainId::root(1)),
-                    height: BlockHeight::from(1),
-                    index: 0,
-                    effect: Effect::System(SystemEffect::Credit {
-                        recipient: ChainId::root(2),
-                        amount: Amount::from(3),
-                    }),
+                    event: Event {
+                        height: BlockHeight::from(1),
+                        index: 0,
+                        effect: Effect::System(SystemEffect::Credit {
+                            recipient: ChainId::root(2),
+                            amount: Amount::from(3),
+                        }),
+                    },
                 },
                 Message {
                     application_id: ApplicationId::System,
                     origin: Origin::chain(ChainId::root(1)),
-                    height: BlockHeight::from(0),
-                    index: 0,
-                    effect: Effect::System(SystemEffect::Credit {
-                        recipient: ChainId::root(2),
-                        amount: Amount::from(1),
-                    }),
+                    event: Event {
+                        height: BlockHeight::from(0),
+                        index: 0,
+                        effect: Effect::System(SystemEffect::Credit {
+                            recipient: ChainId::root(2),
+                            amount: Amount::from(1),
+                        }),
+                    },
                 },
                 Message {
                     application_id: ApplicationId::System,
                     origin: Origin::chain(ChainId::root(1)),
-                    height: BlockHeight::from(0),
-                    index: 1,
-                    effect: Effect::System(SystemEffect::Credit {
-                        recipient: ChainId::root(2),
-                        amount: Amount::from(2),
-                    }),
+                    event: Event {
+                        height: BlockHeight::from(0),
+                        index: 1,
+                        effect: Effect::System(SystemEffect::Credit {
+                            recipient: ChainId::root(2),
+                            amount: Amount::from(2),
+                        }),
+                    },
                 },
             ],
             None,
@@ -848,7 +866,7 @@ where
         assert!(matches!(
             worker.handle_block_proposal(block_proposal).await,
             Err(WorkerError::ChainError(chain_error))
-                if matches!(*chain_error, ChainError::InvalidMessageOrder { .. })
+                if matches!(*chain_error, ChainError::IncorrectMessageOrder { .. })
         ));
     }
     {
@@ -860,12 +878,14 @@ where
             vec![Message {
                 application_id: ApplicationId::System,
                 origin: Origin::chain(ChainId::root(1)),
-                height: BlockHeight::from(0),
-                index: 0,
-                effect: Effect::System(SystemEffect::Credit {
-                    recipient: ChainId::root(2),
-                    amount: Amount::from(1),
-                }),
+                event: Event {
+                    height: BlockHeight::from(0),
+                    index: 0,
+                    effect: Effect::System(SystemEffect::Credit {
+                        recipient: ChainId::root(2),
+                        amount: Amount::from(1),
+                    }),
+                },
             }],
             None,
         );
@@ -912,12 +932,14 @@ where
             vec![Message {
                 application_id: ApplicationId::System,
                 origin: Origin::chain(ChainId::root(1)),
-                height: BlockHeight::from(1),
-                index: 0,
-                effect: Effect::System(SystemEffect::Credit {
-                    recipient: ChainId::root(2),
-                    amount: Amount::from(3),
-                }),
+                event: Event {
+                    height: BlockHeight::from(1),
+                    index: 0,
+                    effect: Effect::System(SystemEffect::Credit {
+                        recipient: ChainId::root(2),
+                        amount: Amount::from(3),
+                    }),
+                },
             }],
             Some(&certificate),
         );
@@ -1312,12 +1334,14 @@ where
         vec![Message {
             application_id: ApplicationId::System,
             origin: Origin::chain(ChainId::root(3)),
-            height: BlockHeight::from(0),
-            index: 0,
-            effect: Effect::System(SystemEffect::Credit {
-                recipient: ChainId::root(1),
-                amount: Amount::from(995),
-            }),
+            event: Event {
+                height: BlockHeight::from(0),
+                index: 0,
+                effect: Effect::System(SystemEffect::Credit {
+                    recipient: ChainId::root(1),
+                    amount: Amount::from(995),
+                }),
+            },
         }],
         &committee,
         Balance::from(0),
@@ -1344,7 +1368,7 @@ where
     );
     assert_eq!(
         BlockHeight::from(0),
-        *chain
+        chain
             .communication_states
             .load_entry(ApplicationId::System)
             .await
@@ -1353,8 +1377,8 @@ where
             .load_entry(Origin::chain(ChainId::root(3)))
             .await
             .unwrap()
-            .next_height_to_receive
-            .get()
+            .next_block_height_to_receive()
+            .unwrap()
     );
     assert_eq!(
         chain
@@ -1366,12 +1390,12 @@ where
             .load_entry(Origin::chain(ChainId::root(3)))
             .await
             .unwrap()
-            .received_events
+            .added_events
             .count(),
         0
     );
     assert!(matches!(
-        chain.communication_states.load_entry(ApplicationId::System).await.unwrap().inboxes.load_entry(Origin::chain(ChainId::root(3))).await.unwrap().expected_events.front().await.unwrap().unwrap(),
+        chain.communication_states.load_entry(ApplicationId::System).await.unwrap().inboxes.load_entry(Origin::chain(ChainId::root(3))).await.unwrap().removed_events.front().await.unwrap().unwrap(),
         Event { height, index: 0, effect: Effect::System(SystemEffect::Credit { amount, .. })} if height == BlockHeight::from(0) && amount == Amount::from(995),
     ));
     assert_eq!(chain.confirmed_log.count(), 1);
@@ -1537,7 +1561,7 @@ where
     );
     assert_eq!(
         BlockHeight::from(1),
-        *chain
+        chain
             .communication_states
             .load_entry(ApplicationId::System)
             .await
@@ -1546,11 +1570,11 @@ where
             .load_entry(Origin::chain(ChainId::root(1)))
             .await
             .unwrap()
-            .next_height_to_receive
-            .get()
+            .next_block_height_to_receive()
+            .unwrap()
     );
     assert!(matches!(
-        chain.communication_states.load_entry(ApplicationId::System).await.unwrap().inboxes.load_entry(Origin::chain(ChainId::root(1))).await.unwrap().received_events.front().await.unwrap().unwrap(),
+        chain.communication_states.load_entry(ApplicationId::System).await.unwrap().inboxes.load_entry(Origin::chain(ChainId::root(1))).await.unwrap().added_events.front().await.unwrap().unwrap(),
         Event { height, index: 0, effect: Effect::System(SystemEffect::Credit { amount, .. })} if height == BlockHeight::from(0) && amount == Amount::from(1),
     ));
     assert_eq!(
@@ -1636,7 +1660,7 @@ where
     );
     assert_eq!(
         BlockHeight::from(1),
-        *chain
+        chain
             .communication_states
             .load_entry(ApplicationId::System)
             .await
@@ -1645,11 +1669,11 @@ where
             .load_entry(Origin::chain(ChainId::root(1)))
             .await
             .unwrap()
-            .next_height_to_receive
-            .get()
+            .next_block_height_to_receive()
+            .unwrap()
     );
     assert!(matches!(
-        chain.communication_states.load_entry(ApplicationId::System).await.unwrap().inboxes.load_entry(Origin::chain(ChainId::root(1))).await.unwrap().received_events.front().await.unwrap().unwrap(),
+        chain.communication_states.load_entry(ApplicationId::System).await.unwrap().inboxes.load_entry(Origin::chain(ChainId::root(1))).await.unwrap().added_events.front().await.unwrap().unwrap(),
         Event { height, index: 0, effect: Effect::System(SystemEffect::Credit { amount, .. })} if height == BlockHeight::from(0) && amount == Amount::from(10),
     ));
     assert_eq!(chain.confirmed_log.count(), 0);
@@ -1872,12 +1896,14 @@ where
         vec![Message {
             application_id: ApplicationId::System,
             origin: Origin::chain(ChainId::root(1)),
-            height: BlockHeight::from(0),
-            index: 0,
-            effect: Effect::System(SystemEffect::Credit {
-                recipient: ChainId::root(2),
-                amount: Amount::from(5),
-            }),
+            event: Event {
+                height: BlockHeight::from(0),
+                index: 0,
+                effect: Effect::System(SystemEffect::Credit {
+                    recipient: ChainId::root(2),
+                    amount: Amount::from(5),
+                }),
+            },
         }],
         &committee,
         Balance::from(4),
@@ -2220,12 +2246,14 @@ where
                 incoming_messages: vec![Message {
                     application_id: ApplicationId::System,
                     origin: Origin::chain(admin_id),
-                    height: BlockHeight::from(0),
-                    index: 1,
-                    effect: Effect::System(SystemEffect::Subscribe {
-                        id: user_id,
-                        channel: admin_channel.clone(),
-                    }),
+                    event: Event {
+                        height: BlockHeight::from(0),
+                        index: 1,
+                        effect: Effect::System(SystemEffect::Subscribe {
+                            id: user_id,
+                            channel: admin_channel.clone(),
+                        }),
+                    },
                 }],
                 operations: Vec::new(),
                 previous_block_hash: Some(certificate1.hash),
@@ -2308,7 +2336,7 @@ where
                 .load_entry(Origin::chain(admin_id))
                 .await
                 .unwrap()
-                .received_events
+                .added_events
                 .read_front(10)
                 .await
                 .unwrap()[..],
@@ -2337,7 +2365,7 @@ where
                 .load_entry(admin_channel_origin.clone())
                 .await
                 .unwrap()
-                .received_events
+                .added_events
                 .read_front(10)
                 .await
                 .unwrap()[..],
@@ -2356,7 +2384,7 @@ where
                 .load_entry(admin_channel_origin.clone())
                 .await
                 .unwrap()
-                .expected_events
+                .removed_events
                 .count(),
             0
         );
@@ -2374,30 +2402,36 @@ where
                     Message {
                         application_id: ApplicationId::System,
                         origin: admin_channel_origin.clone(),
-                        height: BlockHeight::from(1),
-                        index: 0,
-                        effect: Effect::System(SystemEffect::SetCommittees {
-                            admin_id,
-                            epoch: Epoch::from(1),
-                            committees: committees2.clone(),
-                        }),
+                        event: Event {
+                            height: BlockHeight::from(1),
+                            index: 0,
+                            effect: Effect::System(SystemEffect::SetCommittees {
+                                admin_id,
+                                epoch: Epoch::from(1),
+                                committees: committees2.clone(),
+                            }),
+                        },
                     },
                     Message {
                         application_id: ApplicationId::System,
                         origin: Origin::chain(admin_id),
-                        height: BlockHeight::from(1),
-                        index: 1,
-                        effect: Effect::System(SystemEffect::Credit {
-                            recipient: user_id,
-                            amount: Amount::from(2),
-                        }),
+                        event: Event {
+                            height: BlockHeight::from(1),
+                            index: 1,
+                            effect: Effect::System(SystemEffect::Credit {
+                                recipient: user_id,
+                                amount: Amount::from(2),
+                            }),
+                        },
                     },
                     Message {
                         application_id: ApplicationId::System,
                         origin: Origin::chain(admin_id),
-                        height: BlockHeight::from(2),
-                        index: 0,
-                        effect: Effect::System(SystemEffect::Notify { id: user_id }),
+                        event: Event {
+                            height: BlockHeight::from(2),
+                            index: 0,
+                            effect: Effect::System(SystemEffect::Notify { id: user_id }),
+                        },
                     },
                 ],
                 operations: Vec::new(),
@@ -2457,9 +2491,12 @@ where
                 .load_entry(Origin::chain(admin_id))
                 .await
                 .unwrap();
-            assert_eq!(*inbox.next_height_to_receive.get(), BlockHeight(3));
-            assert_eq!(inbox.received_events.count(), 0);
-            assert_eq!(inbox.expected_events.count(), 0);
+            assert_eq!(
+                inbox.next_block_height_to_receive().unwrap(),
+                BlockHeight(3)
+            );
+            assert_eq!(inbox.added_events.count(), 0);
+            assert_eq!(inbox.removed_events.count(), 0);
         }
         {
             let inbox = user_chain
@@ -2471,9 +2508,12 @@ where
                 .load_entry(admin_channel_origin)
                 .await
                 .unwrap();
-            assert_eq!(*inbox.next_height_to_receive.get(), BlockHeight(2));
-            assert_eq!(inbox.received_events.count(), 0);
-            assert_eq!(inbox.expected_events.count(), 0);
+            assert_eq!(
+                inbox.next_block_height_to_receive().unwrap(),
+                BlockHeight(2)
+            );
+            assert_eq!(inbox.added_events.count(), 0);
+            assert_eq!(inbox.removed_events.count(), 0);
         }
     }
 }
@@ -2668,7 +2708,7 @@ where
             .load_entry(Origin::chain(user_id))
             .await
             .unwrap()
-            .received_events
+            .added_events
             .read_front(10)
             .await
             .unwrap()[..],
@@ -2891,12 +2931,14 @@ where
                 incoming_messages: vec![Message {
                     application_id: ApplicationId::System,
                     origin: Origin::chain(user_id),
-                    height: BlockHeight::from(0),
-                    index: 0,
-                    effect: Effect::System(SystemEffect::Credit {
-                        recipient: admin_id,
-                        amount: Amount::from(1),
-                    }),
+                    event: Event {
+                        height: BlockHeight::from(0),
+                        index: 0,
+                        effect: Effect::System(SystemEffect::Credit {
+                            recipient: admin_id,
+                            amount: Amount::from(1),
+                        }),
+                    },
                 }],
                 operations: Vec::new(),
                 previous_block_hash: Some(certificate1.hash),
