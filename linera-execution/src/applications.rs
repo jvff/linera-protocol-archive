@@ -34,7 +34,6 @@ pub enum ApplicationDescription {
 }
 
 /// Description of the necessary information to run a user application.
-#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct UserApplicationDescription {
     /// The unique ID of the bytecode to use for the application.
