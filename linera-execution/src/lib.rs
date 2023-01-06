@@ -349,6 +349,18 @@ pub struct RawExecutionResult<Effect> {
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct ChannelName(String);
 
+impl From<String> for ChannelName {
+    fn from(name: String) -> Self {
+        ChannelName(name)
+    }
+}
+
+impl AsRef<str> for ChannelName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
 /// The identifier of a channel, relative to a particular application.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Debug, Clone, Hash, Serialize, Deserialize)]
 pub struct ChannelId {
