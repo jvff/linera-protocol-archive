@@ -181,10 +181,10 @@ impl SystemChannel {
 }
 
 /// The name of the channel for the admin chain to broadcast reconfigurations.
-pub const ADMIN_CHANNEL: Lazy<ChannelName> = Lazy::new(|| "ADMIN".to_owned().into());
+pub static ADMIN_CHANNEL: Lazy<ChannelName> = Lazy::new(|| "ADMIN".to_owned().into());
 
 /// The name of the channel used to broadcast new published bytecodes.
-pub const PUBLISHED_BYTECODES_CHANNEL: Lazy<ChannelName> =
+pub static PUBLISHED_BYTECODES_CHANNEL: Lazy<ChannelName> =
     Lazy::new(|| "PUBLISHED_BYTECODES".to_owned().into());
 
 /// A recipient's address.
