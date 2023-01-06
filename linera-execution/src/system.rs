@@ -157,6 +157,25 @@ pub struct SystemResponse {
     pub balance: Balance,
 }
 
+/// The channels available in the system application.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SystemChannel {
+    /// Channel used to broadcast reconfigurations.
+    Admin,
+    /// Channel used to broadcast new published bytecodes.
+    PublishedBytecodes,
+}
+
+impl SystemChannel {
+    /// The [`ChannelName`] of this [`SystemChannel`].
+    pub fn name(&self) -> ChannelName {
+        match self {
+            SystemChannel::Admin => ADMIN_CHANNEL.clone(),
+            SystemChannel::PublishedBytecodes => PUBLISHED_BYTECODES_CHANNEL.clone(),
+        }
+    }
+}
+
 /// The name of the channel for the admin chain to broadcast reconfigurations.
 pub const ADMIN_CHANNEL: Lazy<ChannelName> = Lazy::new(|| "ADMIN".to_owned().into());
 
