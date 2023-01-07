@@ -757,7 +757,7 @@ pub mod tests {
         let origin_direct = Origin::chain(ChainId::root(0));
         round_trip_check::<_, grpc::Origin>(origin_direct);
 
-        let origin_medium = Origin::channel(ChainId::root(0), "some channel".to_owned().into());
+        let origin_medium = Origin::channel(ChainId::root(0), vec![].into());
         round_trip_check::<_, grpc::Origin>(origin_medium);
     }
 
