@@ -8,7 +8,7 @@
 
 use super::runtime::{contract, writable_system};
 use crate::{
-    ApplicationCallResult, BytecodeId, Destination, NewSession, RawExecutionResult,
+    ApplicationCallResult, BytecodeId, ChannelName, Destination, NewSession, RawExecutionResult,
     SessionCallResult, SessionId, UserApplicationId,
 };
 use linera_base::{
@@ -90,6 +90,12 @@ impl From<contract::SessionResult> for NewSession {
             kind: guest.kind,
             data: guest.data,
         }
+    }
+}
+
+impl From<contract::ChannelName> for ChannelName {
+    fn from(guest: contract::ChannelName) -> Self {
+        guest.name.into()
     }
 }
 
