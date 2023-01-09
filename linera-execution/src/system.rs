@@ -317,7 +317,7 @@ where
                         id: *id,
                         channel: ChannelId {
                             chain_id: *admin_id,
-                            name: ADMIN_CHANNEL.clone(),
+                            name: SystemChannel::Admin.name(),
                         },
                     },
                 );
@@ -394,7 +394,7 @@ where
                 self.committees.get_mut().insert(*epoch, committee.clone());
                 self.epoch.set(Some(*epoch));
                 result.effects = vec![(
-                    Destination::Subscribers(ADMIN_CHANNEL.clone()),
+                    Destination::Subscribers(SystemChannel::Admin.name()),
                     SystemEffect::SetCommittees {
                         admin_id: *admin_id,
                         epoch: self.epoch.get().expect("chain is active"),
@@ -417,7 +417,7 @@ where
                     SystemExecutionError::InvalidCommitteeRemoval
                 );
                 result.effects = vec![(
-                    Destination::Subscribers(ADMIN_CHANNEL.clone()),
+                    Destination::Subscribers(SystemChannel::Admin.name()),
                     SystemEffect::SetCommittees {
                         admin_id: *admin_id,
                         epoch: self.epoch.get().expect("chain is active"),
@@ -437,7 +437,7 @@ where
                 );
                 let channel_id = ChannelId {
                     chain_id: *admin_id,
-                    name: ADMIN_CHANNEL.clone(),
+                    name: SystemChannel::Admin.name(),
                 };
                 ensure!(
                     self.subscriptions.get(&channel_id).await?.is_none(),
@@ -450,7 +450,7 @@ where
                         id: context.chain_id,
                         channel: ChannelId {
                             chain_id: *admin_id,
-                            name: ADMIN_CHANNEL.clone(),
+                            name: SystemChannel::Admin.name(),
                         },
                     },
                 )];
@@ -458,7 +458,7 @@ where
             UnsubscribeToNewCommittees { admin_id } => {
                 let channel_id = ChannelId {
                     chain_id: *admin_id,
-                    name: ADMIN_CHANNEL.clone(),
+                    name: SystemChannel::Admin.name(),
                 };
                 ensure!(
                     self.subscriptions.get(&channel_id).await?.is_some(),
@@ -471,14 +471,14 @@ where
                         id: context.chain_id,
                         channel: ChannelId {
                             chain_id: *admin_id,
-                            name: ADMIN_CHANNEL.clone(),
+                            name: SystemChannel::Admin.name(),
                         },
                     },
                 )];
             }
             PublishBytecode { .. } => {
                 result.effects = vec![(
-                    Destination::Subscribers(PUBLISHED_BYTECODES_CHANNEL.clone()),
+                    Destination::Subscribers(SystemChannel::PublishedBytecodes.name()),
                     SystemEffect::BytecodePublished,
                 )];
             }
@@ -594,7 +594,7 @@ where
             .insert(
                 &ChannelId {
                     chain_id: admin_id,
-                    name: ADMIN_CHANNEL.clone(),
+                    name: SystemChannel::Admin.name(),
                 },
                 (),
             )
