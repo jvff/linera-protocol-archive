@@ -18,10 +18,7 @@ use linera_chain::{
     ChainError,
 };
 use linera_execution::{
-    system::{
-        Address, Amount, Balance, SystemChannel, SystemEffect, SystemOperation, UserData,
-        ADMIN_CHANNEL,
-    },
+    system::{Address, Amount, Balance, SystemChannel, SystemEffect, SystemOperation, UserData},
     ApplicationDescription, ApplicationId, ChainOwnership, ChannelId, Destination, Effect,
     ExecutionStateView, Operation, SystemExecutionState,
 };
@@ -2207,7 +2204,7 @@ where
             .indices()
             .await
             .unwrap()
-            .contains(&*ADMIN_CHANNEL));
+            .contains(&SystemChannel::Admin.name()));
     }
 
     // Create a new committee and transfer money before accepting the subscription.

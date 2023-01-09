@@ -18,7 +18,6 @@ use linera_views::{
     register_view::RegisterView,
     views::{HashableContainerView, View, ViewError},
 };
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use thiserror::Error;
@@ -172,13 +171,6 @@ impl SystemChannel {
             .into()
     }
 }
-
-/// The name of the channel for the admin chain to broadcast reconfigurations.
-pub static ADMIN_CHANNEL: Lazy<ChannelName> = Lazy::new(|| SystemChannel::Admin.name());
-
-/// The name of the channel used to broadcast new published bytecodes.
-pub static PUBLISHED_BYTECODES_CHANNEL: Lazy<ChannelName> =
-    Lazy::new(|| SystemChannel::PublishedBytecodes.name());
 
 /// A recipient's address.
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
