@@ -751,12 +751,10 @@ impl<'a> CrossChainUpdateHelper<'a> {
                 WorkerError::InvalidCrossChainRequest
             );
             // Make sure that heights are increasing.
-            if let Some(latest_height) = latest_height {
-                ensure!(
-                    latest_height < block.height,
-                    WorkerError::InvalidCrossChainRequest
-                );
-            }
+            ensure!(
+                latest_height < Some(block.height),
+                WorkerError::InvalidCrossChainRequest
+            );
             latest_height = Some(block.height);
             // Check if the block has been received already.
             if block.height < next_height_to_receive {
