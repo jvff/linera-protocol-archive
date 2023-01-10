@@ -182,8 +182,8 @@ impl SystemChannel {
 impl Display for SystemChannel {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         let display_name = match self {
-            SystemChannel::Admin => "admin",
-            SystemChannel::PublishedBytecodes => "published bytecodes",
+            SystemChannel::Admin => "Admin",
+            SystemChannel::PublishedBytecodes => "PublishedBytecodes",
         };
 
         write!(formatter, "{display_name}")
