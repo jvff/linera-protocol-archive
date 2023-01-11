@@ -60,7 +60,7 @@ impl WasmApplication {
     /// Prepare a runtime instance to call into the WASM contract.
     pub fn prepare_contract_runtime<'storage>(
         &self,
-        storage: &'storage dyn WritableStorage,
+        storage: &'storage (dyn WritableStorage + '_),
     ) -> Result<WasmRuntimeContext<ContractWasmer<'storage>>, WasmExecutionError> {
         let mut store = Store::default();
         let module = Module::new(&store, &self.contract_bytecode)
@@ -225,6 +225,35 @@ pub struct SystemApi<S> {
     storage: Arc<Mutex<Option<S>>>,
 }
 
+impl<S: ?Sized> SystemApi<&'static S> {
+    /// Create a new [`SystemApi`] instance, ensuring that the lifetime of the [`WritableStorage`]
+    /// trait object is respected.
+    ///
+    /// # Safety
+    ///
+    /// This method uses a [`mem::transmute`] call to erase the lifetime of the `storage` trait
+    /// object reference. However, this is safe because the lifetime is transfered to the returned
+    /// [`StorageGuard`], which removes the unsafe reference from memory when it is dropped,
+    /// ensuring the lifetime is respected.
+    ///
+    /// The [`StorageGuard`] instance must be kept alive while the trait object is still expected to
+    /// be alive and usable by the WASM application.
+    pub unsafe fn new<S2: ?Sized>(
+        context: ContextForwarder,
+        storage: &S2,
+    ) -> (Self, StorageGuard<'_, &'static S>) {
+        let storage_without_lifetime = unsafe { &*(storage as *const S2 as *const S) };
+        let storage = Arc::new(Mutex::new(Some(storage_without_lifetime)));
+
+        let guard = StorageGuard {
+            storage: storage.clone(),
+            _lifetime: PhantomData,
+        };
+
+        (SystemApi { context, storage }, guard)
+    }
+}
+
 impl SystemApi<&'static dyn WritableStorage> {
     /// Create a new [`SystemApi`] instance, ensuring that the lifetime of the [`WritableStorage`]
     /// trait object is respected.
@@ -238,19 +267,11 @@ impl SystemApi<&'static dyn WritableStorage> {
     ///
     /// The [`StorageGuard`] instance must be kept alive while the trait object is still expected to
     /// be alive and usable by the WASM application.
-    pub fn new_writable(
+    pub fn new_writable<'s>(
         context: ContextForwarder,
-        storage: &dyn WritableStorage,
-    ) -> (Self, StorageGuard<'_, &'static dyn WritableStorage>) {
-        let storage_without_lifetime = unsafe { mem::transmute(storage) };
-        let storage = Arc::new(Mutex::new(Some(storage_without_lifetime)));
-
-        let guard = StorageGuard {
-            storage: storage.clone(),
-            _lifetime: PhantomData,
-        };
-
-        (SystemApi { context, storage }, guard)
+        storage: &'s (dyn WritableStorage + 's),
+    ) -> (Self, StorageGuard<'s, &'static dyn WritableStorage>) {
+        Self::new(context, storage)
     }
 }
 
@@ -260,15 +281,7 @@ impl SystemApi<&'static dyn QueryableStorage> {
         context: ContextForwarder,
         storage: &dyn QueryableStorage,
     ) -> (Self, StorageGuard<'_, &'static dyn QueryableStorage>) {
-        let storage_without_lifetime = unsafe { mem::transmute(storage) };
-        let storage = Arc::new(Mutex::new(Some(storage_without_lifetime)));
-
-        let guard = StorageGuard {
-            storage: storage.clone(),
-            _lifetime: PhantomData,
-        };
-
-        (SystemApi { context, storage }, guard)
+        Self::new(context, storage)
     }
 }
 
