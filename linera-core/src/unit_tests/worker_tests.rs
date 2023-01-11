@@ -3094,12 +3094,14 @@ where
 }
 
 #[test(tokio::test)]
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
 async fn test_memory_handle_certificates_to_create_application() -> Result<(), anyhow::Error> {
     let client = MemoryStoreClient::default();
     run_test_handle_certificates_to_create_application(client).await
 }
 
 #[test(tokio::test)]
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
 async fn test_rocksdb_handle_certificates_to_create_application() -> Result<(), anyhow::Error> {
     let dir = tempfile::TempDir::new().unwrap();
     let client = RocksdbStoreClient::new(dir.path().to_path_buf());
@@ -3108,6 +3110,7 @@ async fn test_rocksdb_handle_certificates_to_create_application() -> Result<(), 
 
 #[test(tokio::test)]
 #[ignore]
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
 async fn test_dynamo_db_handle_certificates_to_create_application() -> Result<(), anyhow::Error> {
     let table = "linera".parse().expect("Invalid table name");
     let localstack = LocalStackTestContext::new().await?;
@@ -3116,6 +3119,7 @@ async fn test_dynamo_db_handle_certificates_to_create_application() -> Result<()
     run_test_handle_certificates_to_create_application(client).await
 }
 
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
 async fn run_test_handle_certificates_to_create_application<S>(
     client: S,
 ) -> Result<(), anyhow::Error>
