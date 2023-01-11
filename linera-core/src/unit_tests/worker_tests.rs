@@ -36,7 +36,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use test_log::test;
 
 #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-use linera_execution::Bytecode;
+use linera_execution::{Bytecode, BytecodeId};
 
 #[derive(Serialize, Deserialize)]
 struct Dummy;
@@ -3294,6 +3294,68 @@ where
     assert_eq!(Balance::from(0), info.system_balance);
     assert_eq!(BlockHeight::from(2), info.next_block_height);
     assert_eq!(Some(accept_certificate.hash), info.block_hash);
+    assert!(info.manager.pending().is_none());
+
+    // Create an application.
+    let bytecode = BytecodeId(EffectId {
+        chain_id: publisher_chain.into(),
+        height: publish_block_height,
+        index: 0,
+    });
+    let initial_value = 10_u128;
+    let initial_value_bytes = bcs::to_bytes(&initial_value)?;
+    let create_operation = SystemOperation::CreateNewApplication {
+        bytecode,
+        argument: initial_value_bytes.clone(),
+    };
+    let application_id = UserApplicationId {
+        bytecode,
+        creation: EffectId {
+            chain_id: creator_chain.into(),
+            height: BlockHeight::from(1),
+            index: 0,
+        },
+    };
+    let create_block = make_block(
+        Epoch::from(0),
+        creator_chain.into(),
+        vec![create_operation],
+        vec![Message {
+            application_id: ApplicationId::System,
+            origin: Origin::channel(
+                publisher_chain.into(),
+                SystemChannel::PublishedBytecodes.name(),
+            ),
+            event: Event {
+                certificate_hash: publish_certificate.hash,
+                height: publish_block_height,
+                index: 0,
+                effect: Effect::System(SystemEffect::BytecodePublished),
+            },
+        }],
+        Some(&subscribe_certificate),
+    );
+    creator_state
+        .users
+        .try_load_entry(application_id)
+        .await?
+        .set(initial_value_bytes);
+    let create_block_proposal = Value::ConfirmedBlock {
+        block: create_block,
+        effects: vec![],
+        state_hash: creator_state.hash_value().await?,
+    };
+    let create_certificate = make_certificate(&committee, &worker, create_block_proposal);
+
+    let info = worker
+        .fully_handle_certificate(create_certificate.clone())
+        .await
+        .unwrap()
+        .info;
+    assert_eq!(ChainId::root(2), info.chain_id);
+    assert_eq!(Balance::from(0), info.system_balance);
+    assert_eq!(BlockHeight::from(2), info.next_block_height);
+    assert_eq!(Some(create_certificate.hash), info.block_hash);
     assert!(info.manager.pending().is_none());
 
     todo!();
