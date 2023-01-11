@@ -23,8 +23,8 @@ use linera_chain::{
 };
 use linera_execution::{
     system::{Address, Amount, Balance, SystemChannel, SystemEffect, SystemOperation, UserData},
-    ApplicationDescription, ApplicationId, Bytecode, BytecodeId, ChainOwnership, ChannelId,
-    Destination, Effect, ExecutionStateView, Operation, SystemExecutionState, UserApplicationId,
+    ApplicationDescription, ApplicationId, ChainOwnership, ChannelId, Destination, Effect,
+    ExecutionStateView, Operation, SystemExecutionState, UserApplicationId,
 };
 use linera_storage::{DynamoDbStoreClient, MemoryStoreClient, RocksdbStoreClient, Store};
 use linera_views::{
@@ -34,6 +34,9 @@ use linera_views::{
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use test_log::test;
+
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+use linera_execution::{Bytecode, BytecodeId};
 
 #[derive(Serialize, Deserialize)]
 struct Dummy;
