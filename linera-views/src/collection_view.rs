@@ -15,6 +15,7 @@ use std::{
     mem,
     sync::Arc,
 };
+#[cfg(not(target_arch = "wasm32"))]
 use tokio::sync::{Mutex, OwnedMutexGuard};
 
 /// A view that supports accessing a collection of views of the same kind, indexed by a
@@ -32,6 +33,7 @@ pub struct CollectionView<C, I, W> {
 /// A view that supports accessing a collection of views of the same kind, indexed by a
 /// key, possibly several subviews at a time.
 #[derive(Debug)]
+#[cfg(not(target_arch = "wasm32"))]
 pub struct ReentrantCollectionView<C, I, W> {
     context: C,
     was_cleared: bool,
@@ -294,6 +296,7 @@ where
 }
 
 #[async_trait]
+#[cfg(not(target_arch = "wasm32"))]
 impl<C, I, W> View<C> for ReentrantCollectionView<C, I, W>
 where
     C: Context + Send + Sync,
@@ -378,6 +381,7 @@ where
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl<C, I, W> ReentrantCollectionView<C, I, W>
 where
     C: Context + Send,
@@ -561,6 +565,7 @@ where
 }
 
 #[async_trait]
+#[cfg(not(target_arch = "wasm32"))]
 impl<C, I, W> HashableView<C> for ReentrantCollectionView<C, I, W>
 where
     C: Context + Send + Sync,

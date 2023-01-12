@@ -36,12 +36,15 @@ pub mod key_value_store_view;
 pub mod memory;
 
 /// Helper definitions for Rocksdb storage.
+#[cfg(not(target_arch = "wasm32"))]
 pub mod rocksdb;
 
 /// Helper definitions for DynamoDB storage.
+#[cfg(not(target_arch = "wasm32"))]
 pub mod dynamo_db;
 
 /// Helper types for interfacing with a LocalStack instance.
+#[cfg(not(target_arch = "wasm32"))]
 pub mod localstack;
 
 /// Helper types for tests.

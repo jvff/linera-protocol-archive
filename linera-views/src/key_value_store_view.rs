@@ -8,6 +8,9 @@ use crate::{
     },
     views::{HashableView, Hasher, View, ViewError},
 };
+#[cfg(not(target_arch = "wasm32"))]
+use crate::memory::{MemoryContext, MemoryStoreMap};
+
 use async_trait::async_trait;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -33,6 +36,11 @@ use {
 /// * a write_batch that takes a &self instead of a "&mut self"
 /// * a write_batch that writes in the context instead of writing of the view.
 /// At the present time, that second type is only used for tests.
+
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::sync::{OwnedMutexGuard, RwLock};
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::Arc;
 
 /// Key tags to create the sub-keys of a KeyValueStoreView on top of the base key.
 #[repr(u8)]
@@ -629,6 +637,7 @@ where
 pub type KeyValueStoreMemoryContext<E> = ContextFromDb<E, ViewContainer<MemoryContext<()>>>;
 
 #[cfg(any(test, feature = "test"))]
+#[cfg(not(target_arch = "wasm32"))]
 impl<E> KeyValueStoreMemoryContext<E> {
     pub fn new(guard: OwnedMutexGuard<MemoryStoreMap>, base_key: Vec<u8>, extra: E) -> Self {
         let context = MemoryContext::new(guard, ());
