@@ -6,11 +6,14 @@ use crate::{
         get_upper_bound, Batch, Context, ContextFromDb, HashOutput, KeyValueOperations,
         SimpleTypeIterator, WriteOperation,
     },
-    memory::{MemoryContext, MemoryStoreMap},
     views::{HashableView, Hasher, View, ViewError},
 };
+#[cfg(not(target_arch = "wasm32"))]
+use crate::memory::{MemoryContext, MemoryStoreMap};
+
 use async_trait::async_trait;
 use std::{collections::BTreeMap, fmt::Debug, mem, ops::Bound::Included};
+#[cfg(not(target_arch = "wasm32"))]
 use tokio::sync::OwnedMutexGuard;
 
 /// Key tags to create the sub-keys of a KeyValueStoreView on top of the base key.
@@ -419,9 +422,11 @@ where
 
 /// A context that stores all values in memory.
 #[cfg(any(test, feature = "test"))]
+#[cfg(not(target_arch = "wasm32"))]
 pub type KeyValueStoreMemoryContext<E> = ContextFromDb<E, KeyValueStoreView<MemoryContext<()>>>;
 
 #[cfg(any(test, feature = "test"))]
+#[cfg(not(target_arch = "wasm32"))]
 impl<E> KeyValueStoreMemoryContext<E> {
     pub fn new(guard: OwnedMutexGuard<MemoryStoreMap>, base_key: Vec<u8>, extra: E) -> Self {
         let context = MemoryContext::new(guard, ());

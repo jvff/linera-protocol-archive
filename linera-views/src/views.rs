@@ -63,9 +63,11 @@ pub enum ViewError {
     Io(#[from] std::io::Error),
 
     #[error("Failed to lock collection entry: {0}")]
+    #[cfg(not(target_arch = "wasm32"))]
     TryLockError(#[from] tokio::sync::TryLockError),
 
     #[error("Panic in sub-task: {0}")]
+    #[cfg(not(target_arch = "wasm32"))]
     TokioJoinError(#[from] tokio::task::JoinError),
 
     #[error("Storage operation error in {backend}: {error}")]
