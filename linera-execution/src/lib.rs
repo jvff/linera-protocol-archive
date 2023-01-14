@@ -64,6 +64,8 @@ pub enum ExecutionError {
     InvalidSessionOwner,
     #[error("Attempted to call an application while the state is locked")]
     ApplicationIsInUse,
+    #[error("Attempted to get an entry that is not locked")]
+    ApplicationStateNotLocked,
 
     #[error("Bytecode ID {0:?} is invalid")]
     InvalidBytecodeId(BytecodeId),
@@ -266,6 +268,12 @@ pub struct CallResult {
 
 #[async_trait]
 pub trait WritableStorage: ReadableStorage {
+    /// Lock the userkv stat and prevent further reading/loading until (WHEN EXACTLY? save or unlock?)
+    async fn lock_userkv_state(&self) -> Result<(), ExecutionError>;
+
+    /// read the keys
+    async fn pass_userkv_read_key_bytes(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, ExecutionError>;
+
     /// Read the application state and prevent further reading/loading until the state is saved.
     async fn try_read_and_lock_my_state(&self) -> Result<Vec<u8>, ExecutionError>;
 

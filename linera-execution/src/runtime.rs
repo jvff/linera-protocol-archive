@@ -9,8 +9,9 @@ use crate::{
 use async_trait::async_trait;
 use linera_base::{data_types::ChainId, ensure};
 use linera_views::{
-    common::Context,
+    common::{Context, KeyValueOperations},
     register_view::RegisterView,
+    key_value_store_view::KeyValueStoreView,
     views::{View, ViewError},
 };
 use std::{
@@ -35,6 +36,8 @@ pub(crate) struct ExecutionRuntime<'a, C, const WRITABLE: bool> {
     session_manager: Arc<Mutex<&'a mut SessionManager>>,
     /// Track active (i.e. locked) applications for which re-entrancy is disallowed.
     active_user_states: Arc<Mutex<ActiveUserStates<C>>>,
+    /// Track active (i.e. locked) applications for which re-entrancy is disallowed.
+    active_userkv_states: Arc<Mutex<ActiveUserkvStates<C>>>,
     /// Track active (i.e. locked) sessions for which re-entrancy is disallowed.
     active_sessions: Arc<Mutex<ActiveSessions>>,
     /// Accumulate the externally visible results (e.g. cross-chain messages) of applications.
@@ -42,6 +45,8 @@ pub(crate) struct ExecutionRuntime<'a, C, const WRITABLE: bool> {
 }
 
 type ActiveUserStates<C> = BTreeMap<UserApplicationId, OwnedMutexGuard<RegisterView<C, Vec<u8>>>>;
+
+type ActiveUserkvStates<C> = BTreeMap<UserApplicationId, OwnedMutexGuard<KeyValueStoreView<C>>>;
 
 type ActiveSessions = BTreeMap<SessionId, OwnedMutexGuard<SessionState>>;
 
@@ -83,6 +88,7 @@ where
             execution_state: Arc::new(Mutex::new(execution_state)),
             session_manager: Arc::new(Mutex::new(session_manager)),
             active_user_states: Arc::default(),
+            active_userkv_states: Arc::default(),
             active_sessions: Arc::default(),
             execution_results: Arc::new(Mutex::new(execution_results)),
         }
@@ -110,6 +116,12 @@ where
         self.active_user_states
             .try_lock()
             .expect("single-threaded execution should not lock `active_user_states`")
+    }
+
+    fn active_userkv_states_mut(&self) -> MutexGuard<'_, ActiveUserkvStates<C>> {
+        self.active_userkv_states
+            .try_lock()
+            .expect("single-threaded execution should not lock `active_userkv_states`")
     }
 
     fn active_sessions_mut(&self) -> MutexGuard<'_, ActiveSessions> {
@@ -328,6 +340,29 @@ where
     ViewError: From<C::Error>,
     C::Extra: ExecutionRuntimeContext,
 {
+    async fn lock_userkv_state(&self) -> Result<(), ExecutionError> {
+        let view = self
+            .execution_state_mut()
+            .users_kv
+            .try_load_entry(self.application_id())
+            .await?;
+        self.active_userkv_states_mut()
+            .insert(self.application_id(), view);
+        Ok(())
+    }
+
+    async fn pass_userkv_read_key_bytes(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, ExecutionError> {
+        // Make the view available again.
+        match self.active_userkv_states_mut().get(&self.application_id()) {
+            Some(view) => {
+                // read the key
+                let value = view.read_key_bytes(&key).await?;
+                Ok(value)
+            }
+            None => Err(ExecutionError::ApplicationStateNotLocked),
+        }
+    }
+
     async fn try_read_and_lock_my_state(&self) -> Result<Vec<u8>, ExecutionError> {
         let view = self
             .execution_state_mut()
