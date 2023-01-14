@@ -63,12 +63,7 @@ impl<'a> Test<'a> {
 
             let function = instance.get_typed_func::<(), (), _>(&mut store, self.function)?;
 
-            let pass = function.call(&mut store, ()).is_ok();
-            if pass {
-                report.pass();
-            } else {
-                report.fail();
-            }
+            report.result(function.call(&mut store, ()));
         }
 
         Ok(())
@@ -83,6 +78,14 @@ struct TestReport {
 }
 
 impl TestReport {
+    pub fn result<T, E>(&mut self, result: Result<T, E>) {
+        if result.is_ok() {
+            self.pass();
+        } else {
+            self.fail();
+        }
+    }
+
     pub fn pass(&mut self) {
         self.passed += 1;
         eprintln!(" ok")
