@@ -6,19 +6,8 @@ fn main() -> Result<()> {
     let test_module = load_test_module(&engine)?;
     let mut tests = Vec::new();
     for export in test_module.exports() {
-        let function = export.name();
-
-        if let Some(name) = function.strip_prefix("$webassembly-test$") {
-            let mut ignore = true;
-            let name = name.strip_prefix("ignore$").unwrap_or_else(|| {
-                ignore = false;
-                name
-            });
-            tests.push(TestMeta {
-                name,
-                function,
-                ignore,
-            });
+        if let Some(test) = Test::new(export) {
+            tests.push(test);
         }
     }
     let total = tests.len();
@@ -82,4 +71,18 @@ struct Test<'a> {
     name: &'a str,
     function: &'a str,
     ignore: bool,
+}
+
+impl<'a> Test<'a> {
+    pub fn new(export: ExportType<'a>) -> Option<Self> {
+        let function = export.name();
+        let test_name = function.strip_prefix("$webassembly-test$")?;
+        let ignored_test_name = test_name.strip_prefix("ignore$");
+
+        Some(Test {
+            function,
+            name: ignored_test_name.unwrap_or(test_name),
+            ignore: ignored_test_name.is_some(),
+        })
+    }
 }
