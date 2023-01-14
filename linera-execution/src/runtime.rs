@@ -363,6 +363,38 @@ where
         }
     }
 
+    async fn pass_userkv_find_stripped_keys_by_prefix(&self, key_prefix: Vec<u8>) -> Result<Vec<Vec<u8>>, ExecutionError> {
+        // Make the view available again.
+        match self.active_userkv_states_mut().get(&self.application_id()) {
+            Some(view) => {
+                // read the key
+                let value = view.find_stripped_keys_by_prefix(&key_prefix).await?;
+                let mut value_ret = Vec::new();
+                for item in value {
+                    value_ret.push(item?);
+                }
+                Ok(value_ret)
+            }
+            None => Err(ExecutionError::ApplicationStateNotLocked),
+        }
+    }
+
+    async fn pass_userkv_find_stripped_key_values_by_prefix(&self, key_prefix: Vec<u8>) -> Result<Vec<(Vec<u8>,Vec<u8>)>, ExecutionError> {
+        // Make the view available again.
+        match self.active_userkv_states_mut().get(&self.application_id()) {
+            Some(view) => {
+                // read the key
+                let value = view.find_stripped_key_values_by_prefix(&key_prefix).await?;
+                let mut value_ret = Vec::new();
+                for item in value {
+                    value_ret.push(item?);
+                }
+                Ok(value_ret)
+            }
+            None => Err(ExecutionError::ApplicationStateNotLocked),
+        }
+    }
+
     async fn try_read_and_lock_my_state(&self) -> Result<Vec<u8>, ExecutionError> {
         let view = self
             .execution_state_mut()

@@ -271,8 +271,14 @@ pub trait WritableStorage: ReadableStorage {
     /// Lock the userkv stat and prevent further reading/loading until (WHEN EXACTLY? save or unlock?)
     async fn lock_userkv_state(&self) -> Result<(), ExecutionError>;
 
-    /// read the keys
+    /// Pass the reading of one key
     async fn pass_userkv_read_key_bytes(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, ExecutionError>;
+
+    /// Reads the data from the keys having a specific prefix.
+    async fn pass_userkv_find_stripped_keys_by_prefix(&self, key_prefix: Vec<u8>) -> Result<Vec<Vec<u8>>, ExecutionError>;
+
+    /// Reads the data from the key/values having a specific prefix.
+    async fn pass_userkv_find_stripped_key_values_by_prefix(&self, key_prefix: Vec<u8>) -> Result<Vec<(Vec<u8>,Vec<u8>)>, ExecutionError>;
 
     /// Read the application state and prevent further reading/loading until the state is saved.
     async fn try_read_and_lock_my_state(&self) -> Result<Vec<u8>, ExecutionError>;
