@@ -2,17 +2,12 @@ use anyhow::{bail, Result};
 use wasmtime::*;
 
 fn main() -> Result<()> {
-    let file = match std::env::args().nth(1) {
-        Some(it) => it,
-        None => {
-            bail!("usage: webassembly-test-runner tests.wasm");
-        }
-    };
+    let test_module_path = parse_args()?;
     // Modules can be compiled through either the text or binary format
     let engine = Engine::default();
-    let module = Module::from_file(&engine, &file)?;
+    let test_module = Module::from_file(&engine, &test_module_path)?;
     let mut tests = Vec::new();
-    for export in module.exports() {
+    for export in test_module.exports() {
         if let Some(name) = export.name().strip_prefix("$webassembly-test$") {
             let mut ignore = true;
             let name = name.strip_prefix("ignore$").unwrap_or_else(|| {
@@ -26,7 +21,7 @@ fn main() -> Result<()> {
 
     eprintln!("\nrunning {} tests", total);
     let mut store = Store::new(&engine, ());
-    let mut instance = Instance::new(&mut store, &module, &[])?;
+    let mut instance = Instance::new(&mut store, &test_module, &[])?;
     let mut passed = 0;
     let mut failed = 0;
     let mut ignored = 0;
@@ -47,7 +42,7 @@ fn main() -> Result<()> {
                 // `Drop`s are not called after test failures, and a failed test
                 // might leave an instance in an inconsistent state.
                 store = Store::new(&engine, ());
-                instance = Instance::new(&mut store, &module, &[])?;
+                instance = Instance::new(&mut store, &test_module, &[])?;
 
                 failed += 1;
                 eprintln!(" FAILED")
@@ -62,6 +57,15 @@ fn main() -> Result<()> {
         ignored,
     );
     Ok(())
+}
+
+fn parse_args() -> Result<String> {
+    match std::env::args().nth(1) {
+        Some(file_path) => Ok(file_path),
+        None => {
+            bail!("usage: test-runner tests.wasm");
+        }
+    }
 }
 
 struct TestMeta<'a> {
