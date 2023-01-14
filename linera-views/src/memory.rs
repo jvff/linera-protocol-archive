@@ -8,25 +8,19 @@ use crate::{
 };
 use std::{collections::BTreeMap, fmt::Debug};
 use thiserror::Error;
-#[cfg(not(target_arch = "wasm32"))]
 use tokio::sync::{OwnedMutexGuard, RwLock};
-#[cfg(not(target_arch = "wasm32"))]
 use async_trait::async_trait;
-#[cfg(not(target_arch = "wasm32"))]
 use std::sync::Arc;
 
 /// The data is serialized in memory just like for rocksdb / dynamodb
 /// The analogue of the database is the BTreeMap
 pub type MemoryStoreMap = BTreeMap<Vec<u8>, Vec<u8>>;
 
-#[cfg(not(target_arch = "wasm32"))]
 pub type MemoryContainer = Arc<RwLock<OwnedMutexGuard<MemoryStoreMap>>>;
 
 /// A context that stores all values in memory.
-#[cfg(not(target_arch = "wasm32"))]
 pub type MemoryContext<E> = ContextFromDb<E, MemoryContainer>;
 
-#[cfg(not(target_arch = "wasm32"))]
 impl<E> MemoryContext<E> {
     pub fn new(guard: OwnedMutexGuard<MemoryStoreMap>, extra: E) -> Self {
         Self {
@@ -38,7 +32,6 @@ impl<E> MemoryContext<E> {
 }
 
 #[async_trait]
-#[cfg(not(target_arch = "wasm32"))]
 impl KeyValueOperations for MemoryContainer {
     type Error = MemoryContextError;
     type KeyIterator = SimpleTypeIterator<Vec<u8>, MemoryContextError>;
@@ -76,7 +69,7 @@ impl KeyValueOperations for MemoryContainer {
         Ok(Self::KeyValueIterator::new(key_values))
     }
 
-    async fn write_batch(&self, batch: Batch) -> Result<(), MemoryContextError> {
+    async fn write_batch(&mut self, batch: Batch) -> Result<(), MemoryContextError> {
         let mut map = self.write().await;
         for ent in batch.operations {
             match ent {

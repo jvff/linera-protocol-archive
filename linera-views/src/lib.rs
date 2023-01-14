@@ -33,6 +33,7 @@ pub mod collection_view;
 pub mod key_value_store_view;
 
 /// Helper definitions for in-memory storage.
+#[cfg(not(target_arch = "wasm32"))]
 pub mod memory;
 
 /// Helper definitions for Rocksdb storage.

@@ -18,6 +18,62 @@ variant poll-load {
     ready(expected<list<u8>, string>),
 }
 
+resource lock {
+    static new: func() -> lock
+    poll: func() -> poll-lock
+}
+
+variant poll-lock {
+    pending,
+    ready(expected<unit, string>),
+}
+
+resource read-key-bytes {
+    static new: func(key: list<u8>) -> read-key-bytes
+    poll: func() -> poll-read-key-bytes
+}
+
+variant poll-read-key-bytes {
+    pending,
+    ready(expected<option<list<u8>>, string>),
+}
+
+resource find-stripped-keys {
+    static new: func(prefix: list<u8>) -> find-stripped-keys
+    poll: func() -> poll-find-stripped-keys
+}
+
+variant poll-find-stripped-keys {
+    pending,
+    ready(expected<list<list<u8>>, string>),
+}
+
+resource find-stripped-key-values {
+    static new: func(prefix: list<u8>) -> find-stripped-key-values
+    poll: func() -> poll-find-stripped-key-values
+}
+
+variant poll-find-stripped-key-values {
+    pending,
+    ready(expected<list<tuple<list<u8>,list<u8>>>, string>),
+}
+
+variant write-operation {
+    delete(list<u8>),
+    deleteprefix(list<u8>),
+    put(tuple<list<u8>,list<u8>>),
+}
+
+resource write-batch {
+    static new: func(key: list<write-operation>) -> write-batch
+    poll: func() -> poll-write-batch
+}
+
+variant poll-write-batch {
+    pending,
+    ready(expected<unit, string>),
+}
+
 store-and-unlock: func(value: list<u8>) -> bool
 
 resource try-call-application {

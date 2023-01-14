@@ -9,7 +9,7 @@ use crate::{
     views::{HashableView, Hasher, View, ViewError},
 };
 #[cfg(not(target_arch = "wasm32"))]
-use crate::memory::{MemoryContext, MemoryStoreMap, common::ContextFromDb};
+use crate::{memory::{MemoryContext, MemoryStoreMap}, common::ContextFromDb};
 
 use async_trait::async_trait;
 use std::{
@@ -18,6 +18,7 @@ use std::{
     mem,
     ops::Bound::Included,
 };
+use std::collections::btree_set::Iter;
 
 #[cfg(any(test, feature = "test"))]
 use {
@@ -631,10 +632,6 @@ where
         }
     }
 }
-
-/// A context that stores all values in memory.
-#[cfg(any(test, feature = "test"))]
-pub type KeyValueStoreMemoryContext<E> = ContextFromDb<E, ViewContainer<MemoryContext<()>>>;
 
 #[cfg(any(test, feature = "test"))]
 #[cfg(not(target_arch = "wasm32"))]

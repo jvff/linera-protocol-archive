@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use thiserror::Error;
 
 /// The application state.
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(Default, Deserialize, Serialize)]
 pub struct FungibleToken {
     accounts: BTreeMap<AccountOwner, u128>,
     nonces: BTreeMap<AccountOwner, Nonce>,

@@ -49,7 +49,7 @@ pub enum WriteOperation {
 /// A batch of writes inside a transaction;
 #[derive(Default)]
 pub struct Batch {
-    pub(crate) operations: Vec<WriteOperation>,
+    pub operations: Vec<WriteOperation>,
 }
 
 impl Batch {
@@ -61,6 +61,10 @@ impl Batch {
         let mut batch = Batch::default();
         builder(&mut batch).await?;
         Ok(batch)
+    }
+
+    pub fn len(&self) -> usize {
+        self.operations.len()
     }
 
     /// A key may appear multiple times in the batch
@@ -176,7 +180,7 @@ pub trait KeyValueOperations {
     }
 
     /// Write the batch in the database.
-    async fn write_batch(&self, mut batch: Batch) -> Result<(), Self::Error>;
+    async fn write_batch(&mut self, mut batch: Batch) -> Result<(), Self::Error>;
 
     /// Read a single key and deserialize the result if present.
     async fn read_key<V: DeserializeOwned>(&self, key: &[u8]) -> Result<Option<V>, Self::Error>
@@ -252,7 +256,7 @@ pub struct SimpleTypeIterator<T, E> {
 }
 
 impl<T, E> SimpleTypeIterator<T, E> {
-    pub(crate) fn new(values: Vec<T>) -> Self {
+    pub fn new(values: Vec<T>) -> Self {
         Self {
             iter: values.into_iter(),
             _error_type: std::marker::PhantomData,
@@ -337,7 +341,7 @@ pub trait Context {
     ) -> Result<Vec<Key>, Self::Error>;
 
     /// Apply the operations from the `batch`, persisting the changes.
-    async fn write_batch(&self, batch: Batch) -> Result<(), Self::Error>;
+    async fn write_batch(&mut self, batch: Batch) -> Result<(), Self::Error>;
 
     fn clone_with_base_key(&self, base_key: Vec<u8>) -> Self;
 }
@@ -453,7 +457,7 @@ where
         self.db.get_sub_keys(key_prefix).await
     }
 
-    async fn write_batch(&self, batch: Batch) -> Result<(), Self::Error> {
+    async fn write_batch(&mut self, batch: Batch) -> Result<(), Self::Error> {
         self.db.write_batch(batch).await?;
         Ok(())
     }

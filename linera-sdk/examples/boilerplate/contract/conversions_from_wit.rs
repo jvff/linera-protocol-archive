@@ -12,6 +12,8 @@ use linera_sdk::{
     HashValue, OperationContext, Session, SessionId, SystemBalance,
 };
 use std::task::Poll;
+use linera_views::views::ViewError;
+use crate::boilerplate::writable_system::{PollReadKeyBytes, PollFindStrippedKeys, PollFindStrippedKeyValues, PollWriteBatch};
 
 impl From<contract::OperationContext> for OperationContext {
     fn from(application_context: contract::OperationContext) -> Self {
@@ -157,6 +159,18 @@ impl From<PollCallResult> for Poll<Result<(Vec<u8>, Vec<SessionId>), String>> {
     }
 }
 
+impl From<PollReadKeyBytes> for Poll<Result<Option<Vec<u8>>, ViewError>> {
+    fn from(poll_read_key_bytes: PollReadKeyBytes) -> Self {
+        match poll_read_key_bytes {
+            PollReadKeyBytes::Ready(Ok(bytes)) => Poll::Ready(Ok(bytes)),
+            PollReadKeyBytes::Ready(Err(error)) => {
+                Poll::Ready(Err(ViewError::WasmHostGuestError(error)))
+            }
+            PollReadKeyBytes::Pending => Poll::Pending,
+        }
+    }
+}
+
 impl From<system::CallResult> for (Vec<u8>, Vec<SessionId>) {
     fn from(call_result: system::CallResult) -> (Vec<u8>, Vec<SessionId>) {
         let value = call_result.value;
@@ -177,6 +191,42 @@ impl From<system::SessionId> for SessionId {
             application_id: session_id.application_id.into(),
             kind: session_id.kind,
             index: session_id.index,
+        }
+    }
+}
+
+impl From<PollFindStrippedKeys> for Poll<Result<Vec<Vec<u8>>, ViewError>> {
+    fn from(poll_find_stripped_keys: PollFindStrippedKeys) -> Self {
+        match poll_find_stripped_keys {
+            PollFindStrippedKeys::Ready(Ok(keys)) => Poll::Ready(Ok(keys)),
+            PollFindStrippedKeys::Ready(Err(error)) => {
+                Poll::Ready(Err(ViewError::WasmHostGuestError(error)))
+            }
+            PollFindStrippedKeys::Pending => Poll::Pending,
+        }
+    }
+}
+
+impl From<PollFindStrippedKeyValues> for Poll<Result<Vec<(Vec<u8>,Vec<u8>)>, ViewError>> {
+    fn from(poll_find_stripped_key_values: PollFindStrippedKeyValues) -> Self {
+        match poll_find_stripped_key_values {
+            PollFindStrippedKeyValues::Ready(Ok(key_values)) => Poll::Ready(Ok(key_values)),
+            PollFindStrippedKeyValues::Ready(Err(error)) => {
+                Poll::Ready(Err(ViewError::WasmHostGuestError(error)))
+            }
+            PollFindStrippedKeyValues::Pending => Poll::Pending,
+        }
+    }
+}
+
+impl From<PollWriteBatch> for Poll<Result<(), ViewError>> {
+    fn from(poll_write_batch: PollWriteBatch) -> Self {
+        match poll_write_batch {
+            PollWriteBatch::Ready(Ok(())) => Poll::Ready(Ok(())),
+            PollWriteBatch::Ready(Err(error)) => {
+                Poll::Ready(Err(ViewError::WasmHostGuestError(error)))
+            }
+            PollWriteBatch::Pending => Poll::Pending,
         }
     }
 }

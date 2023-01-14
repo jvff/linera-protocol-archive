@@ -5,6 +5,85 @@ use super::{super::ApplicationState, queryable_system as system};
 use futures::future;
 use linera_sdk::{ApplicationId, ChainId, SystemBalance, Timestamp};
 use std::future::Future;
+use async_trait::async_trait;
+use linera_views::views::ViewError;
+use linera_views::common::{Batch, ContextFromDb, SimpleTypeIterator, KeyValueOperations};
+
+
+pub struct ReadableWasmContainer;
+
+impl ReadableWasmContainer {
+    pub fn new() -> Self {
+        ReadableWasmContainer { }
+    }
+
+    async fn find_stripped_keys_by_prefix_load(
+        &self,
+        key_prefix: &[u8],
+    ) -> Result<Vec<Vec<u8>>, ViewError> {
+        let future = system::FindStrippedKeys::new(key_prefix);
+        future::poll_fn(|_context| future.poll().into()).await
+    }
+
+    async fn find_stripped_key_values_by_prefix_load(
+        &self,
+        key_prefix: &[u8],
+    ) -> Result<Vec<(Vec<u8>,Vec<u8>)>, ViewError> {
+        let future = system::FindStrippedKeyValues::new(key_prefix);
+        future::poll_fn(|_context| future.poll().into()).await
+    }
+
+}
+
+
+#[async_trait]
+impl KeyValueOperations for ReadableWasmContainer {
+    type Error = ViewError;
+    type KeyIterator = SimpleTypeIterator<Vec<u8>, ViewError>;
+    type KeyValueIterator = SimpleTypeIterator<(Vec<u8>, Vec<u8>), ViewError>;
+
+    async fn read_key_bytes(&self, key: &[u8]) -> Result<Option<Vec<u8>>, ViewError> {
+        let future = system::ReadKeyBytes::new(key);
+        future::poll_fn(|_context| future.poll().into()).await
+    }
+
+    async fn find_stripped_keys_by_prefix(
+        &self,
+        key_prefix: &[u8],
+    ) -> Result<Self::KeyIterator, ViewError> {
+        let keys = self.find_stripped_keys_by_prefix_load(key_prefix).await?;
+        Ok(Self::KeyIterator::new(keys))
+    }
+
+    async fn find_stripped_key_values_by_prefix(
+        &self,
+        key_prefix: &[u8],
+    ) -> Result<Self::KeyValueIterator, ViewError> {
+        let key_values = self.find_stripped_key_values_by_prefix_load(key_prefix).await?;
+        Ok(Self::KeyValueIterator::new(key_values))
+    }
+
+    async fn write_batch(&mut self, _batch: Batch) -> Result<(), ViewError> {
+        Ok(())
+    }
+
+}
+
+type ReadableWasmContext<E> = ContextFromDb<E, ReadableWasmContainer>;
+
+trait ReadableWasmContextExt<E> {
+    fn new(extra: E) -> Self;
+}
+
+impl<E> ReadableWasmContextExt<E> for ReadableWasmContext<E> {
+    fn new(extra: E) -> Self {
+        Self {
+            db: ReadableWasmContainer::new(),
+            base_key: Vec::new(),
+            extra,
+        }
+    }
+}
 
 impl ApplicationState {
     /// Load the service state, without locking it for writes.

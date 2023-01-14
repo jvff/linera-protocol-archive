@@ -13,6 +13,56 @@ variant poll-load {
     ready(expected<list<u8>, string>),
 }
 
+resource lock {
+    static new: func() -> lock
+    poll: func() -> poll-lock
+}
+
+variant poll-lock {
+    pending,
+    ready(expected<unit, string>),
+}
+
+resource unlock {
+    static new: func() -> unlock
+    poll: func() -> poll-unlock
+}
+
+variant poll-unlock {
+    pending,
+    ready(expected<unit, string>),
+}
+
+resource read-key-bytes {
+    static new: func(key: list<u8>) -> read-key-bytes
+    poll: func() -> poll-read-key-bytes
+}
+
+variant poll-read-key-bytes {
+    pending,
+    ready(expected<option<list<u8>>, string>),
+}
+
+resource find-stripped-keys {
+    static new: func(prefix: list<u8>) -> find-stripped-keys
+    poll: func() -> poll-find-stripped-keys
+}
+
+variant poll-find-stripped-keys {
+    pending,
+    ready(expected<list<list<u8>>, string>),
+}
+
+resource find-stripped-key-values {
+    static new: func(prefix: list<u8>) -> find-stripped-key-values
+    poll: func() -> poll-find-stripped-key-values
+}
+
+variant poll-find-stripped-key-values {
+    pending,
+    ready(expected<list<tuple<list<u8>,list<u8>>>, string>),
+}
+
 record application-id {
     bytecode-id: bytecode-id,
     creation: effect-id,
