@@ -6,13 +6,19 @@ fn main() -> Result<()> {
     let test_module = load_test_module(&engine)?;
     let mut tests = Vec::new();
     for export in test_module.exports() {
-        if let Some(name) = export.name().strip_prefix("$webassembly-test$") {
+        let function = export.name();
+
+        if let Some(name) = function.strip_prefix("$webassembly-test$") {
             let mut ignore = true;
             let name = name.strip_prefix("ignore$").unwrap_or_else(|| {
                 ignore = false;
                 name
             });
-            tests.push((export, TestMeta { name, ignore }));
+            tests.push(TestMeta {
+                name,
+                function,
+                ignore,
+            });
         }
     }
     let total = tests.len();
@@ -23,13 +29,13 @@ fn main() -> Result<()> {
     let mut passed = 0;
     let mut failed = 0;
     let mut ignored = 0;
-    for (export, meta) in tests {
+    for meta in tests {
         eprint!("test {} ...", meta.name);
         if meta.ignore {
             ignored += 1;
             eprintln!(" ignored")
         } else {
-            let f = instance.get_typed_func::<(), (), _>(&mut store, export.name())?;
+            let f = instance.get_typed_func::<(), (), _>(&mut store, meta.function)?;
 
             let pass = f.call(&mut store, ()).is_ok();
             if pass {
@@ -59,7 +65,7 @@ fn main() -> Result<()> {
 
 fn load_test_module(engine: &Engine) -> Result<Module> {
     let module_path = parse_args()?;
-    let module = Module::from_file(engine, &test_module_path)?;
+    let module = Module::from_file(engine, &module_path)?;
     Ok(module)
 }
 
@@ -74,5 +80,6 @@ fn parse_args() -> Result<String> {
 
 struct TestMeta<'a> {
     name: &'a str,
+    function: &'a str,
     ignore: bool,
 }
