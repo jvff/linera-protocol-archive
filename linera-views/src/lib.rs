@@ -49,6 +49,7 @@ pub mod localstack;
 
 /// Helper types for tests.
 #[cfg(any(test, feature = "test"))]
+#[cfg(not(target_arch = "wasm32"))]
 pub mod test_utils;
 
 /// For macros.

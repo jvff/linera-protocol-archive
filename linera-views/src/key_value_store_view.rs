@@ -9,7 +9,7 @@ use crate::{
     views::{HashableView, Hasher, View, ViewError},
 };
 #[cfg(not(target_arch = "wasm32"))]
-use crate::memory::{MemoryContext, MemoryStoreMap};
+use crate::memory::{MemoryContext, MemoryStoreMap, common::ContextFromDb};
 
 use async_trait::async_trait;
 use std::{
