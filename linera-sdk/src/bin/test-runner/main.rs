@@ -2,10 +2,8 @@ use anyhow::{bail, Result};
 use wasmtime::*;
 
 fn main() -> Result<()> {
-    let test_module_path = parse_args()?;
-    // Modules can be compiled through either the text or binary format
     let engine = Engine::default();
-    let test_module = Module::from_file(&engine, &test_module_path)?;
+    let test_module = load_test_module(&engine)?;
     let mut tests = Vec::new();
     for export in test_module.exports() {
         if let Some(name) = export.name().strip_prefix("$webassembly-test$") {
@@ -57,6 +55,12 @@ fn main() -> Result<()> {
         ignored,
     );
     Ok(())
+}
+
+fn load_test_module(engine: &Engine) -> Result<Module> {
+    let module_path = parse_args()?;
+    let module = Module::from_file(engine, &test_module_path)?;
+    Ok(module)
 }
 
 fn parse_args() -> Result<String> {
