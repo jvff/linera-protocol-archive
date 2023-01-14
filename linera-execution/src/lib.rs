@@ -28,6 +28,7 @@ use dashmap::DashMap;
 use linera_base::{
     crypto::HashValue,
     data_types::{BlockHeight, ChainId, EffectId},
+    ensure,
 };
 use linera_views::views::ViewError;
 use serde::{Deserialize, Serialize};
@@ -516,19 +517,57 @@ impl From<Vec<u8>> for Response {
 pub struct ApplicationStateNotLocked;
 
 /// A WebAssembly module's bytecode.
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
-pub struct Bytecode(Vec<u8>);
+#[derive(Clone, Eq, Hash, PartialEq, Serialize)]
+pub struct Bytecode {
+    #[serde(with = "serde_bytes")]
+    bytes: Vec<u8>,
+    hash: HashValue,
+}
+
+impl<'de> Deserialize<'de> for Bytecode {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(rename = "Bytecode")]
+        struct Internal {
+            #[serde(with = "serde_bytes")]
+            bytes: Vec<u8>,
+            hash: HashValue,
+        }
+
+        let value = Internal::deserialize(deserializer)?;
+        let bytecode = Bytecode::new(value.bytes);
+        ensure!(
+            bytecode.hash == value.hash,
+            <D::Error as serde::de::Error>::custom("Incorrect hash for bytecode")
+        );
+        Ok(bytecode)
+    }
+}
 
 impl Bytecode {
+    pub fn new(bytes: Vec<u8>) -> Self {
+        let hash = HashValue::new(&bytes[..]);
+        Self { bytes, hash }
+    }
+
     /// Load bytecode from a WASM module file.
     pub async fn load_from_file(path: impl AsRef<Path>) -> Result<Self, io::Error> {
         let bytes = tokio::fs::read(path).await?;
-        Ok(Bytecode(bytes))
+        Ok(Bytecode::new(bytes))
     }
 }
 
 impl AsRef<[u8]> for Bytecode {
     fn as_ref(&self) -> &[u8] {
-        self.0.as_ref()
+        self.bytes.as_ref()
+    }
+}
+
+impl std::fmt::Debug for Bytecode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "Bytecode({:?})", self.hash)
     }
 }

@@ -52,8 +52,8 @@ impl WasmApplication {
         service_bytecode_file: impl AsRef<Path>,
     ) -> Result<Self, io::Error> {
         Ok(WasmApplication {
-            contract_bytecode: Bytecode(fs::read(contract_bytecode_file).await?),
-            service_bytecode: Bytecode(fs::read(service_bytecode_file).await?),
+            contract_bytecode: Bytecode::new(fs::read(contract_bytecode_file).await?),
+            service_bytecode: Bytecode::new(fs::read(service_bytecode_file).await?),
         })
     }
 }

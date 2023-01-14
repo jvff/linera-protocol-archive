@@ -69,8 +69,10 @@ BlockProposal:
     - signature:
         TYPENAME: Signature
 Bytecode:
-  NEWTYPESTRUCT:
-    SEQ: U8
+  STRUCT:
+    - bytes: BYTES
+    - hash:
+        TYPENAME: HashValue
 BytecodeId:
   NEWTYPESTRUCT:
     TYPENAME: EffectId

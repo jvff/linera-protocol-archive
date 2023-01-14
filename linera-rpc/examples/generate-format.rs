@@ -10,7 +10,7 @@ use linera_chain::{
 use linera_core::{data_types::CrossChainRequest, node::NodeError};
 use linera_execution::{
     system::{Address, SystemChannel, SystemEffect, SystemOperation},
-    ApplicationDescription, ApplicationId, Destination, Effect, Operation,
+    ApplicationDescription, ApplicationId, Bytecode, Destination, Effect, Operation,
 };
 use linera_rpc::RpcMessage;
 use serde_reflection::{Registry, Result, Samples, Tracer, TracerConfig};
@@ -23,8 +23,9 @@ fn get_registry() -> Result<Registry> {
             .record_samples_for_newtype_structs(true)
             .record_samples_for_tuple_structs(true),
     );
-    let samples = Samples::new();
+    let mut samples = Samples::new();
     // 1. Record samples for types with custom deserializers.
+    tracer.trace_value(&mut samples, &Bytecode::new(vec![]))?;
     // 2. Trace the main entry point(s) + every enum separately.
     tracer.trace_type::<Address>(&samples)?;
     tracer.trace_type::<SystemChannel>(&samples)?;
