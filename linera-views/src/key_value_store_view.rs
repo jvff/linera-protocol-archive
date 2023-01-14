@@ -3,13 +3,13 @@
 
 use crate::{
     common::{
-        get_upper_bound, Batch, Context, ContextFromDb, HashOutput, KeyValueOperations,
+        get_upper_bound, Batch, Context, HashOutput, KeyValueOperations,
         SimpleTypeIterator, WriteOperation,
     },
     views::{HashableView, Hasher, View, ViewError},
 };
 #[cfg(not(target_arch = "wasm32"))]
-use crate::memory::{MemoryContext, MemoryStoreMap};
+use crate::memory::{MemoryContext, MemoryStoreMap, common::ContextFromDb};
 
 use async_trait::async_trait;
 use std::{collections::BTreeMap, fmt::Debug, mem, ops::Bound::Included};
