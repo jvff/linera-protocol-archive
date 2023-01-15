@@ -17,6 +17,26 @@ variant poll-load {
     ready(expected<list<u8>, string>),
 }
 
+resource find-stripped-keys {
+    static new: func(prefix: list<u8>) -> find-stripped-keys
+    poll: func() -> poll-find-stripped-keys
+}
+
+variant poll-find-stripped-keys {
+    pending,
+    ready(expected<list<list<u8>>, string>),
+}
+
+resource find-stripped-key-values {
+    static new: func(prefix: list<u8>) -> find-stripped-key-values
+    poll: func() -> poll-find-stripped-key-values
+}
+
+variant poll-find-stripped-key-values {
+    pending,
+    ready(expected<list<tuple<list<u8>,list<u8>>>, string>),
+}
+
 store-and-unlock: func(value: list<u8>) -> bool
 
 resource try-call-application {

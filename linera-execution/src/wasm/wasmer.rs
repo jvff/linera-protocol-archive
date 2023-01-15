@@ -294,6 +294,8 @@ impl<S: Copy> SystemApi<S> {
 impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage> {
     type Load = HostFuture<'static, Result<Vec<u8>, ExecutionError>>;
     type LoadAndLock = HostFuture<'static, Result<Vec<u8>, ExecutionError>>;
+    type FindStrippedKeys = HostFuture<'static, Result<Vec<Vec<u8>>, ExecutionError>>;
+    type FindStrippedKeyValues = HostFuture<'static, Result<Vec<(Vec<u8>,Vec<u8>)>, ExecutionError>>;
     type TryCallApplication = HostFuture<'static, Result<CallResult, ExecutionError>>;
     type TryCallSession = HostFuture<'static, Result<CallResult, ExecutionError>>;
 
@@ -332,6 +334,32 @@ impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage>
             Poll::Pending => PollLoad::Pending,
             Poll::Ready(Ok(bytes)) => PollLoad::Ready(Ok(bytes)),
             Poll::Ready(Err(error)) => PollLoad::Ready(Err(error.to_string())),
+        }
+    }
+
+    fn find_stripped_keys_new(&mut self, key_prefix: &[u8]) -> Self::FindStrippedKeys {
+        HostFuture::new(self.storage().pass_userkv_find_stripped_keys_by_prefix(key_prefix.to_owned()))
+    }
+
+    fn find_stripped_keys_poll(&mut self, future: &Self::FindStrippedKeys) -> writable_system::PollFindStrippedKeys {
+        use writable_system::PollFindStrippedKeys;
+        match future.poll(&mut self.context) {
+            Poll::Pending => PollFindStrippedKeys::Pending,
+            Poll::Ready(Ok(list_stripped_keys)) => PollFindStrippedKeys::Ready(Ok(list_stripped_keys)),
+            Poll::Ready(Err(error)) => PollFindStrippedKeys::Ready(Err(error.to_string())),
+        }
+    }
+
+    fn find_stripped_key_values_new(&mut self, key_prefix: &[u8]) -> Self::FindStrippedKeyValues {
+        HostFuture::new(self.storage().pass_userkv_find_stripped_key_values_by_prefix(key_prefix.to_owned()))
+    }
+
+    fn find_stripped_key_values_poll(&mut self, future: &Self::FindStrippedKeyValues) -> writable_system::PollFindStrippedKeyValues {
+        use writable_system::PollFindStrippedKeyValues;
+        match future.poll(&mut self.context) {
+            Poll::Pending => PollFindStrippedKeyValues::Pending,
+            Poll::Ready(Ok(list_stripped_key_values)) => PollFindStrippedKeyValues::Ready(Ok(list_stripped_key_values)),
+            Poll::Ready(Err(error)) => PollFindStrippedKeyValues::Ready(Err(error.to_string())),
         }
     }
 

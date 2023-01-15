@@ -300,6 +300,7 @@ pub struct SystemApi<S> {
 impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
     type Load = HostFuture<'storage, Result<Vec<u8>, ExecutionError>>;
     type LoadAndLock = HostFuture<'storage, Result<Vec<u8>, ExecutionError>>;
+    type Lock = HostFuture<'storage, Result<(), ExecutionError>>;
     type TryCallApplication = HostFuture<'storage, Result<CallResult, ExecutionError>>;
     type TryCallSession = HostFuture<'storage, Result<CallResult, ExecutionError>>;
 
@@ -330,6 +331,10 @@ impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
 
     fn load_and_lock_new(&mut self) -> Self::LoadAndLock {
         HostFuture::new(self.storage.try_read_and_lock_my_state())
+    }
+
+    fn lock_new(&mut self) -> Self::Lock {
+        HostFuture::new(self.storage().lock_userkv_state())
     }
 
     fn load_and_lock_poll(&mut self, future: &Self::LoadAndLock) -> writable_system::PollLoad {
