@@ -294,6 +294,7 @@ impl<S: Copy> SystemApi<S> {
 impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage> {
     type Load = HostFuture<'static, Result<Vec<u8>, ExecutionError>>;
     type LoadAndLock = HostFuture<'static, Result<Vec<u8>, ExecutionError>>;
+    type ReadKeyBytes = HostFuture<'static, Result<Option<Vec<u8>>, ExecutionError>>;
     type FindStrippedKeys = HostFuture<'static, Result<Vec<Vec<u8>>, ExecutionError>>;
     type FindStrippedKeyValues = HostFuture<'static, Result<Vec<(Vec<u8>,Vec<u8>)>, ExecutionError>>;
     type TryCallApplication = HostFuture<'static, Result<CallResult, ExecutionError>>;
@@ -337,6 +338,23 @@ impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage>
         }
     }
 
+    fn read_key_bytes_new(&mut self, key: &[u8]) -> Self::ReadKeyBytes {
+        HostFuture::new(self.storage().pass_userkv_read_key_bytes(key.to_owned()))
+    }
+
+    fn read_key_bytes_poll(&mut self, future: &Self::ReadKeyBytes) -> writable_system::PollReadKeyBytes {
+        use writable_system::PollReadKeyBytes;
+        match future.poll(&mut self.context) {
+            Poll::Pending => PollReadKeyBytes::Pending,
+            Poll::Ready(Ok(opt_list)) => PollReadKeyBytes::Ready(Ok(opt_list)),
+            Poll::Ready(Err(error)) => PollReadKeyBytes::Ready(Err(error.to_string())),
+        }
+    }
+
+
+
+
+    
     fn find_stripped_keys_new(&mut self, key_prefix: &[u8]) -> Self::FindStrippedKeys {
         HostFuture::new(self.storage().pass_userkv_find_stripped_keys_by_prefix(key_prefix.to_owned()))
     }

@@ -17,6 +17,16 @@ variant poll-load {
     ready(expected<list<u8>, string>),
 }
 
+resource read-key-bytes {
+    static new: func(key: list<u8>) -> read-key-bytes
+    poll: func() -> poll-read-key-bytes
+}
+
+variant poll-read-key-bytes {
+    pending,
+    ready(expected<option<list<u8>>, string>),
+}
+
 resource find-stripped-keys {
     static new: func(prefix: list<u8>) -> find-stripped-keys
     poll: func() -> poll-find-stripped-keys
