@@ -308,7 +308,7 @@ pub enum Operation {
     /// A system operation.
     System(SystemOperation),
     /// A user operation (in serialized form).
-    User(Vec<u8>),
+    User(#[serde(with = "serde_bytes")] Vec<u8>),
 }
 
 /// An effect to be sent and possibly executed in the receiver's block.
@@ -317,7 +317,7 @@ pub enum Effect {
     /// A system effect.
     System(SystemEffect),
     /// A user effect (in serialized form).
-    User(Vec<u8>),
+    User(#[serde(with = "serde_bytes")] Vec<u8>),
 }
 
 /// An query to be sent and possibly executed in the receiver's block.
@@ -326,7 +326,7 @@ pub enum Query {
     /// A system query.
     System(SystemQuery),
     /// A user query (in serialized form).
-    User(Vec<u8>),
+    User(#[serde(with = "serde_bytes")] Vec<u8>),
 }
 
 /// The response to a query.
@@ -335,7 +335,7 @@ pub enum Response {
     /// A system response.
     System(SystemResponse),
     /// A user response (in serialized form).
-    User(Vec<u8>),
+    User(#[serde(with = "serde_bytes")] Vec<u8>),
 }
 
 /// Externally visible results of an execution. These results are meant in the context of
@@ -353,7 +353,7 @@ pub struct RawExecutionResult<Effect> {
 
 /// The name of a subscription channel.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub struct ChannelName(Vec<u8>);
+pub struct ChannelName(#[serde(with = "serde_bytes")] Vec<u8>);
 
 impl From<Vec<u8>> for ChannelName {
     fn from(name: Vec<u8>) -> Self {
