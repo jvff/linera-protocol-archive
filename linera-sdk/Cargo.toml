@@ -23,6 +23,7 @@ thiserror = { version = "1.0.31", optional = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 anyhow = "1.0.57"
 wasmtime = "0.39.1"
+wit-bindgen-host-wasmtime-rust = { git = "https://github.com/jvff/wit-bindgen", rev = "4a9e7cc6899a9736e2a2d23dcfc4f8744b6107a1" }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 bcs = "0.1.3"

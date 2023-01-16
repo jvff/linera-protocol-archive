@@ -1,5 +1,6 @@
 mod wit_interface;
 
+use self::wit_interface::State;
 use anyhow::{bail, Result};
 use wasmtime::*;
 
@@ -60,7 +61,7 @@ impl<'a> Test<'a> {
     pub fn run(
         self,
         report: &mut TestReport,
-        linker: &Linker<()>,
+        linker: &Linker<State>,
         test_module: &Module,
     ) -> Result<()> {
         eprint!("test {} ...", self.name);
@@ -68,7 +69,7 @@ impl<'a> Test<'a> {
         if self.ignore {
             report.ignore();
         } else {
-            let mut store = Store::new(linker.engine(), ());
+            let mut store = Store::new(linker.engine(), State::default());
             let instance = linker.instantiate(&mut store, &test_module)?;
 
             let function = instance.get_typed_func::<(), (), _>(&mut store, self.function)?;
