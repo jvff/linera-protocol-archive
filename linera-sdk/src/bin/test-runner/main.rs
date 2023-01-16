@@ -4,13 +4,14 @@ use wasmtime::*;
 fn main() -> Result<()> {
     let mut report = TestReport::default();
     let engine = Engine::default();
+    let linker = Linker::new(&engine);
     let test_module = load_test_module(&engine)?;
     let tests: Vec<_> = test_module.exports().filter_map(Test::new).collect();
 
     eprintln!("\nrunning {} tests", tests.len());
 
     for test in tests {
-        test.run(&mut report, &engine, &test_module)?;
+        test.run(&mut report, &linker, &test_module)?;
     }
 
     report.print();
@@ -52,14 +53,19 @@ impl<'a> Test<'a> {
         })
     }
 
-    pub fn run(self, report: &mut TestReport, engine: &Engine, test_module: &Module) -> Result<()> {
+    pub fn run(
+        self,
+        report: &mut TestReport,
+        linker: &Linker<()>,
+        test_module: &Module,
+    ) -> Result<()> {
         eprint!("test {} ...", self.name);
 
         if self.ignore {
             report.ignore();
         } else {
-            let mut store = Store::new(&engine, ());
-            let instance = Instance::new(&mut store, &test_module, &[])?;
+            let mut store = Store::new(linker.engine(), ());
+            let instance = linker.instantiate(&mut store, &test_module)?;
 
             let function = instance.get_typed_func::<(), (), _>(&mut store, self.function)?;
 
