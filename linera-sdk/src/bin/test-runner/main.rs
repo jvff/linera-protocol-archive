@@ -162,6 +162,6 @@ impl TestReport {
 
         let status = if failed > 0 { "FAILED" } else { "ok" };
 
-        eprintln!("\ntest result: {status}. {passed} passed; {failed} failed; {ignored} ignored;",);
+        eprintln!("\ntest result: {status}. {passed} passed; {failed} failed; {ignored} ignored;");
     }
 }
