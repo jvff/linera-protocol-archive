@@ -53,7 +53,7 @@ fn main() -> Result<()> {
 /// Load the input test WASM module specified as a command line argument.
 fn load_test_module(engine: &Engine) -> Result<Module> {
     let module_path = parse_args()?;
-    let module = Module::from_file(engine, &module_path)?;
+    let module = Module::from_file(engine, module_path)?;
     Ok(module)
 }
 
