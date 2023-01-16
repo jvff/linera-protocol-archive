@@ -25,12 +25,13 @@
 //! [webassembly_test]: https://docs.rs/webassembly-test/latest/webassembly_test/
 
 use anyhow::{bail, Result};
+use std::process::ExitCode;
 use wasmtime::*;
 
 /// Load a test WASM module and run all test functions annotated by [webassembly_test].
 ///
 /// Prints out a summary of executed tests and their results.
-fn main() -> Result<()> {
+fn main() -> Result<ExitCode> {
     let mut report = TestReport::default();
     let engine = Engine::default();
     let mut linker = Linker::new(&engine);
@@ -45,9 +46,7 @@ fn main() -> Result<()> {
         test.run(&mut report, &linker, &test_module)?;
     }
 
-    report.print();
-
-    Ok(())
+    Ok(report.print())
 }
 
 /// Load the input test WASM module specified as a command line argument.
@@ -153,7 +152,7 @@ impl TestReport {
     }
 
     /// Print the report of executed tests.
-    pub fn print(self) {
+    pub fn print(self) -> ExitCode {
         let TestReport {
             passed,
             failed,
@@ -163,5 +162,11 @@ impl TestReport {
         let status = if failed > 0 { "FAILED" } else { "ok" };
 
         eprintln!("\ntest result: {status}. {passed} passed; {failed} failed; {ignored} ignored;");
+
+        if failed == 0 {
+            ExitCode::SUCCESS
+        } else {
+            ExitCode::FAILURE
+        }
     }
 }
