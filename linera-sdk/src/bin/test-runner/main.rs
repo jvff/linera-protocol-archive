@@ -103,7 +103,7 @@ impl<'a> Test<'a> {
             report.ignore();
         } else {
             let mut store = Store::new(linker.engine(), ());
-            let instance = linker.instantiate(&mut store, &test_module)?;
+            let instance = linker.instantiate(&mut store, test_module)?;
 
             let function = instance.get_typed_func::<(), (), _>(&mut store, self.function)?;
 
