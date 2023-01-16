@@ -47,6 +47,14 @@ variant poll-find-stripped-key-values {
     ready(expected<list<tuple<list<u8>,list<u8>>>, string>),
 }
 
+variant write-operation {
+    delete(list<u8>),
+    deleteprefix(tuple<list<u8>,list<u8>>),
+    put(tuple<list<u8>,list<u8>>),
+}
+
+
+
 store-and-unlock: func(value: list<u8>) -> bool
 
 resource try-call-application {

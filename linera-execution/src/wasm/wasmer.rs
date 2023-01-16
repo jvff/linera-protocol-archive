@@ -351,10 +351,6 @@ impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage>
         }
     }
 
-
-
-
-    
     fn find_stripped_keys_new(&mut self, key_prefix: &[u8]) -> Self::FindStrippedKeys {
         HostFuture::new(self.storage().pass_userkv_find_stripped_keys_by_prefix(key_prefix.to_owned()))
     }

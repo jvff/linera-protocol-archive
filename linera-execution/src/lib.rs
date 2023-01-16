@@ -26,7 +26,7 @@ pub use wasm::{WasmApplication, WasmExecutionError};
 use async_trait::async_trait;
 use dashmap::DashMap;
 use linera_base::data_types::{BlockHeight, ChainId, EffectId};
-use linera_views::views::ViewError;
+use linera_views::{views::ViewError, common::Batch};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use thiserror::Error;
@@ -285,6 +285,9 @@ pub trait WritableStorage: ReadableStorage {
 
     /// Save the application state and allow reading/loading the state again.
     fn save_and_unlock_my_state(&self, state: Vec<u8>) -> Result<(), ApplicationStateNotLocked>;
+
+    /// Write the batch and then unlock
+    async fn write_batch_and_unlock(&self, batch: Batch) -> Result<(), ExecutionError>;
 
     /// Allow reading/loading the state again (without saving anything).
     fn unlock_my_state(&self);

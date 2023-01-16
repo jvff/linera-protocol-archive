@@ -9,7 +9,7 @@ use crate::{
 use async_trait::async_trait;
 use linera_base::{data_types::ChainId, ensure};
 use linera_views::{
-    common::{Context, KeyValueOperations},
+    common::{Batch, Context, KeyValueOperations},
     register_view::RegisterView,
     key_value_store_view::KeyValueStoreView,
     views::{View, ViewError},
@@ -352,7 +352,7 @@ where
     }
 
     async fn pass_userkv_read_key_bytes(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, ExecutionError> {
-        // Make the view available again.
+        // read a key from the KV store
         match self.active_userkv_states_mut().get(&self.application_id()) {
             Some(view) => {
                 // read the key
@@ -364,10 +364,9 @@ where
     }
 
     async fn pass_userkv_find_stripped_keys_by_prefix(&self, key_prefix: Vec<u8>) -> Result<Vec<Vec<u8>>, ExecutionError> {
-        // Make the view available again.
+        // Read keys matching a prefix. We have to collect since iterators do not pass the wit barrier
         match self.active_userkv_states_mut().get(&self.application_id()) {
             Some(view) => {
-                // read the key
                 let value = view.find_stripped_keys_by_prefix(&key_prefix).await?;
                 let mut value_ret = Vec::new();
                 for item in value {
@@ -380,10 +379,9 @@ where
     }
 
     async fn pass_userkv_find_stripped_key_values_by_prefix(&self, key_prefix: Vec<u8>) -> Result<Vec<(Vec<u8>,Vec<u8>)>, ExecutionError> {
-        // Make the view available again.
+        // Read key/values matching a prefix. We have to collect since iterators do not pass the wit barrier
         match self.active_userkv_states_mut().get(&self.application_id()) {
             Some(view) => {
-                // read the key
                 let value = view.find_stripped_key_values_by_prefix(&key_prefix).await?;
                 let mut value_ret = Vec::new();
                 for item in value {
@@ -417,6 +415,18 @@ where
                 Ok(())
             }
             None => Err(ApplicationStateNotLocked),
+        }
+    }
+
+    async fn write_batch_and_unlock(&self, batch: Batch) -> Result<(), ExecutionError> {
+        // Make the view available again.
+        match self.active_userkv_states_mut().remove(&self.application_id()) {
+            Some(mut view) => {
+                // Set the state.
+                view.write_batch(batch).await?;
+                Ok(())
+            }
+            None => Err(ExecutionError::ApplicationStateNotLocked),
         }
     }
 

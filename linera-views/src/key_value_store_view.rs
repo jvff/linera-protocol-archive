@@ -363,7 +363,7 @@ where
         Ok(Self::KeyValueIterator::new(key_values))
     }
 
-    async fn write_batch(&self, batch: Batch) -> Result<(), ViewError> {
+    async fn write_batch(&mut self, batch: Batch) -> Result<(), ViewError> {
         let mut batch_new = Batch::default();
         for op in batch.operations {
             match op {
