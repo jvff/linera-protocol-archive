@@ -1,12 +1,16 @@
+mod wit_interface;
+
 use anyhow::{bail, Result};
 use wasmtime::*;
 
 fn main() -> Result<()> {
     let mut report = TestReport::default();
     let engine = Engine::default();
-    let linker = Linker::new(&engine);
+    let mut linker = Linker::new(&engine);
     let test_module = load_test_module(&engine)?;
     let tests: Vec<_> = test_module.exports().filter_map(Test::new).collect();
+
+    wit_interface::configure_linker(&mut linker)?;
 
     eprintln!("\nrunning {} tests", tests.len());
 
