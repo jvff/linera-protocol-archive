@@ -124,7 +124,7 @@ pub struct QueryContext {
 
 /// Externally visible results of an execution. These results are meant in the context of
 /// the application that created them.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct ExecutionResult {
     /// Send messages to the given destinations.
@@ -263,7 +263,7 @@ pub struct SessionId {
 }
 
 /// Syscall to request creating a new session.
-#[derive(Default)]
+#[derive(Debug, Default, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct Session {
     /// A kind provided by the creator (meant to be visible to other applications).
@@ -273,7 +273,7 @@ pub struct Session {
 }
 
 /// The result of calling into a user application.
-#[derive(Default)]
+#[derive(Debug, Default, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct ApplicationCallResult {
     /// The return value.
