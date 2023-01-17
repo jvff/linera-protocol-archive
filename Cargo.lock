@@ -1886,6 +1886,7 @@ dependencies = [
  "futures",
  "generic-array",
  "hex",
+ "linera-sdk",
  "serde",
  "serde-name",
  "serde_with",
