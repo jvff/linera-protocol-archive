@@ -124,8 +124,9 @@ pub struct QueryContext {
 
 /// Externally visible results of an execution. These results are meant in the context of
 /// the application that created them.
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Debug, Default)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+#[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
 pub struct ExecutionResult {
     /// Send messages to the given destinations.
     pub effects: Vec<(Destination, Vec<u8>)>,
@@ -263,8 +264,9 @@ pub struct SessionId {
 }
 
 /// Syscall to request creating a new session.
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Debug, Default)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+#[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
 pub struct Session {
     /// A kind provided by the creator (meant to be visible to other applications).
     pub kind: u64,
@@ -273,8 +275,9 @@ pub struct Session {
 }
 
 /// The result of calling into a user application.
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Debug, Default)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+#[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
 pub struct ApplicationCallResult {
     /// The return value.
     pub value: Vec<u8>,
