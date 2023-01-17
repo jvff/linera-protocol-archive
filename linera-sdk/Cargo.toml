@@ -37,6 +37,7 @@ wit-bindgen-guest-rust = { git = "https://github.com/jvff/wit-bindgen", rev = "4
 name = "counter_contract"
 path = "examples/counter/contract.rs"
 crate-type = ["cdylib"]
+required-features = ["test"]
 
 [[example]]
 name = "counter_service"
