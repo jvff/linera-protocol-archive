@@ -42,6 +42,7 @@ crate-type = ["cdylib"]
 name = "counter_service"
 path = "examples/counter/service.rs"
 crate-type = ["cdylib"]
+required-features = ["test"]
 
 [[example]]
 name = "fungible_contract"
