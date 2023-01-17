@@ -40,4 +40,4 @@ jobs:
     - name: Run WASM application unit tests
       env:
         CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER: ./target/debug/test-runner
-      run: cargo test -p linera-sdk --examples --target wasm32-unknown-unknown
+      run: cargo test -p linera-sdk --examples --features test --target wasm32-unknown-unknown
