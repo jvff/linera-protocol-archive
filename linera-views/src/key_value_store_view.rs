@@ -220,7 +220,6 @@ where
         let mut updates = self.updates.iter();
         let mut update = updates.next();
         let mut deleteprefixes = self.deleteprefixes.iter();
-        println!("for_each_index_value |updates|={} |deleteprefixes|={}", self.updates.len(), self.deleteprefixes.len());
         if !self.was_cleared {
             for (index, index_val) in self
                 .context
@@ -476,7 +475,6 @@ where
     type Hasher = sha2::Sha512;
 
     async fn hash(&mut self) -> Result<<Self::Hasher as Hasher>::Output, ViewError> {
-        println!("Computing the hash");
         match self.hash {
             Some(hash) => Ok(hash),
             None => {
@@ -485,7 +483,6 @@ where
                 self.for_each_index_value(
                     |index: Vec<u8>, value: Vec<u8>| -> Result<(), ViewError> {
                         count += 1;
-                        println!("hash: index={:?} value={:?}", index, value);
                         hasher.update_with_bytes(&index)?;
                         hasher.update_with_bytes(&value)?;
                         Ok(())
@@ -493,7 +490,6 @@ where
                 )
                 .await?;
                 hasher.update_with_bcs_bytes(&count)?;
-                println!("count={}", count);
                 let hash = hasher.finalize();
                 self.hash = Some(hash);
                 Ok(hash)
@@ -502,17 +498,75 @@ where
     }
 }
 
+
+#[cfg(any(test, feature = "test"))]
+#[derive(Debug, Clone)]
+pub struct IntegratedKeyValueStoreView<C> {
+    kvsv: KeyValueStoreView<C>,
+}
+
+
+#[async_trait]
+impl<C> KeyValueOperations for IntegratedKeyValueStoreView<C>
+where
+    C: Context + Sync + Send + Clone,
+    ViewError: From<C::Error>,
+{
+    type Error = ViewError;
+    type KeyIterator = SimpleTypeIterator<Vec<u8>, ViewError>;
+    type KeyValueIterator = SimpleTypeIterator<(Vec<u8>, Vec<u8>), ViewError>;
+
+    async fn read_key_bytes(&self, key: &[u8]) -> Result<Option<Vec<u8>>, ViewError> {
+        self.kvsv.read_key_bytes(key).await
+    }
+
+    async fn find_stripped_keys_by_prefix(
+        &self,
+        key_prefix: &[u8],
+    ) -> Result<Self::KeyIterator, ViewError> {
+        self.kvsv.find_stripped_keys_by_prefix(key_prefix).await
+    }
+
+    async fn find_stripped_key_values_by_prefix(
+        &self,
+        key_prefix: &[u8],
+    ) -> Result<Self::KeyValueIterator, ViewError> {
+        self.kvsv.find_stripped_key_values_by_prefix(key_prefix).await
+    }
+
+    async fn write_batch(&mut self, batch: Batch) -> Result<(), ViewError> {
+        self.kvsv.write_batch(batch).await?;
+        let mut batch = Batch::default();
+        self.kvsv.flush(&mut batch)?;
+        let mut context = self.kvsv.context().clone();
+        context.write_batch(batch).await?;
+        Ok(())
+    }
+}
+
+impl<C> IntegratedKeyValueStoreView<C>
+where
+    C: Context + Sync + Send + Clone,
+    ViewError: From<C::Error>,
+{
+    pub fn new(context: C) -> Self {
+        let kvsv = KeyValueStoreView::new(context);
+        Self { kvsv}
+    }
+}
+
+
 /// A context that stores all values in memory.
 #[cfg(any(test, feature = "test"))]
 #[cfg(not(target_arch = "wasm32"))]
-pub type KeyValueStoreMemoryContext<E> = ContextFromDb<E, KeyValueStoreView<MemoryContext<()>>>;
+pub type KeyValueStoreMemoryContext<E> = ContextFromDb<E, IntegratedKeyValueStoreView<MemoryContext<()>>>;
 
 #[cfg(any(test, feature = "test"))]
 #[cfg(not(target_arch = "wasm32"))]
 impl<E> KeyValueStoreMemoryContext<E> {
     pub fn new(guard: OwnedMutexGuard<MemoryStoreMap>, base_key: Vec<u8>, extra: E) -> Self {
         let context = MemoryContext::new(guard, ());
-        let key_value_store_view = KeyValueStoreView::new(context);
+        let key_value_store_view = IntegratedKeyValueStoreView::new(context);
         Self {
             db: key_value_store_view,
             base_key,

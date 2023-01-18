@@ -63,6 +63,10 @@ impl Batch {
         Ok(batch)
     }
 
+    pub fn len(&self) -> usize {
+        self.operations.len()
+    }
+
     /// A key may appear multiple times in the batch
     /// The construction of BatchWriteItem and TransactWriteItem for DynamoDb does
     /// not allow this to happen.
