@@ -28,6 +28,7 @@ use std::{marker::PhantomData, mem, sync::Arc, task::Poll};
 use tokio::sync::Mutex;
 use wasmer::{imports, Module, RuntimeError, Store};
 use wit_bindgen_host_wasmer_rust::Le;
+use linera_views::common::Batch;
 
 /// Type representing the [Wasmer](https://wasmer.io/) contract runtime.
 ///
@@ -297,6 +298,7 @@ impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage>
     type ReadKeyBytes = HostFuture<'static, Result<Option<Vec<u8>>, ExecutionError>>;
     type FindStrippedKeys = HostFuture<'static, Result<Vec<Vec<u8>>, ExecutionError>>;
     type FindStrippedKeyValues = HostFuture<'static, Result<Vec<(Vec<u8>,Vec<u8>)>, ExecutionError>>;
+    type WriteBatch = HostFuture<'static, Result<(), ExecutionError>>;
     type TryCallApplication = HostFuture<'static, Result<CallResult, ExecutionError>>;
     type TryCallSession = HostFuture<'static, Result<CallResult, ExecutionError>>;
 
@@ -381,6 +383,27 @@ impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage>
         self.storage()
             .save_and_unlock_my_state(state.to_owned())
             .is_ok()
+    }
+
+    fn write_batch_new(&mut self, list_oper: Vec<writable_system::WriteOperation>) -> Self::WriteBatch {
+        let mut batch = Batch::default();
+        for x in list_oper {
+            match x {
+                writable_system::WriteOperation::Delete(key) => batch.delete_key(key.to_vec()),
+                writable_system::WriteOperation::Deleteprefix(key_prefix) => batch.delete_key_prefix(key_prefix.to_vec()),
+                writable_system::WriteOperation::Put(key_value) => batch.put_key_value_bytes(key_value.0.to_vec(), key_value.1.to_vec()),
+            }
+        }
+        HostFuture::new(self.storage().write_batch_and_unlock(batch))
+    }
+
+    fn write_batch_poll(&mut self, future: &Self::WriteBatch) -> writable_system::PollWriteBatch {
+        use writable_system::PollWriteBatch;
+        match future.poll(&mut self.context) {
+            Poll::Pending => PollWriteBatch::Pending,
+            Poll::Ready(Ok(())) => PollWriteBatch::Ready(Ok(())),
+            Poll::Ready(Err(error)) => PollWriteBatch::Ready(Err(error.to_string())),
+        }
     }
 
     fn try_call_application_new(

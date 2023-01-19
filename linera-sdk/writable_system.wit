@@ -49,8 +49,18 @@ variant poll-find-stripped-key-values {
 
 variant write-operation {
     delete(list<u8>),
-    deleteprefix(tuple<list<u8>,list<u8>>),
+    deleteprefix(list<u8>),
     put(tuple<list<u8>,list<u8>>),
+}
+
+resource write-batch {
+    static new: func(key: list<write-operation>) -> write-batch
+    poll: func() -> poll-write-batch
+}
+
+variant poll-write-batch {
+    pending,
+    ready(expected<unit, string>),
 }
 
 store-and-unlock: func(value: list<u8>) -> bool
