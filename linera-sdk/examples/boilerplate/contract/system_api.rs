@@ -6,8 +6,9 @@ use futures::future;
 use linera_sdk::{ApplicationId, ChainId, SystemBalance};
 use std::future::Future;
 use async_trait::async_trait;
-use linera_views::{views::ViewError, common::{Batch, SimpleTypeIterator, KeyValueOperations}};
-use crate::boilerplate::writable_system::{PollReadKeyBytes, PollFindStrippedKeys, PollFindStrippedKeyValues};
+use linera_views::{views::ViewError, common::{Batch, SimpleTypeIterator, KeyValueOperations, WriteOperation}};
+use crate::boilerplate::writable_system;
+use crate::boilerplate::writable_system::{PollReadKeyBytes, PollFindStrippedKeys, PollFindStrippedKeyValues, PollWriteBatch};
 
 pub struct WasmContainer {
 }
@@ -73,8 +74,29 @@ impl KeyValueOperations for WasmContainer {
     }
 
     async fn write_batch(&mut self, batch: Batch) -> Result<(), ViewError> {
-        // Some code needs to be written down.
-        Ok(())
+        let mut list_oper = Vec::new();
+        for op in &batch.operations {
+            match op {
+                WriteOperation::Delete { key } => {
+                    list_oper.push(writable_system::WriteOperation::Delete(key));
+                },
+                WriteOperation::Put { key, value } => list_oper.push(writable_system::WriteOperation::Put((key,value))),
+                WriteOperation::DeletePrefix { key_prefix } => list_oper.push(writable_system::WriteOperation::Deleteprefix(&key_prefix)),
+            }
+        }
+        let future = system::WriteBatch::new(&list_oper);
+        loop {
+            let answer : PollWriteBatch = future::poll_fn(|_context| future.poll().into()).await;
+            match answer {
+                PollWriteBatch::Ready(answer) => {
+                    return match answer {
+                        Ok(_) => Ok(()),
+                        Err(error) => Err(ViewError::WasmHostGuestError(error)),
+                    };
+                },
+                PollWriteBatch::Pending => {},
+            }
+        }
     }
 
 }

@@ -49,7 +49,7 @@ pub enum WriteOperation {
 /// A batch of writes inside a transaction;
 #[derive(Default)]
 pub struct Batch {
-    pub(crate) operations: Vec<WriteOperation>,
+    pub operations: Vec<WriteOperation>,
 }
 
 impl Batch {
