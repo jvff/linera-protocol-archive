@@ -53,8 +53,6 @@ variant write-operation {
     put(tuple<list<u8>,list<u8>>),
 }
 
-
-
 store-and-unlock: func(value: list<u8>) -> bool
 
 resource try-call-application {

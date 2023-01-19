@@ -5,6 +5,81 @@ use super::{super::ApplicationState, writable_system as system};
 use futures::future;
 use linera_sdk::{ApplicationId, ChainId, SystemBalance};
 use std::future::Future;
+use async_trait::async_trait;
+use linera_views::{views::ViewError, common::{Batch, SimpleTypeIterator, KeyValueOperations}};
+use crate::boilerplate::writable_system::{PollReadKeyBytes, PollFindStrippedKeys, PollFindStrippedKeyValues};
+
+pub struct WasmContainer {
+}
+
+#[async_trait]
+impl KeyValueOperations for WasmContainer {
+    type Error = ViewError;
+    type KeyIterator = SimpleTypeIterator<Vec<u8>, ViewError>;
+    type KeyValueIterator = SimpleTypeIterator<(Vec<u8>, Vec<u8>), ViewError>;
+
+    async fn read_key_bytes(&self, key: &[u8]) -> Result<Option<Vec<u8>>, ViewError> {
+        let future = system::ReadKeyBytes::new(key);
+        loop {
+            let answer : PollReadKeyBytes = future::poll_fn(|_context| future.poll().into()).await;
+            match answer {
+                PollReadKeyBytes::Ready(answer) => {
+                    return match answer {
+                        Ok(answer) => Ok(answer),
+                        Err(error) => Err(ViewError::WasmHostGuestError(error)),
+                    };
+                },
+                PollReadKeyBytes::Pending => {},
+            }
+        }
+    }
+
+    async fn find_stripped_keys_by_prefix(
+        &self,
+        key_prefix: &[u8],
+    ) -> Result<Self::KeyIterator, ViewError> {
+        let future = system::FindStrippedKeys::new(key_prefix);
+        loop {
+            let answer : PollFindStrippedKeys = future::poll_fn(|_context| future.poll().into()).await;
+            match answer {
+                PollFindStrippedKeys::Ready(answer) => {
+                    return match answer {
+                        Ok(keys) => Ok(Self::KeyIterator::new(keys)),
+                        Err(error) => Err(ViewError::WasmHostGuestError(error)),
+                    };
+                },
+                PollFindStrippedKeys::Pending => {},
+            }
+        }
+    }
+
+    async fn find_stripped_key_values_by_prefix(
+        &self,
+        key_prefix: &[u8],
+    ) -> Result<Self::KeyValueIterator, ViewError> {
+        let future = system::FindStrippedKeyValues::new(key_prefix);
+        loop {
+            let answer : PollFindStrippedKeyValues = future::poll_fn(|_context| future.poll().into()).await;
+            match answer {
+                PollFindStrippedKeyValues::Ready(answer) => {
+                    return match answer {
+                        Ok(key_values) => Ok(Self::KeyValueIterator::new(key_values)),
+                        Err(error) => Err(ViewError::WasmHostGuestError(error)),
+                    };
+                },
+                PollFindStrippedKeyValues::Pending => {},
+            }
+        }
+    }
+
+    async fn write_batch(&mut self, batch: Batch) -> Result<(), ViewError> {
+        // Some code needs to be written down.
+        Ok(())
+    }
+
+}
+
+
 
 #[allow(dead_code)]
 impl ApplicationState {

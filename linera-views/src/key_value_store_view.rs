@@ -506,6 +506,7 @@ pub struct IntegratedKeyValueStoreView<C> {
 }
 
 
+#[cfg(any(test, feature = "test"))]
 #[async_trait]
 impl<C> KeyValueOperations for IntegratedKeyValueStoreView<C>
 where
@@ -544,6 +545,7 @@ where
     }
 }
 
+#[cfg(any(test, feature = "test"))]
 impl<C> IntegratedKeyValueStoreView<C>
 where
     C: Context + Sync + Send + Clone,

@@ -256,7 +256,7 @@ pub struct SimpleTypeIterator<T, E> {
 }
 
 impl<T, E> SimpleTypeIterator<T, E> {
-    pub(crate) fn new(values: Vec<T>) -> Self {
+    pub fn new(values: Vec<T>) -> Self {
         Self {
             iter: values.into_iter(),
             _error_type: std::marker::PhantomData,
