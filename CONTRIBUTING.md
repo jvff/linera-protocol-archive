@@ -87,7 +87,7 @@ Some tests require the Counter application example from `linera-sdk/examples/cou
 compiled, and that can be done with:
 
 ```
-cargo build -p linera-sdk --release --examples
+cargo build -p linera-sdk --release --target wasm32-unknown-unknown --examples
 ```
 
 Testing the WASM application examples requires configuring a custom test runner included with
