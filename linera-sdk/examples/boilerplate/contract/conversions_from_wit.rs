@@ -5,12 +5,13 @@
 
 use super::{
     contract,
-    writable_system::{self, PollLoad},
+    writable_system::{self, PollLoad, PollReadKeyBytes},
 };
 use linera_sdk::{
     ApplicationId, BlockHeight, BytecodeId, CalleeContext, ChainId, EffectContext, EffectId,
     HashValue, OperationContext, Session, SessionId, SystemBalance,
 };
+use linera_views::views::ViewError;
 use std::task::Poll;
 
 impl From<contract::OperationContext> for OperationContext {
@@ -143,6 +144,18 @@ impl From<PollLoad> for Poll<Result<Vec<u8>, String>> {
         match poll_get {
             PollLoad::Ready(bytes) => Poll::Ready(bytes),
             PollLoad::Pending => Poll::Pending,
+        }
+    }
+}
+
+impl From<PollReadKeyBytes> for Poll<Result<Option<Vec<u8>>, ViewError>> {
+    fn from(poll_read_key_bytes: PollReadKeyBytes) -> Self {
+        match poll_read_key_bytes {
+            PollReadKeyBytes::Ready(Ok(bytes)) => Poll::Ready(Ok(bytes)),
+            PollReadKeyBytes::Ready(Err(error)) => {
+                Poll::Ready(Err(ViewError::WasmHostGuestError(error)))
+            }
+            PollReadKeyBytes::Pending => Poll::Pending,
         }
     }
 }

@@ -20,18 +20,7 @@ impl KeyValueOperations for WasmContainer {
 
     async fn read_key_bytes(&self, key: &[u8]) -> Result<Option<Vec<u8>>, ViewError> {
         let future = system::ReadKeyBytes::new(key);
-        loop {
-            let answer : PollReadKeyBytes = future::poll_fn(|_context| future.poll().into()).await;
-            match answer {
-                PollReadKeyBytes::Ready(answer) => {
-                    return match answer {
-                        Ok(answer) => Ok(answer),
-                        Err(error) => Err(ViewError::WasmHostGuestError(error)),
-                    };
-                },
-                PollReadKeyBytes::Pending => {},
-            }
-        }
+        future::poll_fn(|_context| future.poll().into()).await
     }
 
     async fn find_stripped_keys_by_prefix(
