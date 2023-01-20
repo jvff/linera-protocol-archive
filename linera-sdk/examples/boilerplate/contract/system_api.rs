@@ -10,8 +10,7 @@ use linera_views::{views::ViewError, common::{Batch, SimpleTypeIterator, KeyValu
 use crate::boilerplate::writable_system;
 use crate::boilerplate::writable_system::{PollReadKeyBytes, PollFindStrippedKeys, PollFindStrippedKeyValues, PollWriteBatch};
 
-pub struct WasmContainer {
-}
+pub struct WasmContainer;
 
 #[async_trait]
 impl KeyValueOperations for WasmContainer {
