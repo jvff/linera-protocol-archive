@@ -59,11 +59,6 @@ impl Status {
     pub fn is_complete(&self) -> bool {
         matches!(self, Status::Complete)
     }
-
-    /// Returns `true` if the campaign status is [`Status::Cancelled`].
-    pub fn is_cancelled(&self) -> bool {
-        matches!(self, Status::Cancelled)
-    }
 }
 
 /// Alias to the application type, so that the boilerplate module can reference it.
