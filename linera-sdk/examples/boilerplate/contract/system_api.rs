@@ -4,11 +4,12 @@
 use super::{super::ApplicationState, writable_system as system};
 use futures::future;
 use linera_sdk::{ApplicationId, ChainId, SessionId, SystemBalance, Timestamp};
-use std::future::Future;
 use async_trait::async_trait;
 use linera_views::{views::ViewError, common::{Batch, ContextFromDb, SimpleTypeIterator, KeyValueOperations, WriteOperation}};
 use crate::boilerplate::writable_system;
+use linera_views::views::{View, ContainerView};
 
+#[derive(Clone)]
 pub struct WasmContainer;
 
 impl WasmContainer {
@@ -78,49 +79,40 @@ impl KeyValueOperations for WasmContainer {
 
 }
 
-type WasmContext<E> = ContextFromDb<E, WasmContainer>;
+pub type WasmContext = ContextFromDb<(), WasmContainer>;
 
-trait WasmContextExt<E> {
-    fn new(extra: E) -> Self;
+trait WasmContextExt {
+    fn new() -> Self;
 }
 
-impl<E> WasmContextExt<E> for WasmContext<E> {
-    fn new(extra: E) -> Self {
+impl WasmContextExt for WasmContext {
+    fn new() -> Self {
         Self {
             db: WasmContainer::new(),
             base_key: Vec::new(),
-            extra,
+            extra: (),
         }
     }
 }
 
 #[allow(dead_code)]
 impl ApplicationState {
-    /// Load the contract state, without locking it for writes.
-    pub async fn load() -> Self {
-        let future = system::Load::new();
-        Self::load_using(future::poll_fn(|_context| future.poll().into())).await
-    }
-
     /// Load the contract state and lock it for writes.
     pub async fn load_and_lock() -> Self {
-        let future = system::LoadAndLock::new();
-        Self::load_using(future::poll_fn(|_context| future.poll().into())).await
+        let future = system::Lock::new();
+        future::poll_fn(|_context| future.poll().into()).await;
+        Self::load_using().await
     }
 
     /// Helper function to load the contract state or create a new one if it doesn't exist.
-    pub async fn load_using(future: impl Future<Output = Result<Vec<u8>, String>>) -> Self {
-        let bytes = future.await.expect("Failed to load contract state");
-        if bytes.is_empty() {
-            Self::default()
-        } else {
-            bcs::from_bytes(&bytes).expect("Invalid contract state")
-        }
+    pub async fn load_using() -> Self {
+        let context = WasmContext::new();
+        Self::load(context).await.expect("Failed to load contract state")
     }
 
     /// Save the contract state and unlock it.
-    pub async fn store_and_unlock(self) {
-        system::store_and_unlock(&bcs::to_bytes(&self).expect("State serialization failed"));
+    pub async fn store_and_unlock(mut self) {
+        self.save().await.expect("save operation failed");
     }
 }
 

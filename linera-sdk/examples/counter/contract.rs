@@ -5,16 +5,20 @@
 
 mod state;
 
-use self::state::{ApplicationState, Counter};
+use self::state::Counter;
 use async_trait::async_trait;
 use linera_sdk::{
     ApplicationCallResult, CalleeContext, Contract, EffectContext, ExecutionResult,
     OperationContext, Session, SessionCallResult, SessionId,
 };
 use thiserror::Error;
+use crate::boilerplate::system_api::WasmContext;
+
+/// Alias to the application type, so that the boilerplate module can reference it.
+pub type ApplicationState = Counter<WasmContext>;
 
 #[async_trait]
-impl Contract for Counter {
+impl Contract for ApplicationState {
     type Error = Error;
 
     async fn initialize(
@@ -22,7 +26,7 @@ impl Contract for Counter {
         _context: &OperationContext,
         argument: &[u8],
     ) -> Result<ExecutionResult, Self::Error> {
-        self.value = bcs::from_bytes(argument)?;
+        self.value.set(bcs::from_bytes(argument)?);
         Ok(ExecutionResult::default())
     }
 
@@ -32,7 +36,9 @@ impl Contract for Counter {
         operation: &[u8],
     ) -> Result<ExecutionResult, Self::Error> {
         let increment: u128 = bcs::from_bytes(operation)?;
-        self.value += increment;
+        let mut value : u128 = *self.value.get();
+        value += increment;
+        self.value.set(value);
         Ok(ExecutionResult::default())
     }
 
@@ -51,9 +57,11 @@ impl Contract for Counter {
         _forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallResult, Self::Error> {
         let increment: u128 = bcs::from_bytes(argument)?;
-        self.value += increment;
+        let mut value = *self.value.get();
+        value += increment;
+        self.value.set(value);
         Ok(ApplicationCallResult {
-            value: bcs::to_bytes(&self.value).expect("Serialization should not fail"),
+            value: bcs::to_bytes(&value).expect("Serialization should not fail"),
             ..ApplicationCallResult::default()
         })
     }

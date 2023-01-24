@@ -53,7 +53,7 @@ impl Contract for FungibleToken {
     ) -> Result<ExecutionResult, Self::Error> {
         let credit = Credit::from_bcs_bytes(effect).map_err(Error::InvalidEffect)?;
 
-        self.credit(credit.destination, credit.amount);
+        self.credit(credit.destination, credit.amount).await;
 
         Ok(ExecutionResult::default())
     }
@@ -139,7 +139,7 @@ impl FungibleToken {
             .ok_or(Error::MissingSourceApplication)?;
         let source = AccountOwner::Application(caller);
 
-        self.debit(source, transfer.amount())?;
+        self.debit(source, transfer.amount()).await?;
 
         Ok(self.finish_application_transfer(transfer))
     }
@@ -203,7 +203,7 @@ impl FungibleToken {
             Error::IncorrectSourceChain
         );
         ensure!(
-            payload.nonce >= self.minimum_nonce(&source).ok_or(Error::ReusedNonce)?,
+            payload.nonce >= self.minimum_nonce(&source).await.ok_or(Error::ReusedNonce)?,
             Error::ReusedNonce
         );
 
@@ -232,7 +232,7 @@ impl FungibleToken {
     /// Credits an account or forward it to another micro-chain.
     fn finish_transfer(&mut self, transfer: Transfer) -> ExecutionResult {
         if transfer.destination_chain == system_api::current_chain_id() {
-            self.credit(transfer.destination_account, transfer.amount);
+            self.credit(transfer.destination_account, transfer.amount).await;
             ExecutionResult::default()
         } else {
             ExecutionResult::default()

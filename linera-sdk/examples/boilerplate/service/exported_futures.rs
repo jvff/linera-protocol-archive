@@ -19,11 +19,14 @@ impl service::QueryApplication for QueryApplication {
     fn new(context: service::QueryContext, argument: Vec<u8>) -> Handle<Self> {
         Handle::new(QueryApplication {
             future: ExportedFuture::new(async move {
-                let application = ApplicationState::load().await;
-                application
+                let application = ApplicationState::lock_and_load().await;
+                let result = application
                     .query_application(&context.into(), &argument)
-                    .await
-                    .map_err(|error| error.to_string())
+                    .await;
+                if result.is_ok() {
+                    application.unlock().await;
+                }
+                result.map_err(|error| error.to_string())
             }),
         })
     }

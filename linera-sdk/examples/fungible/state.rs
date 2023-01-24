@@ -8,44 +8,47 @@ use std::collections::BTreeMap;
 use thiserror::Error;
 
 /// The application state.
-#[derive(Default, Deserialize, Serialize)]
-pub struct FungibleToken {
-    accounts: BTreeMap<AccountOwner, u128>,
-    nonces: BTreeMap<AccountOwner, Nonce>,
+#[derive(HashableContainerView)]
+pub struct FungibleToken<C>
+where
+    C: Context + Send + Sync
+{
+    accounts: MapVieew<C, AccountOwner, u128>,
+    nonces: MapView<C, AccountOwner, Nonce>,
 }
 
 #[allow(dead_code)]
 impl FungibleToken {
     /// Initialize the application state with some accounts with initial balances.
     pub(crate) fn initialize_accounts(&mut self, accounts: BTreeMap<AccountOwner, u128>) {
-        self.accounts = accounts;
+        for (k, v) in accounts {
+            self.accounts.insert(k, v);
+        }
     }
 
     /// Obtain the balance for an `account`.
-    pub(crate) fn balance(&self, account: &AccountOwner) -> u128 {
-        self.accounts.get(&account).copied().unwrap_or(0)
+    pub(crate) async fn balance(&self, account: &AccountOwner) -> u128 {
+        let result = self.accounts.get(account).await.expect("Failure in the retrieval");
+        result.unwrap_or(0)
     }
 
     /// Credit an `account` with the provided `amount`.
-    pub(crate) fn credit(&mut self, account: AccountOwner, amount: u128) {
-        *self.accounts.entry(account).or_default() += amount;
+    pub(crate) async fn credit(&mut self, account: AccountOwner, amount: u128) {
+        let mut value = self.balance(&account).await;
+        value += amount;
+        self.insert(&account, value);
     }
 
     /// Try to debit the requested `amount` from an `account`.
-    pub(crate) fn debit(
+    pub(crate) async fn debit(
         &mut self,
         account: AccountOwner,
         amount: u128,
     ) -> Result<(), InsufficientBalanceError> {
-        let balance = self
-            .accounts
-            .get_mut(&account)
-            .ok_or(InsufficientBalanceError)?;
-
-        ensure!(*balance >= amount, InsufficientBalanceError);
-
-        *balance -= amount;
-
+        let mut balance = self.balance(&account).await;
+        ensure!(balance >= amount, InsufficientBalanceError);
+        balance -= amount;
+        self.insert(&account, balance);
         Ok(())
     }
 
@@ -55,11 +58,12 @@ impl FungibleToken {
     /// this is the first transaction for the `account` on the current chain.
     ///
     /// If the increment to obtain the next nonce overflows, `None` is returned.
-    pub(crate) fn minimum_nonce(&self, account: &AccountOwner) -> Option<Nonce> {
-        self.nonces
-            .get(account)
-            .map(Nonce::next)
-            .unwrap_or(Some(Nonce::default()))
+    pub(crate) async fn minimum_nonce(&self, account: &AccountOwner) -> Option<Nonce> {
+        let nonce = self.nonces.get(account).await.expect("Failed to retrieve the nonce");
+        match nonce {
+            None => Some(nonce::default()),
+            Some(x) => Some(nonce.next()),
+        }
     }
 
     /// Mark the provided [`Nonce`] as used for the `account`.

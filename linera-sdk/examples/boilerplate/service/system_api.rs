@@ -4,12 +4,12 @@
 use super::{super::ApplicationState, queryable_system as system};
 use futures::future;
 use linera_sdk::{ApplicationId, ChainId, SystemBalance, Timestamp};
-use std::future::Future;
 use async_trait::async_trait;
 use linera_views::views::ViewError;
 use linera_views::common::{Batch, ContextFromDb, SimpleTypeIterator, KeyValueOperations};
+use linera_views::views::View;
 
-
+#[derive(Clone)]
 pub struct ReadableWasmContainer;
 
 impl ReadableWasmContainer {
@@ -69,37 +69,40 @@ impl KeyValueOperations for ReadableWasmContainer {
 
 }
 
-type ReadableWasmContext<E> = ContextFromDb<E, ReadableWasmContainer>;
+pub type ReadableWasmContext = ContextFromDb<(), ReadableWasmContainer>;
 
-trait ReadableWasmContextExt<E> {
-    fn new(extra: E) -> Self;
+trait ReadableWasmContextExt {
+    fn new() -> Self;
 }
 
-impl<E> ReadableWasmContextExt<E> for ReadableWasmContext<E> {
-    fn new(extra: E) -> Self {
+impl ReadableWasmContextExt for ReadableWasmContext {
+    fn new() -> Self {
         Self {
             db: ReadableWasmContainer::new(),
             base_key: Vec::new(),
-            extra,
+            extra: (),
         }
     }
 }
 
 impl ApplicationState {
     /// Load the service state, without locking it for writes.
-    pub async fn load() -> Self {
-        let future = system::Load::new();
-        Self::load_using(future::poll_fn(|_context| future.poll().into())).await
+    pub async fn lock_and_load() -> Self {
+        let future = system::Lock::new();
+        future::poll_fn(|_context| future.poll().into()).await;
+        Self::load_using().await
+    }
+
+    /// Load the service state, without locking it for writes.
+    pub async fn unlock(self) {
+        let future = system::Unlock::new();
+        future::poll_fn(|_context| future.poll().into()).await;
     }
 
     /// Helper function to load the service state or create a new one if it doesn't exist.
-    pub async fn load_using(future: impl Future<Output = Result<Vec<u8>, String>>) -> Self {
-        let bytes = future.await.expect("Failed to load service state");
-        if bytes.is_empty() {
-            Self::default()
-        } else {
-            bcs::from_bytes(&bytes).expect("Invalid service state")
-        }
+    pub async fn load_using() -> Self {
+        let context = ReadableWasmContext::new();
+        Self::load(context).await.expect("Failed to load contract state")
     }
 }
 

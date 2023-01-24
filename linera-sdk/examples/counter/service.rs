@@ -5,13 +5,17 @@
 
 mod state;
 
-use self::state::{ApplicationState, Counter};
+use self::state::Counter;
 use async_trait::async_trait;
 use linera_sdk::{QueryContext, Service};
 use thiserror::Error;
+use crate::boilerplate::system_api::ReadableWasmContext;
+
+/// Alias to the application type, so that the boilerplate module can reference it.
+pub type ApplicationState = Counter<ReadableWasmContext>;
 
 #[async_trait]
-impl Service for Counter {
+impl Service for ApplicationState {
     type Error = Error;
 
     async fn query_application(
@@ -19,8 +23,9 @@ impl Service for Counter {
         _context: &QueryContext,
         argument: &[u8],
     ) -> Result<Vec<u8>, Self::Error> {
+        let value = self.value.get();
         match argument {
-            &[] => Ok(bcs::to_bytes(&self.value).expect("Serialization should not fail")),
+            &[] => Ok(bcs::to_bytes(&value).expect("Serialization should not fail")),
             _ => Err(Error::InvalidQuery),
         }
     }
