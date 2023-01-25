@@ -7,13 +7,15 @@ use super::{
     contract,
     writable_system::{self as system, PollCallResult, PollLoad},
 };
+use crate::boilerplate::writable_system::{
+    PollFindStrippedKeyValues, PollFindStrippedKeys, PollReadKeyBytes, PollWriteBatch,
+};
 use linera_sdk::{
     ApplicationId, BlockHeight, BytecodeId, CalleeContext, ChainId, EffectContext, EffectId,
     HashValue, OperationContext, Session, SessionId, SystemBalance,
 };
-use std::task::Poll;
 use linera_views::views::ViewError;
-use crate::boilerplate::writable_system::{PollReadKeyBytes, PollFindStrippedKeys, PollFindStrippedKeyValues, PollWriteBatch};
+use std::task::Poll;
 
 impl From<contract::OperationContext> for OperationContext {
     fn from(application_context: contract::OperationContext) -> Self {
@@ -207,7 +209,7 @@ impl From<PollFindStrippedKeys> for Poll<Result<Vec<Vec<u8>>, ViewError>> {
     }
 }
 
-impl From<PollFindStrippedKeyValues> for Poll<Result<Vec<(Vec<u8>,Vec<u8>)>, ViewError>> {
+impl From<PollFindStrippedKeyValues> for Poll<Result<Vec<(Vec<u8>, Vec<u8>)>, ViewError>> {
     fn from(poll_find_stripped_key_values: PollFindStrippedKeyValues) -> Self {
         match poll_find_stripped_key_values {
             PollFindStrippedKeyValues::Ready(Ok(key_values)) => Poll::Ready(Ok(key_values)),

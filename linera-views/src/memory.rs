@@ -6,11 +6,10 @@ use crate::{
     },
     views::ViewError,
 };
-use std::{collections::BTreeMap, fmt::Debug};
+use async_trait::async_trait;
+use std::{collections::BTreeMap, fmt::Debug, sync::Arc};
 use thiserror::Error;
 use tokio::sync::{OwnedMutexGuard, RwLock};
-use async_trait::async_trait;
-use std::sync::Arc;
 
 /// The data is serialized in memory just like for rocksdb / dynamodb
 /// The analogue of the database is the BTreeMap

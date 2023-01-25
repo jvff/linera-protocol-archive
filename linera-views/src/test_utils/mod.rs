@@ -10,12 +10,11 @@ use rand::{Rng, RngCore};
 use std::{collections::HashSet, env};
 
 #[cfg(not(target_arch = "wasm32"))]
-use tokio::sync::{Mutex, MutexGuard};
-#[cfg(not(target_arch = "wasm32"))]
 use aws_sdk_s3::Endpoint;
 #[cfg(not(target_arch = "wasm32"))]
 use aws_types::SdkConfig;
-
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::sync::{Mutex, MutexGuard};
 
 /// A static lock to prevent multiple tests from using the same LocalStack instance at the same
 /// time.

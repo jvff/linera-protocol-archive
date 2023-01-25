@@ -7,13 +7,15 @@ use super::{
     queryable_system::{self, PollLoad},
     service,
 };
+use crate::boilerplate::queryable_system::{
+    PollFindStrippedKeyValues, PollFindStrippedKeys, PollReadKeyBytes,
+};
 use linera_sdk::{
     ApplicationId, BlockHeight, BytecodeId, ChainId, EffectId, HashValue, QueryContext,
     SystemBalance,
 };
-use std::task::Poll;
 use linera_views::views::ViewError;
-use crate::boilerplate::queryable_system::{PollReadKeyBytes, PollFindStrippedKeys, PollFindStrippedKeyValues};
+use std::task::Poll;
 
 impl From<service::QueryContext> for QueryContext {
     fn from(application_context: service::QueryContext) -> Self {
@@ -112,7 +114,7 @@ impl From<PollFindStrippedKeys> for Poll<Result<Vec<Vec<u8>>, ViewError>> {
     }
 }
 
-impl From<PollFindStrippedKeyValues> for Poll<Result<Vec<(Vec<u8>,Vec<u8>)>, ViewError>> {
+impl From<PollFindStrippedKeyValues> for Poll<Result<Vec<(Vec<u8>, Vec<u8>)>, ViewError>> {
     fn from(poll_find_stripped_key_values: PollFindStrippedKeyValues) -> Self {
         match poll_find_stripped_key_values {
             PollFindStrippedKeyValues::Ready(Ok(key_values)) => Poll::Ready(Ok(key_values)),

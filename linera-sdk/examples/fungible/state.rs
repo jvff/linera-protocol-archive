@@ -11,7 +11,7 @@ use thiserror::Error;
 #[derive(HashableContainerView)]
 pub struct FungibleToken<C>
 where
-    C: Context + Send + Sync
+    C: Context + Send + Sync,
 {
     accounts: MapVieew<C, AccountOwner, u128>,
     nonces: MapView<C, AccountOwner, Nonce>,
@@ -28,7 +28,11 @@ impl FungibleToken {
 
     /// Obtain the balance for an `account`.
     pub(crate) async fn balance(&self, account: &AccountOwner) -> u128 {
-        let result = self.accounts.get(account).await.expect("Failure in the retrieval");
+        let result = self
+            .accounts
+            .get(account)
+            .await
+            .expect("Failure in the retrieval");
         result.unwrap_or(0)
     }
 
@@ -59,7 +63,11 @@ impl FungibleToken {
     ///
     /// If the increment to obtain the next nonce overflows, `None` is returned.
     pub(crate) async fn minimum_nonce(&self, account: &AccountOwner) -> Option<Nonce> {
-        let nonce = self.nonces.get(account).await.expect("Failed to retrieve the nonce");
+        let nonce = self
+            .nonces
+            .get(account)
+            .await
+            .expect("Failed to retrieve the nonce");
         match nonce {
             None => Some(nonce::default()),
             Some(x) => Some(nonce.next()),

@@ -20,7 +20,6 @@ use tokio::sync::{Mutex, OwnedMutexGuard};
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::Arc;
 
-
 /// A view that supports accessing a collection of views of the same kind, indexed by a
 /// key, one subview at a time.
 #[derive(Debug)]

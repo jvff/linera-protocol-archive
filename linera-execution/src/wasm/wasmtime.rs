@@ -27,10 +27,10 @@ use super::{
     WasmApplication, WasmExecutionError,
 };
 use crate::{CallResult, ExecutionError, QueryableStorage, SessionId, WritableStorage};
+use linera_views::common::Batch;
 use std::{marker::PhantomData, task::Poll};
 use wasmtime::{Engine, Linker, Module, Store, Trap};
 use wit_bindgen_host_wasmtime_rust::Le;
-use linera_views::common::Batch;
 
 /// Type representing the [Wasmtime](https://wasmtime.dev/) runtime for contracts.
 ///
@@ -317,7 +317,8 @@ impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
     type LoadAndLock = HostFuture<'storage, Result<Vec<u8>, ExecutionError>>;
     type ReadKeyBytes = HostFuture<'storage, Result<Option<Vec<u8>>, ExecutionError>>;
     type FindStrippedKeys = HostFuture<'storage, Result<Vec<Vec<u8>>, ExecutionError>>;
-    type FindStrippedKeyValues = HostFuture<'storage, Result<Vec<(Vec<u8>,Vec<u8>)>, ExecutionError>>;
+    type FindStrippedKeyValues =
+        HostFuture<'storage, Result<Vec<(Vec<u8>, Vec<u8>)>, ExecutionError>>;
     type WriteBatch = HostFuture<'storage, Result<(), ExecutionError>>;
     type TryCallApplication = HostFuture<'storage, Result<CallResult, ExecutionError>>;
     type TryCallSession = HostFuture<'storage, Result<CallResult, ExecutionError>>;
@@ -371,18 +372,21 @@ impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
 
     fn lock_poll(&mut self, future: &Self::Lock) -> writable_system::PollLock {
         use writable_system::PollLock;
-	match future.poll(&mut self.context) {
+        match future.poll(&mut self.context) {
             Poll::Pending => PollLock::Pending,
             Poll::Ready(Ok(())) => PollLock::Ready(Ok(())),
             Poll::Ready(Err(error)) => PollLock::Ready(Err(error.to_string())),
-	}
+        }
     }
 
     fn read_key_bytes_new(&mut self, key: &[u8]) -> Self::ReadKeyBytes {
         HostFuture::new(self.storage.pass_userkv_read_key_bytes(key.to_owned()))
     }
 
-    fn read_key_bytes_poll(&mut self, future: &Self::ReadKeyBytes) -> writable_system::PollReadKeyBytes {
+    fn read_key_bytes_poll(
+        &mut self,
+        future: &Self::ReadKeyBytes,
+    ) -> writable_system::PollReadKeyBytes {
         use writable_system::PollReadKeyBytes;
         match future.poll(&mut self.context) {
             Poll::Pending => PollReadKeyBytes::Pending,
@@ -392,27 +396,43 @@ impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
     }
 
     fn find_stripped_keys_new(&mut self, key_prefix: &[u8]) -> Self::FindStrippedKeys {
-        HostFuture::new(self.storage.pass_userkv_find_stripped_keys_by_prefix(key_prefix.to_owned()))
+        HostFuture::new(
+            self.storage
+                .pass_userkv_find_stripped_keys_by_prefix(key_prefix.to_owned()),
+        )
     }
 
-    fn find_stripped_keys_poll(&mut self, future: &Self::FindStrippedKeys) -> writable_system::PollFindStrippedKeys {
+    fn find_stripped_keys_poll(
+        &mut self,
+        future: &Self::FindStrippedKeys,
+    ) -> writable_system::PollFindStrippedKeys {
         use writable_system::PollFindStrippedKeys;
         match future.poll(&mut self.context) {
             Poll::Pending => PollFindStrippedKeys::Pending,
-            Poll::Ready(Ok(list_stripped_keys)) => PollFindStrippedKeys::Ready(Ok(list_stripped_keys)),
+            Poll::Ready(Ok(list_stripped_keys)) => {
+                PollFindStrippedKeys::Ready(Ok(list_stripped_keys))
+            }
             Poll::Ready(Err(error)) => PollFindStrippedKeys::Ready(Err(error.to_string())),
         }
     }
 
     fn find_stripped_key_values_new(&mut self, key_prefix: &[u8]) -> Self::FindStrippedKeyValues {
-        HostFuture::new(self.storage.pass_userkv_find_stripped_key_values_by_prefix(key_prefix.to_owned()))
+        HostFuture::new(
+            self.storage
+                .pass_userkv_find_stripped_key_values_by_prefix(key_prefix.to_owned()),
+        )
     }
 
-    fn find_stripped_key_values_poll(&mut self, future: &Self::FindStrippedKeyValues) -> writable_system::PollFindStrippedKeyValues {
+    fn find_stripped_key_values_poll(
+        &mut self,
+        future: &Self::FindStrippedKeyValues,
+    ) -> writable_system::PollFindStrippedKeyValues {
         use writable_system::PollFindStrippedKeyValues;
         match future.poll(&mut self.context) {
             Poll::Pending => PollFindStrippedKeyValues::Pending,
-            Poll::Ready(Ok(list_stripped_key_values)) => PollFindStrippedKeyValues::Ready(Ok(list_stripped_key_values)),
+            Poll::Ready(Ok(list_stripped_key_values)) => {
+                PollFindStrippedKeyValues::Ready(Ok(list_stripped_key_values))
+            }
             Poll::Ready(Err(error)) => PollFindStrippedKeyValues::Ready(Err(error.to_string())),
         }
     }
@@ -423,13 +443,20 @@ impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
             .is_ok()
     }
 
-    fn write_batch_new(&mut self, list_oper: Vec<writable_system::WriteOperation>) -> Self::WriteBatch {
+    fn write_batch_new(
+        &mut self,
+        list_oper: Vec<writable_system::WriteOperation>,
+    ) -> Self::WriteBatch {
         let mut batch = Batch::default();
         for x in list_oper {
             match x {
                 writable_system::WriteOperation::Delete(key) => batch.delete_key(key.to_vec()),
-                writable_system::WriteOperation::Deleteprefix(key_prefix) => batch.delete_key_prefix(key_prefix.to_vec()),
-	        writable_system::WriteOperation::Put(key_value) => batch.put_key_value_bytes(key_value.0.to_vec(), key_value.1.to_vec()),
+                writable_system::WriteOperation::Deleteprefix(key_prefix) => {
+                    batch.delete_key_prefix(key_prefix.to_vec())
+                }
+                writable_system::WriteOperation::Put(key_value) => {
+                    batch.put_key_value_bytes(key_value.0.to_vec(), key_value.1.to_vec())
+                }
             }
         }
         HostFuture::new(self.storage.write_batch_and_unlock(batch))
@@ -437,11 +464,11 @@ impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
 
     fn write_batch_poll(&mut self, future: &Self::WriteBatch) -> writable_system::PollWriteBatch {
         use writable_system::PollWriteBatch;
-	match future.poll(&mut self.context) {
+        match future.poll(&mut self.context) {
             Poll::Pending => PollWriteBatch::Pending,
             Poll::Ready(Ok(())) => PollWriteBatch::Ready(Ok(())),
             Poll::Ready(Err(error)) => PollWriteBatch::Ready(Err(error.to_string())),
-	}
+        }
     }
 
     fn try_call_application_new(
@@ -524,7 +551,8 @@ impl<'storage> QueryableSystem for SystemApi<&'storage dyn QueryableStorage> {
     type Unlock = HostFuture<'storage, Result<(), ExecutionError>>;
     type ReadKeyBytes = HostFuture<'storage, Result<Option<Vec<u8>>, ExecutionError>>;
     type FindStrippedKeys = HostFuture<'storage, Result<Vec<Vec<u8>>, ExecutionError>>;
-    type FindStrippedKeyValues = HostFuture<'storage, Result<Vec<(Vec<u8>,Vec<u8>)>, ExecutionError>>;
+    type FindStrippedKeyValues =
+        HostFuture<'storage, Result<Vec<(Vec<u8>, Vec<u8>)>, ExecutionError>>;
 
     fn chain_id(&mut self) -> queryable_system::ChainId {
         self.storage.chain_id().into()
@@ -561,11 +589,11 @@ impl<'storage> QueryableSystem for SystemApi<&'storage dyn QueryableStorage> {
 
     fn lock_poll(&mut self, future: &Self::Lock) -> queryable_system::PollLock {
         use queryable_system::PollLock;
-	match future.poll(&mut self.context) {
+        match future.poll(&mut self.context) {
             Poll::Pending => PollLock::Pending,
             Poll::Ready(Ok(())) => PollLock::Ready(Ok(())),
             Poll::Ready(Err(error)) => PollLock::Ready(Err(error.to_string())),
-	}
+        }
     }
 
     fn unlock_new(&mut self) -> Self::Unlock {
@@ -574,18 +602,21 @@ impl<'storage> QueryableSystem for SystemApi<&'storage dyn QueryableStorage> {
 
     fn unlock_poll(&mut self, future: &Self::Lock) -> queryable_system::PollUnlock {
         use queryable_system::PollUnlock;
-	match future.poll(&mut self.context) {
+        match future.poll(&mut self.context) {
             Poll::Pending => PollUnlock::Pending,
             Poll::Ready(Ok(())) => PollUnlock::Ready(Ok(())),
             Poll::Ready(Err(error)) => PollUnlock::Ready(Err(error.to_string())),
-	}
+        }
     }
 
     fn read_key_bytes_new(&mut self, key: &[u8]) -> Self::ReadKeyBytes {
         HostFuture::new(self.storage.pass_userkv_read_key_bytes(key.to_owned()))
     }
 
-    fn read_key_bytes_poll(&mut self, future: &Self::ReadKeyBytes) -> queryable_system::PollReadKeyBytes {
+    fn read_key_bytes_poll(
+        &mut self,
+        future: &Self::ReadKeyBytes,
+    ) -> queryable_system::PollReadKeyBytes {
         use queryable_system::PollReadKeyBytes;
         match future.poll(&mut self.context) {
             Poll::Pending => PollReadKeyBytes::Pending,
@@ -595,27 +626,43 @@ impl<'storage> QueryableSystem for SystemApi<&'storage dyn QueryableStorage> {
     }
 
     fn find_stripped_keys_new(&mut self, key_prefix: &[u8]) -> Self::FindStrippedKeys {
-        HostFuture::new(self.storage.pass_userkv_find_stripped_keys_by_prefix(key_prefix.to_owned()))
+        HostFuture::new(
+            self.storage
+                .pass_userkv_find_stripped_keys_by_prefix(key_prefix.to_owned()),
+        )
     }
 
-    fn find_stripped_keys_poll(&mut self, future: &Self::FindStrippedKeys) -> queryable_system::PollFindStrippedKeys {
+    fn find_stripped_keys_poll(
+        &mut self,
+        future: &Self::FindStrippedKeys,
+    ) -> queryable_system::PollFindStrippedKeys {
         use queryable_system::PollFindStrippedKeys;
         match future.poll(&mut self.context) {
             Poll::Pending => PollFindStrippedKeys::Pending,
-            Poll::Ready(Ok(list_stripped_keys)) => PollFindStrippedKeys::Ready(Ok(list_stripped_keys)),
+            Poll::Ready(Ok(list_stripped_keys)) => {
+                PollFindStrippedKeys::Ready(Ok(list_stripped_keys))
+            }
             Poll::Ready(Err(error)) => PollFindStrippedKeys::Ready(Err(error.to_string())),
         }
     }
 
     fn find_stripped_key_values_new(&mut self, key_prefix: &[u8]) -> Self::FindStrippedKeyValues {
-        HostFuture::new(self.storage.pass_userkv_find_stripped_key_values_by_prefix(key_prefix.to_owned()))
+        HostFuture::new(
+            self.storage
+                .pass_userkv_find_stripped_key_values_by_prefix(key_prefix.to_owned()),
+        )
     }
 
-    fn find_stripped_key_values_poll(&mut self, future: &Self::FindStrippedKeyValues) -> queryable_system::PollFindStrippedKeyValues {
+    fn find_stripped_key_values_poll(
+        &mut self,
+        future: &Self::FindStrippedKeyValues,
+    ) -> queryable_system::PollFindStrippedKeyValues {
         use queryable_system::PollFindStrippedKeyValues;
         match future.poll(&mut self.context) {
             Poll::Pending => PollFindStrippedKeyValues::Pending,
-            Poll::Ready(Ok(list_stripped_key_values)) => PollFindStrippedKeyValues::Ready(Ok(list_stripped_key_values)),
+            Poll::Ready(Ok(list_stripped_key_values)) => {
+                PollFindStrippedKeyValues::Ready(Ok(list_stripped_key_values))
+            }
             Poll::Ready(Err(error)) => PollFindStrippedKeyValues::Ready(Err(error.to_string())),
         }
     }

@@ -6,13 +6,13 @@
 mod state;
 
 use self::state::Counter;
+use crate::boilerplate::system_api::WasmContext;
 use async_trait::async_trait;
 use linera_sdk::{
     ApplicationCallResult, CalleeContext, Contract, EffectContext, ExecutionResult,
     OperationContext, Session, SessionCallResult, SessionId,
 };
 use thiserror::Error;
-use crate::boilerplate::system_api::WasmContext;
 
 /// Alias to the application type, so that the boilerplate module can reference it.
 pub type ApplicationState = Counter<WasmContext>;
@@ -36,7 +36,7 @@ impl Contract for ApplicationState {
         operation: &[u8],
     ) -> Result<ExecutionResult, Self::Error> {
         let increment: u128 = bcs::from_bytes(operation)?;
-        let mut value : u128 = *self.value.get();
+        let mut value: u128 = *self.value.get();
         value += increment;
         self.value.set(value);
         Ok(ExecutionResult::default())

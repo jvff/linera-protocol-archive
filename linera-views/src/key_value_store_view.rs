@@ -3,31 +3,28 @@
 
 use crate::{
     common::{
-        get_interval, get_upper_bound, Batch, Context, HashOutput,
-        SimpleTypeIterator, WriteOperation,
+        get_interval, get_upper_bound, Batch, Context, HashOutput, SimpleTypeIterator,
+        WriteOperation,
     },
     views::{HashableView, Hasher, View, ViewError},
 };
-#[cfg(not(target_arch = "wasm32"))]
-use crate::{memory::{MemoryContext, MemoryStoreMap}, common::{ContextFromDb, KeyValueOperations}};
 
 use async_trait::async_trait;
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{btree_set::Iter, BTreeMap, BTreeSet},
     fmt::Debug,
     mem,
     ops::Bound::Included,
 };
-use std::collections::btree_set::Iter;
 
 #[cfg(any(test, feature = "test"))]
+#[cfg(not(target_arch = "wasm32"))]
 use {
     crate::common::{ContextFromDb, KeyValueOperations},
     crate::memory::{MemoryContext, MemoryStoreMap},
     std::sync::Arc,
     tokio::sync::{OwnedMutexGuard, RwLock},
 };
-
 /// We actually implement two types:
 /// 1) The first type KeyValueStoreView that implements View and the function of KeyValueOperations
 /// (though not KeyValueOperations).
@@ -37,11 +34,6 @@ use {
 /// * a write_batch that takes a &self instead of a "&mut self"
 /// * a write_batch that writes in the context instead of writing of the view.
 /// At the present time, that second type is only used for tests.
-
-#[cfg(not(target_arch = "wasm32"))]
-use tokio::sync::{OwnedMutexGuard, RwLock};
-#[cfg(not(target_arch = "wasm32"))]
-use std::sync::Arc;
 
 /// Key tags to create the sub-keys of a KeyValueStoreView on top of the base key.
 #[repr(u8)]

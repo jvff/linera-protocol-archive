@@ -13,8 +13,8 @@ use linera_base::{
 };
 use linera_views::{
     common::{Batch, Context},
-    register_view::RegisterView,
     key_value_store_view::KeyValueStoreView,
+    register_view::RegisterView,
     views::{View, ViewError},
 };
 use std::{
@@ -321,13 +321,19 @@ where
 
     async fn unlock_userkv_state(&self) -> Result<(), ExecutionError> {
         // Make the view available again.
-        match self.active_userkv_states_mut().remove(&self.application_id()) {
+        match self
+            .active_userkv_states_mut()
+            .remove(&self.application_id())
+        {
             Some(_) => Ok(()),
             None => Err(ExecutionError::ApplicationStateNotLocked),
         }
     }
 
-    async fn pass_userkv_read_key_bytes(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, ExecutionError> {
+    async fn pass_userkv_read_key_bytes(
+        &self,
+        key: Vec<u8>,
+    ) -> Result<Option<Vec<u8>>, ExecutionError> {
         // read a key from the KV store
         match self.active_userkv_states_mut().get(&self.application_id()) {
             Some(view) => {
@@ -339,7 +345,10 @@ where
         }
     }
 
-    async fn pass_userkv_find_stripped_keys_by_prefix(&self, key_prefix: Vec<u8>) -> Result<Vec<Vec<u8>>, ExecutionError> {
+    async fn pass_userkv_find_stripped_keys_by_prefix(
+        &self,
+        key_prefix: Vec<u8>,
+    ) -> Result<Vec<Vec<u8>>, ExecutionError> {
         // Read keys matching a prefix. We have to collect since iterators do not pass the wit barrier
         match self.active_userkv_states_mut().get(&self.application_id()) {
             Some(view) => {
@@ -354,7 +363,10 @@ where
         }
     }
 
-    async fn pass_userkv_find_stripped_key_values_by_prefix(&self, key_prefix: Vec<u8>) -> Result<Vec<(Vec<u8>,Vec<u8>)>, ExecutionError> {
+    async fn pass_userkv_find_stripped_key_values_by_prefix(
+        &self,
+        key_prefix: Vec<u8>,
+    ) -> Result<Vec<(Vec<u8>, Vec<u8>)>, ExecutionError> {
         // Read key/values matching a prefix. We have to collect since iterators do not pass the wit barrier
         match self.active_userkv_states_mut().get(&self.application_id()) {
             Some(view) => {
@@ -405,7 +417,6 @@ where
     ViewError: From<C::Error>,
     C::Extra: ExecutionRuntimeContext,
 {
-
     async fn try_read_and_lock_my_state(&self) -> Result<Vec<u8>, ExecutionError> {
         let view = self
             .execution_state_mut()
@@ -433,7 +444,10 @@ where
 
     async fn write_batch_and_unlock(&self, batch: Batch) -> Result<(), ExecutionError> {
         // Make the view available again.
-        match self.active_userkv_states_mut().remove(&self.application_id()) {
+        match self
+            .active_userkv_states_mut()
+            .remove(&self.application_id())
+        {
             Some(mut view) => {
                 // Write the batch in the view
                 view.write_batch(batch).await?;

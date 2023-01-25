@@ -203,7 +203,11 @@ impl FungibleToken {
             Error::IncorrectSourceChain
         );
         ensure!(
-            payload.nonce >= self.minimum_nonce(&source).await.ok_or(Error::ReusedNonce)?,
+            payload.nonce
+                >= self
+                    .minimum_nonce(&source)
+                    .await
+                    .ok_or(Error::ReusedNonce)?,
             Error::ReusedNonce
         );
 
@@ -232,7 +236,8 @@ impl FungibleToken {
     /// Credits an account or forward it to another micro-chain.
     fn finish_transfer(&mut self, transfer: Transfer) -> ExecutionResult {
         if transfer.destination_chain == system_api::current_chain_id() {
-            self.credit(transfer.destination_account, transfer.amount).await;
+            self.credit(transfer.destination_account, transfer.amount)
+                .await;
             ExecutionResult::default()
         } else {
             ExecutionResult::default()

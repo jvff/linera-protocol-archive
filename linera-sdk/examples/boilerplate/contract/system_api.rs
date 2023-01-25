@@ -2,19 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{super::ApplicationState, writable_system as system};
+use crate::boilerplate::writable_system;
+use async_trait::async_trait;
 use futures::future;
 use linera_sdk::{ApplicationId, ChainId, SessionId, SystemBalance, Timestamp};
-use async_trait::async_trait;
-use linera_views::{views::ViewError, common::{Batch, ContextFromDb, SimpleTypeIterator, KeyValueOperations, WriteOperation}};
-use crate::boilerplate::writable_system;
-use linera_views::views::{View, ContainerView};
+use linera_views::{
+    common::{Batch, ContextFromDb, KeyValueOperations, SimpleTypeIterator, WriteOperation},
+    views::{ContainerView, View, ViewError},
+};
 
 #[derive(Clone)]
 pub struct WasmContainer;
 
 impl WasmContainer {
     pub fn new() -> Self {
-        WasmContainer { }
+        WasmContainer {}
     }
 
     async fn find_stripped_keys_by_prefix_load(
@@ -28,11 +30,10 @@ impl WasmContainer {
     async fn find_stripped_key_values_by_prefix_load(
         &self,
         key_prefix: &[u8],
-    ) -> Result<Vec<(Vec<u8>,Vec<u8>)>, ViewError> {
+    ) -> Result<Vec<(Vec<u8>, Vec<u8>)>, ViewError> {
         let future = system::FindStrippedKeyValues::new(key_prefix);
         future::poll_fn(|_context| future.poll().into()).await
     }
-
 }
 
 #[async_trait]
@@ -58,7 +59,9 @@ impl KeyValueOperations for WasmContainer {
         &self,
         key_prefix: &[u8],
     ) -> Result<Self::KeyValueIterator, ViewError> {
-        let key_values = self.find_stripped_key_values_by_prefix_load(key_prefix).await?;
+        let key_values = self
+            .find_stripped_key_values_by_prefix_load(key_prefix)
+            .await?;
         Ok(Self::KeyValueIterator::new(key_values))
     }
 
@@ -68,15 +71,18 @@ impl KeyValueOperations for WasmContainer {
             match op {
                 WriteOperation::Delete { key } => {
                     list_oper.push(writable_system::WriteOperation::Delete(key));
-                },
-                WriteOperation::Put { key, value } => list_oper.push(writable_system::WriteOperation::Put((key,value))),
-                WriteOperation::DeletePrefix { key_prefix } => list_oper.push(writable_system::WriteOperation::Deleteprefix(&key_prefix)),
+                }
+                WriteOperation::Put { key, value } => {
+                    list_oper.push(writable_system::WriteOperation::Put((key, value)))
+                }
+                WriteOperation::DeletePrefix { key_prefix } => {
+                    list_oper.push(writable_system::WriteOperation::Deleteprefix(&key_prefix))
+                }
             }
         }
         let future = system::WriteBatch::new(&list_oper);
         future::poll_fn(|_context| future.poll().into()).await
     }
-
 }
 
 pub type WasmContext = ContextFromDb<(), WasmContainer>;
@@ -107,7 +113,9 @@ impl ApplicationState {
     /// Helper function to load the contract state or create a new one if it doesn't exist.
     pub async fn load_using() -> Self {
         let context = WasmContext::new();
-        Self::load(context).await.expect("Failed to load contract state")
+        Self::load(context)
+            .await
+            .expect("Failed to load contract state")
     }
 
     /// Save the contract state and unlock it.

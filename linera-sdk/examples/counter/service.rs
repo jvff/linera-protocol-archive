@@ -6,10 +6,10 @@
 mod state;
 
 use self::state::Counter;
+use crate::boilerplate::system_api::ReadableWasmContext;
 use async_trait::async_trait;
 use linera_sdk::{QueryContext, Service};
 use thiserror::Error;
-use crate::boilerplate::system_api::ReadableWasmContext;
 
 /// Alias to the application type, so that the boilerplate module can reference it.
 pub type ApplicationState = Counter<ReadableWasmContext>;
