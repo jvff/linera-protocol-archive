@@ -151,7 +151,7 @@ impl ExecutionResult {
 }
 
 /// The index of an effect in a chain.
-#[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Debug, Default)]
+#[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct EffectId {
     pub chain_id: ChainId,
@@ -160,7 +160,7 @@ pub struct EffectId {
 }
 
 /// The unique identifier (UID) of a chain. This is the hash value of a ChainDescription.
-#[derive(Debug, Default, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct ChainId(pub HashValue);
 
@@ -184,12 +184,6 @@ pub struct HashValue([u8; 64]);
 #[serde_as]
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord, Deserialize, Serialize)]
 pub struct HashValue(#[serde_as(as = "[_; 64]")] [u8; 64]);
-
-impl Default for HashValue {
-    fn default() -> Self {
-        HashValue([0; 64])
-    }
-}
 
 impl From<[u64; 8]> for HashValue {
     fn from(eight_u64s: [u64; 8]) -> Self {
@@ -243,7 +237,7 @@ impl From<ChainId> for Destination {
 }
 
 /// A unique identifier for an application.
-#[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Debug, Default)]
+#[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct ApplicationId {
     /// The bytecode to use for the application.
@@ -253,7 +247,7 @@ pub struct ApplicationId {
 }
 
 /// A unique identifier for an application bytecode.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Default)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct BytecodeId(pub EffectId);
 
