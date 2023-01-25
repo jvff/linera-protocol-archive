@@ -62,7 +62,7 @@ impl KeyValueOperations for WasmContainer {
         Ok(Self::KeyValueIterator::new(key_values))
     }
 
-    async fn write_batch(&mut self, batch: Batch) -> Result<(), ViewError> {
+    async fn write_batch(&self, batch: Batch) -> Result<(), ViewError> {
         let mut list_oper = Vec::new();
         for op in &batch.operations {
             match op {

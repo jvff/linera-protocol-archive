@@ -63,7 +63,7 @@ impl KeyValueOperations for ReadableWasmContainer {
         Ok(Self::KeyValueIterator::new(key_values))
     }
 
-    async fn write_batch(&mut self, _batch: Batch) -> Result<(), ViewError> {
+    async fn write_batch(&self, _batch: Batch) -> Result<(), ViewError> {
         Ok(())
     }
 

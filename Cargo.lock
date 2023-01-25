@@ -1894,6 +1894,7 @@ dependencies = [
  "generic-array",
  "hex",
  "linera-base",
+ "linera-sdk",
  "linera-views",
  "linera-views-macro",
  "serde",

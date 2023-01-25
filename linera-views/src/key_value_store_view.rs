@@ -3,13 +3,13 @@
 
 use crate::{
     common::{
-        get_interval, get_upper_bound, Batch, Context, HashOutput, SimpleTypeIterator,
-        WriteOperation,
+        get_interval, get_upper_bound, Batch, Context, HashOutput,
+        SimpleTypeIterator, WriteOperation,
     },
     views::{HashableView, Hasher, View, ViewError},
 };
 #[cfg(not(target_arch = "wasm32"))]
-use crate::{memory::{MemoryContext, MemoryStoreMap}, common::ContextFromDb};
+use crate::{memory::{MemoryContext, MemoryStoreMap}, common::{ContextFromDb, KeyValueOperations}};
 
 use async_trait::async_trait;
 use std::{
@@ -568,7 +568,7 @@ where
 struct NextLowerKeyIterator<'a, T: 'static> {
     prec1: Option<T>,
     prec2: Option<T>,
-    iter: std::collections::btree_set::Iter<'a, T>,
+    iter: Iter<'a, T>,
 }
 
 impl<'a, T> NextLowerKeyIterator<'a, T>
@@ -632,6 +632,11 @@ where
         }
     }
 }
+
+/// A context that stores all values in memory.
+#[cfg(any(test, feature = "test"))]
+#[cfg(not(target_arch = "wasm32"))]
+pub type KeyValueStoreMemoryContext<E> = ContextFromDb<E, ViewContainer<MemoryContext<()>>>;
 
 #[cfg(any(test, feature = "test"))]
 #[cfg(not(target_arch = "wasm32"))]

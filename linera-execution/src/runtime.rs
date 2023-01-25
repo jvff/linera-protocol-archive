@@ -12,7 +12,7 @@ use linera_base::{
     ensure,
 };
 use linera_views::{
-    common::{Batch, Context, KeyValueOperations},
+    common::{Batch, Context},
     register_view::RegisterView,
     key_value_store_view::KeyValueStoreView,
     views::{View, ViewError},
