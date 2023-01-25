@@ -31,10 +31,10 @@ impl Contract for CrowdFunding {
         _context: &OperationContext,
         argument: &[u8],
     ) -> Result<ExecutionResult, Self::Error> {
-        self.parameters = bcs::from_bytes(argument).map_err(Error::InvalidParameters)?;
+        self.parameters = Some(bcs::from_bytes(argument).map_err(Error::InvalidParameters)?);
 
         ensure!(
-            self.parameters.deadline > system_api::current_system_time(),
+            self.parameters().deadline > system_api::current_system_time(),
             Error::DeadlineInThePast
         );
 
@@ -104,7 +104,7 @@ impl CrowdFunding {
 
         ensure!(transfer.payload.transfer.amount > 0, Error::EmptyPledge);
         ensure!(
-            transfer.payload.token_id == self.parameters.token,
+            transfer.payload.token_id == self.parameters().token,
             Error::IncorrectToken
         );
         ensure!(
@@ -151,7 +151,7 @@ impl CrowdFunding {
         ensure!(
             sessions
                 .iter()
-                .all(|session_id| session_id.application_id == self.parameters.token),
+                .all(|session_id| session_id.application_id == self.parameters().token),
             Error::IncorrectToken
         );
 
@@ -213,7 +213,7 @@ impl CrowdFunding {
 
                 Ok(())
             }
-            Status::Complete => self.send(amount, self.parameters.owner).await,
+            Status::Complete => self.send(amount, self.parameters().owner).await,
             Status::Cancelled => Err(Error::Cancelled),
         }
     }
@@ -224,13 +224,13 @@ impl CrowdFunding {
 
         match self.status {
             Status::Active => {
-                ensure!(total >= self.parameters.target, Error::TargetNotReached);
+                ensure!(total >= self.parameters().target, Error::TargetNotReached);
             }
             Status::Complete => (),
             Status::Cancelled => return Err(Error::Cancelled),
         }
 
-        self.send(total, self.parameters.owner).await?;
+        self.send(total, self.parameters().owner).await?;
         self.pledges.clear();
         self.status = Status::Complete;
 
@@ -242,7 +242,7 @@ impl CrowdFunding {
         ensure!(!self.status.is_complete(), Error::Completed);
 
         ensure!(
-            system_api::current_system_time() >= self.parameters.deadline,
+            system_api::current_system_time() >= self.parameters().deadline,
             Error::DeadlineNotReached
         );
 
@@ -250,7 +250,7 @@ impl CrowdFunding {
             self.send(amount, pledger).await?;
         }
 
-        self.send(self.balance().await?, self.parameters.owner)
+        self.send(self.balance().await?, self.parameters().owner)
             .await?;
         self.status = Status::Cancelled;
 
@@ -263,7 +263,7 @@ impl CrowdFunding {
             .map_err(Error::InvalidBalanceQuery)?;
 
         let (response, _sessions) =
-            system_api::call_application(true, self.parameters.token, &query_bytes, vec![])
+            system_api::call_application(true, self.parameters().token, &query_bytes, vec![])
                 .await
                 .map_err(Error::Balance)?;
 
@@ -286,7 +286,7 @@ impl CrowdFunding {
     async fn transfer(&self, transfer: fungible::ApplicationCall) -> Result<(), Error> {
         let transfer_bytes = bcs::to_bytes(&transfer).map_err(Error::InvalidTransfer)?;
 
-        system_api::call_application(true, self.parameters.token, &transfer_bytes, vec![])
+        system_api::call_application(true, self.parameters().token, &transfer_bytes, vec![])
             .await
             .map_err(Error::Transfer)?;
 

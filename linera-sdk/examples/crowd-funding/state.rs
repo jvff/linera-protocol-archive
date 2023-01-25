@@ -39,18 +39,7 @@ pub struct CrowdFunding {
     /// The map of pledges that will be collected if the campaign succeeds.
     pub pledges: BTreeMap<AccountOwner, u128>,
     /// The parameters that determine the details the campaign.
-    pub parameters: Parameters,
-}
-
-impl Default for Parameters {
-    fn default() -> Self {
-        Parameters {
-            owner: AccountOwner::Application(ApplicationId::default()),
-            token: ApplicationId::default(),
-            deadline: Timestamp::default(),
-            target: 0_u128,
-        }
-    }
+    pub parameters: Option<Parameters>,
 }
 
 #[allow(dead_code)]
@@ -58,6 +47,15 @@ impl Status {
     /// Returns `true` if the campaign status is [`Status::Complete`].
     pub fn is_complete(&self) -> bool {
         matches!(self, Status::Complete)
+    }
+}
+
+impl CrowdFunding {
+    /// Retrieves the campaign [`Parameters`] stored in the application's state.
+    pub fn parameters(&self) -> &Parameters {
+        self.parameters
+            .as_ref()
+            .expect("Application was not initialized")
     }
 }
 

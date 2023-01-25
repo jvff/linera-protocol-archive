@@ -25,9 +25,9 @@ impl Service for CrowdFunding {
         let response = match query {
             Query::Status => bcs::to_bytes(&self.status),
             Query::Pledged => bcs::to_bytes(&self.pledged()),
-            Query::Target => bcs::to_bytes(&self.parameters.target),
-            Query::Deadline => bcs::to_bytes(&self.parameters.deadline),
-            Query::Owner => bcs::to_bytes(&self.parameters.owner),
+            Query::Target => bcs::to_bytes(&self.parameters().target),
+            Query::Deadline => bcs::to_bytes(&self.parameters().deadline),
+            Query::Owner => bcs::to_bytes(&self.parameters().owner),
         }?;
 
         Ok(response)
