@@ -503,12 +503,14 @@ where
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(test, feature = "test"))]
 #[derive(Debug, Clone)]
 pub struct ViewContainer<C> {
     kvsv: Arc<RwLock<KeyValueStoreView<C>>>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(test, feature = "test"))]
 #[async_trait]
 impl<C> KeyValueOperations for ViewContainer<C>
@@ -611,6 +613,7 @@ fn test_lower_bound() {
     assert_eq!(lower_bound.get_lower_bound(42), Some(40));
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(test, feature = "test"))]
 impl<C> ViewContainer<C>
 where

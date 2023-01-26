@@ -308,9 +308,7 @@ impl<S: Copy> SystemApi<S> {
 }
 
 impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage> {
-    type Load = HostFuture<'static, Result<Vec<u8>, ExecutionError>>;
     type Lock = HostFuture<'static, Result<(), ExecutionError>>;
-    type LoadAndLock = HostFuture<'static, Result<Vec<u8>, ExecutionError>>;
     type ReadKeyBytes = HostFuture<'static, Result<Option<Vec<u8>>, ExecutionError>>;
     type FindStrippedKeys = HostFuture<'static, Result<Vec<Vec<u8>>, ExecutionError>>;
     type FindStrippedKeyValues =
@@ -333,33 +331,6 @@ impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage>
 
     fn read_system_timestamp(&mut self) -> writable_system::Timestamp {
         self.storage().read_system_timestamp().micros()
-    }
-
-    fn load_new(&mut self) -> Self::Load {
-        self.future_queue.add(self.storage().try_read_my_state())
-    }
-
-    fn load_poll(&mut self, future: &Self::Load) -> writable_system::PollLoad {
-        use writable_system::PollLoad;
-        match future.poll(&mut self.context) {
-            Poll::Pending => PollLoad::Pending,
-            Poll::Ready(Ok(bytes)) => PollLoad::Ready(Ok(bytes)),
-            Poll::Ready(Err(error)) => PollLoad::Ready(Err(error.to_string())),
-        }
-    }
-
-    fn load_and_lock_new(&mut self) -> Self::LoadAndLock {
-        self.future_queue
-            .add(self.storage().try_read_and_lock_my_state())
-    }
-
-    fn load_and_lock_poll(&mut self, future: &Self::LoadAndLock) -> writable_system::PollLoad {
-        use writable_system::PollLoad;
-        match future.poll(&mut self.context) {
-            Poll::Pending => PollLoad::Pending,
-            Poll::Ready(Ok(bytes)) => PollLoad::Ready(Ok(bytes)),
-            Poll::Ready(Err(error)) => PollLoad::Ready(Err(error.to_string())),
-        }
     }
 
     fn lock_new(&mut self) -> Self::Lock {
@@ -431,12 +402,6 @@ impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage>
             }
             Poll::Ready(Err(error)) => PollFindStrippedKeyValues::Ready(Err(error.to_string())),
         }
-    }
-
-    fn store_and_unlock(&mut self, state: &[u8]) -> bool {
-        self.storage()
-            .save_and_unlock_my_state(state.to_owned())
-            .is_ok()
     }
 
     fn write_batch_new(
@@ -542,7 +507,6 @@ impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage>
 }
 
 impl queryable_system::QueryableSystem for SystemApi<&'static dyn QueryableStorage> {
-    type Load = HostFuture<'static, Result<Vec<u8>, ExecutionError>>;
     type Lock = HostFuture<'static, Result<(), ExecutionError>>;
     type Unlock = HostFuture<'static, Result<(), ExecutionError>>;
     type ReadKeyBytes = HostFuture<'static, Result<Option<Vec<u8>>, ExecutionError>>;
@@ -564,19 +528,6 @@ impl queryable_system::QueryableSystem for SystemApi<&'static dyn QueryableStora
 
     fn read_system_timestamp(&mut self) -> queryable_system::Timestamp {
         self.storage().read_system_timestamp().micros()
-    }
-
-    fn load_new(&mut self) -> Self::Load {
-        self.future_queue.add(self.storage().try_read_my_state())
-    }
-
-    fn load_poll(&mut self, future: &Self::Load) -> queryable_system::PollLoad {
-        use queryable_system::PollLoad;
-        match future.poll(&mut self.context) {
-            Poll::Pending => PollLoad::Pending,
-            Poll::Ready(Ok(bytes)) => PollLoad::Ready(Ok(bytes)),
-            Poll::Ready(Err(error)) => PollLoad::Ready(Err(error.to_string())),
-        }
     }
 
     fn lock_new(&mut self) -> Self::Lock {

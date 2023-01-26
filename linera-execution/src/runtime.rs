@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    execution::ExecutionStateView, ApplicationStateNotLocked, CallResult, ExecutionError,
+    execution::ExecutionStateView, CallResult, ExecutionError,
     ExecutionResult, ExecutionRuntimeContext, NewSession, QueryableStorage, ReadableStorage,
     SessionId, UserApplicationCode, UserApplicationId, WritableStorage,
 };
@@ -14,7 +14,6 @@ use linera_base::{
 use linera_views::{
     common::{Batch, Context},
     key_value_store_view::KeyValueStoreView,
-    register_view::RegisterView,
     views::{View, ViewError},
 };
 use std::{
@@ -36,16 +35,12 @@ pub(crate) struct ExecutionRuntime<'a, C, const WRITABLE: bool> {
     /// All the sessions and their IDs.
     session_manager: Arc<Mutex<&'a mut SessionManager>>,
     /// Track active (i.e. locked) applications for which re-entrancy is disallowed.
-    active_user_states: Arc<Mutex<ActiveUserStates<C>>>,
-    /// Track active (i.e. locked) applications for which re-entrancy is disallowed.
     active_userkv_states: Arc<Mutex<ActiveUserkvStates<C>>>,
     /// Track active (i.e. locked) sessions for which re-entrancy is disallowed.
     active_sessions: Arc<Mutex<ActiveSessions>>,
     /// Accumulate the externally visible results (e.g. cross-chain messages) of applications.
     execution_results: Arc<Mutex<&'a mut Vec<ExecutionResult>>>,
 }
-
-type ActiveUserStates<C> = BTreeMap<UserApplicationId, OwnedMutexGuard<RegisterView<C, Vec<u8>>>>;
 
 type ActiveUserkvStates<C> = BTreeMap<UserApplicationId, OwnedMutexGuard<KeyValueStoreView<C>>>;
 
@@ -86,7 +81,6 @@ where
             application_ids: Arc::new(Mutex::new(application_ids)),
             execution_state: Arc::new(Mutex::new(execution_state)),
             session_manager: Arc::new(Mutex::new(session_manager)),
-            active_user_states: Arc::default(),
             active_userkv_states: Arc::default(),
             active_sessions: Arc::default(),
             execution_results: Arc::new(Mutex::new(execution_results)),
@@ -109,12 +103,6 @@ where
         self.session_manager
             .try_lock()
             .expect("single-threaded execution should not lock `session_manager`")
-    }
-
-    fn active_user_states_mut(&self) -> MutexGuard<'_, ActiveUserStates<C>> {
-        self.active_user_states
-            .try_lock()
-            .expect("single-threaded execution should not lock `active_user_states`")
     }
 
     fn active_userkv_states_mut(&self) -> MutexGuard<'_, ActiveUserkvStates<C>> {
@@ -297,17 +285,6 @@ where
         *self.execution_state_mut().system.timestamp.get()
     }
 
-    async fn try_read_my_state(&self) -> Result<Vec<u8>, ExecutionError> {
-        let state = self
-            .execution_state_mut()
-            .users
-            .try_load_entry(self.application_id())
-            .await?
-            .get()
-            .to_vec();
-        Ok(state)
-    }
-
     async fn lock_userkv_state(&self) -> Result<(), ExecutionError> {
         let view = self
             .execution_state_mut()
@@ -417,31 +394,6 @@ where
     ViewError: From<C::Error>,
     C::Extra: ExecutionRuntimeContext,
 {
-    async fn try_read_and_lock_my_state(&self) -> Result<Vec<u8>, ExecutionError> {
-        let view = self
-            .execution_state_mut()
-            .users
-            .try_load_entry(self.application_id())
-            .await?;
-        let state = view.get().to_vec();
-        // Remember the view. This will prevent reentrancy.
-        self.active_user_states_mut()
-            .insert(self.application_id(), view);
-        Ok(state)
-    }
-
-    fn save_and_unlock_my_state(&self, state: Vec<u8>) -> Result<(), ApplicationStateNotLocked> {
-        // Make the view available again.
-        match self.active_user_states_mut().remove(&self.application_id()) {
-            Some(mut view) => {
-                // Set the state.
-                view.set(state);
-                Ok(())
-            }
-            None => Err(ApplicationStateNotLocked),
-        }
-    }
-
     async fn write_batch_and_unlock(&self, batch: Batch) -> Result<(), ExecutionError> {
         // Make the view available again.
         match self
@@ -455,10 +407,6 @@ where
             }
             None => Err(ExecutionError::ApplicationStateNotLocked),
         }
-    }
-
-    fn unlock_my_state(&self) {
-        self.active_user_states_mut().remove(&self.application_id());
     }
 
     async fn try_call_application(

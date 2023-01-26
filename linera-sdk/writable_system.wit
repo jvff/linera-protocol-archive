@@ -3,21 +3,6 @@ application-id: func() -> application-id
 read-system-balance: func() -> system-balance
 read-system-timestamp: func() -> timestamp
 
-resource load {
-    static new: func() -> load
-    poll: func() -> poll-load
-}
-
-resource load-and-lock {
-    static new: func() -> load-and-lock
-    poll: func() -> poll-load
-}
-
-variant poll-load {
-    pending,
-    ready(expected<list<u8>, string>),
-}
-
 resource lock {
     static new: func() -> lock
     poll: func() -> poll-lock
@@ -73,8 +58,6 @@ variant poll-write-batch {
     pending,
     ready(expected<unit, string>),
 }
-
-store-and-unlock: func(value: list<u8>) -> bool
 
 resource try-call-application {
     static new: func(

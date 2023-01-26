@@ -239,9 +239,6 @@ pub trait ReadableStorage: Send + Sync {
     /// Read the system timestamp.
     fn read_system_timestamp(&self) -> Timestamp;
 
-    /// Read the application state.
-    async fn try_read_my_state(&self) -> Result<Vec<u8>, ExecutionError>;
-
     /// Lock the userkv stat and prevent further reading/loading until (WHEN EXACTLY? save or unlock?)
     async fn lock_userkv_state(&self) -> Result<(), ExecutionError>;
 
@@ -298,17 +295,8 @@ pub struct CallResult {
 
 #[async_trait]
 pub trait WritableStorage: ReadableStorage {
-    /// Read the application state and prevent further reading/loading until the state is saved.
-    async fn try_read_and_lock_my_state(&self) -> Result<Vec<u8>, ExecutionError>;
-
-    /// Save the application state and allow reading/loading the state again.
-    fn save_and_unlock_my_state(&self, state: Vec<u8>) -> Result<(), ApplicationStateNotLocked>;
-
     /// Write the batch and then unlock
     async fn write_batch_and_unlock(&self, batch: Batch) -> Result<(), ExecutionError>;
-
-    /// Allow reading/loading the state again (without saving anything).
-    fn unlock_my_state(&self);
 
     /// Call another application. Forwarded sessions will now be visible to
     /// `callee_id` (but not to the caller any more).

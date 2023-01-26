@@ -12,7 +12,6 @@ use linera_base::{data_types::ChainId, ensure};
 use linera_views::{
     collection_view::ReentrantCollectionView,
     key_value_store_view::KeyValueStoreView,
-    register_view::RegisterView,
     views::{View, ViewError},
 };
 use linera_views_macro::HashableContainerView;
@@ -32,7 +31,6 @@ pub struct ExecutionStateView<C> {
     /// System application.
     pub system: SystemExecutionStateView<C>,
     /// User applications.
-    pub users: ReentrantCollectionView<C, UserApplicationId, RegisterView<C, Vec<u8>>>,
     pub users_kv: ReentrantCollectionView<C, UserApplicationId, KeyValueStoreView<C>>,
 }
 

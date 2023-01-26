@@ -366,11 +366,11 @@ where
     };
     let create_certificate = make_certificate(&committee, &worker, create_block_proposal);
 
-    let info = worker
+    let result = worker
         .fully_handle_certificate(create_certificate.clone())
-        .await
-        .unwrap()
-        .info;
+        .await;
+    println!("result={:?}", result);
+    let info = result.unwrap().info;
     assert_eq!(ChainId::root(2), info.chain_id);
     assert_eq!(Balance::from(0), info.system_balance);
     assert_eq!(BlockHeight::from(2), info.next_block_height);

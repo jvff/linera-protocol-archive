@@ -5,7 +5,7 @@
 
 use super::{
     contract,
-    writable_system::{self as system, PollCallResult, PollLoad},
+    writable_system::{self as system, PollCallResult},
 };
 use crate::boilerplate::writable_system::{
     PollFindStrippedKeyValues, PollFindStrippedKeys, PollReadKeyBytes, PollWriteBatch,
@@ -139,15 +139,6 @@ impl From<system::SystemBalance> for SystemBalance {
     fn from(balance: system::SystemBalance) -> Self {
         let value = ((balance.upper_half as u128) << 64) | (balance.lower_half as u128);
         SystemBalance(value)
-    }
-}
-
-impl From<PollLoad> for Poll<Result<Vec<u8>, String>> {
-    fn from(poll_get: PollLoad) -> Poll<Result<Vec<u8>, String>> {
-        match poll_get {
-            PollLoad::Ready(bytes) => Poll::Ready(bytes),
-            PollLoad::Pending => Poll::Pending,
-        }
     }
 }
 
