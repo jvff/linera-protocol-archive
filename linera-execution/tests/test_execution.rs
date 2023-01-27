@@ -13,6 +13,7 @@ use linera_base::data_types::{BlockHeight, ChainDescription, ChainId};
 use linera_execution::*;
 use linera_views::{common::Context, memory::MemoryContext, views::View};
 use std::sync::Arc;
+use linera_views::common::Batch;
 
 #[tokio::test]
 async fn test_missing_bytecode_for_user_application() -> anyhow::Result<()> {
@@ -81,11 +82,14 @@ impl UserApplication for TestApplication {
         // Who we are.
         let app_id = storage.application_id();
         // Modify our state.
-        let mut state = storage.try_read_and_lock_my_state().await?;
+        let chosen_key = vec![0];
+        storage.lock_userkv_state().await?;
+        let state = storage.pass_userkv_read_key_bytes(chosen_key.clone()).await?;
+        let mut state = state.unwrap_or(Vec::new());
         state.extend(operation);
-        storage
-            .save_and_unlock_my_state(state)
-            .expect("State is locked at the start of the operation");
+        let mut batch = Batch::default();
+        batch.put_key_value_bytes(chosen_key, state);
+        storage.write_batch_and_unlock(batch).await.expect("State is locked at the start of the operation");
         // Call ourselves after the state => ok.
         let call_result = storage
             .try_call_application(/* authenticate */ true, app_id, &[], vec![])
@@ -111,12 +115,12 @@ impl UserApplication for TestApplication {
     ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
         // Who we are.
         let app_id = storage.application_id();
-        storage.try_read_and_lock_my_state().await?;
+        storage.lock_userkv_state().await?;
         // Call ourselves while the state is locked => not ok.
         storage
             .try_call_application(/* authenticate */ true, app_id, &[], vec![])
             .await?;
-        storage.unlock_my_state();
+        storage.unlock_userkv_state()?;
         Ok(RawExecutionResult::default())
     }
 
@@ -160,7 +164,11 @@ impl UserApplication for TestApplication {
         storage: &dyn QueryableStorage,
         _argument: &[u8],
     ) -> Result<Vec<u8>, ExecutionError> {
-        let state = storage.try_read_my_state().await?;
+        let chosen_key = vec![0];
+        storage.lock_userkv_state().await?;
+        let state = storage.pass_userkv_read_key_bytes(chosen_key).await?;
+        let state = state.unwrap_or(Vec::new());
+        storage.unlock_userkv_state()?;
         Ok(state)
     }
 }

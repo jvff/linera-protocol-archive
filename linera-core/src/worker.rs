@@ -222,23 +222,14 @@ where
         certificate: Certificate,
         mut notifications: Option<&mut Vec<Notification>>,
     ) -> Result<ChainInfoResponse, WorkerError> {
-        println!("fully_handle_certificate_with_notifications, step 1");
         let (response, actions) = self.handle_certificate(certificate).await?;
-        println!("fully_handle_certificate_with_notifications, step 2");
         let mut requests = VecDeque::from(actions.cross_chain_requests);
-        println!("fully_handle_certificate_with_notifications, step 3");
         while let Some(request) = requests.pop_front() {
-            println!("fully_handle_certificate_with_notifications, step loop 1");
             let actions = self.handle_cross_chain_request(request).await?;
-            println!("fully_handle_certificate_with_notifications, step loop 2");
             requests.extend(actions.cross_chain_requests);
-            println!("fully_handle_certificate_with_notifications, step loop 3");
             if let Some(notifications) = notifications.as_mut() {
-                println!("fully_handle_certificate_with_notifications, step loop 4");
                 notifications.extend(actions.notifications);
-                println!("fully_handle_certificate_with_notifications, step loop 5");
             }
-            println!("fully_handle_certificate_with_notifications, step loop 6");
         }
         Ok(response)
     }

@@ -239,11 +239,11 @@ pub trait ReadableStorage: Send + Sync {
     /// Read the system timestamp.
     fn read_system_timestamp(&self) -> Timestamp;
 
-    /// Lock the userkv stat and prevent further reading/loading until (WHEN EXACTLY? save or unlock?)
+    /// Lock the userkv stat and prevent further reading/loading
     async fn lock_userkv_state(&self) -> Result<(), ExecutionError>;
 
-    /// Lock the userkv stat and prevent further reading/loading until (WHEN EXACTLY? save or unlock?)
-    async fn unlock_userkv_state(&self) -> Result<(), ExecutionError>;
+    /// Unlock the userkv stat and prevent further reading/loading
+    fn unlock_userkv_state(&self) -> Result<(), ExecutionError>;
 
     /// Pass the reading of one key
     async fn pass_userkv_read_key_bytes(

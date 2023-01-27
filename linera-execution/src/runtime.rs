@@ -296,7 +296,7 @@ where
         Ok(())
     }
 
-    async fn unlock_userkv_state(&self) -> Result<(), ExecutionError> {
+    fn unlock_userkv_state(&self) -> Result<(), ExecutionError> {
         // Make the view available again.
         match self
             .active_userkv_states_mut()
