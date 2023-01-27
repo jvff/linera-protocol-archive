@@ -114,7 +114,7 @@ impl ApplicationState {
         let (source, transfer, nonce) = self.check_signed_transfer(signed_transfer).await?;
 
         self.debit(source, transfer.amount).await?;
-        self.mark_nonce_as_used(source, nonce);
+        self.mark_nonce_as_used(source, nonce).await;
 
         Ok(self.finish_transfer(transfer).await)
     }

@@ -19,11 +19,15 @@ pub struct FungibleToken<C>
 }
 
 #[allow(dead_code)]
-impl<C> FungibleToken<C> {
+impl<C> FungibleToken<C>
+where
+    C : Context + Send + Sync + Clone + 'static,
+    linera_views::views::ViewError : From<C::Error>,
+{
     /// Initialize the application state with some accounts with initial balances.
     pub(crate) fn initialize_accounts(&mut self, accounts: BTreeMap<AccountOwner, u128>) {
         for (k, v) in accounts {
-            self.accounts.insert(k, v);
+            self.accounts.insert(&k, v)?;
         }
     }
 
@@ -41,7 +45,7 @@ impl<C> FungibleToken<C> {
     pub(crate) async fn credit(&mut self, account: AccountOwner, amount: u128) {
         let mut value = self.balance(&account).await;
         value += amount;
-        self.accounts.insert(&account, value);
+        self.accounts.insert(&account, value).expect("Failed insert statement");
     }
 
     /// Try to debit the requested `amount` from an `account`.
@@ -53,7 +57,7 @@ impl<C> FungibleToken<C> {
         let mut balance = self.balance(&account).await;
         ensure!(balance >= amount, InsufficientBalanceError);
         balance -= amount;
-        self.accounts.insert(&account, balance);
+        self.accounts.insert(&account, balance).expect("Failed insertion operation");
         Ok(())
     }
 
@@ -64,14 +68,14 @@ impl<C> FungibleToken<C> {
     ///
     /// If the increment to obtain the next nonce overflows, `None` is returned.
     pub(crate) async fn minimum_nonce(&self, account: &AccountOwner) -> Option<Nonce> {
-        let nonce = self
+        let nonce : Option<Nonce> = self
             .nonces
             .get(account)
             .await
             .expect("Failed to retrieve the nonce");
         match nonce {
             None => Some(Nonce::default()),
-            Some(x) => Some(x.next()),
+            Some(x) => x.next(),
         }
     }
 
@@ -82,7 +86,7 @@ impl<C> FungibleToken<C> {
         assert!(minimum_nonce.is_some());
         assert!(nonce >= minimum_nonce.unwrap());
 
-        self.nonces.insert(account, nonce);
+        self.nonces.insert(&account, nonce).expect("failed insertion operation");
     }
 }
 

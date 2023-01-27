@@ -54,11 +54,16 @@ impl Status {
     }
 }
 
-impl<C> CrowdFunding<C> {
+impl<C> CrowdFunding<C>
+where
+    C : Context + Send + Sync + Clone + 'static,
+    linera_views::views::ViewError : From<C::Error>,
+{
     /// Retrieves the campaign [`Parameters`] stored in the application's state.
     pub fn parameters(&self) -> &Parameters {
         self.parameters
             .get()
+            .as_ref()
             .expect("Application was not initialized")
     }
 }
