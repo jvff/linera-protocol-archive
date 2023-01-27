@@ -11,6 +11,7 @@ use linera_sdk::{QueryContext, Service};
 use serde::Deserialize;
 use thiserror::Error;
 use crate::boilerplate::system_api::ReadableWasmContext;
+use linera_views::views::ViewError;
 
 /// Alias to the application type, so that the boilerplate module can reference it.
 pub type ApplicationState = CrowdFunding<ReadableWasmContext>;
@@ -27,8 +28,8 @@ impl Service for ApplicationState {
         let query = bcs::from_bytes(argument)?;
 
         let response = match query {
-            Query::Status => bcs::to_bytes(&self.status),
-            Query::Pledged => bcs::to_bytes(&self.pledged()),
+            Query::Status => bcs::to_bytes(&self.status.get()),
+            Query::Pledged => bcs::to_bytes(&self.pledged().await),
             Query::Target => bcs::to_bytes(&self.parameters().target),
             Query::Deadline => bcs::to_bytes(&self.parameters().deadline),
             Query::Owner => bcs::to_bytes(&self.parameters().owner),
@@ -40,8 +41,13 @@ impl Service for ApplicationState {
 
 impl ApplicationState {
     /// Returns the total amount of tokens pledged to this campaign.
-    fn pledged(&self) -> u128 {
-        self.pledges.values().sum()
+    async fn pledged(&self) -> u128 {
+        let mut total_pledge = 0;
+        self.pledges.for_each_raw_index_value(|_index: Vec<u8>, value: u128| -> Result<(),ViewError> {
+            total_pledge += value;
+            Ok(())
+        }).await.expect("for_each_raw_index_value failed");
+        total_pledge
     }
 }
 

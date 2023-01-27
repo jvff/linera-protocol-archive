@@ -19,10 +19,10 @@ use linera_sdk::{
     FromBcsBytes, OperationContext, Session, SessionCallResult, SessionId,
 };
 use serde::{Deserialize, Serialize};
-use std::mem;
 use thiserror::Error;
 use linera_views::views::View;
 use crate::system_api::WasmContext;
+use linera_views::views::ViewError;
 
 /// Alias to the application type, so that the boilerplate module can reference it.
 pub type ApplicationState = CrowdFunding<WasmContext>;
@@ -214,8 +214,10 @@ impl ApplicationState {
     async fn finish_pledge(&mut self, source: AccountOwner, amount: u128) -> Result<(), Error> {
         match self.status.get() {
             Status::Active => {
-                *self.pledges.entry(source).or_insert(0) += amount;
-
+                let value = self.pledges.get(&source).await?;
+                let mut value = value.unwrap_or(0);
+                value += amount;
+                self.pledges.insert(&source, value)?;
                 Ok(())
             }
             Status::Complete => self.send(amount, self.parameters().owner).await,
@@ -251,7 +253,13 @@ impl ApplicationState {
             Error::DeadlineNotReached
         );
 
-        for (pledger, amount) in mem::take(&mut self.pledges) {
+        // While waiting for having iterators for MapView
+        let mut vec_pledger_amount = Vec::new();
+        self.pledges.for_each_index_value(|pledger: AccountOwner, amount: u128| -> Result<(), ViewError> {
+            vec_pledger_amount.push((pledger, amount));
+            Ok(())
+        }).await?;
+        for (pledger, amount) in vec_pledger_amount {
             self.send(amount, pledger).await?;
         }
 
@@ -313,6 +321,9 @@ pub enum Operation {
 /// An error that can occur during the contract execution.
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error(transparent)]
+    ViewError(#[from] linera_views::views::ViewError),
+
     /// Crowd-funding application doesn't support any cross-chain effects.
     #[error("Crowd-funding application doesn't support any cross-chain effects")]
     EffectsNotSupported,

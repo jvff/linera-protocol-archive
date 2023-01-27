@@ -263,6 +263,22 @@ where
         }
         Ok(())
     }
+
+    /// Execute a function on each index serialization. The order is in which values
+    /// are passed is not the one of the index but its serialization. However said
+    /// order will always be the same
+    pub async fn for_each_index_value<F>(&self, mut f: F) -> Result<(), ViewError>
+    where
+        F: FnMut(I, V) -> Result<(), ViewError> + Send,
+    {
+        self.for_each_raw_index_value(|index: Vec<u8>, value: V| -> Result<(),ViewError> {
+            let index = C::deserialize_value(&index)?;
+            f(index, value)?;
+            Ok(())
+        })
+        .await?;
+        Ok(())
+    }
 }
 
 #[async_trait]

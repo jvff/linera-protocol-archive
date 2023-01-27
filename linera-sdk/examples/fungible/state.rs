@@ -27,7 +27,7 @@ where
     /// Initialize the application state with some accounts with initial balances.
     pub(crate) fn initialize_accounts(&mut self, accounts: BTreeMap<AccountOwner, u128>) {
         for (k, v) in accounts {
-            self.accounts.insert(&k, v)?;
+            self.accounts.insert(&k, v).expect("Error in insert statement");
         }
     }
 
