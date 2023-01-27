@@ -243,7 +243,7 @@ pub trait ReadableStorage: Send + Sync {
     async fn lock_userkv_state(&self) -> Result<(), ExecutionError>;
 
     /// Unlock the userkv stat and prevent further reading/loading
-    fn unlock_userkv_state(&self) -> Result<(), ExecutionError>;
+    async fn unlock_userkv_state(&self) -> Result<(), ExecutionError>;
 
     /// Pass the reading of one key
     async fn pass_userkv_read_key_bytes(

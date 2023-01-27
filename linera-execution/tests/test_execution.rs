@@ -120,7 +120,7 @@ impl UserApplication for TestApplication {
         storage
             .try_call_application(/* authenticate */ true, app_id, &[], vec![])
             .await?;
-        storage.unlock_userkv_state()?;
+        storage.unlock_userkv_state().await?;
         Ok(RawExecutionResult::default())
     }
 
@@ -168,7 +168,7 @@ impl UserApplication for TestApplication {
         storage.lock_userkv_state().await?;
         let state = storage.pass_userkv_read_key_bytes(chosen_key).await?;
         let state = state.unwrap_or(Vec::new());
-        storage.unlock_userkv_state()?;
+        storage.unlock_userkv_state().await?;
         Ok(state)
     }
 }
