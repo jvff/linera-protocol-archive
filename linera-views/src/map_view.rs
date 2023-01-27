@@ -271,7 +271,7 @@ where
     where
         F: FnMut(I, V) -> Result<(), ViewError> + Send,
     {
-        self.for_each_raw_index_value(|index: Vec<u8>, value: V| -> Result<(),ViewError> {
+        self.for_each_raw_index_value(|index: Vec<u8>, value: V| -> Result<(), ViewError> {
             let index = C::deserialize_value(&index)?;
             f(index, value)?;
             Ok(())

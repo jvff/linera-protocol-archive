@@ -3,12 +3,13 @@
 
 use fungible::AccountOwner;
 use linera_sdk::{ApplicationId, Timestamp};
+use linera_views::{
+    common::Context,
+    map_view::MapView,
+    register_view::RegisterView,
+    views::{ContainerView, View},
+};
 use serde::{Deserialize, Serialize};
-use linera_views::register_view::RegisterView;
-use linera_views::map_view::MapView;
-use linera_views::views::ContainerView;
-use linera_views::common::Context;
-use linera_views::views::View;
 
 /// The parameters required to create a crowd-funding campaign.
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
@@ -39,7 +40,7 @@ pub enum Status {
 #[derive(ContainerView)]
 pub struct CrowdFunding<C> {
     /// The status of the campaign.
-    pub status: RegisterView<C,Status>,
+    pub status: RegisterView<C, Status>,
     /// The map of pledges that will be collected if the campaign succeeds.
     pub pledges: MapView<C, AccountOwner, u128>,
     /// The parameters that determine the details the campaign.
@@ -56,8 +57,8 @@ impl Status {
 
 impl<C> CrowdFunding<C>
 where
-    C : Context + Send + Sync + Clone + 'static,
-    linera_views::views::ViewError : From<C::Error>,
+    C: Context + Send + Sync + Clone + 'static,
+    linera_views::views::ViewError: From<C::Error>,
 {
     /// Retrieves the campaign [`Parameters`] stored in the application's state.
     pub fn parameters(&self) -> &Parameters {

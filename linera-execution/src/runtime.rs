@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    execution::ExecutionStateView, CallResult, ExecutionError,
-    ExecutionResult, ExecutionRuntimeContext, NewSession, QueryableStorage, ReadableStorage,
-    SessionId, UserApplicationCode, UserApplicationId, WritableStorage,
+    execution::ExecutionStateView, CallResult, ExecutionError, ExecutionResult,
+    ExecutionRuntimeContext, NewSession, QueryableStorage, ReadableStorage, SessionId,
+    UserApplicationCode, UserApplicationId, WritableStorage,
 };
 use async_trait::async_trait;
 use linera_base::{

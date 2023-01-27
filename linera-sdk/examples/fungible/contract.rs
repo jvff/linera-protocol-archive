@@ -98,7 +98,9 @@ impl Contract for ApplicationState {
 
         match request {
             SessionCall::Balance => self.handle_session_balance(session.data),
-            SessionCall::Transfer(transfer) => self.handle_session_transfer(transfer, session.data).await,
+            SessionCall::Transfer(transfer) => {
+                self.handle_session_transfer(transfer, session.data).await
+            }
         }
     }
 }
@@ -120,7 +122,10 @@ impl ApplicationState {
     }
 
     /// Handles an account balance request sent by an application.
-    async fn handle_application_balance(&mut self, context: &CalleeContext) -> Result<Vec<u8>, Error> {
+    async fn handle_application_balance(
+        &mut self,
+        context: &CalleeContext,
+    ) -> Result<Vec<u8>, Error> {
         let caller = context
             .authenticated_caller_id
             .ok_or(Error::MissingSourceApplication)?;

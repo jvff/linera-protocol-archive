@@ -11,6 +11,7 @@ use self::{
     interface::ApplicationCall,
     state::{CrowdFunding, Status},
 };
+use crate::system_api::WasmContext;
 use async_trait::async_trait;
 use fungible::{AccountOwner, ApplicationTransfer, SignedTransfer, Transfer};
 use futures::{future, stream, StreamExt, TryFutureExt, TryStreamExt};
@@ -18,11 +19,9 @@ use linera_sdk::{
     ensure, ApplicationCallResult, CalleeContext, Contract, EffectContext, ExecutionResult,
     FromBcsBytes, OperationContext, Session, SessionCallResult, SessionId,
 };
+use linera_views::views::{View, ViewError};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use linera_views::views::View;
-use crate::system_api::WasmContext;
-use linera_views::views::ViewError;
 
 /// Alias to the application type, so that the boilerplate module can reference it.
 pub type ApplicationState = CrowdFunding<WasmContext>;
@@ -36,7 +35,9 @@ impl Contract for ApplicationState {
         _context: &OperationContext,
         argument: &[u8],
     ) -> Result<ExecutionResult, Self::Error> {
-        self.parameters.set(Some(bcs::from_bytes(argument).map_err(Error::InvalidParameters)?));
+        self.parameters.set(Some(
+            bcs::from_bytes(argument).map_err(Error::InvalidParameters)?,
+        ));
 
         ensure!(
             self.parameters().deadline > system_api::current_system_time(),
@@ -255,10 +256,14 @@ impl ApplicationState {
 
         // While waiting for having iterators for MapView
         let mut vec_pledger_amount = Vec::new();
-        self.pledges.for_each_index_value(|pledger: AccountOwner, amount: u128| -> Result<(), ViewError> {
-            vec_pledger_amount.push((pledger, amount));
-            Ok(())
-        }).await?;
+        self.pledges
+            .for_each_index_value(
+                |pledger: AccountOwner, amount: u128| -> Result<(), ViewError> {
+                    vec_pledger_amount.push((pledger, amount));
+                    Ok(())
+                },
+            )
+            .await?;
         for (pledger, amount) in vec_pledger_amount {
             self.send(amount, pledger).await?;
         }

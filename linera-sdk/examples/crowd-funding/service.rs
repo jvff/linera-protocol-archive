@@ -6,12 +6,12 @@
 mod state;
 
 use self::state::CrowdFunding;
+use crate::boilerplate::system_api::ReadableWasmContext;
 use async_trait::async_trait;
 use linera_sdk::{QueryContext, Service};
+use linera_views::views::ViewError;
 use serde::Deserialize;
 use thiserror::Error;
-use crate::boilerplate::system_api::ReadableWasmContext;
-use linera_views::views::ViewError;
 
 /// Alias to the application type, so that the boilerplate module can reference it.
 pub type ApplicationState = CrowdFunding<ReadableWasmContext>;
@@ -43,10 +43,13 @@ impl ApplicationState {
     /// Returns the total amount of tokens pledged to this campaign.
     async fn pledged(&self) -> u128 {
         let mut total_pledge = 0;
-        self.pledges.for_each_raw_index_value(|_index: Vec<u8>, value: u128| -> Result<(),ViewError> {
-            total_pledge += value;
-            Ok(())
-        }).await.expect("for_each_raw_index_value failed");
+        self.pledges
+            .for_each_raw_index_value(|_index: Vec<u8>, value: u128| -> Result<(), ViewError> {
+                total_pledge += value;
+                Ok(())
+            })
+            .await
+            .expect("for_each_raw_index_value failed");
         total_pledge
     }
 }

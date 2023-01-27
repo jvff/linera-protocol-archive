@@ -11,9 +11,12 @@ use self::utils::create_dummy_user_application_description;
 use async_trait::async_trait;
 use linera_base::data_types::{BlockHeight, ChainDescription, ChainId};
 use linera_execution::*;
-use linera_views::{common::Context, memory::MemoryContext, views::View};
+use linera_views::{
+    common::{Batch, Context},
+    memory::MemoryContext,
+    views::View,
+};
 use std::sync::Arc;
-use linera_views::common::Batch;
 
 #[tokio::test]
 async fn test_missing_bytecode_for_user_application() -> anyhow::Result<()> {
@@ -84,12 +87,17 @@ impl UserApplication for TestApplication {
         // Modify our state.
         let chosen_key = vec![0];
         storage.lock_userkv_state().await?;
-        let state = storage.pass_userkv_read_key_bytes(chosen_key.clone()).await?;
+        let state = storage
+            .pass_userkv_read_key_bytes(chosen_key.clone())
+            .await?;
         let mut state = state.unwrap_or(Vec::new());
         state.extend(operation);
         let mut batch = Batch::default();
         batch.put_key_value_bytes(chosen_key, state);
-        storage.write_batch_and_unlock(batch).await.expect("State is locked at the start of the operation");
+        storage
+            .write_batch_and_unlock(batch)
+            .await
+            .expect("State is locked at the start of the operation");
         // Call ourselves after the state => ok.
         let call_result = storage
             .try_call_application(/* authenticate */ true, app_id, &[], vec![])
