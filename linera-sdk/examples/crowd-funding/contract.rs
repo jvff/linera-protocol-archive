@@ -9,7 +9,7 @@ mod state;
 use self::{
     boilerplate::system_api,
     interface::ApplicationCall,
-    state::{ApplicationState, CrowdFunding, Status},
+    state::{CrowdFunding, Status},
 };
 use async_trait::async_trait;
 use fungible::{AccountOwner, ApplicationTransfer, SignedTransfer, Transfer};
@@ -21,9 +21,14 @@ use linera_sdk::{
 use serde::{Deserialize, Serialize};
 use std::mem;
 use thiserror::Error;
+use linera_views::views::View;
+use crate::system_api::WasmContext;
+
+/// Alias to the application type, so that the boilerplate module can reference it.
+pub type ApplicationState = CrowdFunding<WasmContext>;
 
 #[async_trait]
-impl Contract for CrowdFunding {
+impl Contract for ApplicationState {
     type Error = Error;
 
     async fn initialize(
@@ -31,7 +36,7 @@ impl Contract for CrowdFunding {
         _context: &OperationContext,
         argument: &[u8],
     ) -> Result<ExecutionResult, Self::Error> {
-        self.parameters = Some(bcs::from_bytes(argument).map_err(Error::InvalidParameters)?);
+        self.parameters.set(Some(bcs::from_bytes(argument).map_err(Error::InvalidParameters)?));
 
         ensure!(
             self.parameters().deadline > system_api::current_system_time(),
@@ -96,7 +101,7 @@ impl Contract for CrowdFunding {
     }
 }
 
-impl CrowdFunding {
+impl ApplicationState {
     /// Adds a pledge from a [`SignedTransfer`].
     async fn signed_pledge(&mut self, transfer: SignedTransfer) -> Result<(), Error> {
         let amount = transfer.payload.transfer.amount;
@@ -207,7 +212,7 @@ impl CrowdFunding {
     /// Marks a pledge in the application state, so that it can be returned if the campaign is
     /// cancelled.
     async fn finish_pledge(&mut self, source: AccountOwner, amount: u128) -> Result<(), Error> {
-        match self.status {
+        match self.status.get() {
             Status::Active => {
                 *self.pledges.entry(source).or_insert(0) += amount;
 
@@ -222,7 +227,7 @@ impl CrowdFunding {
     async fn collect_pledges(&mut self) -> Result<(), Error> {
         let total = self.balance().await?;
 
-        match self.status {
+        match self.status.get() {
             Status::Active => {
                 ensure!(total >= self.parameters().target, Error::TargetNotReached);
             }
@@ -232,14 +237,14 @@ impl CrowdFunding {
 
         self.send(total, self.parameters().owner).await?;
         self.pledges.clear();
-        self.status = Status::Complete;
+        self.status.set(Status::Complete);
 
         Ok(())
     }
 
     /// Cancels the campaign if the deadline has passed, refunding all pledges.
     async fn cancel_campaign(&mut self) -> Result<(), Error> {
-        ensure!(!self.status.is_complete(), Error::Completed);
+        ensure!(!self.status.get().is_complete(), Error::Completed);
 
         ensure!(
             system_api::current_system_time() >= self.parameters().deadline,
@@ -252,7 +257,7 @@ impl CrowdFunding {
 
         self.send(self.balance().await?, self.parameters().owner)
             .await?;
-        self.status = Status::Cancelled;
+        self.status.set(Status::Cancelled);
 
         Ok(())
     }

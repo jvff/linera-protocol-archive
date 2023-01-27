@@ -4,7 +4,11 @@
 use fungible::AccountOwner;
 use linera_sdk::{ApplicationId, Timestamp};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use linera_views::register_view::RegisterView;
+use linera_views::map_view::MapView;
+use linera_views::views::ContainerView;
+use linera_views::common::Context;
+use linera_views::views::View;
 
 /// The parameters required to create a crowd-funding campaign.
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
@@ -32,14 +36,14 @@ pub enum Status {
 }
 
 /// The crowd-funding campaign's state.
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct CrowdFunding {
+#[derive(ContainerView)]
+pub struct CrowdFunding<C> {
     /// The status of the campaign.
-    pub status: Status,
+    pub status: RegisterView<C,Status>,
     /// The map of pledges that will be collected if the campaign succeeds.
-    pub pledges: BTreeMap<AccountOwner, u128>,
+    pub pledges: MapView<C, AccountOwner, u128>,
     /// The parameters that determine the details the campaign.
-    pub parameters: Option<Parameters>,
+    pub parameters: RegisterView<C, Option<Parameters>>,
 }
 
 #[allow(dead_code)]
@@ -50,17 +54,14 @@ impl Status {
     }
 }
 
-impl CrowdFunding {
+impl<C> CrowdFunding<C> {
     /// Retrieves the campaign [`Parameters`] stored in the application's state.
     pub fn parameters(&self) -> &Parameters {
         self.parameters
-            .as_ref()
+            .get()
             .expect("Application was not initialized")
     }
 }
-
-/// Alias to the application type, so that the boilerplate module can reference it.
-pub type ApplicationState = CrowdFunding;
 
 // Work-around to pretend that `fungible` is an external crate, exposing the Fungible Token
 // application's interface.

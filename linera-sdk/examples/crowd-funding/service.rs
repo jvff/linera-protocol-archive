@@ -5,14 +5,18 @@
 
 mod state;
 
-use self::state::{ApplicationState, CrowdFunding};
+use self::state::CrowdFunding;
 use async_trait::async_trait;
 use linera_sdk::{QueryContext, Service};
 use serde::Deserialize;
 use thiserror::Error;
+use crate::boilerplate::system_api::ReadableWasmContext;
+
+/// Alias to the application type, so that the boilerplate module can reference it.
+pub type ApplicationState = CrowdFunding<ReadableWasmContext>;
 
 #[async_trait]
-impl Service for CrowdFunding {
+impl Service for ApplicationState {
     type Error = Error;
 
     async fn query_application(
@@ -34,7 +38,7 @@ impl Service for CrowdFunding {
     }
 }
 
-impl CrowdFunding {
+impl ApplicationState {
     /// Returns the total amount of tokens pledged to this campaign.
     fn pledged(&self) -> u128 {
         self.pledges.values().sum()
