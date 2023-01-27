@@ -12,8 +12,9 @@ use self::{
         types::{self, AccountOwner, Nonce},
         ApplicationCall, ApplicationTransfer, SessionCall, SignedTransfer, Transfer,
     },
-    state::{ApplicationState, FungibleToken},
+    state::FungibleToken,
 };
+use crate::boilerplate::system_api::WasmContext;
 use async_trait::async_trait;
 use linera_sdk::{
     crypto::CryptoError, ensure, ApplicationCallResult, CalleeContext, Contract, EffectContext,
@@ -22,8 +23,11 @@ use linera_sdk::{
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+/// Alias to the application type, so that the boilerplate module can reference it.
+pub type ApplicationState = FungibleToken<WasmContext>;
+
 #[async_trait]
-impl Contract for FungibleToken {
+impl Contract for ApplicationState {
     type Error = Error;
 
     async fn initialize(
@@ -43,7 +47,7 @@ impl Contract for FungibleToken {
         let signed_transfer =
             SignedTransfer::from_bcs_bytes(operation).map_err(Error::InvalidOperation)?;
 
-        self.handle_signed_transfer(signed_transfer)
+        self.handle_signed_transfer(signed_transfer).await
     }
 
     async fn execute_effect(
@@ -70,13 +74,13 @@ impl Contract for FungibleToken {
 
         match request {
             ApplicationCall::Balance => {
-                result.value = self.handle_application_balance(context)?;
+                result.value = self.handle_application_balance(context).await?;
             }
             ApplicationCall::Transfer(transfer) => {
-                result = self.handle_application_transfer(context, transfer)?;
+                result = self.handle_application_transfer(context, transfer).await?;
             }
             ApplicationCall::Delegated(transfer) => {
-                result.execution_result = self.handle_signed_transfer(transfer)?;
+                result.execution_result = self.handle_signed_transfer(transfer).await?;
             }
         }
 
@@ -94,42 +98,42 @@ impl Contract for FungibleToken {
 
         match request {
             SessionCall::Balance => self.handle_session_balance(session.data),
-            SessionCall::Transfer(transfer) => self.handle_session_transfer(transfer, session.data),
+            SessionCall::Transfer(transfer) => self.handle_session_transfer(transfer, session.data).await,
         }
     }
 }
 
-impl FungibleToken {
+impl ApplicationState {
     /// Handles a signed transfer.
     ///
     /// A signed transfer is either requested through an operation or a delegated application call.
-    fn handle_signed_transfer(
+    async fn handle_signed_transfer(
         &mut self,
         signed_transfer: SignedTransfer,
     ) -> Result<ExecutionResult, Error> {
-        let (source, transfer, nonce) = self.check_signed_transfer(signed_transfer)?;
+        let (source, transfer, nonce) = self.check_signed_transfer(signed_transfer).await?;
 
-        self.debit(source, transfer.amount)?;
+        self.debit(source, transfer.amount).await?;
         self.mark_nonce_as_used(source, nonce);
 
-        Ok(self.finish_transfer(transfer))
+        Ok(self.finish_transfer(transfer).await)
     }
 
     /// Handles an account balance request sent by an application.
-    fn handle_application_balance(&mut self, context: &CalleeContext) -> Result<Vec<u8>, Error> {
+    async fn handle_application_balance(&mut self, context: &CalleeContext) -> Result<Vec<u8>, Error> {
         let caller = context
             .authenticated_caller_id
             .ok_or(Error::MissingSourceApplication)?;
         let account = AccountOwner::Application(caller);
 
-        let balance = self.balance(&account);
+        let balance = self.balance(&account).await;
         let balance_bytes = bcs::to_bytes(&balance).expect("Couldn't serialize account balance");
 
         Ok(balance_bytes)
     }
 
     /// Handles a transfer requested by an application.
-    fn handle_application_transfer(
+    async fn handle_application_transfer(
         &mut self,
         context: &CalleeContext,
         transfer: ApplicationTransfer,
@@ -141,7 +145,7 @@ impl FungibleToken {
 
         self.debit(source, transfer.amount()).await?;
 
-        Ok(self.finish_application_transfer(transfer))
+        Ok(self.finish_application_transfer(transfer).await)
     }
 
     /// Handles a session balance request sent by an application.
@@ -160,7 +164,7 @@ impl FungibleToken {
     }
 
     /// Handles a session transfer request sent by an application.
-    fn handle_session_transfer(
+    async fn handle_session_transfer(
         &mut self,
         transfer: ApplicationTransfer,
         session_data: Vec<u8>,
@@ -179,7 +183,7 @@ impl FungibleToken {
             .then(|| bcs::to_bytes(&balance).expect("Serializing a `u128` should not fail"));
 
         Ok(SessionCallResult {
-            inner: self.finish_application_transfer(transfer),
+            inner: self.finish_application_transfer(transfer).await,
             data: updated_session,
         })
     }
@@ -188,7 +192,7 @@ impl FungibleToken {
     ///
     /// If the transfer can be executed, return the source [`AccountOwner`], the [`Transfer`] to be
     /// executed and the [`Nonce`] used to prevent the transfer from being replayed.
-    fn check_signed_transfer(
+    async fn check_signed_transfer(
         &self,
         signed_transfer: SignedTransfer,
     ) -> Result<(AccountOwner, Transfer, Nonce), Error> {
@@ -215,7 +219,7 @@ impl FungibleToken {
     }
 
     /// Credits an account or forward it into a session or another micro-chain.
-    fn finish_application_transfer(
+    async fn finish_application_transfer(
         &mut self,
         application_transfer: ApplicationTransfer,
     ) -> ApplicationCallResult {
@@ -223,7 +227,7 @@ impl FungibleToken {
 
         match application_transfer {
             ApplicationTransfer::Static(transfer) => {
-                result.execution_result = self.finish_transfer(transfer);
+                result.execution_result = self.finish_transfer(transfer).await;
             }
             ApplicationTransfer::Dynamic(amount) => {
                 result.create_sessions.push(Self::new_session(amount));
@@ -234,7 +238,7 @@ impl FungibleToken {
     }
 
     /// Credits an account or forward it to another micro-chain.
-    fn finish_transfer(&mut self, transfer: Transfer) -> ExecutionResult {
+    async fn finish_transfer(&mut self, transfer: Transfer) -> ExecutionResult {
         if transfer.destination_chain == system_api::current_chain_id() {
             self.credit(transfer.destination_account, transfer.amount)
                 .await;

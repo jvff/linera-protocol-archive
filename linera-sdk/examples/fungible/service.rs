@@ -6,13 +6,16 @@
 mod state;
 mod types;
 
-use self::state::{ApplicationState, FungibleToken};
+use self::state::FungibleToken;
 use async_trait::async_trait;
 use linera_sdk::{QueryContext, Service};
 use thiserror::Error;
+use crate::boilerplate::system_api::ReadableWasmContext;
+/// Alias to the application type, so that the boilerplate module can reference it.
+pub type ApplicationState = FungibleToken<ReadableWasmContext>;
 
 #[async_trait]
-impl Service for FungibleToken {
+impl Service for ApplicationState {
     type Error = Error;
 
     async fn query_application(
@@ -21,7 +24,7 @@ impl Service for FungibleToken {
         argument: &[u8],
     ) -> Result<Vec<u8>, Self::Error> {
         let account = bcs::from_bytes(argument)?;
-        let balance = self.balance(&account).await?;
+        let balance = self.balance(&account).await;
 
         Ok(bcs::to_bytes(&balance).expect("Serialization of `u128` should not fail"))
     }

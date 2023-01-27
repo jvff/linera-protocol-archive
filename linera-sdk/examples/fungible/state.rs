@@ -3,22 +3,23 @@
 
 use super::types::{AccountOwner, Nonce};
 use linera_sdk::ensure;
-use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use thiserror::Error;
+use linera_views::map_view::MapView;
+use linera_views::views::ContainerView;
+use linera_views::common::Context;
+use linera_views::views::View;
 
 /// The application state.
-#[derive(HashableContainerView)]
+#[derive(ContainerView)]
 pub struct FungibleToken<C>
-where
-    C: Context + Send + Sync,
 {
-    accounts: MapVieew<C, AccountOwner, u128>,
+    accounts: MapView<C, AccountOwner, u128>,
     nonces: MapView<C, AccountOwner, Nonce>,
 }
 
 #[allow(dead_code)]
-impl FungibleToken {
+impl<C> FungibleToken<C> {
     /// Initialize the application state with some accounts with initial balances.
     pub(crate) fn initialize_accounts(&mut self, accounts: BTreeMap<AccountOwner, u128>) {
         for (k, v) in accounts {
@@ -40,7 +41,7 @@ impl FungibleToken {
     pub(crate) async fn credit(&mut self, account: AccountOwner, amount: u128) {
         let mut value = self.balance(&account).await;
         value += amount;
-        self.insert(&account, value);
+        self.accounts.insert(&account, value);
     }
 
     /// Try to debit the requested `amount` from an `account`.
@@ -52,7 +53,7 @@ impl FungibleToken {
         let mut balance = self.balance(&account).await;
         ensure!(balance >= amount, InsufficientBalanceError);
         balance -= amount;
-        self.insert(&account, balance);
+        self.accounts.insert(&account, balance);
         Ok(())
     }
 
@@ -69,14 +70,14 @@ impl FungibleToken {
             .await
             .expect("Failed to retrieve the nonce");
         match nonce {
-            None => Some(nonce::default()),
-            Some(x) => Some(nonce.next()),
+            None => Some(Nonce::default()),
+            Some(x) => Some(x.next()),
         }
     }
 
     /// Mark the provided [`Nonce`] as used for the `account`.
-    pub(crate) fn mark_nonce_as_used(&mut self, account: AccountOwner, nonce: Nonce) {
-        let minimum_nonce = self.minimum_nonce(&account);
+    pub(crate) async fn mark_nonce_as_used(&mut self, account: AccountOwner, nonce: Nonce) {
+        let minimum_nonce = self.minimum_nonce(&account).await;
 
         assert!(minimum_nonce.is_some());
         assert!(nonce >= minimum_nonce.unwrap());
@@ -89,6 +90,3 @@ impl FungibleToken {
 #[derive(Clone, Copy, Debug, Error)]
 #[error("Insufficient balance for transfer")]
 pub struct InsufficientBalanceError;
-
-/// Alias to the application type, so that the boilerplate module can reference it.
-pub type ApplicationState = FungibleToken;
