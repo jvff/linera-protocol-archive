@@ -55,4 +55,4 @@ pub mod test_utils;
 
 /// For macros.
 #[doc(hidden)]
-pub use {async_trait::async_trait, generic_array, linera_base::crypto, paste::paste, serde, sha2};
+pub use {async_trait::async_trait, generic_array, linera_base::crypto, serde, sha2};
