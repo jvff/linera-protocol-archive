@@ -30,6 +30,7 @@ pub mod set_view;
 pub mod collection_view;
 
 /// The key value store view
+#[cfg(not(target_arch = "wasm32"))]
 pub mod key_value_store_view;
 
 /// Helper definitions for in-memory storage.
