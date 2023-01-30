@@ -233,7 +233,7 @@ pub fn derive_hash_view(input: TokenStream) -> TokenStream {
 pub fn derive_container_view(input: TokenStream) -> TokenStream {
     let mut stream = generate_view_code(input.clone());
     stream.extend(generate_save_delete_view_code(input));
-    //    println!("ContainerView stream={:}", stream);
+    println!("ContainerView stream={:}", stream);
     stream
 }
 

@@ -3,6 +3,8 @@ application-id: func() -> application-id
 read-system-balance: func() -> system-balance
 read-system-timestamp: func() -> timestamp
 
+print-log: func(value: string) -> bool
+
 resource lock {
     static new: func() -> lock
     poll: func() -> poll-lock

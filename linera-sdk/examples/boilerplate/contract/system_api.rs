@@ -81,6 +81,8 @@ impl KeyValueOperations for WasmContainer {
             }
         }
         let future = system::WriteBatch::new(&list_oper);
+        print_log("system_api, before write_batch".to_string());
+//        println!("system_api, write_batch, batch={:?}", batch);
         future::poll_fn(|_context| future.poll().into()).await
     }
 }
@@ -134,6 +136,10 @@ pub fn current_chain_id() -> ChainId {
 #[allow(dead_code)]
 pub fn current_application_id() -> ApplicationId {
     system::application_id().into()
+}
+
+pub fn print_log(str_log: String) {
+    system::print_log(&str_log);
 }
 
 /// Retrieve the current system balance.

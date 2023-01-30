@@ -118,7 +118,10 @@ impl<'storage> common::Contract<ContractWasmer<'storage>> for Contract {
         context: contract::OperationContext,
         argument: &[u8],
     ) -> Result<contract::Initialize, RuntimeError> {
-        Self::initialize_new(self, store, context, argument)
+        println!("initialize_new, begin");
+        let result = Self::initialize_new(self, store, context, argument);
+        println!("initialize_new, end");
+        result
     }
 
     fn initialize_poll(
@@ -126,7 +129,10 @@ impl<'storage> common::Contract<ContractWasmer<'storage>> for Contract {
         store: &mut Store,
         future: &contract::Initialize,
     ) -> Result<contract::PollExecutionResult, RuntimeError> {
-        Self::initialize_poll(self, store, future)
+        println!("initialize_poll, begin");
+        let result = Self::initialize_poll(self, store, future);
+        println!("initialize_poll, end result={:?}", result);
+        result
     }
 
     fn execute_operation_new(
@@ -135,7 +141,10 @@ impl<'storage> common::Contract<ContractWasmer<'storage>> for Contract {
         context: contract::OperationContext,
         operation: &[u8],
     ) -> Result<contract::ExecuteOperation, RuntimeError> {
-        Self::execute_operation_new(self, store, context, operation)
+        println!("execute_operation_new, begin");
+        let result = Self::execute_operation_new(self, store, context, operation);
+        println!("execute_operation_new, end");
+        result
     }
 
     fn execute_operation_poll(
@@ -143,7 +152,10 @@ impl<'storage> common::Contract<ContractWasmer<'storage>> for Contract {
         store: &mut Store,
         future: &contract::ExecuteOperation,
     ) -> Result<contract::PollExecutionResult, RuntimeError> {
-        Self::execute_operation_poll(self, store, future)
+        println!("execute_operation_poll, begin");
+        let result = Self::execute_operation_poll(self, store, future);
+        println!("execute_operation_poll, end");
+        result
     }
 
     fn execute_effect_new(
@@ -152,7 +164,10 @@ impl<'storage> common::Contract<ContractWasmer<'storage>> for Contract {
         context: contract::EffectContext,
         effect: &[u8],
     ) -> Result<contract::ExecuteEffect, RuntimeError> {
-        Self::execute_effect_new(self, store, context, effect)
+        println!("execute_effect_new, begin");
+        let result = Self::execute_effect_new(self, store, context, effect);
+        println!("execute_effect_new, end");
+        result
     }
 
     fn execute_effect_poll(
@@ -160,7 +175,10 @@ impl<'storage> common::Contract<ContractWasmer<'storage>> for Contract {
         store: &mut Store,
         future: &contract::ExecuteEffect,
     ) -> Result<contract::PollExecutionResult, RuntimeError> {
-        Self::execute_effect_poll(self, store, future)
+        println!("execute_effect_poll, begin");
+        let result = Self::execute_effect_poll(self, store, future);
+        println!("execute_effect_poll, end");
+        result
     }
 
     fn call_application_new(
@@ -170,7 +188,10 @@ impl<'storage> common::Contract<ContractWasmer<'storage>> for Contract {
         argument: &[u8],
         forwarded_sessions: &[contract::SessionId],
     ) -> Result<contract::CallApplication, RuntimeError> {
-        Self::call_application_new(self, store, context, argument, forwarded_sessions)
+        println!("call_application_new, begin");
+        let result = Self::call_application_new(self, store, context, argument, forwarded_sessions);
+        println!("call_application_new, end");
+        result
     }
 
     fn call_application_poll(
@@ -178,7 +199,10 @@ impl<'storage> common::Contract<ContractWasmer<'storage>> for Contract {
         store: &mut Store,
         future: &contract::CallApplication,
     ) -> Result<contract::PollCallApplication, RuntimeError> {
-        Self::call_application_poll(self, store, future)
+        println!("call_application_poll, begin");
+        let result = Self::call_application_poll(self, store, future);
+        println!("call_application_poll, end");
+        result
     }
 
     fn call_session_new(
@@ -189,7 +213,10 @@ impl<'storage> common::Contract<ContractWasmer<'storage>> for Contract {
         argument: &[u8],
         forwarded_sessions: &[contract::SessionId],
     ) -> Result<contract::CallSession, RuntimeError> {
-        Self::call_session_new(self, store, context, session, argument, forwarded_sessions)
+        println!("call_session_new, begin");
+        let result = Self::call_session_new(self, store, context, session, argument, forwarded_sessions);
+        println!("call_session_new, end");
+        result
     }
 
     fn call_session_poll(
@@ -197,7 +224,10 @@ impl<'storage> common::Contract<ContractWasmer<'storage>> for Contract {
         store: &mut Store,
         future: &contract::CallSession,
     ) -> Result<contract::PollCallSession, RuntimeError> {
-        Self::call_session_poll(self, store, future)
+        println!("call_session_poll, begin");
+        let result = Self::call_session_poll(self, store, future);
+        println!("call_session_poll, end");
+        result
     }
 }
 
@@ -208,7 +238,10 @@ impl<'storage> common::Service<ServiceWasmer<'storage>> for Service {
         context: service::QueryContext,
         argument: &[u8],
     ) -> Result<service::QueryApplication, RuntimeError> {
-        Self::query_application_new(self, store, context, argument)
+        println!("query_application_new, begin");
+        let result = Self::query_application_new(self, store, context, argument);
+        println!("query_application_new, begin");
+        result
     }
 
     fn query_application_poll(
@@ -216,7 +249,10 @@ impl<'storage> common::Service<ServiceWasmer<'storage>> for Service {
         store: &mut Store,
         future: &service::QueryApplication,
     ) -> Result<service::PollQuery, RuntimeError> {
-        Self::query_application_poll(self, store, future)
+        println!("query_application_poll, begin");
+        let result = Self::query_application_poll(self, store, future);
+        println!("query_application_poll, end");
+        result
     }
 }
 
@@ -333,6 +369,11 @@ impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage>
         self.storage().read_system_timestamp().micros()
     }
 
+    fn print_log(&mut self, str_log: &str) -> bool {
+        println!("print_log {}", str_log);
+        true
+    }
+
     fn lock_new(&mut self) -> Self::Lock {
         HostFuture::new(self.storage().lock_userkv_state())
     }
@@ -409,6 +450,7 @@ impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage>
         list_oper: Vec<writable_system::WriteOperation>,
     ) -> Self::WriteBatch {
         let mut batch = Batch::default();
+        println!("write_batch_new");
         for x in list_oper {
             match x {
                 writable_system::WriteOperation::Delete(key) => batch.delete_key(key.to_vec()),

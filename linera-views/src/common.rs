@@ -47,7 +47,7 @@ pub enum WriteOperation {
 }
 
 /// A batch of writes inside a transaction;
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Batch {
     pub operations: Vec<WriteOperation>,
 }

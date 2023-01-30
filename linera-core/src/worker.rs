@@ -384,6 +384,7 @@ where
         tip.next_block_height.try_add_assign_one()?;
         chain.confirmed_log.push(certificate.hash);
         // We should always agree on the state hash.
+        println!("execution_state_hash={:?} state_hash={:?}", *chain.execution_state_hash.get(), state_hash );
         ensure!(
             *chain.execution_state_hash.get() == Some(state_hash),
             WorkerError::IncorrectStateHash

@@ -402,6 +402,7 @@ where
         {
             Some(mut view) => {
                 // Write the batch in the view
+                println!("write_batch_and_unlock : batch={:?}", batch);
                 view.write_batch(batch).await?;
                 Ok(())
             }

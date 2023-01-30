@@ -7,6 +7,7 @@ mod state;
 
 use self::state::Counter;
 use crate::boilerplate::system_api::WasmContext;
+use crate::boilerplate::system_api::print_log;
 use async_trait::async_trait;
 use linera_sdk::{
     ApplicationCallResult, CalleeContext, Contract, EffectContext, ExecutionResult,
@@ -26,6 +27,10 @@ impl Contract for ApplicationState {
         _context: &OperationContext,
         argument: &[u8],
     ) -> Result<ExecutionResult, Self::Error> {
+        print_log("initialize begin".to_string());
+//        println!("argument={:?}", argument);
+//        let value : Result<u128,bcs::Error> = bcs::from_bytes(argument);
+        //        println!("value={:?}", value);
         self.value.set(bcs::from_bytes(argument)?);
         Ok(ExecutionResult::default())
     }
@@ -35,6 +40,7 @@ impl Contract for ApplicationState {
         _context: &OperationContext,
         operation: &[u8],
     ) -> Result<ExecutionResult, Self::Error> {
+        print_log("counter : execute_operation".to_string());
         let increment: u128 = bcs::from_bytes(operation)?;
         let mut value: u128 = *self.value.get();
         value += increment;
@@ -47,6 +53,7 @@ impl Contract for ApplicationState {
         _context: &EffectContext,
         _effect: &[u8],
     ) -> Result<ExecutionResult, Self::Error> {
+        print_log("execute_effect".to_string());
         Err(Error::EffectsNotSupported)
     }
 
@@ -56,6 +63,7 @@ impl Contract for ApplicationState {
         argument: &[u8],
         _forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallResult, Self::Error> {
+        print_log("counter : call_application".to_string());
         let increment: u128 = bcs::from_bytes(argument)?;
         let mut value = *self.value.get();
         value += increment;
@@ -73,6 +81,7 @@ impl Contract for ApplicationState {
         _argument: &[u8],
         _forwarded_sessions: Vec<SessionId>,
     ) -> Result<SessionCallResult, Self::Error> {
+        print_log("call_session".to_string());
         Err(Error::SessionsNotSupported)
     }
 }
@@ -108,6 +117,7 @@ mod tests {
 
     #[webassembly_test]
     fn operation() {
+        print_log("operation".to_string());
         let initial_value = 72_u128;
         let mut counter = create_and_initialize_counter(initial_value);
 
@@ -126,6 +136,7 @@ mod tests {
 
     #[webassembly_test]
     fn effect() {
+        print_log("effect".to_string());
         let initial_value = 72_u128;
         let mut counter = create_and_initialize_counter(initial_value);
 
@@ -140,6 +151,7 @@ mod tests {
 
     #[webassembly_test]
     fn cross_application_call() {
+        print_log("cross_application_call".to_string());
         let initial_value = 2_845_u128;
         let mut counter = create_and_initialize_counter(initial_value);
 
@@ -165,6 +177,7 @@ mod tests {
 
     #[webassembly_test]
     fn sessions() {
+        print_log("sessions".to_string());
         let initial_value = 72_u128;
         let mut counter = create_and_initialize_counter(initial_value);
 
@@ -178,6 +191,7 @@ mod tests {
     }
 
     fn create_and_initialize_counter(initial_value: u128) -> Counter {
+        print_log("create_and_initialize_counter".to_string());
         let mut counter = Counter::default();
         let initial_argument =
             bcs::to_bytes(&initial_value).expect("Initial value is not serializable");
@@ -195,6 +209,7 @@ mod tests {
     }
 
     fn dummy_operation_context() -> OperationContext {
+        print_log("dummy_operation_context".to_string());
         OperationContext {
             chain_id: ChainId([0; 8].into()),
             height: BlockHeight(0),
@@ -203,6 +218,7 @@ mod tests {
     }
 
     fn dummy_effect_context() -> EffectContext {
+        print_log("dummy_effect_context".to_string());
         EffectContext {
             chain_id: ChainId([0; 8].into()),
             height: BlockHeight(0),
@@ -215,6 +231,7 @@ mod tests {
     }
 
     fn dummy_callee_context() -> CalleeContext {
+        print_log("dummy_callee_context".to_string());
         CalleeContext {
             chain_id: ChainId([0; 8].into()),
             authenticated_caller_id: None,
