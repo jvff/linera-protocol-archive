@@ -354,7 +354,11 @@ where
         .insert(application_id, application_description);
     creator_system_state.timestamp = Timestamp::from(4);
     let mut creator_state = ExecutionStateView::from_system_state(creator_system_state).await;
-    let chosen_key = vec![0];
+    // chosen_key is formed of two parts:
+    // * 4 bytes equal to 0 that correspond to the base_key of the first index since "counter"
+    //   has just one RegisterView<C,u128>
+    // * 1 byte equal to zero that corresponds to the KeyTag::Value of RegisterView
+    let chosen_key = vec![0, 0, 0, 0, 0];
     creator_state
         .users_kv
         .try_load_entry(application_id)
