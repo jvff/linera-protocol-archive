@@ -1,6 +1,7 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use super::print_log;
 use linera_views::{
     common::Context,
     register_view::RegisterView,
@@ -8,7 +9,7 @@ use linera_views::{
 };
 
 /// The application state.
-#[derive(ContainerView)]
+#[derive(ContainerView, Debug)]
 pub struct Counter<C> {
     pub value: RegisterView<C, u128>,
 }

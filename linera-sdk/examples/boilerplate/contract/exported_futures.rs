@@ -7,7 +7,7 @@
 //! WASM module's respective endpoint. This module contains the code to forward the call to the
 //! contract type that implements [`linera_sdk::Contract`].
 
-use super::{super::ApplicationState, contract};
+use super::{super::ApplicationState, contract, system_api::print_log};
 use linera_sdk::{
     ApplicationCallResult, Contract, ExecutionResult, ExportedFuture, SessionCallResult, SessionId,
 };
@@ -21,11 +21,16 @@ impl contract::Initialize for Initialize {
     fn new(context: contract::OperationContext, argument: Vec<u8>) -> Handle<Self> {
         Handle::new(Initialize {
             future: ExportedFuture::new(async move {
+                print_log("Initializing");
                 let mut application = ApplicationState::load_and_lock().await;
+                print_log("Load and lock");
                 let result = application.initialize(&context.into(), &argument).await;
+                print_log("Initialized");
                 if result.is_ok() {
+                    print_log("Storing and unlocking");
                     application.store_and_unlock().await;
                 }
+                print_log("Done");
                 result.map_err(|error| error.to_string())
             }),
         })

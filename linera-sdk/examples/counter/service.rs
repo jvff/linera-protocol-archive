@@ -11,6 +11,8 @@ use async_trait::async_trait;
 use linera_sdk::{QueryContext, Service};
 use thiserror::Error;
 
+fn print_log(_: impl AsRef<str>) {}
+
 /// Alias to the application type, so that the boilerplate module can reference it.
 pub type ApplicationState = Counter<ReadableWasmContext>;
 
