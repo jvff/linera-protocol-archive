@@ -409,13 +409,20 @@ where
     /// was removed before then a default entry is put on this index.
     pub async fn try_load_entry(&mut self, index: I) -> Result<OwnedMutexGuard<W>, ViewError> {
         self.hash = None;
+        println!("try_load_entry, step 1");
         let short_key = self.context.derive_short_key(&index)?;
+        println!("short_key={:?}", short_key);
+        println!("try_load_entry, step 2");
         match self.updates.entry(short_key.clone()) {
             btree_map::Entry::Occupied(entry) => {
                 let entry = entry.into_mut();
                 match entry {
-                    Some(view) => Ok(view.clone().try_lock_owned()?),
+                    Some(view) => {
+                        println!("try_load_entry, step 3");
+                        Ok(view.clone().try_lock_owned()?)
+                    },
                     None => {
+                        println!("try_load_entry, step 4");
                         let key = self
                             .context
                             .base_tag_index(KeyTag::Subview as u8, &short_key);
@@ -425,22 +432,41 @@ where
                         view.clear();
                         let wrapped_view = Arc::new(Mutex::new(view));
                         *entry = Some(wrapped_view.clone());
+                        println!("try_load_entry, step 5");
                         Ok(wrapped_view.try_lock_owned()?)
                     }
                 }
             }
             btree_map::Entry::Vacant(entry) => {
+                println!("try_load_entry, step 6");
                 let key = self
                     .context
                     .base_tag_index(KeyTag::Subview as u8, &short_key);
+                println!("try_load_entry, step 6.1");
+                println!("key={:?}", key);
+                println!("base_key={:?}", self.context.base_key());
                 let context = self.context.clone_with_base_key(key);
-                let mut view = W::load(context).await?;
-                if self.was_cleared {
-                    view.clear();
+                println!("try_load_entry, step 6.2");
+                let result = W::load(context).await;
+                println!("try_load_entry, step 6.3 we have result");
+                match result {
+                    Err(e) => {
+                        println!("error e={:?}", e);
+                        Err(e)
+                    },
+                    Ok(mut view) => {
+                        println!("try_load_entry, step 6.4");
+                        if self.was_cleared {
+                            view.clear();
+                        }
+                        println!("try_load_entry, step 6.5");
+                        let wrapped_view = Arc::new(Mutex::new(view));
+                        println!("try_load_entry, step 6.6");
+                        entry.insert(Some(wrapped_view.clone()));
+                        println!("try_load_entry, step 7");
+                        Ok(wrapped_view.try_lock_owned()?)
+                    }
                 }
-                let wrapped_view = Arc::new(Mutex::new(view));
-                entry.insert(Some(wrapped_view.clone()));
-                Ok(wrapped_view.try_lock_owned()?)
             }
         }
     }
@@ -549,6 +575,7 @@ where
         match self.hash {
             Some(hash) => Ok(hash),
             None => {
+                println!("Beginning of hash");
                 let mut hasher = Self::Hasher::default();
                 let indices = self.indices().await?;
                 hasher.update_with_bcs_bytes(&indices.len())?;
@@ -559,6 +586,7 @@ where
                     hasher.write_all(hash.as_ref())?;
                 }
                 let hash = hasher.finalize();
+                println!("Ending of hash");
                 self.hash = Some(hash);
                 Ok(hash)
             }

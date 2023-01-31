@@ -343,10 +343,12 @@ impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
     }
 
     fn lock_new(&mut self) -> Self::Lock {
+        println!("lock_new before calling lock_userkv_state");
         HostFuture::new(self.storage.lock_userkv_state())
     }
 
     fn lock_poll(&mut self, future: &Self::Lock) -> writable_system::PollLock {
+        println!("lock_poll processing the output");
         use writable_system::PollLock;
         match future.poll(&mut self.context) {
             Poll::Pending => PollLock::Pending,
@@ -356,6 +358,7 @@ impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
     }
 
     fn read_key_bytes_new(&mut self, key: &[u8]) -> Self::ReadKeyBytes {
+        println!("read_key_bytes_new before pass_userkv_read_key_bytes");
         HostFuture::new(self.storage.pass_userkv_read_key_bytes(key.to_owned()))
     }
 
@@ -363,6 +366,7 @@ impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
         &mut self,
         future: &Self::ReadKeyBytes,
     ) -> writable_system::PollReadKeyBytes {
+        println!("read_key_bytes_poll processing the output");
         use writable_system::PollReadKeyBytes;
         match future.poll(&mut self.context) {
             Poll::Pending => PollReadKeyBytes::Pending,

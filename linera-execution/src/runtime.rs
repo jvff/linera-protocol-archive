@@ -286,14 +286,26 @@ where
     }
 
     async fn lock_userkv_state(&self) -> Result<(), ExecutionError> {
-        let view = self
+        println!("Beginning of lock_userkv_state");
+        println!("application_id={:?}", self.application_id());
+        let result = self
             .execution_state_mut()
             .users_kv
             .try_load_entry(self.application_id())
-            .await?;
-        self.active_userkv_states_mut()
-            .insert(self.application_id(), view);
-        Ok(())
+            .await;
+        println!("We have the result of async operation");
+        match result {
+            Err(e) => {
+                println!("error e={:?}", e);
+                Err(ExecutionError::ViewError(e))
+            },
+            Ok(view) => {
+                println!("lock_userkv_state : inserting view in the active_userkv_states_mut");
+                self.active_userkv_states_mut()
+                    .insert(self.application_id(), view);
+                Ok(())
+            },
+        }
     }
 
     async fn unlock_userkv_state(&self) -> Result<(), ExecutionError> {
@@ -302,8 +314,14 @@ where
             .active_userkv_states_mut()
             .remove(&self.application_id())
         {
-            Some(_) => Ok(()),
-            None => Err(ExecutionError::ApplicationStateNotLocked),
+            Some(_) => {
+                println!("unlock_userkv_state : ok, removing from active_userkv_states_mut");
+                Ok(())
+            },
+            None => {
+                println!("unlock_userkv_state : ApplicationStateNotLocked");
+                Err(ExecutionError::ApplicationStateNotLocked)
+            },
         }
     }
 
@@ -318,7 +336,10 @@ where
                 let value = view.read_key_bytes(&key).await?;
                 Ok(value)
             }
-            None => Err(ExecutionError::ApplicationStateNotLocked),
+            None => {
+                println!("pass_userkv_read_key_bytes : ApplicationStateNotLocked");
+                Err(ExecutionError::ApplicationStateNotLocked)
+            },
         }
     }
 
@@ -336,7 +357,10 @@ where
                 }
                 Ok(value_ret)
             }
-            None => Err(ExecutionError::ApplicationStateNotLocked),
+            None => {
+                println!("pass_userkv_find_stripped_keys_by_prefix : ApplicationStateNotLocked");
+                Err(ExecutionError::ApplicationStateNotLocked)
+            },
         }
     }
 
@@ -354,7 +378,10 @@ where
                 }
                 Ok(value_ret)
             }
-            None => Err(ExecutionError::ApplicationStateNotLocked),
+            None => {
+                println!("pass_userkv_find_stripped_key_values_by_prefix : ApplicationStateNotLocked");
+                Err(ExecutionError::ApplicationStateNotLocked)
+            },
         }
     }
 }
@@ -406,7 +433,10 @@ where
                 view.write_batch(batch).await?;
                 Ok(())
             }
-            None => Err(ExecutionError::ApplicationStateNotLocked),
+            None => {
+                println!("write_batch_and_unlock : ApplicationStateNotLocked");
+                Err(ExecutionError::ApplicationStateNotLocked)
+            },
         }
     }
 
