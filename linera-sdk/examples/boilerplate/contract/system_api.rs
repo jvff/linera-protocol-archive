@@ -11,7 +11,7 @@ use linera_views::{
     views::{ContainerView, View, ViewError},
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WasmContainer;
 
 impl WasmContainer {
@@ -43,8 +43,12 @@ impl KeyValueOperations for WasmContainer {
     type KeyValueIterator = SimpleTypeIterator<(Vec<u8>, Vec<u8>), ViewError>;
 
     async fn read_key_bytes(&self, key: &[u8]) -> Result<Option<Vec<u8>>, ViewError> {
+        print_log(format!("Creating ReadKeyBytes {key:?}"));
         let future = system::ReadKeyBytes::new(key);
-        future::poll_fn(|_context| future.poll().into()).await
+        print_log(format!("Awaiting ReadKeyBytes {key:?}"));
+        let r = future::poll_fn(|_context| future.poll().into()).await;
+        print_log(format!("Got: {r:?}"));
+        r
     }
 
     async fn find_stripped_keys_by_prefix(
@@ -82,7 +86,7 @@ impl KeyValueOperations for WasmContainer {
         }
         let future = system::WriteBatch::new(&list_oper);
         print_log("system_api, before write_batch".to_string());
-//        println!("system_api, write_batch, batch={:?}", batch);
+        //        println!("system_api, write_batch, batch={:?}", batch);
         future::poll_fn(|_context| future.poll().into()).await
     }
 }
@@ -107,17 +111,21 @@ impl WasmContextExt for WasmContext {
 impl ApplicationState {
     /// Load the contract state and lock it for writes.
     pub async fn load_and_lock() -> Self {
+        print_log("Creating Lock future");
         let future = system::Lock::new();
+        print_log("Awaiting Lock future");
         future::poll_fn(|_context| future.poll().into()).await;
         Self::load_using().await
     }
 
     /// Helper function to load the contract state or create a new one if it doesn't exist.
     pub async fn load_using() -> Self {
+        print_log("Creating WasmContext");
         let context = WasmContext::new();
-        Self::load(context)
-            .await
-            .expect("Failed to load contract state")
+        print_log("Awaiting Load");
+        let r = Self::load(context).await;
+        print_log(format!("Load_using will return {r:?}"));
+        r.expect("Failed to load contract state")
     }
 
     /// Save the contract state and unlock it.
@@ -138,8 +146,8 @@ pub fn current_application_id() -> ApplicationId {
     system::application_id().into()
 }
 
-pub fn print_log(str_log: String) {
-    system::print_log(&str_log);
+pub fn print_log(str_log: impl AsRef<str>) {
+    system::print_log(str_log.as_ref());
 }
 
 /// Retrieve the current system balance.

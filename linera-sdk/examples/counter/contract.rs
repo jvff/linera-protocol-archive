@@ -5,9 +5,9 @@
 
 mod state;
 
+use self::boilerplate::system_api::print_log;
 use self::state::Counter;
 use crate::boilerplate::system_api::WasmContext;
-use crate::boilerplate::system_api::print_log;
 use async_trait::async_trait;
 use linera_sdk::{
     ApplicationCallResult, CalleeContext, Contract, EffectContext, ExecutionResult,
@@ -28,8 +28,8 @@ impl Contract for ApplicationState {
         argument: &[u8],
     ) -> Result<ExecutionResult, Self::Error> {
         print_log("initialize begin".to_string());
-//        println!("argument={:?}", argument);
-//        let value : Result<u128,bcs::Error> = bcs::from_bytes(argument);
+        //        println!("argument={:?}", argument);
+        //        let value : Result<u128,bcs::Error> = bcs::from_bytes(argument);
         //        println!("value={:?}", value);
         self.value.set(bcs::from_bytes(argument)?);
         Ok(ExecutionResult::default())

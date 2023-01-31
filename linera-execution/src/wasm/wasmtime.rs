@@ -337,6 +337,11 @@ impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
         self.storage.read_system_timestamp().micros()
     }
 
+    fn print_log(&mut self, str_log: &str) -> bool {
+        println!("print_log {}", str_log);
+        true
+    }
+
     fn lock_new(&mut self) -> Self::Lock {
         HostFuture::new(self.storage.lock_userkv_state())
     }

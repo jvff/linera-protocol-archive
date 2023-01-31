@@ -49,8 +49,14 @@ fn generate_view_code(input: TokenStream) -> TokenStream {
         let type_ident = get_type_field(e).expect("Failed to find the type");
         loades.push(quote! {
             let index = #idx_lit;
+            #[cfg(target_arch = "wasm32")]
+            print_log(format!("Deriving key for {}", stringify!(#name)));
             let base_key = context.derive_key(&index)?;
+            #[cfg(target_arch = "wasm32")]
+            print_log(format!("Loading {}", stringify!(#name)));
             let #name = #type_ident::load(context.clone_with_base_key(base_key)).await?;
+            #[cfg(target_arch = "wasm32")]
+            print_log(format!("Loaded {}", stringify!(#name)));
         });
         names.push(quote! { #name });
         rollbackes.push(quote! { self.#name.rollback(); });
