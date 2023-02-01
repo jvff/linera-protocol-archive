@@ -120,7 +120,7 @@ impl ApplicationState {
                 super::writable_system::PollLock::Pending => "Pending",
                 super::writable_system::PollLock::Ready(_) => "Ready(_)",
             });
-            let r2 = r.into();
+            let r2: std::task::Poll<Result<(), ViewError>> = r.into();
             print_log(match r2 {
                 std::task::Poll::Ready(_) => "Ready(_)",
                 std::task::Poll::Pending => "Pending",

@@ -8,7 +8,7 @@ use super::{
     writable_system::{self as system, PollCallResult},
 };
 use crate::boilerplate::writable_system::{
-    PollFindStrippedKeyValues, PollFindStrippedKeys, PollReadKeyBytes, PollWriteBatch,
+    PollFindStrippedKeyValues, PollFindStrippedKeys, PollLock, PollReadKeyBytes, PollWriteBatch,
 };
 use linera_sdk::{
     ApplicationId, BlockHeight, BytecodeId, CalleeContext, ChainId, EffectContext, EffectId,
@@ -220,6 +220,16 @@ impl From<PollWriteBatch> for Poll<Result<(), ViewError>> {
                 Poll::Ready(Err(ViewError::WasmHostGuestError(error)))
             }
             PollWriteBatch::Pending => Poll::Pending,
+        }
+    }
+}
+
+impl From<PollLock> for Poll<Result<(), ViewError>> {
+    fn from(poll_lock: PollLock) -> Self {
+        match poll_lock {
+            PollLock::Ready(Ok(())) => Poll::Ready(Ok(())),
+            PollLock::Ready(Err(error)) => Poll::Ready(Err(ViewError::WasmHostGuestError(error))),
+            PollLock::Pending => Poll::Pending,
         }
     }
 }
