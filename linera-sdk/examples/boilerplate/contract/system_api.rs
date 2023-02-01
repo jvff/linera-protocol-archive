@@ -114,7 +114,20 @@ impl ApplicationState {
         print_log("Creating Lock future");
         let future = system::Lock::new();
         print_log("Awaiting Lock future");
-        future::poll_fn(|_context| future.poll().into()).await;
+        future::poll_fn(|_context| {
+            let r = future.poll();
+            print_log(match r {
+                super::writable_system::PollLock::Pending => "Pending",
+                super::writable_system::PollLock::Ready(_) => "Ready(_)",
+            });
+            let r2 = r.into();
+            print_log(match r2 {
+                std::task::Poll::Ready(_) => "Ready(_)",
+                std::task::Poll::Pending => "Pending",
+            });
+            r2
+        })
+        .await;
         Self::load_using().await
     }
 
