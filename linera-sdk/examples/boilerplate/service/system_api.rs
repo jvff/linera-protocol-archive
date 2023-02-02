@@ -9,6 +9,7 @@ use linera_views::{
     common::{Batch, ContextFromDb, KeyValueOperations, SimpleTypeIterator},
     views::{View, ViewError},
 };
+use std::task::Poll;
 
 #[derive(Clone)]
 pub struct ReadableWasmContainer;
@@ -89,7 +90,9 @@ impl ApplicationState {
     /// Load the service state, without locking it for writes.
     pub async fn lock_and_load() -> Self {
         let future = system::Lock::new();
-        future::poll_fn(|_context| future.poll().into()).await;
+        future::poll_fn(|_context| -> Poll<Result<(), ViewError>> { future.poll().into() })
+            .await
+            .expect("Failed to lock contract state");
         Self::load_using().await
     }
 

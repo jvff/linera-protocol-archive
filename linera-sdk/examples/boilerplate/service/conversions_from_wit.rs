@@ -5,7 +5,7 @@
 
 use super::{queryable_system, service};
 use crate::boilerplate::queryable_system::{
-    PollFindStrippedKeyValues, PollFindStrippedKeys, PollReadKeyBytes,
+    PollFindStrippedKeyValues, PollFindStrippedKeys, PollLock, PollReadKeyBytes,
 };
 use linera_sdk::{
     ApplicationId, BlockHeight, BytecodeId, ChainId, EffectId, HashValue, QueryContext,
@@ -110,6 +110,16 @@ impl From<PollFindStrippedKeyValues> for Poll<Result<Vec<(Vec<u8>, Vec<u8>)>, Vi
                 Poll::Ready(Err(ViewError::WasmHostGuestError(error)))
             }
             PollFindStrippedKeyValues::Pending => Poll::Pending,
+        }
+    }
+}
+
+impl From<PollLock> for Poll<Result<(), ViewError>> {
+    fn from(poll_lock: PollLock) -> Self {
+        match poll_lock {
+            PollLock::Ready(Ok(())) => Poll::Ready(Ok(())),
+            PollLock::Ready(Err(error)) => Poll::Ready(Err(ViewError::WasmHostGuestError(error))),
+            PollLock::Pending => Poll::Pending,
         }
     }
 }
