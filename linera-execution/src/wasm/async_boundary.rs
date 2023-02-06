@@ -5,7 +5,7 @@
 //! modules.
 
 use super::{
-    common::{self, WasmRuntimeContext},
+    runtime_interface::{self, WasmRuntimeContext},
     WasmExecutionError,
 };
 use futures::future::BoxFuture;
@@ -129,7 +129,7 @@ impl<'future, Output> HostFuture<'future, Output> {
 /// A future implemented in a WASM module.
 pub enum GuestFuture<Future, Runtime>
 where
-    Runtime: common::Runtime,
+    Runtime: runtime_interface::Runtime,
 {
     /// The WASM module failed to create an instance of the future.
     ///
@@ -148,7 +148,7 @@ where
 
 impl<Future, Runtime> GuestFuture<Future, Runtime>
 where
-    Runtime: common::Runtime,
+    Runtime: runtime_interface::Runtime,
 {
     /// Create a [`GuestFuture`] instance with `creation_result` of a future resource type.
     ///
@@ -168,7 +168,7 @@ where
 impl<InnerFuture, Runtime> Future for GuestFuture<InnerFuture, Runtime>
 where
     InnerFuture: GuestFutureInterface<Runtime> + Unpin,
-    Runtime: common::Runtime,
+    Runtime: runtime_interface::Runtime,
     Runtime::Application: Unpin,
     Runtime::Store: Unpin,
     Runtime::StorageGuard: Unpin,
@@ -199,7 +199,7 @@ where
 /// Interface to poll a future implemented in a WASM module.
 pub trait GuestFutureInterface<Runtime>
 where
-    Runtime: common::Runtime,
+    Runtime: runtime_interface::Runtime,
 {
     /// The output of the guest future.
     type Output;

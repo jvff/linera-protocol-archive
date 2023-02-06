@@ -23,7 +23,8 @@ use self::{
 };
 use super::{
     async_boundary::{ContextForwarder, HostFuture, HostFutureQueue},
-    common::{self, Runtime, WasmRuntimeContext},
+    common,
+    runtime_interface::{Runtime, WasmRuntimeContext},
     WasmApplication, WasmExecutionError,
 };
 use crate::{CallResult, ExecutionError, QueryableStorage, SessionId, WritableStorage};

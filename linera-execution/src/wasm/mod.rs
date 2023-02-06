@@ -20,6 +20,7 @@ mod runtime;
 #[cfg(feature = "wasmtime")]
 #[path = "wasmtime.rs"]
 mod runtime;
+mod runtime_interface;
 
 use crate::{
     ApplicationCallResult, Bytecode, CalleeContext, EffectContext, ExecutionError,
