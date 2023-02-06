@@ -17,10 +17,12 @@ wit_bindgen_host_wasmer_rust::import!("../linera-sdk/contract.wit");
 // Import the interface implemented by a user service.
 wit_bindgen_host_wasmer_rust::import!("../linera-sdk/service.wit");
 
+#[path = "common.rs"]
+mod common;
+
 use self::{contract::Contract, service::Service};
 use super::{
     async_boundary::{ContextForwarder, HostFuture, HostFutureQueue},
-    common,
     runtime_interface::{Runtime, WasmRuntimeContext},
     WasmApplication, WasmExecutionError,
 };

@@ -7,16 +7,16 @@
 //! This module is included once per available runtime.
 
 use super::{
-    async_boundary::{GuestFuture, GuestFutureInterface},
-    runtime::{
-        contract::{
-            self, CallApplication, CallSession, ExecuteEffect, ExecuteOperation, Initialize,
-            PollCallApplication, PollCallSession, PollExecutionResult,
-        },
-        service::{self, PollQuery, QueryApplication},
+    super::{
+        async_boundary::{GuestFuture, GuestFutureInterface},
+        runtime_interface::{Runtime, WasmRuntimeContext},
+        WasmExecutionError,
     },
-    runtime_interface::{Runtime, WasmRuntimeContext},
-    WasmExecutionError,
+    contract::{
+        self, CallApplication, CallSession, ExecuteEffect, ExecuteOperation, Initialize,
+        PollCallApplication, PollCallSession, PollExecutionResult,
+    },
+    service::{self, PollQuery, QueryApplication},
 };
 use crate::{
     ApplicationCallResult, CalleeContext, EffectContext, OperationContext, QueryContext,
