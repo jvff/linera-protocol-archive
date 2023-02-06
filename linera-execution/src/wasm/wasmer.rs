@@ -19,6 +19,10 @@ wit_bindgen_host_wasmer_rust::import!("../linera-sdk/service.wit");
 
 #[path = "common.rs"]
 mod common;
+#[path = "conversions_from_wit.rs"]
+mod conversions_from_wit;
+#[path = "conversions_to_wit.rs"]
+mod conversions_to_wit;
 
 use self::{contract::Contract, service::Service};
 use super::{

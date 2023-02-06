@@ -4,6 +4,7 @@
 //! Runtime independent code for interfacing with user applications in WebAssembly modules.
 
 use super::{async_boundary::ContextForwarder, WasmExecutionError};
+use crate::system::Balance;
 
 /// Trait to determine the types that are specific to a WebAssembly runtime.
 pub trait Runtime {
@@ -37,4 +38,20 @@ where
 
     /// Guard type to clean up any host state after the call to the WASM application finishes.
     pub(crate) _storage_guard: R::StorageGuard,
+}
+
+impl Balance {
+    /// Helper function to obtain the 64 most significant bits of the balance.
+    pub(super) fn upper_half(self) -> u64 {
+        (u128::from(self) >> 64)
+            .try_into()
+            .expect("Insufficient shift right for u128 -> u64 conversion")
+    }
+
+    /// Helper function to obtain the 64 least significant bits of the balance.
+    pub(super) fn lower_half(self) -> u64 {
+        (u128::from(self) & 0xFFFF_FFFF_FFFF_FFFF)
+            .try_into()
+            .expect("Incorrect mask for u128 -> u64 conversion")
+    }
 }
