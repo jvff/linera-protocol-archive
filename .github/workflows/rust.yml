@@ -107,4 +107,4 @@ jobs:
         cargo clippy --all-targets --all-features --target wasm32-unknown-unknown
     - name: Run clippy
       run: |
-        cargo clippy --all-targets --no-default-features --all-features --tests
+        cargo clippy --all-targets --all-features --tests
