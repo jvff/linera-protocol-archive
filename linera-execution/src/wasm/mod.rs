@@ -12,6 +12,7 @@
 
 mod async_boundary;
 mod common;
+mod runtime;
 #[cfg(feature = "wasmer")]
 #[path = "wasmer.rs"]
 mod wasmer;
@@ -28,6 +29,8 @@ use crate::{
 use async_trait::async_trait;
 use std::{io, path::Path};
 use thiserror::Error;
+
+pub use self::runtime::WasmRuntime;
 
 /// A user application in a compiled WebAssembly module.
 pub struct WasmApplication {
