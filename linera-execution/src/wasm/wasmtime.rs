@@ -68,7 +68,7 @@ impl WasmApplication {
     pub fn prepare_contract_runtime_with_wasmtime<'storage>(
         &self,
         storage: &'storage dyn WritableStorage,
-    ) -> Result<WasmRuntimeContext<Contract<'storage>>, WasmExecutionError> {
+    ) -> Result<WasmRuntimeContext<super::Contract<'storage>>, WasmExecutionError> {
         let engine = Engine::default();
         let mut linker = Linker::new(&engine);
 
@@ -84,9 +84,9 @@ impl WasmApplication {
 
         Ok(WasmRuntimeContext {
             context_forwarder,
-            application,
-            store,
-            _storage_guard: (),
+            application: application.into(),
+            store: store.into(),
+            _storage_guard: ().into(),
         })
     }
 
@@ -94,7 +94,7 @@ impl WasmApplication {
     pub fn prepare_service_runtime_with_wasmtime<'storage>(
         &self,
         storage: &'storage dyn QueryableStorage,
-    ) -> Result<WasmRuntimeContext<Service<'storage>>, WasmExecutionError> {
+    ) -> Result<WasmRuntimeContext<super::Service<'storage>>, WasmExecutionError> {
         let engine = Engine::default();
         let mut linker = Linker::new(&engine);
 
@@ -110,9 +110,9 @@ impl WasmApplication {
 
         Ok(WasmRuntimeContext {
             context_forwarder,
-            application,
-            store,
-            _storage_guard: (),
+            application: application.into(),
+            store: store.into(),
+            _storage_guard: ().into(),
         })
     }
 }
