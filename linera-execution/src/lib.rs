@@ -25,7 +25,7 @@ pub use system::{
 ))]
 pub use wasm::test as wasm_test;
 #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-pub use wasm::{WasmApplication, WasmExecutionError};
+pub use wasm::{WasmApplication, WasmExecutionError, WasmRuntime};
 #[cfg(any(test, feature = "test"))]
 pub use {applications::ApplicationRegistry, system::SystemExecutionState};
 
