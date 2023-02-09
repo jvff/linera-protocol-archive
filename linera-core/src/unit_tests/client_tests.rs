@@ -15,6 +15,8 @@ use async_trait::async_trait;
 use futures::lock::Mutex;
 use linera_base::{committee::Committee, crypto::*, data_types::*};
 use linera_chain::data_types::{Block, BlockProposal, Certificate, LiteCertificate, Value};
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+use linera_execution::WasmRuntime;
 use linera_execution::{
     system::{Amount, Balance, SystemOperation, UserData},
     ApplicationId, Operation, Query, Response, SystemQuery, SystemResponse,
@@ -411,7 +413,11 @@ impl StoreBuilder for MakeRocksdbStoreClient {
         let dir = tempfile::TempDir::new()?;
         let path = dir.path().to_path_buf();
         self.temp_dirs.push(dir);
-        Ok(RocksdbStoreClient::new(path))
+        Ok(RocksdbStoreClient::new(
+            path,
+            #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+            WasmRuntime::default(),
+        ))
     }
 }
 
