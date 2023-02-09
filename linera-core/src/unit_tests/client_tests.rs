@@ -17,7 +17,7 @@ use linera_base::{committee::Committee, crypto::*, data_types::*};
 use linera_chain::data_types::{Block, BlockProposal, Certificate, LiteCertificate, Value};
 use linera_execution::{
     system::{Amount, Balance, SystemOperation, UserData},
-    ApplicationId, Operation, Query, Response, SystemQuery, SystemResponse,
+    ApplicationId, Operation, Query, Response, SystemQuery, SystemResponse, WasmRuntime,
 };
 use linera_storage::{DynamoDbStoreClient, MemoryStoreClient, RocksdbStoreClient, Store};
 use linera_views::{test_utils::LocalStackTestContext, views::ViewError};
@@ -411,7 +411,7 @@ impl StoreBuilder for MakeRocksdbStoreClient {
         let dir = tempfile::TempDir::new()?;
         let path = dir.path().to_path_buf();
         self.temp_dirs.push(dir);
-        Ok(RocksdbStoreClient::new(path))
+        Ok(RocksdbStoreClient::new(path, Some(WasmRuntime::default())))
     }
 }
 
