@@ -4,6 +4,8 @@
 use super::DynamoDbStoreClient;
 use crate::Store;
 use linera_base::data_types::ChainId;
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+use linera_execution::WasmRuntime;
 use linera_views::test_utils::LocalStackTestContext;
 use std::mem;
 
@@ -13,7 +15,13 @@ use std::mem;
 async fn guards_dont_leak() -> Result<(), anyhow::Error> {
     let localstack = LocalStackTestContext::new().await?;
     let table = "linera".parse()?;
-    let (store, _) = DynamoDbStoreClient::from_config(localstack.dynamo_db_config(), table).await?;
+    let (store, _) = DynamoDbStoreClient::from_config(
+        localstack.dynamo_db_config(),
+        table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    )
+    .await?;
     let chain_id = ChainId::root(1);
     // There should be no active guards when initialized
     assert_eq!(store.0.guards.active_guards(), 0);
