@@ -4,6 +4,8 @@
 use crate::config::GenesisConfig;
 use anyhow::format_err;
 use async_trait::async_trait;
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+use linera_execution::WasmRuntime;
 use linera_storage::{DynamoDbStoreClient, MemoryStoreClient, RocksdbStoreClient};
 use linera_views::dynamo_db::{TableName, TableStatus};
 use std::{path::PathBuf, str::FromStr};
@@ -49,12 +51,20 @@ impl StorageConfig {
             }
             Rocksdb { path } if path.is_dir() => {
                 log::warn!("Using existing database {:?}", path);
-                let client = RocksdbStoreClient::new(path.clone());
+                let client = RocksdbStoreClient::new(
+                    path.clone(),
+                    #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+                    WasmRuntime::default(),
+                );
                 job.run(client).await
             }
             Rocksdb { path } => {
                 std::fs::create_dir_all(path)?;
-                let mut client = RocksdbStoreClient::new(path.clone());
+                let mut client = RocksdbStoreClient::new(
+                    path.clone(),
+                    #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+                    WasmRuntime::default(),
+                );
                 config.initialize_store(&mut client).await?;
                 job.run(client).await
             }
