@@ -74,7 +74,7 @@ impl WasmApplication {
 
         writable_system::add_to_linker(&mut linker, ContractState::system_api)?;
 
-        let module = Module::new(&engine, &self.contract_bytecode)?;
+        let module = Module::new(&engine, &self.bytecodes.contract)?;
         let context_forwarder = ContextForwarder::default();
         let state = ContractState::new(storage, context_forwarder.clone());
         let mut store = Store::new(&engine, state);
@@ -100,7 +100,7 @@ impl WasmApplication {
 
         queryable_system::add_to_linker(&mut linker, ServiceState::system_api)?;
 
-        let module = Module::new(&engine, &self.service_bytecode)?;
+        let module = Module::new(&engine, &self.bytecodes.service)?;
         let context_forwarder = ContextForwarder::default();
         let state = ServiceState::new(storage, context_forwarder.clone());
         let mut store = Store::new(&engine, state);

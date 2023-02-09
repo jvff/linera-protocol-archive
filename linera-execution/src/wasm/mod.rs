@@ -36,37 +36,43 @@ use thiserror::Error;
 pub use self::runtime::WasmRuntime;
 
 /// A user application in a compiled WebAssembly module.
+pub struct WasmApplicationBytecodes {
+    contract: Bytecode,
+    service: Bytecode,
+}
+
+/// A user application in a compiled WebAssembly module associated to a WebAssembly runtime to run
+/// it.
 pub struct WasmApplication {
-    contract_bytecode: Bytecode,
-    service_bytecode: Bytecode,
+    bytecodes: WasmApplicationBytecodes,
     runtime: WasmRuntime,
 }
 
-impl WasmApplication {
-    /// Create a new [`WasmApplication`] using the WebAssembly module with the provided bytecodes.
-    pub fn new(
-        contract_bytecode: Bytecode,
-        service_bytecode: Bytecode,
-        runtime: WasmRuntime,
-    ) -> Self {
-        WasmApplication {
-            contract_bytecode,
-            service_bytecode,
-            runtime,
-        }
+impl WasmApplicationBytecodes {
+    /// Create a new [`WasmApplicationBytecodes`] using the WebAssembly module with the provided
+    /// bytecodes.
+    pub fn new(contract: Bytecode, service: Bytecode) -> Self {
+        WasmApplicationBytecodes { contract, service }
     }
 
-    /// Create a new [`WasmApplication`] using the WebAssembly module in `bytecode_file`.
+    /// Create a new [`WasmApplicationBytecodes`] using the WebAssembly modules in the provided
+    /// bytecode files.
     pub async fn from_files(
         contract_bytecode_file: impl AsRef<Path>,
         service_bytecode_file: impl AsRef<Path>,
-        runtime: WasmRuntime,
     ) -> Result<Self, io::Error> {
-        Ok(WasmApplication {
-            contract_bytecode: Bytecode::load_from_file(contract_bytecode_file).await?,
-            service_bytecode: Bytecode::load_from_file(service_bytecode_file).await?,
-            runtime,
+        Ok(WasmApplicationBytecodes {
+            contract: Bytecode::load_from_file(contract_bytecode_file).await?,
+            service: Bytecode::load_from_file(service_bytecode_file).await?,
         })
+    }
+}
+
+impl WasmApplication {
+    /// Creates a [`WasmApplication`] using the provided bytecodes and the specified
+    /// [`WasmRuntime`].
+    pub fn new(bytecodes: WasmApplicationBytecodes, runtime: WasmRuntime) -> Self {
+        WasmApplication { bytecodes, runtime }
     }
 
     /// Prepare a runtime instance to call into the WASM contract.

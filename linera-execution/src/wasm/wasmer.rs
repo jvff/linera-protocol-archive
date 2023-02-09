@@ -69,7 +69,7 @@ impl WasmApplication {
         storage: &'storage dyn WritableStorage,
     ) -> Result<WasmRuntimeContext<runtime::Contract<'storage>>, WasmExecutionError> {
         let mut store = Store::default();
-        let module = Module::new(&store, &self.contract_bytecode)
+        let module = Module::new(&store, &self.bytecodes.contract)
             .map_err(wit_bindgen_host_wasmer_rust::anyhow::Error::from)?;
         let mut imports = imports! {};
         let context_forwarder = ContextForwarder::default();
@@ -100,7 +100,7 @@ impl WasmApplication {
         storage: &'storage dyn QueryableStorage,
     ) -> Result<WasmRuntimeContext<runtime::Service<'storage>>, WasmExecutionError> {
         let mut store = Store::default();
-        let module = Module::new(&store, &self.service_bytecode)
+        let module = Module::new(&store, &self.bytecodes.service)
             .map_err(wit_bindgen_host_wasmer_rust::anyhow::Error::from)?;
         let mut imports = imports! {};
         let context_forwarder = ContextForwarder::default();
