@@ -73,8 +73,22 @@ impl StorageConfig {
                 use_localstack,
             } => {
                 let (mut client, table_status) = match use_localstack {
-                    true => DynamoDbStoreClient::with_localstack(table.clone()).await?,
-                    false => DynamoDbStoreClient::new(table.clone()).await?,
+                    true => {
+                        DynamoDbStoreClient::with_localstack(
+                            table.clone(),
+                            #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+                            WasmRuntime::default(),
+                        )
+                        .await?
+                    }
+                    false => {
+                        DynamoDbStoreClient::new(
+                            table.clone(),
+                            #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+                            WasmRuntime::default(),
+                        )
+                        .await?
+                    }
                 };
                 if table_status == TableStatus::New {
                     config.initialize_store(&mut client).await?;
