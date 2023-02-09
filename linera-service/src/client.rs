@@ -23,6 +23,8 @@ use linera_core::{
     node::{LocalNodeClient, ValidatorNode},
     worker::{Reason, WorkerState},
 };
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+use linera_execution::WasmRuntime;
 use linera_execution::{
     system::{Address, Amount, Balance, SystemOperation, UserData},
     ApplicationId, Operation,
@@ -411,6 +413,11 @@ struct ClientOptions {
 
     #[structopt(long, default_value = "10")]
     max_pending_messages: usize,
+
+    /// The WebAssembly runtime to use.
+    #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+    #[structopt(long, default_value)]
+    wasm_runtime: WasmRuntime,
 
     /// Subcommand.
     #[structopt(subcommand)]
@@ -946,9 +953,16 @@ async fn main() {
         }
         command => {
             let genesis_config = context.genesis_config.clone();
+            #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+            let wasm_runtime = options.wasm_runtime;
             options
                 .storage_config
-                .run_with_storage(&genesis_config, Job(context, command))
+                .run_with_storage(
+                    &genesis_config,
+                    #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+                    wasm_runtime,
+                    Job(context, command),
+                )
                 .await
                 .unwrap()
         }
