@@ -35,6 +35,7 @@ impl StorageConfig {
     pub async fn run_with_storage<Job, Output>(
         &self,
         config: &GenesisConfig,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))] wasm_runtime: WasmRuntime,
         job: Job,
     ) -> Result<Output, anyhow::Error>
     where
@@ -54,7 +55,7 @@ impl StorageConfig {
                 let client = RocksdbStoreClient::new(
                     path.clone(),
                     #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-                    WasmRuntime::default(),
+                    wasm_runtime,
                 );
                 job.run(client).await
             }
@@ -63,7 +64,7 @@ impl StorageConfig {
                 let mut client = RocksdbStoreClient::new(
                     path.clone(),
                     #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-                    WasmRuntime::default(),
+                    wasm_runtime,
                 );
                 config.initialize_store(&mut client).await?;
                 job.run(client).await
@@ -77,7 +78,7 @@ impl StorageConfig {
                         DynamoDbStoreClient::with_localstack(
                             table.clone(),
                             #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-                            WasmRuntime::default(),
+                            wasm_runtime,
                         )
                         .await?
                     }
@@ -85,7 +86,7 @@ impl StorageConfig {
                         DynamoDbStoreClient::new(
                             table.clone(),
                             #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-                            WasmRuntime::default(),
+                            wasm_runtime,
                         )
                         .await?
                     }
