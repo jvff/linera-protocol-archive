@@ -9,6 +9,8 @@ use async_trait::async_trait;
 use futures::future::join_all;
 use linera_base::{crypto::KeyPair, data_types::ValidatorName};
 use linera_core::worker::WorkerState;
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+use linera_execution::WasmRuntime;
 use linera_rpc::{
     config::{
         CrossChainConfig, NetworkProtocol, NotificationConfig, ShardConfig, ShardId,
@@ -323,6 +325,11 @@ enum ServerCommand {
         /// will wait until that timestamp before voting.
         #[structopt(long, default_value = "500ms", parse(try_from_str = parse_duration))]
         grace_period: u64,
+
+        /// The WebAssembly runtime to use.
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        #[structopt(long, default_value)]
+        wasm_runtime: WasmRuntime,
     },
 
     /// Act as a trusted third-party and generate all server configurations
@@ -362,6 +369,8 @@ async fn main() {
             genesis_config_path,
             shard,
             grace_period,
+            #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+            wasm_runtime,
         } => {
             let genesis_config = GenesisConfig::read(&genesis_config_path)
                 .expect("Fail to read initial chain config");
@@ -375,7 +384,12 @@ async fn main() {
                 grace_period_micros: grace_period,
             };
             storage_config
-                .run_with_storage(&genesis_config, job)
+                .run_with_storage(
+                    &genesis_config,
+                    #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+                    wasm_runtime,
+                    job,
+                )
                 .await
                 .unwrap();
         }
