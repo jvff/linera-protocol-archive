@@ -80,9 +80,6 @@ pub enum Error {
     #[error("MetaCounter application doesn't support any cross-application sessions")]
     SessionsNotSupported,
 
-    #[error("Invalid serialized increment value")]
-    InvalidIncrement(#[from] bcs::Error),
-
     #[error("Error with the internal call to Counter")]
     InternalCall,
 
