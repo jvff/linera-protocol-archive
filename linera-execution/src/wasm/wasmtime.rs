@@ -31,7 +31,7 @@ use self::{
 use super::{
     async_boundary::{ContextForwarder, HostFuture, HostFutureQueue},
     common::{self, ApplicationRuntimeContext, WasmRuntimeContext},
-    WasmApplication, WasmExecutionError,
+    runtime, WasmApplication, WasmExecutionError,
 };
 use crate::{CallResult, ExecutionError, QueryableStorage, SessionId, WritableStorage};
 use linera_views::common::Batch;
@@ -69,7 +69,7 @@ impl WasmApplication {
     pub fn prepare_contract_runtime_with_wasmtime<'storage>(
         &self,
         storage: &'storage dyn WritableStorage,
-    ) -> Result<WasmRuntimeContext<super::Contract<'storage>>, WasmExecutionError> {
+    ) -> Result<WasmRuntimeContext<runtime::Contract<'storage>>, WasmExecutionError> {
         let engine = Engine::default();
         let mut linker = Linker::new(&engine);
 
@@ -95,7 +95,7 @@ impl WasmApplication {
     pub fn prepare_service_runtime_with_wasmtime<'storage>(
         &self,
         storage: &'storage dyn QueryableStorage,
-    ) -> Result<WasmRuntimeContext<super::Service<'storage>>, WasmExecutionError> {
+    ) -> Result<WasmRuntimeContext<runtime::Service<'storage>>, WasmExecutionError> {
         let engine = Engine::default();
         let mut linker = Linker::new(&engine);
 
