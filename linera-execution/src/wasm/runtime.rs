@@ -11,19 +11,41 @@ use crate::{
     ApplicationCallResult, CalleeContext, EffectContext, OperationContext, QueryContext,
     QueryableStorage, RawExecutionResult, SessionCallResult, SessionId, WritableStorage,
 };
-use derive_more::From;
-use std::{marker::PhantomData, task::Poll};
+use derive_more::{Display, From};
+use std::{marker::PhantomData, str::FromStr, task::Poll};
+use thiserror::Error;
 
 /// The runtime to use for running the application.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Display)]
 pub enum WasmRuntime {
     #[cfg(feature = "wasmer")]
     #[cfg_attr(not(feature = "wasmtime"), default)]
+    #[display(fmt = "wasmer")]
     Wasmer,
     #[cfg(feature = "wasmtime")]
     #[default]
+    #[display(fmt = "wasmtime")]
     Wasmtime,
 }
+
+impl FromStr for WasmRuntime {
+    type Err = InvalidWasmRuntime;
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        match string {
+            #[cfg(feature = "wasmer")]
+            "wasmer" => Ok(WasmRuntime::Wasmer),
+            #[cfg(feature = "wasmtime")]
+            "wasmtime" => Ok(WasmRuntime::Wasmtime),
+            unknown => Err(InvalidWasmRuntime(unknown.to_owned())),
+        }
+    }
+}
+
+/// Attempt to create an invalid [`WasmRuntime`] instance from a string.
+#[derive(Clone, Debug, Error)]
+#[error("{0:?} is not a valid WebAssembly runtime")]
+pub struct InvalidWasmRuntime(String);
 
 /// The contract application attached to a runtime to run it.
 #[derive(From)]
