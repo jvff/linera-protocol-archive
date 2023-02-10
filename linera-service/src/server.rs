@@ -369,6 +369,7 @@ async fn main() {
             genesis_config_path,
             shard,
             grace_period,
+            #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
             wasm_runtime,
         } => {
             let genesis_config = GenesisConfig::read(&genesis_config_path)
@@ -383,7 +384,12 @@ async fn main() {
                 grace_period_micros: grace_period,
             };
             storage_config
-                .run_with_storage(&genesis_config, wasm_runtime, job)
+                .run_with_storage(
+                    &genesis_config,
+                    #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+                    wasm_runtime,
+                    job,
+                )
                 .await
                 .unwrap();
         }
