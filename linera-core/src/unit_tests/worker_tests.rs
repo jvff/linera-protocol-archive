@@ -312,6 +312,7 @@ async fn test_dynamo_db_handle_block_proposal_bad_signature() -> Result<(), anyh
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -394,6 +395,7 @@ async fn test_dynamo_db_handle_block_proposal_zero_amount() -> Result<(), anyhow
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -473,6 +475,7 @@ async fn test_dynamo_db_handle_block_proposal_ticks() -> Result<(), anyhow::Erro
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -582,6 +585,7 @@ async fn test_dynamo_db_handle_block_proposal_unknown_sender() -> Result<(), any
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -663,6 +667,7 @@ async fn test_dynamo_db_handle_block_proposal_with_chaining() -> Result<(), anyh
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -782,6 +787,7 @@ async fn test_dynamo_db_handle_block_proposal_with_incoming_messages() -> Result
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -1258,6 +1264,7 @@ async fn test_dynamo_db_handle_block_proposal_exceed_balance() -> Result<(), any
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -1333,6 +1340,7 @@ async fn test_dynamo_db_handle_block_proposal() -> Result<(), anyhow::Error> {
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -1410,6 +1418,7 @@ async fn test_dynamo_db_handle_block_proposal_replay() -> Result<(), anyhow::Err
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -1490,6 +1499,7 @@ async fn test_dynamo_db_handle_certificate_unknown_sender() -> Result<(), anyhow
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -1552,6 +1562,7 @@ async fn test_dynamo_db_handle_certificate_bad_block_height() -> Result<(), anyh
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -1627,6 +1638,7 @@ async fn test_dynamo_db_handle_certificate_with_anticipated_incoming_message(
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -1788,6 +1800,7 @@ async fn test_dynamo_db_handle_certificate_receiver_balance_overflow() -> Result
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -1888,6 +1901,7 @@ async fn test_dynamo_db_handle_certificate_receiver_equal_sender() -> Result<(),
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -2003,6 +2017,7 @@ async fn test_dynamo_db_handle_cross_chain_request() -> Result<(), anyhow::Error
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -2130,6 +2145,7 @@ async fn test_dynamo_db_handle_cross_chain_request_no_recipient_chain() -> Resul
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -2203,6 +2219,7 @@ async fn test_dynamo_db_handle_cross_chain_request_no_recipient_chain_on_client(
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -2292,6 +2309,7 @@ async fn test_dynamo_db_handle_certificate_to_active_recipient() -> Result<(), a
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -2492,6 +2510,7 @@ async fn test_dynamo_db_handle_certificate_to_inactive_recipient() -> Result<(),
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -2564,6 +2583,7 @@ async fn test_dynamo_db_chain_creation_with_committee_creation() -> Result<(), a
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -3096,6 +3116,7 @@ async fn test_dynamo_db_transfers_and_committee_creation() -> Result<(), anyhow:
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
@@ -3309,6 +3330,7 @@ async fn test_dynamo_db_transfers_and_committee_removal() -> Result<(), anyhow::
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
         WasmRuntime::default(),
     )
     .await?;
