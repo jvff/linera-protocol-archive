@@ -296,7 +296,11 @@ async fn test_memory_handle_block_proposal_bad_signature() {
 #[test(tokio::test)]
 async fn test_rocksdb_handle_block_proposal_bad_signature() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_handle_block_proposal_bad_signature(client).await;
 }
 
@@ -374,7 +378,11 @@ async fn test_memory_handle_block_proposal_zero_amount() {
 #[test(tokio::test)]
 async fn test_rocksdb_handle_block_proposal_zero_amount() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_handle_block_proposal_zero_amount(client).await;
 }
 
@@ -449,7 +457,11 @@ async fn test_memory_handle_block_proposal_ticks() {
 #[test(tokio::test)]
 async fn test_rocksdb_handle_block_proposal_ticks() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_handle_block_proposal_ticks(client).await;
 }
 
@@ -554,7 +566,11 @@ async fn test_memory_handle_block_proposal_unknown_sender() {
 #[test(tokio::test)]
 async fn test_rocksdb_handle_block_proposal_unknown_sender() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_handle_block_proposal_unknown_sender(client).await;
 }
 
@@ -631,7 +647,11 @@ async fn test_memory_handle_block_proposal_with_chaining() {
 #[test(tokio::test)]
 async fn test_rocksdb_handle_block_proposal_with_chaining() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_handle_block_proposal_with_chaining(client).await;
 }
 
@@ -745,7 +765,11 @@ async fn test_memory_handle_block_proposal_with_incoming_messages() {
 #[test(tokio::test)]
 async fn test_rocksdb_handle_block_proposal_with_incoming_messages() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_handle_block_proposal_with_incoming_messages(client).await;
 }
 
@@ -1218,7 +1242,11 @@ async fn test_memory_handle_block_proposal_exceed_balance() {
 #[test(tokio::test)]
 async fn test_rocksdb_handle_block_proposal_exceed_balance() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_handle_block_proposal_exceed_balance(client).await;
 }
 
@@ -1289,7 +1317,11 @@ async fn test_memory_handle_block_proposal() {
 #[test(tokio::test)]
 async fn test_rocksdb_handle_block_proposal() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_handle_block_proposal(client).await;
 }
 
@@ -1362,7 +1394,11 @@ async fn test_memory_handle_block_proposal_replay() {
 #[test(tokio::test)]
 async fn test_rocksdb_handle_block_proposal_replay() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_handle_block_proposal_replay(client).await;
 }
 
@@ -1438,7 +1474,11 @@ async fn test_memory_handle_certificate_unknown_sender() {
 #[test(tokio::test)]
 async fn test_rocksdb_handle_certificate_unknown_sender() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_handle_certificate_unknown_sender(client).await;
 }
 
@@ -1496,7 +1536,11 @@ async fn test_memory_handle_certificate_bad_block_height() {
 #[test(tokio::test)]
 async fn test_rocksdb_handle_certificate_bad_block_height() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_handle_certificate_bad_block_height(client).await;
 }
 
@@ -1566,7 +1610,11 @@ async fn test_memory_handle_certificate_with_anticipated_incoming_message() {
 #[test(tokio::test)]
 async fn test_rocksdb_handle_certificate_with_anticipated_incoming_message() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_handle_certificate_with_anticipated_incoming_message(client).await;
 }
 
@@ -1723,7 +1771,11 @@ async fn test_memory_handle_certificate_receiver_balance_overflow() {
 #[test(tokio::test)]
 async fn test_rocksdb_handle_certificate_receiver_balance_overflow() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_handle_certificate_receiver_balance_overflow(client).await;
 }
 
@@ -1820,7 +1872,11 @@ async fn test_memory_handle_certificate_receiver_equal_sender() {
 #[test(tokio::test)]
 async fn test_rocksdb_handle_certificate_receiver_equal_sender() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_handle_certificate_receiver_equal_sender(client).await;
 }
 
@@ -1931,7 +1987,11 @@ async fn test_memory_handle_cross_chain_request() {
 #[test(tokio::test)]
 async fn test_rocksdb_handle_cross_chain_request() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_handle_cross_chain_request(client).await;
 }
 
@@ -2053,7 +2113,11 @@ async fn test_memory_handle_cross_chain_request_no_recipient_chain() {
 #[test(tokio::test)]
 async fn test_rocksdb_handle_cross_chain_request_no_recipient_chain() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_handle_cross_chain_request_no_recipient_chain(client).await;
 }
 
@@ -2122,7 +2186,11 @@ async fn test_memory_handle_cross_chain_request_no_recipient_chain_on_client() {
 #[test(tokio::test)]
 async fn test_rocksdb_handle_cross_chain_request_no_recipient_chain_on_client() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_handle_cross_chain_request_no_recipient_chain_on_client(client).await;
 }
 
@@ -2208,7 +2276,11 @@ async fn test_memory_handle_certificate_to_active_recipient() {
 #[test(tokio::test)]
 async fn test_rocksdb_handle_certificate_to_active_recipient() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_handle_certificate_to_active_recipient(client).await;
 }
 
@@ -2404,7 +2476,11 @@ async fn test_memory_handle_certificate_to_inactive_recipient() {
 #[test(tokio::test)]
 async fn test_rocksdb_handle_certificate_to_inactive_recipient() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_handle_certificate_to_inactive_recipient(client).await;
 }
 
@@ -2472,7 +2548,11 @@ async fn test_memory_chain_creation_with_committee_creation() {
 #[test(tokio::test)]
 async fn test_rocksdb_chain_creation_with_committee_creation() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_chain_creation_with_committee_creation(client).await;
 }
 
@@ -3000,7 +3080,11 @@ async fn test_memory_transfers_and_committee_creation() {
 #[test(tokio::test)]
 async fn test_rocksdb_transfers_and_committee_creation() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_transfers_and_committee_creation(client).await;
 }
 
@@ -3209,7 +3293,11 @@ async fn test_memory_transfers_and_committee_removal() {
 #[test(tokio::test)]
 async fn test_rocksdb_transfers_and_committee_removal() {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(
+        dir.path().to_path_buf(),
+        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+        WasmRuntime::default(),
+    );
     run_test_transfers_and_committee_removal(client).await;
 }
 
