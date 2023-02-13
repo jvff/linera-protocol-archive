@@ -7,9 +7,7 @@ use dashmap::DashMap;
 use futures::Future;
 use linera_base::{crypto::CryptoHash, data_types::ChainId};
 use linera_chain::data_types::Certificate;
-#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-use linera_execution::WasmRuntime;
-use linera_execution::{UserApplicationCode, UserApplicationId};
+use linera_execution::{UserApplicationCode, UserApplicationId, WasmRuntime};
 use linera_views::{
     common::{Batch, Context},
     dynamo_db::{
@@ -30,8 +28,7 @@ struct DynamoDbStore {
     context: DynamoDbContext<()>,
     guards: ChainGuards,
     user_applications: Arc<DashMap<UserApplicationId, UserApplicationCode>>,
-    #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-    wasm_runtime: WasmRuntime,
+    wasm_runtime: Option<WasmRuntime>,
 }
 
 #[derive(Clone)]
@@ -40,25 +37,19 @@ pub struct DynamoDbStoreClient(Arc<DynamoDbStore>);
 impl DynamoDbStoreClient {
     pub async fn new(
         table: TableName,
-        #[cfg(any(feature = "wasmer", feature = "wasmtime"))] wasm_runtime: WasmRuntime,
+        wasm_runtime: Option<WasmRuntime>,
     ) -> Result<(Self, TableStatus), CreateTableError> {
-        Self::with_store(DynamoDbStore::new(
-            table,
-            #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-            wasm_runtime,
-        ))
-        .await
+        Self::with_store(DynamoDbStore::new(table, wasm_runtime)).await
     }
 
     pub async fn from_config(
         config: impl Into<Config>,
         table: TableName,
-        #[cfg(any(feature = "wasmer", feature = "wasmtime"))] wasm_runtime: WasmRuntime,
+        wasm_runtime: Option<WasmRuntime>,
     ) -> Result<(Self, TableStatus), CreateTableError> {
         Self::with_store(DynamoDbStore::from_config(
             config.into(),
             table,
-            #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
             wasm_runtime,
         ))
         .await
@@ -66,14 +57,9 @@ impl DynamoDbStoreClient {
 
     pub async fn with_localstack(
         table: TableName,
-        #[cfg(any(feature = "wasmer", feature = "wasmtime"))] wasm_runtime: WasmRuntime,
+        wasm_runtime: Option<WasmRuntime>,
     ) -> Result<(Self, TableStatus), LocalStackError> {
-        Self::with_store(DynamoDbStore::with_localstack(
-            table,
-            #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-            wasm_runtime,
-        ))
-        .await
+        Self::with_store(DynamoDbStore::with_localstack(table, wasm_runtime)).await
     }
 
     async fn with_store<E>(
@@ -88,11 +74,10 @@ impl DynamoDbStoreClient {
 impl DynamoDbStore {
     pub async fn new(
         table: TableName,
-        #[cfg(any(feature = "wasmer", feature = "wasmtime"))] wasm_runtime: WasmRuntime,
+        wasm_runtime: Option<WasmRuntime>,
     ) -> Result<(Self, TableStatus), CreateTableError> {
         Self::with_context(
             |key_prefix, extra| DynamoDbContext::new(table, key_prefix, extra),
-            #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
             wasm_runtime,
         )
         .await
@@ -101,11 +86,10 @@ impl DynamoDbStore {
     pub async fn from_config(
         config: Config,
         table: TableName,
-        #[cfg(any(feature = "wasmer", feature = "wasmtime"))] wasm_runtime: WasmRuntime,
+        wasm_runtime: Option<WasmRuntime>,
     ) -> Result<(Self, TableStatus), CreateTableError> {
         Self::with_context(
             |key_prefix, extra| DynamoDbContext::from_config(config, table, key_prefix, extra),
-            #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
             wasm_runtime,
         )
         .await
@@ -113,11 +97,10 @@ impl DynamoDbStore {
 
     pub async fn with_localstack(
         table: TableName,
-        #[cfg(any(feature = "wasmer", feature = "wasmtime"))] wasm_runtime: WasmRuntime,
+        wasm_runtime: Option<WasmRuntime>,
     ) -> Result<(Self, TableStatus), LocalStackError> {
         Self::with_context(
             |key_prefix, extra| DynamoDbContext::with_localstack(table, key_prefix, extra),
-            #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
             wasm_runtime,
         )
         .await
@@ -125,7 +108,7 @@ impl DynamoDbStore {
 
     async fn with_context<F, E>(
         create_context: impl FnOnce(Vec<u8>, ()) -> F,
-        #[cfg(any(feature = "wasmer", feature = "wasmtime"))] wasm_runtime: WasmRuntime,
+        wasm_runtime: Option<WasmRuntime>,
     ) -> Result<(Self, TableStatus), E>
     where
         F: Future<Output = Result<(DynamoDbContext<()>, TableStatus), E>>,
@@ -137,7 +120,6 @@ impl DynamoDbStore {
                 context,
                 guards: ChainGuards::default(),
                 user_applications: Arc::new(DashMap::new()),
-                #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
                 wasm_runtime,
             },
             table_status,
@@ -208,6 +190,6 @@ impl Store for DynamoDbStoreClient {
 
     #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
     fn wasm_runtime(&self) -> WasmRuntime {
-        self.0.wasm_runtime
+        self.0.wasm_runtime.unwrap_or_default()
     }
 }

@@ -50,7 +50,7 @@ async fn test_dynamo_db_handle_certificates_to_create_application() -> Result<()
     let (client, _) = DynamoDbStoreClient::from_config(
         localstack.dynamo_db_config(),
         table,
-        WasmRuntime::default(),
+        Some(WasmRuntime::default()),
     )
     .await?;
     run_test_handle_certificates_to_create_application(client).await
