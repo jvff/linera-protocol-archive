@@ -9,7 +9,6 @@ use async_trait::async_trait;
 use futures::future::join_all;
 use linera_base::{crypto::KeyPair, data_types::ValidatorName};
 use linera_core::worker::WorkerState;
-#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
 use linera_execution::WasmRuntime;
 use linera_rpc::{
     config::{
@@ -327,9 +326,8 @@ enum ServerCommand {
         grace_period: u64,
 
         /// The WebAssembly runtime to use.
-        #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-        #[structopt(long, default_value)]
-        wasm_runtime: WasmRuntime,
+        #[structopt(long)]
+        wasm_runtime: Option<WasmRuntime>,
     },
 
     /// Act as a trusted third-party and generate all server configurations
@@ -369,7 +367,6 @@ async fn main() {
             genesis_config_path,
             shard,
             grace_period,
-            #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
             wasm_runtime,
         } => {
             let genesis_config = GenesisConfig::read(&genesis_config_path)
@@ -384,12 +381,7 @@ async fn main() {
                 grace_period_micros: grace_period,
             };
             storage_config
-                .run_with_storage(
-                    &genesis_config,
-                    #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-                    wasm_runtime,
-                    job,
-                )
+                .run_with_storage(&genesis_config, wasm_runtime, job)
                 .await
                 .unwrap();
         }

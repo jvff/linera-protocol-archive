@@ -4,7 +4,6 @@
 use crate::config::GenesisConfig;
 use anyhow::format_err;
 use async_trait::async_trait;
-#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
 use linera_execution::WasmRuntime;
 use linera_storage::{DynamoDbStoreClient, MemoryStoreClient, RocksdbStoreClient};
 use linera_views::dynamo_db::{TableName, TableStatus};
@@ -35,7 +34,7 @@ impl StorageConfig {
     pub async fn run_with_storage<Job, Output>(
         &self,
         config: &GenesisConfig,
-        #[cfg(any(feature = "wasmer", feature = "wasmtime"))] wasm_runtime: WasmRuntime,
+        wasm_runtime: Option<WasmRuntime>,
         job: Job,
     ) -> Result<Output, anyhow::Error>
     where
@@ -52,20 +51,12 @@ impl StorageConfig {
             }
             Rocksdb { path } if path.is_dir() => {
                 log::warn!("Using existing database {:?}", path);
-                let client = RocksdbStoreClient::new(
-                    path.clone(),
-                    #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-                    wasm_runtime,
-                );
+                let client = RocksdbStoreClient::new(path.clone(), wasm_runtime);
                 job.run(client).await
             }
             Rocksdb { path } => {
                 std::fs::create_dir_all(path)?;
-                let mut client = RocksdbStoreClient::new(
-                    path.clone(),
-                    #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-                    wasm_runtime,
-                );
+                let mut client = RocksdbStoreClient::new(path.clone(), wasm_runtime);
                 config.initialize_store(&mut client).await?;
                 job.run(client).await
             }
@@ -75,21 +66,9 @@ impl StorageConfig {
             } => {
                 let (mut client, table_status) = match use_localstack {
                     true => {
-                        DynamoDbStoreClient::with_localstack(
-                            table.clone(),
-                            #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-                            wasm_runtime,
-                        )
-                        .await?
+                        DynamoDbStoreClient::with_localstack(table.clone(), wasm_runtime).await?
                     }
-                    false => {
-                        DynamoDbStoreClient::new(
-                            table.clone(),
-                            #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-                            wasm_runtime,
-                        )
-                        .await?
-                    }
+                    false => DynamoDbStoreClient::new(table.clone(), wasm_runtime).await?,
                 };
                 if table_status == TableStatus::New {
                     config.initialize_store(&mut client).await?;

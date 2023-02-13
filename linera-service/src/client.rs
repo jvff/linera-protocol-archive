@@ -23,11 +23,9 @@ use linera_core::{
     node::{LocalNodeClient, ValidatorNode},
     worker::{Reason, WorkerState},
 };
-#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-use linera_execution::WasmRuntime;
 use linera_execution::{
     system::{Address, Amount, Balance, SystemOperation, UserData},
-    ApplicationId, Operation,
+    ApplicationId, Operation, WasmRuntime,
 };
 use linera_rpc::{
     config::NetworkProtocol, grpc_network::GrpcMassClient, mass::MassClient,
@@ -415,9 +413,8 @@ struct ClientOptions {
     max_pending_messages: usize,
 
     /// The WebAssembly runtime to use.
-    #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-    #[structopt(long, default_value)]
-    wasm_runtime: WasmRuntime,
+    #[structopt(long)]
+    wasm_runtime: Option<WasmRuntime>,
 
     /// Subcommand.
     #[structopt(subcommand)]
