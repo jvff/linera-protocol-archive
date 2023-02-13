@@ -38,7 +38,7 @@ async fn test_memory_handle_certificates_to_create_application() -> Result<(), a
 #[test(tokio::test)]
 async fn test_rocksdb_handle_certificates_to_create_application() -> Result<(), anyhow::Error> {
     let dir = tempfile::TempDir::new().unwrap();
-    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), WasmRuntime::default());
+    let client = RocksdbStoreClient::new(dir.path().to_path_buf(), Some(WasmRuntime::default()));
     run_test_handle_certificates_to_create_application(client).await
 }
 
