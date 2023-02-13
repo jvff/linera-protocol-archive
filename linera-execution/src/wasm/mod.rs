@@ -27,13 +27,11 @@ use self::{
 use crate::{
     ApplicationCallResult, Bytecode, CalleeContext, EffectContext, ExecutionError,
     OperationContext, QueryContext, QueryableStorage, RawExecutionResult, SessionCallResult,
-    SessionId, UserApplication, WritableStorage,
+    SessionId, UserApplication, WasmRuntime, WritableStorage,
 };
 use async_trait::async_trait;
 use std::{io, path::Path};
 use thiserror::Error;
-
-pub use self::runtime::WasmRuntime;
 
 /// A user application in a compiled WebAssembly module.
 pub struct WasmApplication {
@@ -207,7 +205,7 @@ impl UserApplication for WasmApplication {
 /// This assumes that the current directory is one of the crates.
 #[cfg(any(test, feature = "test"))]
 pub mod test {
-    use super::runtime::WasmRuntime;
+    use super::WasmRuntime;
     use crate::WasmApplication;
 
     fn build_applications() -> Result<(), std::io::Error> {

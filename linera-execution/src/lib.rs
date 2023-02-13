@@ -25,7 +25,7 @@ pub use system::{
 ))]
 pub use wasm::test as wasm_test;
 #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-pub use wasm::{WasmApplication, WasmExecutionError, WasmRuntime};
+pub use wasm::{WasmApplication, WasmExecutionError};
 #[cfg(any(test, feature = "test"))]
 pub use {applications::ApplicationRegistry, system::SystemExecutionState};
 
@@ -33,6 +33,7 @@ use async_graphql::SimpleObject;
 use async_trait::async_trait;
 use custom_debug_derive::Debug;
 use dashmap::DashMap;
+use derive_more::Display;
 use linera_base::{
     crypto::CryptoHash,
     data_types::{BlockHeight, ChainId, EffectId, Timestamp},
@@ -40,7 +41,7 @@ use linera_base::{
 };
 use linera_views::{common::Batch, views::ViewError};
 use serde::{Deserialize, Serialize};
-use std::{io, path::Path, sync::Arc};
+use std::{io, path::Path, str::FromStr, sync::Arc};
 use thiserror::Error;
 
 /// An implementation of [`UserApplication`]
@@ -585,3 +586,35 @@ impl std::fmt::Debug for Bytecode {
         f.debug_tuple("Bytecode").finish()
     }
 }
+
+/// The runtime to use for running the application.
+#[derive(Clone, Copy, Debug, Default, Display)]
+pub enum WasmRuntime {
+    #[cfg(feature = "wasmer")]
+    #[cfg_attr(not(feature = "wasmtime"), default)]
+    #[display(fmt = "wasmer")]
+    Wasmer,
+    #[cfg(feature = "wasmtime")]
+    #[default]
+    #[display(fmt = "wasmtime")]
+    Wasmtime,
+}
+
+impl FromStr for WasmRuntime {
+    type Err = InvalidWasmRuntime;
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        match string {
+            #[cfg(feature = "wasmer")]
+            "wasmer" => Ok(WasmRuntime::Wasmer),
+            #[cfg(feature = "wasmtime")]
+            "wasmtime" => Ok(WasmRuntime::Wasmtime),
+            unknown => Err(InvalidWasmRuntime(unknown.to_owned())),
+        }
+    }
+}
+
+/// Attempt to create an invalid [`WasmRuntime`] instance from a string.
+#[derive(Clone, Debug, Error)]
+#[error("{0:?} is not a valid WebAssembly runtime")]
+pub struct InvalidWasmRuntime(String);
