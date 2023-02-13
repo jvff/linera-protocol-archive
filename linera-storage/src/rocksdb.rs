@@ -23,6 +23,7 @@ struct RocksdbStore {
     db: RocksdbClient,
     guards: ChainGuards,
     user_applications: Arc<DashMap<UserApplicationId, UserApplicationCode>>,
+    #[cfg_attr(not(any(feature = "wasmer", feature = "wasmtime")), allow(dead_code))]
     wasm_runtime: Option<WasmRuntime>,
 }
 
