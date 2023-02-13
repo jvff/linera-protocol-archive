@@ -950,16 +950,10 @@ async fn main() {
         }
         command => {
             let genesis_config = context.genesis_config.clone();
-            #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
             let wasm_runtime = options.wasm_runtime;
             options
                 .storage_config
-                .run_with_storage(
-                    &genesis_config,
-                    #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-                    wasm_runtime,
-                    Job(context, command),
-                )
+                .run_with_storage(&genesis_config, wasm_runtime, Job(context, command))
                 .await
                 .unwrap()
         }
