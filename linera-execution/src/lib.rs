@@ -595,7 +595,7 @@ impl std::fmt::Debug for Bytecode {
 
 /// The runtime to use for running the application.
 #[derive(Clone, Copy, Display)]
-#[cfg_attr(any(feature = "wasmtime", feature = "wasmer"), derive(Default, Debug))]
+#[cfg_attr(any(feature = "wasmtime", feature = "wasmer"), derive(Debug, Default))]
 pub enum WasmRuntime {
     #[cfg(feature = "wasmer")]
     #[cfg_attr(not(feature = "wasmtime"), default)]
