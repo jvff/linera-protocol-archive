@@ -97,7 +97,7 @@ impl UserApplication for WasmApplication {
             }
             #[cfg(feature = "wasmer")]
             WasmRuntime::Wasmer => {
-                self.prepare_contract_runtime_with_wasmtime(storage)?
+                self.prepare_contract_runtime_with_wasmer(storage)?
                     .initialize(context, argument)
                     .await?
             }
@@ -120,7 +120,7 @@ impl UserApplication for WasmApplication {
             }
             #[cfg(feature = "wasmer")]
             WasmRuntime::Wasmer => {
-                self.prepare_contract_runtime_with_wasmtime(storage)?
+                self.prepare_contract_runtime_with_wasmer(storage)?
                     .execute_operation(context, operation)
                     .await?
             }
@@ -143,7 +143,7 @@ impl UserApplication for WasmApplication {
             }
             #[cfg(feature = "wasmer")]
             WasmRuntime::Wasmer => {
-                self.prepare_contract_runtime_with_wasmtime(storage)?
+                self.prepare_contract_runtime_with_wasmer(storage)?
                     .execute_effect(context, effect)
                     .await?
             }
@@ -167,7 +167,7 @@ impl UserApplication for WasmApplication {
             }
             #[cfg(feature = "wasmer")]
             WasmRuntime::Wasmer => {
-                self.prepare_contract_runtime_with_wasmtime(storage)?
+                self.prepare_contract_runtime_with_wasmer(storage)?
                     .call_application(context, argument, forwarded_sessions)
                     .await?
             }
@@ -199,7 +199,7 @@ impl UserApplication for WasmApplication {
             }
             #[cfg(feature = "wasmer")]
             WasmRuntime::Wasmer => {
-                self.prepare_contract_runtime_with_wasmtime(storage)?
+                self.prepare_contract_runtime_with_wasmer(storage)?
                     .call_session(
                         context,
                         session_kind,
@@ -228,7 +228,7 @@ impl UserApplication for WasmApplication {
             }
             #[cfg(feature = "wasmer")]
             WasmRuntime::Wasmer => {
-                self.prepare_service_runtime_with_wasmtime(storage)?
+                self.prepare_service_runtime_with_wasmer(storage)?
                     .query_application(context, argument)
                     .await?
             }
