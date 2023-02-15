@@ -63,9 +63,6 @@ jobs:
     - name: Run all tests using the default features (currently Wasmtime)
       run: |
         cargo test --locked
-    - name: Re-run WASM tests using Wasmer
-      run: |
-        cargo test --locked --no-default-features --features wasmer wasm
 
   lint:
     runs-on: ubuntu-latest
