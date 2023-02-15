@@ -401,6 +401,18 @@ impl StoreBuilder for MakeMemoryStoreClient {
 #[derive(Default)]
 pub struct MakeRocksdbStoreClient {
     temp_dirs: Vec<tempfile::TempDir>,
+    wasm_runtime: Option<WasmRuntime>,
+}
+
+impl MakeRocksdbStoreClient {
+    /// Creates a [`MakeRocksdbStoreClient`] that uses the specified [`WasmRuntime`] to run WASM
+    /// applications.
+    pub fn with_wasm_runtime(wasm_runtime: WasmRuntime) -> Self {
+        MakeRocksdbStoreClient {
+            wasm_runtime: Some(wasm_runtime),
+            ..MakeRocksdbStoreClient::default()
+        }
+    }
 }
 
 #[async_trait]
@@ -411,7 +423,7 @@ impl StoreBuilder for MakeRocksdbStoreClient {
         let dir = tempfile::TempDir::new()?;
         let path = dir.path().to_path_buf();
         self.temp_dirs.push(dir);
-        Ok(RocksdbStoreClient::new(path, None))
+        Ok(RocksdbStoreClient::new(path, self.wasm_runtime))
     }
 }
 
@@ -419,6 +431,18 @@ impl StoreBuilder for MakeRocksdbStoreClient {
 pub struct MakeDynamoDbStoreClient {
     instance_counter: usize,
     localstack: Option<LocalStackTestContext>,
+    wasm_runtime: Option<WasmRuntime>,
+}
+
+impl MakeDynamoDbStoreClient {
+    /// Creates a [`MakeDynamoDbStoreClient`] that uses the specified [`WasmRuntime`] to run WASM
+    /// applications.
+    pub fn with_wasm_runtime(wasm_runtime: WasmRuntime) -> Self {
+        MakeDynamoDbStoreClient {
+            wasm_runtime: Some(wasm_runtime),
+            ..MakeDynamoDbStoreClient::default()
+        }
+    }
 }
 
 #[async_trait]
@@ -432,7 +456,7 @@ impl StoreBuilder for MakeDynamoDbStoreClient {
         let config = self.localstack.as_ref().unwrap().dynamo_db_config();
         let table = format!("linera{}", self.instance_counter).parse()?;
         self.instance_counter += 1;
-        let (store, _) = DynamoDbStoreClient::from_config(config, table, None).await?;
+        let (store, _) = DynamoDbStoreClient::from_config(config, table, self.wasm_runtime).await?;
         Ok(store)
     }
 }
