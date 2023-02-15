@@ -33,7 +33,11 @@ use crate::{CallResult, ExecutionError, QueryableStorage, SessionId, WritableSto
 use linera_views::common::Batch;
 use std::{marker::PhantomData, mem, sync::Arc, task::Poll};
 use tokio::sync::Mutex;
-use wasmer::{imports, Module, RuntimeError, Store};
+use wasmer::{
+    imports, wasmparser::Operator, CompilerConfig, Cranelift, EngineBuilder, Module, RuntimeError,
+    Store,
+};
+use wasmer_middlewares::Metering;
 use wit_bindgen_host_wasmer_rust::Le;
 
 /// Type representing the [Wasmer](https://wasmer.io/) contract runtime.
@@ -69,7 +73,11 @@ impl WasmApplication {
         &self,
         storage: &'storage dyn WritableStorage,
     ) -> Result<WasmRuntimeContext<Contract<'storage>>, WasmExecutionError> {
-        let mut store = Store::default();
+        let metering = Arc::new(Metering::new(10_000_000, Self::operation_cost));
+        let mut compiler_config = Cranelift::default();
+        compiler_config.push_middleware(metering);
+
+        let mut store = Store::new(EngineBuilder::new(compiler_config));
         let module = Module::new(&store, &self.contract_bytecode)
             .map_err(wit_bindgen_host_wasmer_rust::anyhow::Error::from)?;
         let mut imports = imports! {};
@@ -123,6 +131,17 @@ impl WasmApplication {
             store,
             _storage_guard: storage_guard,
         })
+    }
+
+    /// Calculates the fuel cost of a WebAssembly [`Operator`].
+    ///
+    /// The rules try to follow the hardcoded [rules in the Wasmtime runtime
+    /// engine](https://docs.rs/wasmtime/5.0.0/wasmtime/struct.Store.html#method.add_fuel).
+    fn operation_cost(operator: &Operator) -> u64 {
+        match operator {
+            Operator::Nop | Operator::Drop | Operator::Block { .. } | Operator::Loop { .. } => 0,
+            _ => 1,
+        }
     }
 }
 
