@@ -51,8 +51,8 @@ pub struct Contract<'storage> {
 
 impl<'storage> ApplicationRuntimeContext for Contract<'storage> {
     type Store = Store;
-    type StorageGuard = StorageGuard<'storage, &'static dyn WritableStorage>;
     type Error = RuntimeError;
+    type Extra = StorageGuard<'storage, &'static dyn WritableStorage>;
 }
 
 /// Type representing the [Wasmer](https://wasmer.io/) service runtime.
@@ -63,8 +63,8 @@ pub struct Service<'storage> {
 
 impl<'storage> ApplicationRuntimeContext for Service<'storage> {
     type Store = Store;
-    type StorageGuard = StorageGuard<'storage, &'static dyn QueryableStorage>;
     type Error = RuntimeError;
+    type Extra = StorageGuard<'storage, &'static dyn QueryableStorage>;
 }
 
 impl WasmApplication {
@@ -102,7 +102,7 @@ impl WasmApplication {
             context_forwarder,
             application,
             store,
-            _storage_guard: storage_guard,
+            extra: storage_guard,
         })
     }
 
@@ -132,7 +132,7 @@ impl WasmApplication {
             context_forwarder,
             application,
             store,
-            _storage_guard: storage_guard,
+            extra: storage_guard,
         })
     }
 

@@ -170,8 +170,8 @@ where
     InnerFuture: GuestFutureInterface<Application> + Unpin,
     Application: ApplicationRuntimeContext + Unpin,
     Application::Store: Unpin,
-    Application::StorageGuard: Unpin,
     Application::Error: Unpin,
+    Application::Extra: Unpin,
 {
     type Output = Result<InnerFuture::Output, WasmExecutionError>;
 
