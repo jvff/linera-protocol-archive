@@ -407,10 +407,10 @@ pub struct MakeRocksdbStoreClient {
 impl MakeRocksdbStoreClient {
     /// Creates a [`MakeRocksdbStoreClient`] that uses the specified [`WasmRuntime`] to run WASM
     /// applications.
-    #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-    pub fn with_wasm_runtime(wasm_runtime: WasmRuntime) -> Self {
+    #[allow(dead_code)]
+    pub fn with_wasm_runtime(wasm_runtime: impl Into<Option<WasmRuntime>>) -> Self {
         MakeRocksdbStoreClient {
-            wasm_runtime: Some(wasm_runtime),
+            wasm_runtime: wasm_runtime.into(),
             ..MakeRocksdbStoreClient::default()
         }
     }
@@ -438,10 +438,10 @@ pub struct MakeDynamoDbStoreClient {
 impl MakeDynamoDbStoreClient {
     /// Creates a [`MakeDynamoDbStoreClient`] that uses the specified [`WasmRuntime`] to run WASM
     /// applications.
-    #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-    pub fn with_wasm_runtime(wasm_runtime: WasmRuntime) -> Self {
+    #[allow(dead_code)]
+    pub fn with_wasm_runtime(wasm_runtime: impl Into<Option<WasmRuntime>>) -> Self {
         MakeDynamoDbStoreClient {
-            wasm_runtime: Some(wasm_runtime),
+            wasm_runtime: wasm_runtime.into(),
             ..MakeDynamoDbStoreClient::default()
         }
     }
