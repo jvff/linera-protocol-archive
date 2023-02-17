@@ -2,8 +2,6 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(feature = "aws")]
-use linera_views::test_utils::LocalStackTestContext;
 use std::{io::Write, process::Command, sync::Mutex};
 use tempfile::tempdir;
 
@@ -91,6 +89,7 @@ where
 #[cfg(feature = "aws")]
 mod aws_test {
     use super::*;
+    use linera_views::test_utils::LocalStackTestContext;
 
     const ROCKSDB_STORAGE: &str = "--storage rocksdb:server_\"$I\"_\"$J\".db";
     const DYNAMO_DB_STORAGE: &str = "--storage dynamodb:server-\"$I\":localstack";
