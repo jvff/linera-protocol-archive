@@ -8,9 +8,10 @@ use super::{
     common::{ApplicationRuntimeContext, WasmRuntimeContext},
     WasmExecutionError,
 };
-use futures::future::BoxFuture;
+use futures::{future::BoxFuture, ready};
 use std::{
     any::type_name,
+    collections::VecDeque,
     fmt::{self, Debug, Formatter},
     future::Future,
     marker::PhantomData,
@@ -29,24 +30,12 @@ use tokio::sync::{Mutex, Notify};
 /// the queue. This is achieved using something similar to a linked-list of notifications, where
 /// every future only completes after the previous future has notified it. When a future completes,
 /// it also notifies the next future in the queue, allowing it complete.
+#[derive(Default)]
 pub struct HostFutureQueue {
-    last_entry: Arc<Notify>,
+    queue: VecDeque<HostFutureQueueEntry>,
 }
 
 impl HostFutureQueue {
-    /// Create a new [`HostFutureQueue`]
-    ///
-    /// Creates the initial notifier for the first future to be added. This is the only notifier
-    /// that is created and immediately notified, allowing the first future of the queue to
-    /// complete as soon as it is ready.
-    pub fn new() -> Self {
-        let last_entry = Arc::new(Notify::new());
-
-        last_entry.notify_one();
-
-        HostFutureQueue { last_entry }
-    }
-
     /// Add a `future` to the [`HostFutureQueue`].
     ///
     /// Returns a [`HostFuture`] that can be passed to the guest WASM module, and that will only be
@@ -59,18 +48,43 @@ impl HostFutureQueue {
     where
         Output: Send,
     {
-        let next_future = Arc::new(Notify::new());
-        let previous_future = mem::replace(&mut self.last_entry, next_future.clone());
+        let work = tokio::spawn(future);
+        let entry = HostFutureQueueEntry::default();
+
+        self.queue.push_back(entry.clone());
 
         HostFuture::new(async move {
-            let result = future.await;
+            log::error!("Awaiting work");
+            let result = work.await.expect("Host future panicked");
+            log::error!("Notifying that work is complete");
+            entry.work_completed.notify_one();
 
-            previous_future.notified().await;
-            next_future.notify_one();
-
+            log::error!("Waiting to be cleared to complete");
+            entry.cleared_to_complete.notified().await;
+            log::error!("Completing");
             result
         })
     }
+
+    pub fn prepare_for_poll(&mut self) -> impl Future<Output = ()> {
+        let maybe_next_future = self.queue.pop_front();
+
+        async move {
+            if let Some(next_future) = maybe_next_future {
+                next_future.work_completed.notified().await;
+                next_future.cleared_to_complete.notify_one();
+            }
+        }
+    }
+}
+
+/// An entry in the [`HostFutureQueue`].
+#[derive(Clone, Default)]
+pub struct HostFutureQueueEntry {
+    /// Notifier for when the [`HostFuture`] has finished its work.
+    work_completed: Arc<Notify>,
+    /// Notifier for when the [`HostFuture`] is cleared to return [`Poll::Ready`].
+    cleared_to_complete: Arc<Notify>,
 }
 
 /// A host future that can be called by a WASM guest module.
@@ -138,6 +152,9 @@ where
 
     /// The WASM future type and the runtime context to poll it.
     Active {
+        /// An active future that must complete before the guest future is polled.
+        preparation: Option<BoxFuture<'static, ()>>,
+
         /// A WIT resource type implementing a [`GuestFutureInterface`] so that it can be polled.
         future: Future,
 
@@ -156,10 +173,14 @@ where
     /// that it can be returned when the [`GuestFuture`] is polled.
     pub fn new(
         creation_result: Result<Future, Application::Error>,
-        context: WasmRuntimeContext<Application>,
+        mut context: WasmRuntimeContext<Application>,
     ) -> Self {
         match creation_result {
-            Ok(future) => GuestFuture::Active { future, context },
+            Ok(future) => GuestFuture::Active {
+                preparation: Some(Application::prepare_for_poll(&mut context)),
+                future,
+                context,
+            },
             Err(error) => GuestFuture::FailedToCreate(Some(error)),
         }
     }
@@ -187,9 +208,34 @@ where
                 let error = runtime_error.take().expect("Unexpected poll after error");
                 Poll::Ready(Err(error.into()))
             }
-            GuestFuture::Active { future, context } => {
-                let _context_guard = context.context_forwarder.forward(task_context);
-                future.poll(&context.application, &mut context.store)
+            GuestFuture::Active {
+                preparation,
+                future,
+                context,
+            } => {
+                log::error!("GuestFuture::poll");
+                if let Some(incomplete_preparation) = preparation {
+                    ready!(incomplete_preparation.as_mut().poll(task_context));
+                    preparation.take();
+                }
+                log::error!("Prepared");
+
+                let result = {
+                    let _context_guard = context.context_forwarder.forward(task_context);
+                    future.poll(&context.application, &mut context.store)
+                };
+
+                if result.is_pending() {
+                    let mut next_poll_preparation = Application::prepare_for_poll(context);
+
+                    *preparation = next_poll_preparation
+                        .as_mut()
+                        .poll(task_context)
+                        .is_pending()
+                        .then_some(next_poll_preparation);
+                }
+
+                result
             }
         }
     }

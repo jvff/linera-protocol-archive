@@ -11,6 +11,7 @@ use crate::{
     system::Balance, ApplicationCallResult, CalleeContext, EffectContext, OperationContext,
     QueryContext, RawExecutionResult, SessionCallResult, SessionId,
 };
+use futures::future::{self, BoxFuture, FutureExt};
 use std::future::Future;
 
 /// Types that are specific to the context of an application ready to be executedy by a WebAssembly
@@ -24,6 +25,11 @@ pub trait ApplicationRuntimeContext: Sized {
 
     /// Extra runtime-specific data.
     type Extra: Send + Unpin;
+
+    /// Prepares the application to be polled.
+    fn prepare_for_poll(_context: &mut WasmRuntimeContext<Self>) -> BoxFuture<'static, ()> {
+        future::ready(()).boxed()
+    }
 
     /// Finalizes the runtime context, running any extra clean-up operations.
     fn finalize(_context: &mut WasmRuntimeContext<Self>) {}

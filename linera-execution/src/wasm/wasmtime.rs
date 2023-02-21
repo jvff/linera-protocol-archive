@@ -34,6 +34,7 @@ use super::{
     WasmApplication, WasmExecutionError,
 };
 use crate::{CallResult, ExecutionError, QueryableStorage, SessionId, WritableStorage};
+use futures::future::{BoxFuture, FutureExt};
 use linera_views::common::Batch;
 use std::task::Poll;
 use wasmtime::{Config, Engine, Linker, Module, Store, Trap};
@@ -51,6 +52,16 @@ impl<'storage> ApplicationRuntimeContext for Contract<'storage> {
     type Store = Store<ContractState<'storage>>;
     type Error = Trap;
     type Extra = ();
+
+    fn prepare_for_poll(context: &mut WasmRuntimeContext<Self>) -> BoxFuture<'static, ()> {
+        context
+            .store
+            .data_mut()
+            .system_api
+            .future_queue
+            .prepare_for_poll()
+            .boxed()
+    }
 
     fn finalize(context: &mut WasmRuntimeContext<Self>) {
         let storage = context.store.data().system_api.storage;
@@ -359,7 +370,7 @@ impl<S> SystemApi<S> {
         SystemApi {
             context,
             storage,
-            future_queue: HostFutureQueue::new(),
+            future_queue: HostFutureQueue::default(),
         }
     }
 }
@@ -400,6 +411,7 @@ impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
     }
 
     fn load_poll(&mut self, future: &Self::Load) -> writable_system::PollLoad {
+        log::error!("load_poll");
         use writable_system::PollLoad;
         match future.poll(&mut self.context) {
             Poll::Pending => PollLoad::Pending,
@@ -414,6 +426,7 @@ impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
     }
 
     fn load_and_lock_poll(&mut self, future: &Self::LoadAndLock) -> writable_system::PollLoad {
+        log::error!("lock_and_load_poll");
         use writable_system::PollLoad;
         match future.poll(&mut self.context) {
             Poll::Pending => PollLoad::Pending,
@@ -429,10 +442,11 @@ impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
     }
 
     fn lock_new(&mut self) -> Self::Lock {
-        HostFuture::new(self.storage.lock_view_user_state())
+        self.future_queue.add(self.storage.lock_view_user_state())
     }
 
     fn lock_poll(&mut self, future: &Self::Lock) -> writable_system::PollLock {
+        log::error!("lock_poll");
         use writable_system::PollLock;
         match future.poll(&mut self.context) {
             Poll::Pending => PollLock::Pending,
@@ -442,13 +456,15 @@ impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
     }
 
     fn read_key_bytes_new(&mut self, key: &[u8]) -> Self::ReadKeyBytes {
-        HostFuture::new(self.storage.read_key_bytes(key.to_owned()))
+        self.future_queue
+            .add(self.storage.read_key_bytes(key.to_owned()))
     }
 
     fn read_key_bytes_poll(
         &mut self,
         future: &Self::ReadKeyBytes,
     ) -> writable_system::PollReadKeyBytes {
+        log::error!("read_key_bytes_poll");
         use writable_system::PollReadKeyBytes;
         match future.poll(&mut self.context) {
             Poll::Pending => PollReadKeyBytes::Pending,
@@ -458,10 +474,12 @@ impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
     }
 
     fn find_keys_new(&mut self, key_prefix: &[u8]) -> Self::FindKeys {
-        HostFuture::new(self.storage.find_keys_by_prefix(key_prefix.to_owned()))
+        self.future_queue
+            .add(self.storage.find_keys_by_prefix(key_prefix.to_owned()))
     }
 
     fn find_keys_poll(&mut self, future: &Self::FindKeys) -> writable_system::PollFindKeys {
+        log::error!("find_keys_poll");
         use writable_system::PollFindKeys;
         match future.poll(&mut self.context) {
             Poll::Pending => PollFindKeys::Pending,
@@ -471,7 +489,7 @@ impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
     }
 
     fn find_key_values_new(&mut self, key_prefix: &[u8]) -> Self::FindKeyValues {
-        HostFuture::new(
+        self.future_queue.add(
             self.storage
                 .find_key_values_by_prefix(key_prefix.to_owned()),
         )
@@ -481,6 +499,7 @@ impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
         &mut self,
         future: &Self::FindKeyValues,
     ) -> writable_system::PollFindKeyValues {
+        log::error!("find_key_values_poll");
         use writable_system::PollFindKeyValues;
         match future.poll(&mut self.context) {
             Poll::Pending => PollFindKeyValues::Pending,
@@ -505,10 +524,12 @@ impl<'storage> WritableSystem for SystemApi<&'storage dyn WritableStorage> {
                 }
             }
         }
-        HostFuture::new(self.storage.write_batch_and_unlock(batch))
+        self.future_queue
+            .add(self.storage.write_batch_and_unlock(batch))
     }
 
     fn write_batch_poll(&mut self, future: &Self::WriteBatch) -> writable_system::PollWriteBatch {
+        log::error!("write_batch_poll");
         use writable_system::PollWriteBatch;
         match future.poll(&mut self.context) {
             Poll::Pending => PollWriteBatch::Pending,

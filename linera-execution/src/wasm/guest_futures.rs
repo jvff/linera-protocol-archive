@@ -40,14 +40,18 @@ macro_rules! impl_guest_future_interface {
                     application: &A,
                     store: &mut A::Store,
                 ) -> Poll<Result<Self::Output, WasmExecutionError>> {
-                    match application.$poll_func(store, self) {
+                    log::error!("{}::poll", stringify!($future));
+                    let r = match application.$poll_func(store, self) {
                         Ok($poll_type::Ready(Ok(result))) => Poll::Ready(Ok(result.into())),
                         Ok($poll_type::Ready(Err(message))) => {
                             Poll::Ready(Err(WasmExecutionError::UserApplication(message)))
                         }
                         Ok($poll_type::Pending) => Poll::Pending,
                         Err(error) => Poll::Ready(Err(error.into())),
-                    }
+                    };
+                    log::error!("{}::poll -> {}", stringify!($future), if let Poll::Ready(_) = &r {
+                    "Ready" } else { "Pending" });
+                    r
                 }
             }
         )*

@@ -30,8 +30,9 @@ use super::{
     WasmApplication, WasmExecutionError,
 };
 use crate::{CallResult, ExecutionError, QueryableStorage, SessionId, WritableStorage};
+use futures::future::{BoxFuture, FutureExt};
 use linera_views::common::Batch;
-use std::{marker::PhantomData, mem, sync::Arc, task::Poll};
+use std::{future::Future, marker::PhantomData, mem, sync::Arc, task::Poll};
 use tokio::sync::Mutex;
 use wasmer::{
     imports, wasmparser::Operator, CompilerConfig, Cranelift, EngineBuilder, Instance, Module,
@@ -53,6 +54,16 @@ impl<'storage> ApplicationRuntimeContext for Contract<'storage> {
     type Store = Store;
     type Error = RuntimeError;
     type Extra = WasmerContractExtra<'storage>;
+
+    fn prepare_for_poll(context: &mut WasmRuntimeContext<Self>) -> BoxFuture<'static, ()> {
+        context
+            .extra
+            .future_queue
+            .try_lock()
+            .expect("Unexpected concurrent access to future queue")
+            .prepare_for_poll()
+            .boxed()
+    }
 
     fn finalize(context: &mut WasmRuntimeContext<Self>) {
         let storage_guard = context
@@ -105,7 +116,7 @@ impl WasmApplication {
             .map_err(wit_bindgen_host_wasmer_rust::anyhow::Error::from)?;
         let mut imports = imports! {};
         let context_forwarder = ContextForwarder::default();
-        let (system_api, storage_guard) =
+        let (system_api, storage_guard, future_queue) =
             SystemApi::new_writable(context_forwarder.clone(), storage);
         let system_api_setup =
             writable_system::add_to_imports(&mut store, &mut imports, system_api);
@@ -125,6 +136,7 @@ impl WasmApplication {
             extra: WasmerContractExtra {
                 instance,
                 storage_guard,
+                future_queue,
             },
         })
     }
@@ -315,7 +327,7 @@ impl<'storage> common::Service for Service<'storage> {
 pub struct SystemApi<S> {
     context: ContextForwarder,
     storage: Arc<Mutex<Option<S>>>,
-    future_queue: HostFutureQueue,
+    future_queue: Arc<Mutex<HostFutureQueue>>,
 }
 
 impl SystemApi<&'static dyn WritableStorage> {
@@ -334,7 +346,11 @@ impl SystemApi<&'static dyn WritableStorage> {
     pub fn new_writable(
         context: ContextForwarder,
         storage: &dyn WritableStorage,
-    ) -> (Self, StorageGuard<'_, &'static dyn WritableStorage>) {
+    ) -> (
+        Self,
+        StorageGuard<'_, &'static dyn WritableStorage>,
+        Arc<Mutex<HostFutureQueue>>,
+    ) {
         let storage_without_lifetime = unsafe { mem::transmute(storage) };
         let storage = Arc::new(Mutex::new(Some(storage_without_lifetime)));
 
@@ -343,13 +359,16 @@ impl SystemApi<&'static dyn WritableStorage> {
             _lifetime: PhantomData,
         };
 
+        let future_queue = Arc::new(Mutex::new(HostFutureQueue::default()));
+
         (
             SystemApi {
                 context,
                 storage,
-                future_queue: HostFutureQueue::new(),
+                future_queue: future_queue.clone(),
             },
             guard,
+            future_queue,
         )
     }
 }
@@ -372,7 +391,7 @@ impl SystemApi<&'static dyn QueryableStorage> {
             SystemApi {
                 context,
                 storage,
-                future_queue: HostFutureQueue::new(),
+                future_queue: Arc::default(),
             },
             guard,
         )
@@ -395,6 +414,21 @@ impl<S: Copy> SystemApi<S> {
             .expect("Unexpected concurrent storage access by application")
             .as_ref()
             .expect("Application called storage after it should have stopped")
+    }
+
+    /// Queues a host future called by the guest so that its results are passed to the guest
+    /// deterministicly.
+    fn queue_future<Output>(
+        &mut self,
+        future: impl Future<Output = Output> + Send + 'static,
+    ) -> HostFuture<'static, Output>
+    where
+        Output: Send,
+    {
+        self.future_queue
+            .try_lock()
+            .expect("Unexpected concurrent access to future queue")
+            .add(future)
     }
 }
 
@@ -430,10 +464,11 @@ impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage>
     }
 
     fn load_new(&mut self) -> Self::Load {
-        self.future_queue.add(self.storage().try_read_my_state())
+        self.queue_future(self.storage().try_read_my_state())
     }
 
     fn load_poll(&mut self, future: &Self::Load) -> writable_system::PollLoad {
+        log::error!("load_poll");
         use writable_system::PollLoad;
         match future.poll(&mut self.context) {
             Poll::Pending => PollLoad::Pending,
@@ -443,11 +478,11 @@ impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage>
     }
 
     fn load_and_lock_new(&mut self) -> Self::LoadAndLock {
-        self.future_queue
-            .add(self.storage().try_read_and_lock_my_state())
+        self.queue_future(self.storage().try_read_and_lock_my_state())
     }
 
     fn load_and_lock_poll(&mut self, future: &Self::LoadAndLock) -> writable_system::PollLoad {
+        log::error!("load_and_lock_poll");
         use writable_system::PollLoad;
         match future.poll(&mut self.context) {
             Poll::Pending => PollLoad::Pending,
@@ -463,10 +498,11 @@ impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage>
     }
 
     fn lock_new(&mut self) -> Self::Lock {
-        HostFuture::new(self.storage().lock_view_user_state())
+        self.queue_future(self.storage().lock_view_user_state())
     }
 
     fn lock_poll(&mut self, future: &Self::Lock) -> writable_system::PollLock {
+        log::error!("lock_poll");
         use writable_system::PollLock;
         match future.poll(&mut self.context) {
             Poll::Pending => PollLock::Pending,
@@ -476,13 +512,14 @@ impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage>
     }
 
     fn read_key_bytes_new(&mut self, key: &[u8]) -> Self::ReadKeyBytes {
-        HostFuture::new(self.storage().read_key_bytes(key.to_owned()))
+        self.queue_future(self.storage().read_key_bytes(key.to_owned()))
     }
 
     fn read_key_bytes_poll(
         &mut self,
         future: &Self::ReadKeyBytes,
     ) -> writable_system::PollReadKeyBytes {
+        log::error!("read_key_bytes_poll");
         use writable_system::PollReadKeyBytes;
         match future.poll(&mut self.context) {
             Poll::Pending => PollReadKeyBytes::Pending,
@@ -492,10 +529,11 @@ impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage>
     }
 
     fn find_keys_new(&mut self, key_prefix: &[u8]) -> Self::FindKeys {
-        HostFuture::new(self.storage().find_keys_by_prefix(key_prefix.to_owned()))
+        self.queue_future(self.storage().find_keys_by_prefix(key_prefix.to_owned()))
     }
 
     fn find_keys_poll(&mut self, future: &Self::FindKeys) -> writable_system::PollFindKeys {
+        log::error!("find_keys_poll");
         use writable_system::PollFindKeys;
         match future.poll(&mut self.context) {
             Poll::Pending => PollFindKeys::Pending,
@@ -505,7 +543,7 @@ impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage>
     }
 
     fn find_key_values_new(&mut self, key_prefix: &[u8]) -> Self::FindKeyValues {
-        HostFuture::new(
+        self.queue_future(
             self.storage()
                 .find_key_values_by_prefix(key_prefix.to_owned()),
         )
@@ -515,6 +553,7 @@ impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage>
         &mut self,
         future: &Self::FindKeyValues,
     ) -> writable_system::PollFindKeyValues {
+        log::error!("find_key_values_poll");
         use writable_system::PollFindKeyValues;
         match future.poll(&mut self.context) {
             Poll::Pending => PollFindKeyValues::Pending,
@@ -539,10 +578,11 @@ impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage>
                 }
             }
         }
-        HostFuture::new(self.storage().write_batch_and_unlock(batch))
+        self.queue_future(self.storage().write_batch_and_unlock(batch))
     }
 
     fn write_batch_poll(&mut self, future: &Self::WriteBatch) -> writable_system::PollWriteBatch {
+        log::error!("write_batch_poll");
         use writable_system::PollWriteBatch;
         match future.poll(&mut self.context) {
             Poll::Pending => PollWriteBatch::Pending,
@@ -566,7 +606,7 @@ impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage>
             .collect();
         let argument = Vec::from(argument);
 
-        self.future_queue.add(async move {
+        self.queue_future(async move {
             storage
                 .try_call_application(
                     authenticated,
@@ -605,7 +645,7 @@ impl writable_system::WritableSystem for SystemApi<&'static dyn WritableStorage>
             .collect();
         let argument = Vec::from(argument);
 
-        self.future_queue.add(async move {
+        self.queue_future(async move {
             storage
                 .try_call_session(authenticated, session.into(), &argument, forwarded_sessions)
                 .await
@@ -659,7 +699,7 @@ impl queryable_system::QueryableSystem for SystemApi<&'static dyn QueryableStora
     }
 
     fn load_new(&mut self) -> Self::Load {
-        self.future_queue.add(self.storage().try_read_my_state())
+        self.queue_future(self.storage().try_read_my_state())
     }
 
     fn load_poll(&mut self, future: &Self::Load) -> queryable_system::PollLoad {
@@ -753,7 +793,7 @@ impl queryable_system::QueryableSystem for SystemApi<&'static dyn QueryableStora
         let storage = self.storage();
         let argument = Vec::from(argument);
 
-        self.future_queue.add(async move {
+        self.queue_future(async move {
             storage
                 .try_query_application(application.into(), &argument)
                 .await
@@ -779,8 +819,9 @@ impl queryable_system::QueryableSystem for SystemApi<&'static dyn QueryableStora
 
 /// Extra parameters necessary when cleaning up after contract execution.
 pub struct WasmerContractExtra<'storage> {
-    storage_guard: StorageGuard<'storage, &'static dyn WritableStorage>,
     instance: Instance,
+    storage_guard: StorageGuard<'storage, &'static dyn WritableStorage>,
+    future_queue: Arc<Mutex<HostFutureQueue>>,
 }
 
 /// A guard to unsure that the [`WritableStorage`] trait object isn't called after it's no longer
