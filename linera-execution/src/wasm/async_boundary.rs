@@ -8,7 +8,13 @@ use super::{
     common::{ApplicationRuntimeContext, WasmRuntimeContext},
     WasmExecutionError,
 };
-use futures::future::BoxFuture;
+use futures::{
+    channel::{mpsc, oneshot},
+    future::{BoxFuture, FutureExt},
+    ready,
+    sink::SinkExt,
+    stream::{FuturesOrdered, Stream, StreamExt},
+};
 use std::{
     any::type_name,
     fmt::{self, Debug, Formatter},
@@ -19,7 +25,7 @@ use std::{
     sync::Arc,
     task::{Context, Poll},
 };
-use tokio::sync::{Mutex, Notify};
+use tokio::sync::Mutex;
 
 /// A queue of host futures called by a WASM guest module that finish in the same order they were
 /// created.
@@ -29,46 +35,96 @@ use tokio::sync::{Mutex, Notify};
 /// the queue. This is achieved using something similar to a linked-list of notifications, where
 /// every future only completes after the previous future has notified it. When a future completes,
 /// it also notifies the next future in the queue, allowing it complete.
-pub struct HostFutureQueue {
-    last_entry: Arc<Notify>,
+pub struct HostFutureQueue<'futures> {
+    next_future_is_ready: bool,
+    new_futures: mpsc::Receiver<BoxFuture<'futures, Box<dyn FnOnce() + Send>>>,
+    queue: FuturesOrdered<BoxFuture<'futures, Box<dyn FnOnce() + Send>>>,
 }
 
-impl HostFutureQueue {
-    /// Create a new [`HostFutureQueue`]
-    ///
-    /// Creates the initial notifier for the first future to be added. This is the only notifier
-    /// that is created and immediately notified, allowing the first future of the queue to
-    /// complete as soon as it is ready.
-    pub fn new() -> Self {
-        let last_entry = Arc::new(Notify::new());
+impl<'futures> HostFutureQueue<'futures> {
+    pub fn new() -> (Self, QueuedHostFutureFactory<'futures>) {
+        let (sender, receiver) = mpsc::channel(25);
 
-        last_entry.notify_one();
-
-        HostFutureQueue { last_entry }
+        (
+            HostFutureQueue {
+                next_future_is_ready: true,
+                new_futures: receiver,
+                queue: FuturesOrdered::new(),
+            },
+            QueuedHostFutureFactory { sender },
+        )
     }
 
-    /// Add a `future` to the [`HostFutureQueue`].
+    pub fn poll_futures(&mut self, context: &mut Context<'_>) {
+        if !self.next_future_is_ready {
+            if let Poll::Ready(Some(future_completion)) = self.queue.poll_next_unpin(context) {
+                future_completion();
+                self.next_future_is_ready = true;
+            }
+        }
+    }
+
+    fn poll_incoming(&mut self, context: &mut Context<'_>) {
+        if let Poll::Ready(Some(new_future)) = self.new_futures.poll_next_unpin(context) {
+            self.queue.push_back(new_future);
+        }
+    }
+}
+
+impl<'futures> Stream for HostFutureQueue<'futures> {
+    type Item = ();
+
+    fn poll_next(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.poll_incoming(context);
+
+        if !self.next_future_is_ready {
+            self.poll_futures(context);
+        }
+
+        if self.next_future_is_ready {
+            self.next_future_is_ready = false;
+            Poll::Ready(Some(()))
+        } else {
+            Poll::Pending
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct QueuedHostFutureFactory<'futures> {
+    sender: mpsc::Sender<BoxFuture<'futures, Box<dyn FnOnce() + Send>>>,
+}
+
+impl<'futures> QueuedHostFutureFactory<'futures> {
+    /// Adds a `future` to the [`HostFutureQueue`].
     ///
     /// Returns a [`HostFuture`] that can be passed to the guest WASM module, and that will only be
     /// ready when the inner `future` is ready and all previous futures added to the queue are
     /// ready.
-    pub fn add<'future, Output>(
+    pub fn enqueue<Output>(
         &mut self,
-        future: impl Future<Output = Output> + Send + 'future,
-    ) -> HostFuture<'future, Output>
+        future: impl Future<Output = Output> + Send + 'futures,
+    ) -> HostFuture<'futures, Output>
     where
-        Output: Send,
+        Output: Send + 'static,
     {
-        let next_future = Arc::new(Notify::new());
-        let previous_future = mem::replace(&mut self.last_entry, next_future.clone());
+        let (result_sender, result_receiver) = oneshot::channel();
+        let mut future_sender = self.sender.clone();
 
         HostFuture::new(async move {
-            let result = future.await;
+            let _ = future_sender
+                .send(
+                    future
+                        .map(move |result| -> Box<dyn FnOnce() + Send> {
+                            Box::new(move || {
+                                let _ = result_sender.send(result);
+                            })
+                        })
+                        .boxed(),
+                )
+                .await;
 
-            previous_future.notified().await;
-            next_future.notify_one();
-
-            result
+            result_receiver.await.expect("Host future cancelled")
         })
     }
 }
@@ -127,7 +183,7 @@ impl<'future, Output> HostFuture<'future, Output> {
 }
 
 /// A future implemented in a WASM module.
-pub enum GuestFuture<Future, Application>
+pub enum GuestFuture<'context, Future, Application>
 where
     Application: ApplicationRuntimeContext,
 {
@@ -142,11 +198,11 @@ where
         future: Future,
 
         /// Types necessary to call the guest WASM module in order to poll the future.
-        context: WasmRuntimeContext<Application>,
+        context: WasmRuntimeContext<'context, Application>,
     },
 }
 
-impl<Future, Application> GuestFuture<Future, Application>
+impl<'context, Future, Application> GuestFuture<'context, Future, Application>
 where
     Application: ApplicationRuntimeContext,
 {
@@ -156,7 +212,7 @@ where
     /// that it can be returned when the [`GuestFuture`] is polled.
     pub fn new(
         creation_result: Result<Future, Application::Error>,
-        context: WasmRuntimeContext<Application>,
+        context: WasmRuntimeContext<'context, Application>,
     ) -> Self {
         match creation_result {
             Ok(future) => GuestFuture::Active { future, context },
@@ -165,7 +221,7 @@ where
     }
 }
 
-impl<InnerFuture, Application> Future for GuestFuture<InnerFuture, Application>
+impl<InnerFuture, Application> Future for GuestFuture<'_, InnerFuture, Application>
 where
     InnerFuture: GuestFutureInterface<Application> + Unpin,
     Application: ApplicationRuntimeContext + Unpin,
@@ -188,8 +244,18 @@ where
                 Poll::Ready(Err(error.into()))
             }
             GuestFuture::Active { future, context } => {
-                let _context_guard = context.context_forwarder.forward(task_context);
-                future.poll(&context.application, &mut context.store)
+                log::error!("GuestFuture::poll");
+                ready!(context.future_queue.poll_next_unpin(task_context));
+                log::error!("Prepared");
+
+                let result = {
+                    let _context_guard = context.context_forwarder.forward(task_context);
+                    future.poll(&context.application, &mut context.store)
+                };
+
+                context.future_queue.poll_futures(task_context);
+
+                result
             }
         }
     }
