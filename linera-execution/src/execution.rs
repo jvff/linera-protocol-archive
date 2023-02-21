@@ -6,7 +6,7 @@ use crate::{
     system::SystemExecutionStateView,
     ApplicationId, Effect, EffectContext, ExecutionError, ExecutionResult, ExecutionRuntimeContext,
     Operation, OperationContext, Query, QueryContext, RawExecutionResult, Response, SystemEffect,
-    UserApplicationId,
+    UserApplicationId, WritableStorage,
 };
 use linera_base::{data_types::ChainId, ensure};
 use linera_views::{
@@ -19,7 +19,10 @@ use linera_views_derive::HashableContainerView;
 
 #[cfg(any(test, feature = "test"))]
 use {
-    crate::{system::SystemExecutionState, TestExecutionRuntimeContext},
+    crate::{
+        system::SystemExecutionState, TestExecutionRuntimeContext, UserApplicationCode,
+        UserApplicationDescription,
+    },
     async_lock::Mutex,
     linera_views::{common::Context, memory::MemoryContext},
     std::collections::BTreeMap,
@@ -35,6 +38,8 @@ pub struct ExecutionStateView<C> {
     pub simple_users: ReentrantCollectionView<C, UserApplicationId, RegisterView<C, Vec<u8>>>,
     /// User applications (View based).
     pub view_users: ReentrantCollectionView<C, UserApplicationId, KeyValueStoreView<C>>,
+    /// Fuel available for running applications.
+    pub available_fuel: RegisterView<C, u64>,
 }
 
 #[cfg(any(test, feature = "test"))]
@@ -86,6 +91,45 @@ where
             .expect("serialization of registry components should not fail");
         view
     }
+
+    /// Sets the amount of `available_fuel` using the builder pattern.
+    pub fn with_fuel(mut self, fuel: u64) -> Self {
+        self.available_fuel.set(fuel);
+        self
+    }
+
+    /// Simulates the initialization of an application.
+    pub async fn simulate_initialization(
+        &mut self,
+        application: UserApplicationCode,
+        application_description: UserApplicationDescription,
+        initialization_argument: Vec<u8>,
+    ) -> Result<(), ExecutionError> {
+        let chain_id = application_description.creation.chain_id;
+        let context = OperationContext {
+            chain_id,
+            height: application_description.creation.height,
+            index: application_description.creation.index,
+        };
+
+        let action = UserAction::Initialize(&context, initialization_argument);
+
+        let application_id = self
+            .system
+            .registry
+            .register_application(application_description)
+            .await?;
+
+        self.context()
+            .extra()
+            .user_applications()
+            .insert(application_id, application);
+
+        self.run_user_action(application_id, chain_id, action)
+            .await?;
+
+        Ok(())
+    }
 }
 
 enum UserAction<'a> {
@@ -100,6 +144,12 @@ where
     ViewError: From<C::Error>,
     C::Extra: ExecutionRuntimeContext,
 {
+    /// Adds `fuel` to the amount of `available_fuel` in the chain.
+    pub fn add_fuel(&mut self, fuel: u64) {
+        let updated_amount = self.available_fuel.get().saturating_add(fuel);
+        self.available_fuel.set(updated_amount);
+    }
+
     async fn run_user_action(
         &mut self,
         application_id: UserApplicationId,
@@ -122,12 +172,14 @@ where
         let mut session_manager = SessionManager::default();
         let mut results = Vec::new();
         let mut applications = vec![application_description];
+        let available_fuel = *self.available_fuel.get();
         let runtime = ExecutionRuntime::new(
             chain_id,
             &mut applications,
             self,
             &mut session_manager,
             &mut results,
+            available_fuel,
         );
         // Make the call to user code.
         let result = match action {
@@ -145,6 +197,9 @@ where
                     .await?
             }
         };
+        // Update the amount of available fuel after execution has consumed some or all of it
+        let remaining_fuel = runtime.remaining_fuel();
+        self.available_fuel.set(dbg!(remaining_fuel));
         // Check that applications were correctly stacked and unstacked.
         assert_eq!(applications.len(), 1);
         assert_eq!(UserApplicationId::from(&applications[0]), application_id);
@@ -267,6 +322,7 @@ where
                     self,
                     &mut session_manager,
                     &mut results,
+                    0,
                 );
                 // Run the query.
                 let response = application

@@ -363,6 +363,7 @@ where
             ChainError::InvalidBlockTimestamp
         );
         self.execution_state.system.timestamp.set(block.timestamp);
+        self.execution_state.add_fuel(10_000_000);
         let mut effects = Vec::new();
         for message in &block.incoming_messages {
             log::trace!(
@@ -438,6 +439,7 @@ where
             .await?;
         }
         // Recompute the state hash.
+        dbg!(self.execution_state.available_fuel.get());
         let hash = self.execution_state.crypto_hash().await?;
         self.execution_state_hash.set(Some(hash));
         // Last, reset the consensus state based on the current ownership.

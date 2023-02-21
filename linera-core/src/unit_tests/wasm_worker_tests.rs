@@ -18,15 +18,16 @@ use linera_chain::data_types::{Event, Message, Origin, Value};
 use linera_execution::{
     system::{Balance, SystemChannel, SystemEffect, SystemOperation},
     ApplicationId, ApplicationRegistry, Bytecode, BytecodeId, BytecodeLocation, ChainOwnership,
-    ChannelId, Destination, Effect, ExecutionStateView, SystemExecutionState,
-    UserApplicationDescription, UserApplicationId, WasmRuntime,
+    ChannelId, Destination, Effect, ExecutionStateView, Operation, OperationContext,
+    SystemExecutionState, UserApplicationDescription, UserApplicationId, WasmApplication,
+    WasmRuntime,
 };
 use linera_storage::{DynamoDbStoreClient, MemoryStoreClient, RocksdbStoreClient, Store};
 use linera_views::{
     test_utils::LocalStackTestContext,
     views::{HashableContainerView, ViewError},
 };
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, sync::Arc};
 use test_log::test;
 
 #[test(tokio::test)]
@@ -52,7 +53,7 @@ async fn test_rocksdb_handle_certificates_to_create_application_both() -> Result
 async fn test_rocksdb_handle_certificates_to_create_application(
     use_view: bool,
 ) -> Result<(), anyhow::Error> {
-    for &wasm_runtime in WasmRuntime::ALL {
+    for &wasm_runtime in WasmRuntime::ALL.iter().rev() {
         let dir = tempfile::TempDir::new().unwrap();
         let client = RocksdbStoreClient::new(dir.path().to_path_buf(), Some(wasm_runtime));
         run_test_handle_certificates_to_create_application(client, use_view).await?;
@@ -111,13 +112,21 @@ where
     )
     .await;
 
-    // Publish some bytecode.
     let name_counter = if use_view { "counter2" } else { "counter" };
     let (contract_path, service_path) =
         linera_execution::wasm_test::get_example_bytecode_paths(name_counter)?;
+    let contract_bytecode = Bytecode::load_from_file(contract_path).await?;
+    let service_bytecode = Bytecode::load_from_file(service_path).await?;
+    let application = Arc::new(WasmApplication::new(
+        contract_bytecode.clone(),
+        service_bytecode.clone(),
+        WasmRuntime::default(),
+    ));
+
+    // Publish some bytecode.
     let publish_operation = SystemOperation::PublishBytecode {
-        contract: Bytecode::load_from_file(contract_path).await?,
-        service: Bytecode::load_from_file(service_path).await?,
+        contract: contract_bytecode,
+        service: service_bytecode,
     };
     let publish_effect = SystemEffect::BytecodePublished { operation_index: 0 };
     let publish_block = make_block(
@@ -140,7 +149,7 @@ where
         timestamp: Timestamp::from(1),
         registry: ApplicationRegistry::default(),
     };
-    let publisher_state_hash = make_state_hash(publisher_system_state.clone()).await;
+    let publisher_state_hash = make_state_hash(publisher_system_state.clone(), 10_000_000).await;
     let publish_block_proposal = Value::ConfirmedBlock {
         block: publish_block,
         effects: vec![(
@@ -204,7 +213,7 @@ where
         .registry
         .published_bytecodes
         .insert(bytecode_id, bytecode_location);
-    let publisher_state_hash = make_state_hash(publisher_system_state.clone()).await;
+    let publisher_state_hash = make_state_hash(publisher_system_state.clone(), 20_000_000).await;
     let broadcast_block_proposal = Value::ConfirmedBlock {
         block: broadcast_block,
         effects: vec![(
@@ -261,7 +270,9 @@ where
         timestamp: Timestamp::from(2),
         registry: ApplicationRegistry::default(),
     };
-    let creator_state = ExecutionStateView::from_system_state(creator_system_state.clone()).await;
+    let creator_state = ExecutionStateView::from_system_state(creator_system_state.clone())
+        .await
+        .with_fuel(10_000_000);
     let subscribe_block_proposal = Value::ConfirmedBlock {
         block: subscribe_block,
         effects: vec![(
@@ -306,7 +317,7 @@ where
         Timestamp::from(3),
     );
     publisher_system_state.timestamp = Timestamp::from(3);
-    let publisher_state_hash = make_state_hash(publisher_system_state).await;
+    let publisher_state_hash = make_state_hash(publisher_system_state, 30_000_000).await;
     let accept_block_proposal = Value::ConfirmedBlock {
         block: accept_block,
         effects: vec![(
@@ -384,27 +395,23 @@ where
     creator_system_state
         .registry
         .known_applications
-        .insert(application_id, application_description);
+        .insert(application_id, application_description.clone());
     creator_system_state.timestamp = Timestamp::from(4);
-    let mut creator_state = ExecutionStateView::from_system_state(creator_system_state).await;
+    let mut creator_state = ExecutionStateView::from_system_state(creator_system_state)
+        .await
+        .with_fuel(20_000_000);
+    log::error!("Simulate");
+    creator_state
+        .simulate_initialization(
+            application,
+            application_description,
+            initial_value_bytes.clone(),
+        )
+        .await?;
     // chosen_key is formed of two parts:
     // * 4 bytes equal to 0 that correspond to the base_key of the first index since "counter"
     //   has just one RegisterView<C,u128>
     // * 1 byte equal to zero that corresponds to the KeyTag::Value of RegisterView
-    let chosen_key = vec![0, 0, 0, 0, 0];
-    if use_view {
-        creator_state
-            .view_users
-            .try_load_entry_mut(application_id)
-            .await?
-            .insert(chosen_key.clone(), initial_value_bytes);
-    } else {
-        creator_state
-            .simple_users
-            .try_load_entry_mut(application_id)
-            .await?
-            .set(initial_value_bytes);
-    }
     let create_block_proposal = Value::ConfirmedBlock {
         block: create_block,
         effects: vec![],
@@ -412,6 +419,7 @@ where
     };
     let create_certificate = make_certificate(&committee, &worker, create_block_proposal);
 
+    log::error!("Handle certificate");
     let info = worker
         .fully_handle_certificate(create_certificate.clone())
         .await
@@ -430,26 +438,25 @@ where
     let run_block = make_block(
         Epoch::from(0),
         creator_chain.into(),
-        vec![(application_id, user_operation)],
+        vec![(application_id, user_operation.clone())],
         vec![],
         Some(&create_certificate),
         Timestamp::from(5),
     );
-    let expected_value = initial_value + increment;
-    let expected_state_bytes = bcs::to_bytes(&expected_value)?;
-    if use_view {
-        creator_state
-            .view_users
-            .try_load_entry_mut(application_id)
-            .await?
-            .insert(chosen_key.clone(), expected_state_bytes);
-    } else {
-        creator_state
-            .simple_users
-            .try_load_entry_mut(application_id)
-            .await?
-            .set(expected_state_bytes);
-    }
+    let operation_context = OperationContext {
+        chain_id: creator_chain.into(),
+        height: run_block.height,
+        index: 0,
+    };
+    creator_state.add_fuel(10_000_000);
+    log::error!("Simulate");
+    creator_state
+        .execute_operation(
+            ApplicationId::User(application_id),
+            &operation_context,
+            &Operation::User(user_operation),
+        )
+        .await?;
     creator_state.system.timestamp.set(Timestamp::from(5));
     let run_block_proposal = Value::ConfirmedBlock {
         block: run_block,
@@ -458,6 +465,7 @@ where
     };
     let run_certificate = make_certificate(&committee, &worker, run_block_proposal);
 
+    log::error!("Handle certificate");
     let info = worker
         .fully_handle_certificate(run_certificate.clone())
         .await

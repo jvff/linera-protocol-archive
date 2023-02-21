@@ -44,9 +44,10 @@ struct Dummy;
 
 impl BcsSignable for Dummy {}
 
-async fn make_state_hash(state: SystemExecutionState) -> CryptoHash {
+async fn make_state_hash(state: SystemExecutionState, fuel: u64) -> CryptoHash {
     ExecutionStateView::from_system_state(state)
         .await
+        .with_fuel(fuel)
         .crypto_hash()
         .await
         .expect("hashing from memory should not fail")
@@ -260,7 +261,7 @@ async fn make_transfer_certificate_for_epoch<S>(
         )],
         Address::Burn => Vec::new(),
     };
-    let state_hash = make_state_hash(system_state).await;
+    let state_hash = make_state_hash(system_state, 0).await;
     let value = Value::ConfirmedBlock {
         block,
         effects,
@@ -510,7 +511,7 @@ where
             timestamp: Timestamp::from(block_0_time),
             registry: ApplicationRegistry::default(),
         };
-        let state_hash = make_state_hash(system_state).await;
+        let state_hash = make_state_hash(system_state, 0).await;
         let value = Value::ConfirmedBlock {
             block,
             effects: vec![],
@@ -813,17 +814,20 @@ where
                     }),
                 ),
             ],
-            state_hash: make_state_hash(SystemExecutionState {
-                epoch: Some(epoch),
-                description: Some(ChainDescription::Root(1)),
-                admin_id: Some(ChainId::root(0)),
-                subscriptions: BTreeSet::new(),
-                committees: [(epoch, committee.clone())].into_iter().collect(),
-                ownership: ChainOwnership::single(sender_key_pair.public().into()),
-                balance: Balance::from(3),
-                timestamp: Timestamp::from(0),
-                registry: ApplicationRegistry::default(),
-            })
+            state_hash: make_state_hash(
+                SystemExecutionState {
+                    epoch: Some(epoch),
+                    description: Some(ChainDescription::Root(1)),
+                    admin_id: Some(ChainId::root(0)),
+                    subscriptions: BTreeSet::new(),
+                    committees: [(epoch, committee.clone())].into_iter().collect(),
+                    ownership: ChainOwnership::single(sender_key_pair.public().into()),
+                    balance: Balance::from(3),
+                    timestamp: Timestamp::from(0),
+                    registry: ApplicationRegistry::default(),
+                },
+                0,
+            )
             .await,
         },
     );
@@ -856,17 +860,20 @@ where
                     amount: Amount::from(3),
                 }),
             )],
-            state_hash: make_state_hash(SystemExecutionState {
-                epoch: Some(epoch),
-                description: Some(ChainDescription::Root(1)),
-                admin_id: Some(ChainId::root(0)),
-                subscriptions: BTreeSet::new(),
-                committees: [(epoch, committee.clone())].into_iter().collect(),
-                ownership: ChainOwnership::single(sender_key_pair.public().into()),
-                balance: Balance::from(0),
-                timestamp: Timestamp::from(0),
-                registry: ApplicationRegistry::default(),
-            })
+            state_hash: make_state_hash(
+                SystemExecutionState {
+                    epoch: Some(epoch),
+                    description: Some(ChainDescription::Root(1)),
+                    admin_id: Some(ChainId::root(0)),
+                    subscriptions: BTreeSet::new(),
+                    committees: [(epoch, committee.clone())].into_iter().collect(),
+                    ownership: ChainOwnership::single(sender_key_pair.public().into()),
+                    balance: Balance::from(0),
+                    timestamp: Timestamp::from(0),
+                    registry: ApplicationRegistry::default(),
+                },
+                0,
+            )
             .await,
         },
     );
@@ -1136,17 +1143,20 @@ where
                         amount: Amount::from(1),
                     }),
                 )],
-                state_hash: make_state_hash(SystemExecutionState {
-                    epoch: Some(epoch),
-                    description: Some(ChainDescription::Root(2)),
-                    admin_id: Some(ChainId::root(0)),
-                    subscriptions: BTreeSet::new(),
-                    committees: [(epoch, committee.clone())].into_iter().collect(),
-                    ownership: ChainOwnership::single(recipient_key_pair.public().into()),
-                    balance: Balance::from(0),
-                    timestamp: Timestamp::from(0),
-                    registry: ApplicationRegistry::default(),
-                })
+                state_hash: make_state_hash(
+                    SystemExecutionState {
+                        epoch: Some(epoch),
+                        description: Some(ChainDescription::Root(2)),
+                        admin_id: Some(ChainId::root(0)),
+                        subscriptions: BTreeSet::new(),
+                        committees: [(epoch, committee.clone())].into_iter().collect(),
+                        ownership: ChainOwnership::single(recipient_key_pair.public().into()),
+                        balance: Balance::from(0),
+                        timestamp: Timestamp::from(0),
+                        registry: ApplicationRegistry::default(),
+                    },
+                    0,
+                )
                 .await,
             },
         );
@@ -2498,17 +2508,20 @@ where
                     }),
                 ),
             ],
-            state_hash: make_state_hash(SystemExecutionState {
-                epoch: Some(Epoch::from(0)),
-                description: Some(ChainDescription::Root(0)),
-                admin_id: Some(admin_id),
-                subscriptions: BTreeSet::new(),
-                committees: committees.clone(),
-                ownership: ChainOwnership::single(key_pair.public().into()),
-                balance: Balance::from(2),
-                timestamp: Timestamp::from(0),
-                registry: ApplicationRegistry::default(),
-            })
+            state_hash: make_state_hash(
+                SystemExecutionState {
+                    epoch: Some(Epoch::from(0)),
+                    description: Some(ChainDescription::Root(0)),
+                    admin_id: Some(admin_id),
+                    subscriptions: BTreeSet::new(),
+                    committees: committees.clone(),
+                    ownership: ChainOwnership::single(key_pair.public().into()),
+                    balance: Balance::from(2),
+                    timestamp: Timestamp::from(0),
+                    registry: ApplicationRegistry::default(),
+                },
+                0,
+            )
             .await,
         },
     );
@@ -2604,18 +2617,21 @@ where
                     }),
                 ),
             ],
-            state_hash: make_state_hash(SystemExecutionState {
-                epoch: Some(Epoch::from(1)),
-                description: Some(ChainDescription::Root(0)),
-                admin_id: Some(admin_id),
-                subscriptions: BTreeSet::new(),
-                // The root chain knows both committees at the end.
-                committees: committees2.clone(),
-                ownership: ChainOwnership::single(key_pair.public().into()),
-                balance: Balance::from(0),
-                timestamp: Timestamp::from(0),
-                registry: ApplicationRegistry::default(),
-            })
+            state_hash: make_state_hash(
+                SystemExecutionState {
+                    epoch: Some(Epoch::from(1)),
+                    description: Some(ChainDescription::Root(0)),
+                    admin_id: Some(admin_id),
+                    subscriptions: BTreeSet::new(),
+                    // The root chain knows both committees at the end.
+                    committees: committees2.clone(),
+                    ownership: ChainOwnership::single(key_pair.public().into()),
+                    balance: Balance::from(0),
+                    timestamp: Timestamp::from(0),
+                    registry: ApplicationRegistry::default(),
+                },
+                0,
+            )
             .await,
         },
     );
@@ -2656,18 +2672,21 @@ where
                 Destination::Recipient(user_id),
                 Effect::System(SystemEffect::Notify { id: user_id }),
             )],
-            state_hash: make_state_hash(SystemExecutionState {
-                epoch: Some(Epoch::from(1)),
-                description: Some(ChainDescription::Root(0)),
-                admin_id: Some(admin_id),
-                subscriptions: BTreeSet::new(),
-                // The root chain knows both committees at the end.
-                committees: committees2.clone(),
-                ownership: ChainOwnership::single(key_pair.public().into()),
-                balance: Balance::from(0),
-                timestamp: Timestamp::from(0),
-                registry: ApplicationRegistry::default(),
-            })
+            state_hash: make_state_hash(
+                SystemExecutionState {
+                    epoch: Some(Epoch::from(1)),
+                    description: Some(ChainDescription::Root(0)),
+                    admin_id: Some(admin_id),
+                    subscriptions: BTreeSet::new(),
+                    // The root chain knows both committees at the end.
+                    committees: committees2.clone(),
+                    ownership: ChainOwnership::single(key_pair.public().into()),
+                    balance: Balance::from(0),
+                    timestamp: Timestamp::from(0),
+                    registry: ApplicationRegistry::default(),
+                },
+                0,
+            )
             .await,
         },
     );
@@ -2840,23 +2859,26 @@ where
                 timestamp: Timestamp::from(0),
             },
             effects: Vec::new(),
-            state_hash: make_state_hash(SystemExecutionState {
-                epoch: Some(Epoch::from(1)),
-                description: Some(user_description),
-                admin_id: Some(admin_id),
-                subscriptions: [ChannelId {
-                    chain_id: admin_id,
-                    name: SystemChannel::Admin.name(),
-                }]
-                .into_iter()
-                .collect(),
-                // Finally the child knows about both committees and has the money.
-                committees: committees2.clone(),
-                ownership: ChainOwnership::single(key_pair.public().into()),
-                balance: Balance::from(2),
-                timestamp: Timestamp::from(0),
-                registry: ApplicationRegistry::default(),
-            })
+            state_hash: make_state_hash(
+                SystemExecutionState {
+                    epoch: Some(Epoch::from(1)),
+                    description: Some(user_description),
+                    admin_id: Some(admin_id),
+                    subscriptions: [ChannelId {
+                        chain_id: admin_id,
+                        name: SystemChannel::Admin.name(),
+                    }]
+                    .into_iter()
+                    .collect(),
+                    // Finally the child knows about both committees and has the money.
+                    committees: committees2.clone(),
+                    ownership: ChainOwnership::single(key_pair.public().into()),
+                    balance: Balance::from(2),
+                    timestamp: Timestamp::from(0),
+                    registry: ApplicationRegistry::default(),
+                },
+                0,
+            )
             .await,
         },
     );
@@ -3002,17 +3024,20 @@ where
                     amount: Amount::from(1),
                 }),
             )],
-            state_hash: make_state_hash(SystemExecutionState {
-                epoch: Some(Epoch::from(0)),
-                description: Some(ChainDescription::Root(1)),
-                admin_id: Some(admin_id),
-                subscriptions: BTreeSet::new(),
-                committees: committees.clone(),
-                ownership: ChainOwnership::single(key_pair1.public().into()),
-                balance: Balance::from(2),
-                timestamp: Timestamp::from(0),
-                registry: ApplicationRegistry::default(),
-            })
+            state_hash: make_state_hash(
+                SystemExecutionState {
+                    epoch: Some(Epoch::from(0)),
+                    description: Some(ChainDescription::Root(1)),
+                    admin_id: Some(admin_id),
+                    subscriptions: BTreeSet::new(),
+                    committees: committees.clone(),
+                    ownership: ChainOwnership::single(key_pair1.public().into()),
+                    balance: Balance::from(2),
+                    timestamp: Timestamp::from(0),
+                    registry: ApplicationRegistry::default(),
+                },
+                0,
+            )
             .await,
         },
     );
@@ -3050,17 +3075,20 @@ where
                     committees: committees2.clone(),
                 }),
             )],
-            state_hash: make_state_hash(SystemExecutionState {
-                epoch: Some(Epoch::from(1)),
-                description: Some(ChainDescription::Root(0)),
-                admin_id: Some(admin_id),
-                subscriptions: BTreeSet::new(),
-                committees: committees2.clone(),
-                ownership: ChainOwnership::single(key_pair0.public().into()),
-                balance: Balance::from(0),
-                timestamp: Timestamp::from(0),
-                registry: ApplicationRegistry::default(),
-            })
+            state_hash: make_state_hash(
+                SystemExecutionState {
+                    epoch: Some(Epoch::from(1)),
+                    description: Some(ChainDescription::Root(0)),
+                    admin_id: Some(admin_id),
+                    subscriptions: BTreeSet::new(),
+                    committees: committees2.clone(),
+                    ownership: ChainOwnership::single(key_pair0.public().into()),
+                    balance: Balance::from(0),
+                    timestamp: Timestamp::from(0),
+                    registry: ApplicationRegistry::default(),
+                },
+                0,
+            )
             .await,
         },
     );
@@ -3207,17 +3235,20 @@ where
                     amount: Amount::from(1),
                 }),
             )],
-            state_hash: make_state_hash(SystemExecutionState {
-                epoch: Some(Epoch::from(0)),
-                description: Some(ChainDescription::Root(1)),
-                admin_id: Some(admin_id),
-                subscriptions: BTreeSet::new(),
-                committees: committees.clone(),
-                ownership: ChainOwnership::single(key_pair1.public().into()),
-                balance: Balance::from(2),
-                timestamp: Timestamp::from(0),
-                registry: ApplicationRegistry::default(),
-            })
+            state_hash: make_state_hash(
+                SystemExecutionState {
+                    epoch: Some(Epoch::from(0)),
+                    description: Some(ChainDescription::Root(1)),
+                    admin_id: Some(admin_id),
+                    subscriptions: BTreeSet::new(),
+                    committees: committees.clone(),
+                    ownership: ChainOwnership::single(key_pair1.public().into()),
+                    balance: Balance::from(2),
+                    timestamp: Timestamp::from(0),
+                    registry: ApplicationRegistry::default(),
+                },
+                0,
+            )
             .await,
         },
     );
@@ -3276,17 +3307,20 @@ where
                     }),
                 ),
             ],
-            state_hash: make_state_hash(SystemExecutionState {
-                epoch: Some(Epoch::from(1)),
-                description: Some(ChainDescription::Root(0)),
-                admin_id: Some(admin_id),
-                subscriptions: BTreeSet::new(),
-                committees: committees3.clone(),
-                ownership: ChainOwnership::single(key_pair0.public().into()),
-                balance: Balance::from(0),
-                timestamp: Timestamp::from(0),
-                registry: ApplicationRegistry::default(),
-            })
+            state_hash: make_state_hash(
+                SystemExecutionState {
+                    epoch: Some(Epoch::from(1)),
+                    description: Some(ChainDescription::Root(0)),
+                    admin_id: Some(admin_id),
+                    subscriptions: BTreeSet::new(),
+                    committees: committees3.clone(),
+                    ownership: ChainOwnership::single(key_pair0.public().into()),
+                    balance: Balance::from(0),
+                    timestamp: Timestamp::from(0),
+                    registry: ApplicationRegistry::default(),
+                },
+                0,
+            )
             .await,
         },
     );
@@ -3359,17 +3393,20 @@ where
                 timestamp: Timestamp::from(0),
             },
             effects: Vec::new(),
-            state_hash: make_state_hash(SystemExecutionState {
-                epoch: Some(Epoch::from(1)),
-                description: Some(ChainDescription::Root(0)),
-                admin_id: Some(admin_id),
-                subscriptions: BTreeSet::new(),
-                committees: committees3.clone(),
-                ownership: ChainOwnership::single(key_pair0.public().into()),
-                balance: Balance::from(1),
-                timestamp: Timestamp::from(0),
-                registry: ApplicationRegistry::default(),
-            })
+            state_hash: make_state_hash(
+                SystemExecutionState {
+                    epoch: Some(Epoch::from(1)),
+                    description: Some(ChainDescription::Root(0)),
+                    admin_id: Some(admin_id),
+                    subscriptions: BTreeSet::new(),
+                    committees: committees3.clone(),
+                    ownership: ChainOwnership::single(key_pair0.public().into()),
+                    balance: Balance::from(1),
+                    timestamp: Timestamp::from(0),
+                    registry: ApplicationRegistry::default(),
+                },
+                0,
+            )
             .await,
         },
     );
