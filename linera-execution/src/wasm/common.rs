@@ -4,15 +4,14 @@
 //! Runtime independent code for interfacing with user applications in WebAssembly modules.
 
 use super::{
-    async_boundary::{ContextForwarder, GuestFuture, GuestFutureInterface},
+    async_boundary::{ContextForwarder, GuestFuture, GuestFutureInterface, HostFutureQueue},
     WasmExecutionError,
 };
 use crate::{
     system::Balance, ApplicationCallResult, CalleeContext, EffectContext, OperationContext,
     QueryContext, RawExecutionResult, SessionCallResult, SessionId,
 };
-use futures::future::{self, BoxFuture, FutureExt};
-use std::future::Future;
+use futures::future::{self, BoxFuture, FutureExt, TryFutureExt};
 
 /// Types that are specific to the context of an application ready to be executedy by a WebAssembly
 /// runtime.
@@ -27,12 +26,12 @@ pub trait ApplicationRuntimeContext: Sized {
     type Extra: Send + Unpin;
 
     /// Prepares the application to be polled.
-    fn prepare_for_poll(_context: &mut WasmRuntimeContext<Self>) -> BoxFuture<'static, ()> {
+    fn prepare_for_poll(_context: &mut WasmRuntimeContext<'_, Self>) -> BoxFuture<'static, ()> {
         future::ready(()).boxed()
     }
 
     /// Finalizes the runtime context, running any extra clean-up operations.
-    fn finalize(_context: &mut WasmRuntimeContext<Self>) {}
+    fn finalize(_context: &mut WasmRuntimeContext<'_, Self>) {}
 }
 
 /// Common interface to calling a user contract in a WebAssembly module.
@@ -199,7 +198,7 @@ pub trait Service: ApplicationRuntimeContext {
 }
 
 /// Wrapper around all types necessary to call an asynchronous method of a WASM application.
-pub struct WasmRuntimeContext<A>
+pub struct WasmRuntimeContext<'context, A>
 where
     A: ApplicationRuntimeContext,
 {
@@ -210,6 +209,9 @@ where
     /// The application type.
     pub(crate) application: A,
 
+    /// A queue of host futures called by the guest that must complete deterministically.
+    pub(crate) future_queue: HostFutureQueue<'context>,
+
     /// The application's memory state.
     pub(crate) store: A::Store,
 
@@ -218,7 +220,7 @@ where
     pub(crate) extra: A::Extra,
 }
 
-impl<A> WasmRuntimeContext<A>
+impl<'context, A> WasmRuntimeContext<'context, A>
 where
     A: Contract,
 {
@@ -238,7 +240,7 @@ where
         mut self,
         context: &OperationContext,
         argument: &[u8],
-    ) -> GuestFuture<A::Initialize, A> {
+    ) -> GuestFuture<'context, A::Initialize, A> {
         let future = self
             .application
             .initialize_new(&mut self.store, (*context).into(), argument);
@@ -262,7 +264,7 @@ where
         mut self,
         context: &OperationContext,
         operation: &[u8],
-    ) -> GuestFuture<A::ExecuteOperation, A> {
+    ) -> GuestFuture<'context, A::ExecuteOperation, A> {
         let future =
             self.application
                 .execute_operation_new(&mut self.store, (*context).into(), operation);
@@ -286,7 +288,7 @@ where
         mut self,
         context: &EffectContext,
         effect: &[u8],
-    ) -> GuestFuture<A::ExecuteEffect, A> {
+    ) -> GuestFuture<'context, A::ExecuteEffect, A> {
         let future =
             self.application
                 .execute_effect_new(&mut self.store, (*context).into(), effect);
@@ -312,7 +314,7 @@ where
         context: &CalleeContext,
         argument: &[u8],
         forwarded_sessions: Vec<SessionId>,
-    ) -> GuestFuture<A::CallApplication, A> {
+    ) -> GuestFuture<'context, A::CallApplication, A> {
         let forwarded_sessions: Vec<_> = forwarded_sessions
             .into_iter()
             .map(A::SessionId::from)
@@ -341,17 +343,22 @@ where
     ///     session_data: &mut Vec<u8>,
     ///     argument: &[u8],
     ///     forwarded_sessions: Vec<SessionId>,
-    /// ) -> Result<A::SessionCallResult, WasmExecutionError>
+    /// ) -> Result<SessionCallResult, WasmExecutionError>
     /// ```
-    pub fn call_session<'session_data>(
+    pub fn call_session<'session_data, 'future>(
         mut self,
         context: &CalleeContext,
         session_kind: u64,
         session_data: &'session_data mut Vec<u8>,
         argument: &[u8],
         forwarded_sessions: Vec<SessionId>,
-    ) -> impl Future<Output = Result<SessionCallResult, WasmExecutionError>> + 'session_data
+    ) -> future::MapOk<
+        GuestFuture<'context, A::CallSession, A>,
+        impl FnOnce((SessionCallResult, Vec<u8>)) -> SessionCallResult + 'session_data,
+    >
     where
+        // 'session_data: 'context,
+        // 'context: 'session_data,
         A: Unpin + 'session_data,
         A::Store: Unpin,
         A::Error: Unpin,
@@ -372,17 +379,28 @@ where
             &forwarded_sessions,
         );
 
-        async move {
-            let (session_call_result, updated_data) = GuestFuture::new(future, self).await?;
+        // GuestFuture::new(async move {
+        // let (session_call_result, updated_data) = future.await;
 
+        // *session_data = updated_data;
+
+        // Ok(session_call_result)
+        // })
+        // async move {
+        // let (session_call_result, updated_data) = GuestFuture::new(future, self).await?;
+
+        // *session_data = updated_data;
+
+        // Ok(session_call_result)
+        // }
+        GuestFuture::new(future, self).map_ok(|(session_call_result, updated_data)| {
             *session_data = updated_data;
-
-            Ok(session_call_result)
-        }
+            session_call_result
+        })
     }
 }
 
-impl<A> WasmRuntimeContext<A>
+impl<'context, A> WasmRuntimeContext<'context, A>
 where
     A: Service,
 {
@@ -402,7 +420,7 @@ where
         mut self,
         context: &QueryContext,
         argument: &[u8],
-    ) -> GuestFuture<A::QueryApplication, A> {
+    ) -> GuestFuture<'context, A::QueryApplication, A> {
         let future =
             self.application
                 .query_application_new(&mut self.store, (*context).into(), argument);
@@ -411,7 +429,7 @@ where
     }
 }
 
-impl<A> Drop for WasmRuntimeContext<A>
+impl<A> Drop for WasmRuntimeContext<'_, A>
 where
     A: ApplicationRuntimeContext,
 {
