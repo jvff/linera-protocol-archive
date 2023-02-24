@@ -33,6 +33,7 @@ use super::async_boundary::HostFuture;
 use futures::{
     channel::{mpsc, oneshot},
     future::{self, BoxFuture, FutureExt},
+    ready,
     sink::SinkExt,
     stream::{FuturesOrdered, Stream, StreamExt},
 };
@@ -179,22 +180,33 @@ impl<'futures> QueuedHostFutureFactory<'futures> {
     where
         Output: Send + 'static,
     {
-        let (result_sender, result_receiver) = oneshot::channel();
+        let (mut result_sender, result_receiver) = oneshot::channel();
         let mut future_sender = self.sender.clone();
+        let mut future = Box::pin(future);
 
         HostFuture::new(async move {
             future_sender
                 .send(
-                    future
-                        .map(move |result| -> Box<dyn FnOnce() + Send> {
-                            Box::new(move || {
+                    future::poll_fn(move |context| {
+                        if let Poll::Ready(()) = result_sender.poll_canceled(context) {
+                            // `HostFuture` was cancelled, so cancel the future here as well
+                            Poll::Ready(None)
+                        } else {
+                            let result = ready!(future.poll_unpin(context));
+                            Poll::Ready(Some((result, result_sender)))
+                        }
+                    })
+                    .map(|maybe_result| -> Box<dyn FnOnce() + Send> {
+                        Box::new(move || {
+                            if let Some((result, result_sender)) = maybe_result {
                                 // An error when sending the result indicates that the user
                                 // application dropped the `HostFuture`, and no longer needs the
                                 // result
                                 let _ = result_sender.send(result);
-                            })
+                            }
                         })
-                        .boxed(),
+                    })
+                    .boxed(),
                 )
                 .await
                 .expect(
