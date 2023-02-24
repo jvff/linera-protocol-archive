@@ -13,9 +13,9 @@
 //!
 //! To enforce these rules, the futures have to be polled separately from the guest WASM module.
 //! The traditional asynchronous behavior is for the host to poll the guest, and for the guest to
-//! poll the host futures again. This is problematic because the amount of times the host futures
+//! poll the host futures again. This is problematic because the number of times the host futures
 //! need to be polled might not be deterministic. So even if the futures are made to finish
-//! sequentially, the amount of times the guest is polled would not be deterministic.
+//! sequentially, the number of times the guest is polled would not be deterministic.
 //!
 //! For the guest to be polled separately from the host futures it calls, two types are used:
 //! [`HostFutureQueue`] and [`QueuedHostFutureFactory`]. The [`QueuedHostFutureFactory`] is what is
