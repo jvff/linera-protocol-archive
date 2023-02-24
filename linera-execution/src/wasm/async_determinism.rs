@@ -188,6 +188,9 @@ impl<'futures> QueuedHostFutureFactory<'futures> {
                     future
                         .map(move |result| -> Box<dyn FnOnce() + Send> {
                             Box::new(move || {
+                                // An error when sending the result indicates that the user
+                                // application dropped the `HostFuture`, and no longer needs the
+                                // result
                                 let _ = result_sender.send(result);
                             })
                         })
