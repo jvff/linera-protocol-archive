@@ -167,6 +167,11 @@ impl<'futures> QueuedHostFutureFactory<'futures> {
     /// [`oneshot::Sender`] that's connected to the [`oneshot::Receiver`] inside the returned
     /// [`HostFuture`]. The [`HostFutureQueue`] runs the closure when it's time to complete the
     /// [`HostFuture`].
+    ///
+    /// # Panics
+    ///
+    /// The returned [`HostFuture`] may panic if it is polled after the [`HostFutureQueue`] is
+    /// dropped.
     pub fn enqueue<Output>(
         &mut self,
         future: impl Future<Output = Output> + Send + 'futures,
