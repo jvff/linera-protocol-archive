@@ -178,7 +178,7 @@ impl<'futures> QueuedHostFutureFactory<'futures> {
         let mut future_sender = self.sender.clone();
 
         HostFuture::new(async move {
-            let _ = future_sender
+            future_sender
                 .send(
                     future
                         .map(move |result| -> Box<dyn FnOnce() + Send> {
@@ -188,9 +188,16 @@ impl<'futures> QueuedHostFutureFactory<'futures> {
                         })
                         .boxed(),
                 )
-                .await;
+                .await
+                .expect(
+                    "`HostFutureQueue` should not be dropped while `QueuedHostFutureFactory` is \
+                    still enqueuing futures",
+                );
 
-            result_receiver.await.expect("Host future cancelled")
+            result_receiver.await.expect(
+                "`HostFutureQueue` should not be dropped while the `HostFuture`s of the queued \
+                futures are still alive",
+            )
         })
     }
 }
