@@ -33,7 +33,8 @@ where
         _context: &OperationContext,
         argument: &[u8],
     ) -> Result<ExecutionResult, Self::Error> {
-        self.value.set(bcs::from_bytes(argument)?);
+        // self.value.set(bcs::from_bytes(argument)?);
+        log::error!("Initialize");
         Ok(ExecutionResult::default())
     }
 

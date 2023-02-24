@@ -86,12 +86,7 @@ pub trait Contract: ApplicationRuntimeContext {
     type PollCallSession;
 
     /// Create a new future for the user application to initialize itself on the owner chain.
-    fn initialize_new(
-        &self,
-        store: &mut Self::Store,
-        context: Self::OperationContext,
-        argument: &[u8],
-    ) -> Result<Self::Initialize, Self::Error>;
+    fn initialize_new(&self, store: &mut Self::Store, argument: &[u8]) -> Result<(), Self::Error>;
 
     /// Poll a user contract future that's initializing the application.
     fn initialize_poll(
@@ -236,12 +231,12 @@ where
         mut self,
         context: &OperationContext,
         argument: &[u8],
-    ) -> GuestFuture<'context, A::Initialize, A> {
-        let future = self
-            .application
-            .initialize_new(&mut self.store, (*context).into(), argument);
+    ) -> impl std::future::Future<Output = Result<RawExecutionResult<Vec<u8>>, WasmExecutionError>>
+    {
+        let future = self.application.initialize_new(&mut self.store, argument);
 
-        GuestFuture::new(future, self)
+        // GuestFuture::new(future, self)
+        async move { Ok(RawExecutionResult::default()) }
     }
 
     /// Call the guest WASM module's implementation of
@@ -409,7 +404,7 @@ where
     }
 }
 
-impl<A> Drop for WasmRuntimeContext<A>
+impl<A> Drop for WasmRuntimeContext<'_, A>
 where
     A: ApplicationRuntimeContext,
 {

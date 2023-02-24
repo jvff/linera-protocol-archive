@@ -34,12 +34,21 @@ macro_rules! contract {
             type Initialize = Initialize;
         }
 
-        $crate::instance_exported_future! {
-            contract::Initialize<$application>(
-                context: $crate::contract::OperationContext,
-                argument: Vec<u8>,
-            ) -> PollExecutionResult
+        pub struct Initialize($crate::contract::exported_futures::Initialize<$application>);
+
+        impl $crate::contract::Initialize for Initialize {
+            fn new(_argument: Vec<u8>) {}
+
+            fn poll(&self) -> $crate::contract::PollExecutionResult {
+                self.0.poll()
+            }
         }
+        // $crate::instance_exported_future! {
+        // contract::Initialize<$application>(
+        // context: $crate::contract::OperationContext,
+        // argument: Vec<u8>,
+        // ) -> PollExecutionResult
+        // }
 
         $crate::instance_exported_future! {
             contract::ExecuteOperation<$application>(

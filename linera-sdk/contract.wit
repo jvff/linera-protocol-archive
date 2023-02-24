@@ -1,8 +1,7 @@
 resource initialize {
     static new: func(
-        context: operation-context,
         argument: list<u8>,
-    ) -> initialize
+    )
 
     poll: func() -> poll-execution-result
 }

@@ -239,10 +239,10 @@ impl<'storage> common::Contract for Contract<'storage> {
     fn initialize_new(
         &self,
         store: &mut Store<ContractState<'storage>>,
-        context: contract::OperationContext,
         argument: &[u8],
-    ) -> Result<contract::Initialize, Trap> {
-        contract::Contract::initialize_new(&self.contract, store, context, argument)
+    ) -> Result<(), Trap> {
+        let new_arg = vec![1, 2, 3];
+        contract::Contract::initialize_new(&self.contract, store, argument)
     }
 
     fn initialize_poll(
@@ -250,7 +250,14 @@ impl<'storage> common::Contract for Contract<'storage> {
         store: &mut Store<ContractState<'storage>>,
         future: &contract::Initialize,
     ) -> Result<contract::PollExecutionResult, Trap> {
-        contract::Contract::initialize_poll(&self.contract, store, future)
+        // contract::Contract::initialize_poll(&self.contract, store, future)
+        Ok(contract::PollExecutionResult::Ready(Ok(
+            contract::ExecutionResult {
+                effects: vec![],
+                subscribe: vec![],
+                unsubscribe: vec![],
+            },
+        )))
     }
 
     fn execute_operation_new(

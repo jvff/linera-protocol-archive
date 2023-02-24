@@ -25,7 +25,8 @@ impl Contract for Counter {
         _context: &OperationContext,
         argument: &[u8],
     ) -> Result<ExecutionResult, Self::Error> {
-        self.value = bcs::from_bytes(argument)?;
+        // self.value = bcs::from_bytes(argument)?;
+        log::error!("Initialize");
         Ok(ExecutionResult::default())
     }
 

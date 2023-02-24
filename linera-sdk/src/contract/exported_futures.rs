@@ -65,12 +65,13 @@ where
         argument: Vec<u8>,
     ) -> ExportedFuture<Result<ExecutionResult, String>> {
         ExportedFuture::new(async move {
-            let mut application: Application = system_api::load_and_lock().await;
-            let result = application.initialize(&context.into(), &argument).await;
-            if result.is_ok() {
-                system_api::store_and_unlock(application).await;
-            }
-            result.map_err(|error| error.to_string())
+            Ok(ExecutionResult::default())
+            // let mut application: Application = system_api::load_and_lock().await;
+            // let result = application.initialize(&context.into(), &argument).await;
+            // if result.is_ok() {
+            // system_api::store_and_unlock(application).await;
+            // }
+            // result.map_err(|error| error.to_string())
         })
     }
 
@@ -263,7 +264,7 @@ where
 ///
 /// Loads the `Application` state and calls its [`initialize`][Application::initialize] method.
 pub struct Initialize<Application> {
-    future: ExportedFuture<Result<ExecutionResult, String>>,
+    // future: ExportedFuture<Result<ExecutionResult, String>>,
     _application: PhantomData<Application>,
 }
 
@@ -276,9 +277,9 @@ where
     ///
     /// This is called from the host.
     pub fn new(context: contract::OperationContext, argument: Vec<u8>) -> Self {
-        ContractLogger::install();
+        // ContractLogger::install();
         Initialize {
-            future: Application::Storage::initialize(context, argument),
+            // future: Application::Storage::initialize(context, argument),
             _application: PhantomData,
         }
     }
@@ -287,7 +288,8 @@ where
     ///
     /// This is called from the host.
     pub fn poll(&self) -> contract::PollExecutionResult {
-        self.future.poll()
+        // self.future.poll()
+        contract::PollExecutionResult::Ready(Ok(ExecutionResult::default().into()))
     }
 }
 
