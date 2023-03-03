@@ -8,7 +8,7 @@ use super::{
     common::{ApplicationRuntimeContext, WasmRuntimeContext},
     ExecutionError,
 };
-use futures::{future::BoxFuture, ready, stream::StreamExt};
+use futures::{future::BoxFuture, ready, stream::StreamExt, FutureExt};
 use std::{
     any::type_name,
     fmt::{self, Debug, Formatter},
@@ -138,6 +138,12 @@ where
             }
             GuestFuture::Active { future, context } => {
                 ready!(context.future_queue.poll_next_unpin(task_context));
+
+                if let Poll::Ready(Ok(error)) =
+                    context.internal_error_receiver.poll_unpin(task_context)
+                {
+                    return Poll::Ready(Err(error));
+                }
 
                 let _context_guard = context.context_forwarder.forward(task_context);
                 future.poll(&context.application, &mut context.store)
