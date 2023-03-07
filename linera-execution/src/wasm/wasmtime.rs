@@ -34,7 +34,7 @@ use super::{
     common::{self, ApplicationRuntimeContext, WasmRuntimeContext},
     WasmApplication, WasmExecutionError,
 };
-use crate::{CallResult, ExecutionError, QueryableStorage, SessionId, WritableStorage};
+use crate::{ExecutionError, QueryableStorage, SessionId, WritableStorage};
 use linera_views::{common::Batch, views::ViewError};
 use std::{future::Future, task::Poll, thread};
 use tokio::sync::oneshot;
