@@ -30,7 +30,7 @@ where
     let future = system::LoadAndLock::new();
     let state_bytes =
         future::poll_fn(|_context| Poll::<Option<Vec<u8>>>::from(future.poll())).await?;
-    deserialize_state(state_bytes)
+    Some(deserialize_state(state_bytes))
 }
 
 /// Deserializes the contract state or creates a new one if the `bytes` vector is empty.
