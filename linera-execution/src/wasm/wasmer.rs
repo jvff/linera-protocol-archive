@@ -672,7 +672,7 @@ impl writable_system::WritableSystem
         session: writable_system::SessionId,
         argument: &[u8],
         forwarded_sessions: &[Le<writable_system::SessionId>],
-    ) -> Self::TryCallApplication {
+    ) -> Self::TryCallSession {
         let storage = self.storage();
         let forwarded_sessions = forwarded_sessions
             .iter()
@@ -690,7 +690,7 @@ impl writable_system::WritableSystem
 
     fn try_call_session_poll(
         &mut self,
-        future: &Self::TryCallApplication,
+        future: &Self::TryCallSession,
     ) -> writable_system::PollCallResult {
         use writable_system::PollCallResult;
         match future.poll(&mut self.context) {
