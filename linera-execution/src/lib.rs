@@ -601,7 +601,7 @@ pub struct Bytecode {
 
 impl Bytecode {
     /// Creates a new [`Bytecode`] instance using the provided `bytes`.
-    pub fn new(bytes: Vec<u8>) -> Self {
+    pub(crate) fn new(bytes: Vec<u8>) -> Self {
         Bytecode { bytes }
     }
 
