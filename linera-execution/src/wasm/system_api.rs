@@ -20,7 +20,6 @@ macro_rules! impl_writable_system {
             type FindKeyValues =
                 HostFuture<$storage, Result<Vec<(Vec<u8>, Vec<u8>)>, ExecutionError>>;
             type WriteBatch = HostFuture<$storage, Result<(), ExecutionError>>;
-            type TryCallApplication = HostFuture<$storage, Result<CallResult, ExecutionError>>;
             type TryCallSession = HostFuture<$storage, Result<CallResult, ExecutionError>>;
 
             fn chain_id(&mut self) -> writable_system::ChainId {
@@ -202,14 +201,13 @@ macro_rules! impl_writable_system {
                 }
             }
 
-            fn try_call_application_new(
+            fn try_call_application(
                 &mut self,
                 authenticated: bool,
                 application: writable_system::ApplicationId,
                 argument: &[u8],
                 forwarded_sessions: &[Le<writable_system::SessionId>],
-            ) -> Self::TryCallApplication {
-                let storage = self.storage();
+            ) -> writable_system::CallResult {
                 let forwarded_sessions = forwarded_sessions
                     .iter()
                     .map(Le::get)
@@ -217,29 +215,21 @@ macro_rules! impl_writable_system {
                     .collect();
                 let argument = Vec::from(argument);
 
-                self.queued_future_factory.enqueue(async move {
-                    storage
-                        .try_call_application(
-                            authenticated,
-                            application.into(),
-                            &argument,
-                            forwarded_sessions,
-                        )
-                        .await
-                })
-            }
+                let result = Self::block_on(self.storage().try_call_application(
+                    authenticated,
+                    application.into(),
+                    &argument,
+                    forwarded_sessions,
+                ));
 
-            fn try_call_application_poll(
-                &mut self,
-                future: &Self::TryCallApplication,
-            ) -> writable_system::PollCallResult {
-                use writable_system::PollCallResult;
-                match future.poll(self.context()) {
-                    Poll::Pending => PollCallResult::Pending,
-                    Poll::Ready(Ok(result)) => PollCallResult::Ready(result.into()),
-                    Poll::Ready(Err(error)) => {
+                match result {
+                    Ok(call_result) => call_result.into(),
+                    Err(error) => {
                         self.report_internal_error(error);
-                        PollCallResult::Pending
+                        writable_system::CallResult {
+                            value: Vec::new(),
+                            sessions: Vec::new(),
+                        }
                     }
                 }
             }
