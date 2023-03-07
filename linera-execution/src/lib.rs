@@ -601,6 +601,7 @@ pub struct Bytecode {
 
 impl Bytecode {
     /// Creates a new [`Bytecode`] instance using the provided `bytes`.
+    #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
     pub(crate) fn new(bytes: Vec<u8>) -> Self {
         Bytecode { bytes }
     }
