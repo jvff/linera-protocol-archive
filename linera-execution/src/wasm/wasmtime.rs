@@ -34,7 +34,7 @@ use super::{
     common::{self, ApplicationRuntimeContext, WasmRuntimeContext},
     WasmApplication, WasmExecutionError,
 };
-use crate::{CallResult, ExecutionError, QueryableStorage, SessionId, WritableStorage};
+use crate::{ExecutionError, QueryableStorage, SessionId, WritableStorage};
 use linera_views::{common::Batch, views::ViewError};
 use std::{future::Future, task::Poll, thread};
 use tokio::sync::oneshot;
@@ -444,7 +444,6 @@ impl<'storage> WritableSystem
     type FindKeys = HostFuture<'storage, Result<Vec<Vec<u8>>, ExecutionError>>;
     type FindKeyValues = HostFuture<'storage, Result<Vec<(Vec<u8>, Vec<u8>)>, ExecutionError>>;
     type WriteBatch = HostFuture<'storage, Result<(), ExecutionError>>;
-    type TryCallSession = HostFuture<'storage, Result<CallResult, ExecutionError>>;
 
     fn chain_id(&mut self) -> writable_system::ChainId {
         self.storage.chain_id().into()
@@ -656,14 +655,13 @@ impl<'storage> WritableSystem
         }
     }
 
-    fn try_call_session_new(
+    fn try_call_session(
         &mut self,
         authenticated: bool,
         session: writable_system::SessionId,
         argument: &[u8],
         forwarded_sessions: &[Le<writable_system::SessionId>],
-    ) -> Self::TryCallSession {
-        let storage = self.storage;
+    ) -> writable_system::CallResult {
         let forwarded_sessions = forwarded_sessions
             .iter()
             .map(Le::get)
@@ -671,24 +669,21 @@ impl<'storage> WritableSystem
             .collect();
         let argument = Vec::from(argument);
 
-        self.queued_future_factory.enqueue(async move {
-            storage
-                .try_call_session(authenticated, session.into(), &argument, forwarded_sessions)
-                .await
-        })
-    }
+        let result = Self::block_on(self.storage.try_call_session(
+            authenticated,
+            session.into(),
+            &argument,
+            forwarded_sessions,
+        ));
 
-    fn try_call_session_poll(
-        &mut self,
-        future: &Self::TryCallSession,
-    ) -> writable_system::PollCallResult {
-        use writable_system::PollCallResult;
-        match future.poll(&mut self.context) {
-            Poll::Pending => PollCallResult::Pending,
-            Poll::Ready(Ok(result)) => PollCallResult::Ready(result.into()),
-            Poll::Ready(Err(error)) => {
+        match result {
+            Ok(call_result) => call_result.into(),
+            Err(error) => {
                 self.report_internal_error(error);
-                PollCallResult::Pending
+                writable_system::CallResult {
+                    value: Vec::new(),
+                    sessions: Vec::new(),
+                }
             }
         }
     }
