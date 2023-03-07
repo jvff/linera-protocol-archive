@@ -137,13 +137,13 @@ where
                 Poll::Ready(Err(ExecutionError::WasmError(error.into())))
             }
             GuestFuture::Active { future, context } => {
-                ready!(context.future_queue.poll_next_unpin(task_context));
-
                 if let Poll::Ready(Ok(error)) =
                     context.internal_error_receiver.poll_unpin(task_context)
                 {
                     return Poll::Ready(Err(error));
                 }
+
+                ready!(context.future_queue.poll_next_unpin(task_context));
 
                 let _context_guard = context.context_forwarder.forward(task_context);
                 future.poll(&context.application, &mut context.store)
