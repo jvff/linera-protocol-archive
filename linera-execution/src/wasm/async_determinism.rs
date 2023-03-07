@@ -210,6 +210,18 @@ impl<'futures> QueuedHostFutureFactory<'futures> {
     }
 }
 
+pub struct NotifierChain {
+    last_notifier: Arc<Notify>,
+}
+
+impl NotifierChain {
+    pub fn new() -> Self {
+        let last_notifier = Arc::new(Notify::new());
+        last_notifier.notify_one();
+        NotifierChain { last_notifier }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
