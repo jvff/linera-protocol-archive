@@ -36,7 +36,7 @@ use super::{
 };
 use crate::{CallResult, ExecutionError, QueryableStorage, SessionId, WritableStorage};
 use linera_views::{common::Batch, views::ViewError};
-use std::task::Poll;
+use std::{future::Future, task::Poll, thread};
 use tokio::sync::oneshot;
 use wasmtime::{Config, Engine, Linker, Module, Store, Trap};
 use wit_bindgen_host_wasmtime_rust::Le;
@@ -420,6 +420,22 @@ impl<'storage> ContractSystemApi<'storage> {
                 .send(error)
                 .expect("Internal error receiver has unexpectedly been dropped");
         }
+    }
+
+    /// Calls a `future` in a blocking manner.
+    fn block_on<F>(future: F) -> F::Output
+    where
+        F: Future + Send,
+        F::Output: Send,
+    {
+        let runtime = tokio::runtime::Handle::current();
+
+        thread::scope(|scope| {
+            scope
+                .spawn(|| runtime.block_on(future))
+                .join()
+                .expect("Panic when running a future in a blocking manner")
+        })
     }
 }
 
