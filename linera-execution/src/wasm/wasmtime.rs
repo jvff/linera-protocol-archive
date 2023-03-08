@@ -437,7 +437,6 @@ impl<S, Q> SystemApi<S, Q> {
 impl<'storage> WritableSystem
     for SystemApi<&'storage dyn WritableStorage, QueuedHostFutureFactory<'storage>>
 {
-    type Load = HostFuture<'storage, Result<Vec<u8>, ExecutionError>>;
     type LoadAndLock = HostFuture<'storage, Result<Vec<u8>, ExecutionError>>;
     type Lock = HostFuture<'storage, Result<(), ExecutionError>>;
     type ReadKeyBytes = HostFuture<'storage, Result<Option<Vec<u8>>, ExecutionError>>;
@@ -465,19 +464,12 @@ impl<'storage> WritableSystem
         self.storage.read_system_timestamp().micros()
     }
 
-    fn load_new(&mut self) -> Self::Load {
-        self.queued_future_factory
-            .enqueue(self.storage.try_read_my_state())
-    }
-
-    fn load_poll(&mut self, future: &Self::Load) -> writable_system::PollLoad {
-        use writable_system::PollLoad;
-        match future.poll(&mut self.context) {
-            Poll::Pending => PollLoad::Pending,
-            Poll::Ready(Ok(bytes)) => PollLoad::Ready(bytes),
-            Poll::Ready(Err(error)) => {
+    fn load(&mut self) -> Vec<u8> {
+        match Self::block_on(self.storage.try_read_my_state()) {
+            Ok(bytes) => bytes,
+            Err(error) => {
                 self.report_internal_error(error);
-                PollLoad::Pending
+                Vec::new()
             }
         }
     }
