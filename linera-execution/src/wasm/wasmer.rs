@@ -453,7 +453,6 @@ impl<S: Copy, Q> SystemApi<S, Q> {
 impl writable_system::WritableSystem
     for SystemApi<&'static dyn WritableStorage, QueuedHostFutureFactory<'static>>
 {
-    type LoadAndLock = HostFuture<'static, Result<Vec<u8>, ExecutionError>>;
     type Lock = HostFuture<'static, Result<(), ExecutionError>>;
     type ReadKeyBytes = HostFuture<'static, Result<Option<Vec<u8>>, ExecutionError>>;
     type FindKeys = HostFuture<'static, Result<Vec<Vec<u8>>, ExecutionError>>;
@@ -490,25 +489,13 @@ impl writable_system::WritableSystem
         }
     }
 
-    fn load_and_lock_new(&mut self) -> Self::LoadAndLock {
-        self.queued_future_factory
-            .enqueue(self.storage().try_read_and_lock_my_state())
-    }
-
-    fn load_and_lock_poll(
-        &mut self,
-        future: &Self::LoadAndLock,
-    ) -> writable_system::PollLoadAndLock {
-        use writable_system::PollLoadAndLock;
-        match future.poll(&mut self.context) {
-            Poll::Pending => PollLoadAndLock::Pending,
-            Poll::Ready(Ok(bytes)) => PollLoadAndLock::Ready(Some(bytes)),
-            Poll::Ready(Err(ExecutionError::ViewError(ViewError::NotFound(_)))) => {
-                PollLoadAndLock::Ready(None)
-            }
-            Poll::Ready(Err(error)) => {
+    fn load_and_lock(&mut self) -> Option<Vec<u8>> {
+        match Self::block_on(self.storage().try_read_and_lock_my_state()) {
+            Ok(bytes) => Some(bytes),
+            Err(ExecutionError::ViewError(ViewError::NotFound(_))) => None,
+            Err(error) => {
                 self.report_internal_error(error);
-                PollLoadAndLock::Pending
+                None
             }
         }
     }
