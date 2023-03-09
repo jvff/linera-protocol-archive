@@ -36,7 +36,12 @@ use super::{
 };
 use crate::{ExecutionError, QueryableStorage, SessionId, WritableStorage};
 use linera_views::{common::Batch, views::ViewError};
-use std::{future::Future, task::Poll, thread};
+use std::{
+    future::Future,
+    sync::{Arc, Condvar, Mutex},
+    task::Poll,
+    thread,
+};
 use tokio::sync::oneshot;
 use wasmtime::{Config, Engine, Linker, Module, Store, Trap};
 use wit_bindgen_host_wasmtime_rust::Le;
@@ -81,7 +86,7 @@ impl WasmApplication {
         storage: &'storage dyn WritableStorage,
     ) -> Result<WasmRuntimeContext<'storage, Contract<'storage>>, WasmExecutionError> {
         let mut config = Config::default();
-        config.consume_fuel(true);
+        config.consume_fuel(true).epoch_interruption(true);
 
         let engine = Engine::new(&config).map_err(WasmExecutionError::CreateWasmtimeEngine)?;
         let mut linker = Linker::new(&engine);
@@ -92,20 +97,25 @@ impl WasmApplication {
         let context_forwarder = ContextForwarder::default();
         let (future_queue, queued_future_factory) = HostFutureQueue::new();
         let (internal_error_sender, internal_error_receiver) = oneshot::channel();
+        let (abort_requester, abort_listener) = AbortRequester::new();
         let state = ContractState::new(
             storage,
             context_forwarder.clone(),
             queued_future_factory,
             internal_error_sender,
+            abort_requester,
         );
         let mut store = Store::new(&engine, state);
         let (contract, _instance) =
             contract::Contract::instantiate(&mut store, &module, &mut linker, ContractState::data)?;
         let application = Contract { contract };
 
+        abort_listener.spawn(engine);
+
         store
             .add_fuel(storage.remaining_fuel())
             .expect("Fuel consumption wasn't properly enabled");
+        store.set_epoch_deadline(1);
 
         Ok(WasmRuntimeContext {
             context_forwarder,
@@ -172,6 +182,7 @@ impl<'storage> ContractState<'storage> {
         context: ContextForwarder,
         queued_future_factory: QueuedHostFutureFactory<'storage>,
         internal_error_sender: oneshot::Sender<ExecutionError>,
+        abort_requester: AbortRequester,
     ) -> Self {
         Self {
             data: ContractData::default(),
@@ -180,6 +191,7 @@ impl<'storage> ContractState<'storage> {
                 storage,
                 queued_future_factory,
                 internal_error_sender,
+                abort_requester,
             ),
             system_tables: WritableSystemTables::default(),
         }
@@ -383,6 +395,7 @@ pub struct ContractSystemApi<'storage> {
     shared: SystemApi<&'storage dyn WritableStorage>,
     queued_future_factory: QueuedHostFutureFactory<'storage>,
     internal_error_sender: Option<oneshot::Sender<ExecutionError>>,
+    abort_requester: Option<AbortRequester>,
 }
 
 impl<'storage> ContractSystemApi<'storage> {
@@ -393,11 +406,13 @@ impl<'storage> ContractSystemApi<'storage> {
         storage: &'storage dyn WritableStorage,
         queued_future_factory: QueuedHostFutureFactory<'storage>,
         internal_error_sender: oneshot::Sender<ExecutionError>,
+        abort_requester: AbortRequester,
     ) -> Self {
         ContractSystemApi {
             shared: SystemApi { context, storage },
             queued_future_factory,
             internal_error_sender: Some(internal_error_sender),
+            abort_requester: Some(abort_requester),
         }
     }
 
@@ -419,6 +434,10 @@ impl<'storage> ContractSystemApi<'storage> {
             sender
                 .send(error)
                 .expect("Internal error receiver has unexpectedly been dropped");
+        }
+
+        if let Some(requester) = self.abort_requester.take() {
+            requester.abort();
         }
     }
 
@@ -468,3 +487,68 @@ impl<'storage> ServiceSystemApi<'storage> {
 }
 
 impl_queryable_system!(ServiceSystemApi<'storage>);
+
+#[derive(Eq, PartialEq)]
+enum AbortRequest {
+    Wait,
+    KeepAlive,
+    Abort,
+}
+
+pub struct AbortRequester {
+    notifier: Arc<(Mutex<AbortRequest>, Condvar)>,
+}
+
+impl AbortRequester {
+    pub fn new() -> (AbortRequester, AbortListener) {
+        let notifier = Arc::new((Mutex::new(AbortRequest::Wait), Condvar::new()));
+        let listener = notifier.clone();
+
+        (AbortRequester { notifier }, AbortListener { listener })
+    }
+
+    pub fn abort(self) {
+        self.notify(AbortRequest::Abort);
+    }
+
+    fn notify(&self, notification: AbortRequest) {
+        let (lock, condition) = &*self.notifier;
+        let mut request = lock.lock().expect("`AbortListener` thread panicked");
+
+        *request = notification;
+        condition.notify_one();
+    }
+}
+
+impl Drop for AbortRequester {
+    fn drop(&mut self) {
+        self.notify(AbortRequest::KeepAlive);
+    }
+}
+
+pub struct AbortListener {
+    listener: Arc<(Mutex<AbortRequest>, Condvar)>,
+}
+
+impl AbortListener {
+    pub fn spawn(self, engine: Engine) {
+        thread::spawn(|| self.run(engine));
+    }
+
+    fn run(self, engine: Engine) {
+        let (lock, condition) = &*self.listener;
+        let mut request = lock.lock().expect("Thread with `AbortRequester` panicked");
+
+        while *request == AbortRequest::Wait {
+            request = condition
+                .wait(request)
+                .expect("Thread with `AbortRequester` panicked");
+        }
+
+        match *request {
+            AbortRequest::KeepAlive => (),
+            AbortRequest::Abort => engine.increment_epoch(),
+            AbortRequest::Wait => unreachable!("Stopped waiting while request was still `Wait`"),
+        }
+    }
+}
