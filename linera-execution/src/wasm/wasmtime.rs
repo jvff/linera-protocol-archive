@@ -36,7 +36,7 @@ use super::{
 };
 use crate::{ExecutionError, QueryableStorage, SessionId, WritableStorage};
 use linera_views::{common::Batch, views::ViewError};
-use std::{future::Future, task::Poll, thread};
+use std::{error::Error, future::Future, task::Poll, thread};
 use tokio::sync::oneshot;
 use wasmtime::{Config, Engine, Linker, Module, Store, Trap};
 use wit_bindgen_host_wasmtime_rust::Le;
@@ -468,3 +468,10 @@ impl<'storage> ServiceSystemApi<'storage> {
 }
 
 impl_queryable_system!(ServiceSystemApi<'storage>);
+
+impl From<ExecutionError> for wasmtime::Trap {
+    fn from(error: ExecutionError) -> Self {
+        let boxed_error: Box<dyn Error + Send + Sync + 'static> = Box::new(error);
+        wasmtime::Trap::from(boxed_error)
+    }
+}
