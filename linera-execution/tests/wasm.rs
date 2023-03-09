@@ -55,14 +55,17 @@ async fn test_counter_wasm_application() -> anyhow::Result<()> {
         };
         let increments = [2_u128, 9, 7, 1000];
         for increment in &increments {
+            dbg!(&increment);
+            dbg!(*view.available_fuel.get());
             let operation = bcs::to_bytes(increment).expect("Serialization of u128 failed");
             let result = view
                 .execute_operation(ApplicationId::User(app_id), &context, &operation.into())
-                .await?;
-            assert_eq!(
-                result,
-                vec![ExecutionResult::User(app_id, RawExecutionResult::default())]
-            );
+                .await;
+            dbg!(*view.available_fuel.get());
+            // assert_eq!(
+            // result,
+            // vec![ExecutionResult::User(app_id, RawExecutionResult::default())]
+            // );
         }
 
         if operation_fuel.is_none() {
@@ -77,12 +80,13 @@ async fn test_counter_wasm_application() -> anyhow::Result<()> {
         let expected_value: u128 = increments.into_iter().sum();
         let expected_serialized_value =
             bcs::to_bytes(&expected_value).expect("Serialization of u128 failed");
-        assert_eq!(
-            view.query_application(ApplicationId::User(app_id), &context, &Query::User(vec![]),)
-                .await?,
-            Response::User(expected_serialized_value)
-        );
+        // assert_eq!(
+        // view.query_application(ApplicationId::User(app_id), &context, &Query::User(vec![]),)
+        // .await?,
+        // Response::User(expected_serialized_value)
+        // );
     }
 
+    panic!();
     Ok(())
 }

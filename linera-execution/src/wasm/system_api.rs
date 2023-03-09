@@ -71,9 +71,10 @@ macro_rules! impl_writable_system {
             }
 
             fn load_and_lock_new(&mut self) -> Result<Self::LoadAndLock, Self::Error> {
-                Ok(self
-                    .queued_future_factory
-                    .enqueue(self.storage().try_read_and_lock_my_state()))
+                Err(ExecutionError::ApplicationIsInUse)
+                // Ok(self
+                    // .queued_future_factory
+                    // .enqueue(self.storage().try_read_and_lock_my_state()))
             }
 
             fn load_and_lock_poll(
