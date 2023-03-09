@@ -50,23 +50,14 @@ macro_rules! impl_writable_system {
             }
 
             fn load(&mut self) -> Result<Vec<u8>, Self::Error> {
-                match Self::block_on(self.storage().try_read_my_state()) {
-                    Ok(bytes) => Ok(bytes),
-                    Err(error) => {
-                        self.report_internal_error(error);
-                        Ok(Vec::new())
-                    }
-                }
+                Self::block_on(self.storage().try_read_my_state())
             }
 
             fn load_and_lock(&mut self) -> Result<Option<Vec<u8>>, Self::Error> {
                 match Self::block_on(self.storage().try_read_and_lock_my_state()) {
                     Ok(bytes) => Ok(Some(bytes)),
                     Err(ExecutionError::ViewError(ViewError::NotFound(_))) => Ok(None),
-                    Err(error) => {
-                        self.report_internal_error(error);
-                        Ok(None)
-                    }
+                    Err(error) => Err(error),
                 }
             }
 
@@ -94,10 +85,7 @@ macro_rules! impl_writable_system {
                     Poll::Ready(Err(ExecutionError::ViewError(ViewError::TryLockError(_)))) => {
                         Ok(PollLock::ReadyNotLocked)
                     }
-                    Poll::Ready(Err(error)) => {
-                        self.report_internal_error(error);
-                        Ok(PollLock::Pending)
-                    }
+                    Poll::Ready(Err(error)) => Err(error),
                 }
             }
 
@@ -117,11 +105,7 @@ macro_rules! impl_writable_system {
                 use writable_system::PollReadKeyBytes;
                 match future.poll(self.context()) {
                     Poll::Pending => Ok(PollReadKeyBytes::Pending),
-                    Poll::Ready(Ok(opt_list)) => Ok(PollReadKeyBytes::Ready(opt_list)),
-                    Poll::Ready(Err(error)) => {
-                        self.report_internal_error(error);
-                        Ok(PollReadKeyBytes::Pending)
-                    }
+                    Poll::Ready(opt_list) => Ok(PollReadKeyBytes::Ready(opt_list?)),
                 }
             }
 
@@ -138,11 +122,7 @@ macro_rules! impl_writable_system {
                 use writable_system::PollFindKeys;
                 match future.poll(self.context()) {
                     Poll::Pending => Ok(PollFindKeys::Pending),
-                    Poll::Ready(Ok(keys)) => Ok(PollFindKeys::Ready(keys)),
-                    Poll::Ready(Err(error)) => {
-                        self.report_internal_error(error);
-                        Ok(PollFindKeys::Pending)
-                    }
+                    Poll::Ready(keys) => Ok(PollFindKeys::Ready(keys?)),
                 }
             }
 
@@ -163,11 +143,7 @@ macro_rules! impl_writable_system {
                 use writable_system::PollFindKeyValues;
                 match future.poll(self.context()) {
                     Poll::Pending => Ok(PollFindKeyValues::Pending),
-                    Poll::Ready(Ok(key_values)) => Ok(PollFindKeyValues::Ready(key_values)),
-                    Poll::Ready(Err(error)) => {
-                        self.report_internal_error(error);
-                        Ok(PollFindKeyValues::Pending)
-                    }
+                    Poll::Ready(key_values) => Ok(PollFindKeyValues::Ready(key_values?)),
                 }
             }
 
@@ -202,10 +178,7 @@ macro_rules! impl_writable_system {
                 match future.poll(self.context()) {
                     Poll::Pending => Ok(PollUnit::Pending),
                     Poll::Ready(Ok(())) => Ok(PollUnit::Ready),
-                    Poll::Ready(Err(error)) => {
-                        self.report_internal_error(error);
-                        Ok(PollUnit::Pending)
-                    }
+                    Poll::Ready(Err(error)) => Err(error),
                 }
             }
 
@@ -223,23 +196,13 @@ macro_rules! impl_writable_system {
                     .collect();
                 let argument = Vec::from(argument);
 
-                let result = Self::block_on(self.storage().try_call_application(
+                Self::block_on(self.storage().try_call_application(
                     authenticated,
                     application.into(),
                     &argument,
                     forwarded_sessions,
-                ));
-
-                match result {
-                    Ok(call_result) => Ok(call_result.into()),
-                    Err(error) => {
-                        self.report_internal_error(error);
-                        Ok(writable_system::CallResult {
-                            value: Vec::new(),
-                            sessions: Vec::new(),
-                        })
-                    }
-                }
+                ))
+                .map(writable_system::CallResult::from)
             }
 
             fn try_call_session(
@@ -256,23 +219,13 @@ macro_rules! impl_writable_system {
                     .collect();
                 let argument = Vec::from(argument);
 
-                let result = Self::block_on(self.storage().try_call_session(
+                Self::block_on(self.storage().try_call_session(
                     authenticated,
                     session.into(),
                     &argument,
                     forwarded_sessions,
-                ));
-
-                match result {
-                    Ok(call_result) => Ok(call_result.into()),
-                    Err(error) => {
-                        self.report_internal_error(error);
-                        Ok(writable_system::CallResult {
-                            value: Vec::new(),
-                            sessions: Vec::new(),
-                        })
-                    }
-                }
+                ))
+                .map(writable_system::CallResult::from)
             }
 
             fn log(
