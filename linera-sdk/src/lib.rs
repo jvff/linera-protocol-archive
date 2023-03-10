@@ -10,6 +10,7 @@ mod extensions;
 mod log;
 pub mod service;
 
+use self::contract::exported_futures::ContractStateStorage;
 use async_trait::async_trait;
 use custom_debug_derive::Debug;
 use serde::{Deserialize, Serialize};
@@ -41,11 +42,11 @@ pub struct ViewStateStorage<A>(std::marker::PhantomData<A>);
 
 /// The public entry points provided by a contract.
 #[async_trait]
-pub trait Contract {
+pub trait Contract: Sized {
     /// Message reports for application execution errors.
     type Error: Error;
     /// Tag the contract with the desired state management runtime.
-    type Storage;
+    type Storage: ContractStateStorage<Self>;
 
     /// Initialize the application on the chain that created it.
     async fn initialize(
