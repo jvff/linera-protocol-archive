@@ -36,7 +36,7 @@ use super::{
 };
 use crate::{ExecutionError, QueryableStorage, SessionId, WritableStorage};
 use linera_views::{common::Batch, views::ViewError};
-use std::{future::Future, marker::PhantomData, mem, sync::Arc, task::Poll, thread};
+use std::{marker::PhantomData, mem, sync::Arc, task::Poll};
 use tokio::sync::Mutex;
 use wasmer::{
     imports, wasmparser::Operator, CompilerConfig, EngineBuilder, Instance, Module, RuntimeError,
@@ -395,22 +395,6 @@ impl ContractSystemApi {
     /// Returns the [`ContextForwarder`] to be used for asynchronous system calls.
     fn context(&mut self) -> &mut ContextForwarder {
         &mut self.shared.context
-    }
-
-    /// Calls a `future` in a blocking manner.
-    fn block_on<F>(future: F) -> F::Output
-    where
-        F: Future + Send,
-        F::Output: Send,
-    {
-        let runtime = tokio::runtime::Handle::current();
-
-        thread::scope(|scope| {
-            scope
-                .spawn(|| runtime.block_on(future))
-                .join()
-                .expect("Panic when running a future in a blocking manner")
-        })
     }
 }
 
