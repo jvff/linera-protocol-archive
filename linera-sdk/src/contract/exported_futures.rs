@@ -57,15 +57,6 @@ pub trait ContractStateStorage<Application>: Send + 'static {
         }
         result
     }
-
-    /// Future implementation exported from the guest to allow the host to call
-    /// [`Application::call_session`].
-    fn call_session(
-        context: contract::CalleeContext,
-        session: contract::Session,
-        argument: Vec<u8>,
-        forwarded_sessions: Vec<contract::SessionId>,
-    ) -> ExportedFuture<Result<SessionCallResult, String>>;
 }
 
 #[async_trait]
@@ -79,32 +70,6 @@ where
 
     async fn store_and_unlock(state: Application) {
         system_api::store_and_unlock(state).await;
-    }
-
-    fn call_session(
-        context: contract::CalleeContext,
-        session: contract::Session,
-        argument: Vec<u8>,
-        forwarded_sessions: Vec<contract::SessionId>,
-    ) -> ExportedFuture<Result<SessionCallResult, String>> {
-        ExportedFuture::new(Self::with_state(move |application| {
-            async move {
-                let forwarded_sessions = forwarded_sessions
-                    .into_iter()
-                    .map(SessionId::from)
-                    .collect();
-
-                application
-                    .call_session(
-                        &context.into(),
-                        session.into(),
-                        &argument,
-                        forwarded_sessions,
-                    )
-                    .await
-            }
-            .boxed()
-        }))
     }
 }
 
@@ -121,32 +86,6 @@ where
 
     async fn store_and_unlock(state: Application) {
         system_api::store_and_unlock_view(state).await;
-    }
-
-    fn call_session(
-        context: contract::CalleeContext,
-        session: contract::Session,
-        argument: Vec<u8>,
-        forwarded_sessions: Vec<contract::SessionId>,
-    ) -> ExportedFuture<Result<SessionCallResult, String>> {
-        ExportedFuture::new(Self::with_state(move |application| {
-            async move {
-                let forwarded_sessions = forwarded_sessions
-                    .into_iter()
-                    .map(SessionId::from)
-                    .collect();
-
-                application
-                    .call_session(
-                        &context.into(),
-                        session.into(),
-                        &argument,
-                        forwarded_sessions,
-                    )
-                    .await
-            }
-            .boxed()
-        }))
     }
 }
 
@@ -337,12 +276,24 @@ where
     ) -> Self {
         ContractLogger::install();
         CallSession {
-            future: Application::Storage::call_session(
-                context,
-                session,
-                argument,
-                forwarded_sessions,
-            ),
+            future: ExportedFuture::new(Application::Storage::with_state(move |application| {
+                async move {
+                    let forwarded_sessions = forwarded_sessions
+                        .into_iter()
+                        .map(SessionId::from)
+                        .collect();
+
+                    application
+                        .call_session(
+                            &context.into(),
+                            session.into(),
+                            &argument,
+                            forwarded_sessions,
+                        )
+                        .await
+                }
+                .boxed()
+            })),
             _application: PhantomData,
         }
     }
