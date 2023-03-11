@@ -41,9 +41,9 @@ pub struct ViewStateStorage<A>(std::marker::PhantomData<A>);
 
 /// The public entry points provided by a contract.
 #[async_trait]
-pub trait Contract: Sized {
+pub trait Contract: Sized + Send {
     /// Message reports for application execution errors.
-    type Error: Error;
+    type Error: Error + 'static;
     /// Tag the contract with the desired state management runtime.
     type Storage;
 
