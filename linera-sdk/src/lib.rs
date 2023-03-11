@@ -10,7 +10,6 @@ mod extensions;
 mod log;
 pub mod service;
 
-use self::contract::exported_futures::ContractStateStorage;
 use async_trait::async_trait;
 use custom_debug_derive::Debug;
 use serde::{Deserialize, Serialize};
@@ -46,7 +45,7 @@ pub trait Contract: Sized + Send {
     /// Message reports for application execution errors.
     type Error: Error + 'static;
     /// Tag the contract with the desired state management runtime.
-    type Storage: ContractStateStorage<Self>;
+    type Storage;
 
     /// Initialize the application on the chain that created it.
     async fn initialize(

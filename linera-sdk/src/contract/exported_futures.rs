@@ -101,6 +101,7 @@ pub struct Initialize<Application> {
 impl<Application> Initialize<Application>
 where
     Application: Contract,
+    Application::Storage: ContractStateStorage<Application>,
 {
     /// Creates the exported future that the host can poll.
     ///
@@ -136,6 +137,7 @@ pub struct ExecuteOperation<Application> {
 impl<Application> ExecuteOperation<Application>
 where
     Application: Contract,
+    Application::Storage: ContractStateStorage<Application>,
 {
     /// Creates the exported future that the host can poll.
     ///
@@ -176,6 +178,7 @@ pub struct ExecuteEffect<Application> {
 impl<Application> ExecuteEffect<Application>
 where
     Application: Contract,
+    Application::Storage: ContractStateStorage<Application>,
 {
     /// Creates the exported future that the host can poll.
     ///
@@ -211,6 +214,7 @@ pub struct CallApplication<Application> {
 impl<Application> CallApplication<Application>
 where
     Application: Contract,
+    Application::Storage: ContractStateStorage<Application>,
 {
     /// Creates the exported future that the host can poll.
     ///
@@ -259,6 +263,7 @@ pub struct CallSession<Application> {
 impl<Application> CallSession<Application>
 where
     Application: Contract,
+    Application::Storage: ContractStateStorage<Application>,
 {
     /// Creates the exported future that the host can poll.
     ///
