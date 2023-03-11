@@ -58,12 +58,6 @@ pub trait ContractStateStorage<Application>: Send + 'static {
         result
     }
 
-    /// Loads the `Application` state and calls its [`execute_operation`][Application::execute_operation] method.
-    fn execute_operation(
-        context: contract::OperationContext,
-        operation: Vec<u8>,
-    ) -> ExportedFuture<Result<ExecutionResult, String>>;
-
     /// Loads the `Application` state and calls its [`execute_effect`][Application::execute_effect] method.
     fn execute_effect(
         context: contract::EffectContext,
@@ -98,20 +92,6 @@ where
 
     async fn store_and_unlock(state: Application) {
         system_api::store_and_unlock(state).await;
-    }
-
-    fn execute_operation(
-        context: contract::OperationContext,
-        operation: Vec<u8>,
-    ) -> ExportedFuture<Result<ExecutionResult, String>> {
-        ExportedFuture::new(Self::with_state(move |application| {
-            async move {
-                application
-                    .execute_operation(&context.into(), &operation)
-                    .await
-            }
-            .boxed()
-        }))
     }
 
     fn execute_effect(
@@ -183,20 +163,6 @@ where
 
     async fn store_and_unlock(state: Application) {
         system_api::store_and_unlock_view(state).await;
-    }
-
-    fn execute_operation(
-        context: contract::OperationContext,
-        operation: Vec<u8>,
-    ) -> ExportedFuture<Result<ExecutionResult, String>> {
-        ExportedFuture::new(Self::with_state(move |application| {
-            async move {
-                application
-                    .execute_operation(&context.into(), &operation)
-                    .await
-            }
-            .boxed()
-        }))
     }
 
     fn execute_effect(
@@ -309,7 +275,14 @@ where
     pub fn new(context: contract::OperationContext, operation: Vec<u8>) -> Self {
         ContractLogger::install();
         ExecuteOperation {
-            future: Application::Storage::execute_operation(context, operation),
+            future: ExportedFuture::new(Application::Storage::with_state(move |application| {
+                async move {
+                    application
+                        .execute_operation(&context.into(), &operation)
+                        .await
+                }
+                .boxed()
+            })),
             _application: PhantomData,
         }
     }
