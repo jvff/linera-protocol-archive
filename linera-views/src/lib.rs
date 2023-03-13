@@ -65,7 +65,7 @@ pub mod test_utils;
 
 /// For macros.
 #[doc(hidden)]
-pub use {async_trait::async_trait, generic_array, serde, sha2};
+pub use {async_trait::async_trait, generic_array, serde, sha3};
 
 #[doc(hidden)]
 #[cfg(not(target_arch = "wasm32"))]

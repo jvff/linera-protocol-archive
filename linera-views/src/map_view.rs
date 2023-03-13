@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    common::{Batch, Context, HashOutput, KeyIterable, KeyValueIterable, Update},
+    common::{Batch, Context, HasherOutput, KeyIterable, KeyValueIterable, Update},
     views::{HashableView, Hasher, View, ViewError},
 };
 use async_lock::Mutex;
@@ -26,8 +26,8 @@ pub struct MapView<C, I, V> {
     was_cleared: bool,
     updates: BTreeMap<Vec<u8>, Update<V>>,
     _phantom: PhantomData<I>,
-    stored_hash: Option<HashOutput>,
-    hash: Mutex<Option<HashOutput>>,
+    stored_hash: Option<HasherOutput>,
+    hash: Mutex<Option<HasherOutput>>,
 }
 
 #[async_trait]
@@ -338,8 +338,8 @@ where
         Ok(())
     }
 
-    async fn compute_hash(&self) -> Result<<sha2::Sha512 as Hasher>::Output, ViewError> {
-        let mut hasher = sha2::Sha512::default();
+    async fn compute_hash(&self) -> Result<<sha3::Sha3_256 as Hasher>::Output, ViewError> {
+        let mut hasher = sha3::Sha3_256::default();
         let mut count = 0;
         self.for_each_key_value(|index, value| {
             count += 1;
@@ -401,7 +401,7 @@ where
     I: Send + Sync + Serialize + DeserializeOwned,
     V: Send + Sync + Serialize + DeserializeOwned + 'static,
 {
-    type Hasher = sha2::Sha512;
+    type Hasher = sha3::Sha3_256;
 
     async fn hash_mut(&mut self) -> Result<<Self::Hasher as Hasher>::Output, ViewError> {
         let hash = *self.hash.get_mut();

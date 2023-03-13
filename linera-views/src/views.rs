@@ -145,11 +145,14 @@ pub trait Hasher: Default + Write + Send + Sync + 'static {
     }
 }
 
-impl Hasher for sha2::Sha512 {
-    type Output = generic_array::GenericArray<u8, <sha2::Sha512 as sha2::Digest>::OutputSize>;
+impl Hasher for sha3::Sha3_256 {
+    type Output = generic_array::GenericArray<
+        u8,
+        <sha3::Sha3_256 as sha3::digest::OutputSizeUser>::OutputSize,
+    >;
 
     fn finalize(self) -> Self::Output {
-        <sha2::Sha512 as sha2::Digest>::finalize(self)
+        <sha3::Sha3_256 as sha3::Digest>::finalize(self)
     }
 }
 
