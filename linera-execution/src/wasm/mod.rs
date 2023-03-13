@@ -23,7 +23,7 @@ mod wasmer;
 #[path = "wasmtime.rs"]
 mod wasmtime;
 
-use self::sanitizer::sanitize;
+use self::{common::WasmContract, sanitizer::sanitize};
 use crate::{
     ApplicationCallResult, Bytecode, CalleeContext, EffectContext, ExecutionError,
     OperationContext, QueryContext, QueryableStorage, RawExecutionResult, SessionCallResult,

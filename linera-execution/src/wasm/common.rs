@@ -12,7 +12,7 @@ use crate::{
     ApplicationCallResult, CalleeContext, EffectContext, OperationContext, QueryContext,
     RawExecutionResult, SessionCallResult, SessionId,
 };
-use futures::future::{self, TryFutureExt};
+use async_trait::async_trait;
 
 /// Types that are specific to the context of an application ready to be executedy by a WebAssembly
 /// runtime.
@@ -218,167 +218,148 @@ where
     pub(crate) extra: A::Extra,
 }
 
-impl<'context, A> WasmRuntimeContext<'context, A>
-where
-    A: Contract,
-{
-    /// Call the guest WASM module's implementation of
+/// An active [`WasmRuntimeContext`] that's ready to be used as an application Contract.
+#[async_trait]
+pub trait WasmContract {
+    /// Calls the guest WASM module's implementation of
     /// [`UserApplication::initialize`][`linera_execution::UserApplication::initialize`].
-    ///
-    /// This method returns a [`Future`][`std::future::Future`], and is equivalent to
-    ///
-    /// ```ignore
-    /// pub async fn initialize(
-    ///     mut self,
-    ///     context: &OperationContext,
-    ///     argument: &[u8],
-    /// ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError>
-    /// ```
-    pub fn initialize(
+    async fn initialize(
         mut self,
         context: &OperationContext,
         argument: &[u8],
-    ) -> GuestFuture<'context, A::Initialize, A> {
-        let future = self
-            .application
-            .initialize_new(&mut self.store, (*context).into(), argument);
+    ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError>;
 
-        GuestFuture::new(future, self)
-    }
-
-    /// Call the guest WASM module's implementation of
+    /// Calls the guest WASM module's implementation of
     /// [`UserApplication::execute_operation`][`linera_execution::UserApplication::execute_operation`].
-    ///
-    /// This method returns a [`Future`][`std::future::Future`], and is equivalent to
-    ///
-    /// ```ignore
-    /// pub async fn execute_operation(
-    ///     mut self,
-    ///     context: &OperationContext,
-    ///     operation: &[u8],
-    /// ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError>
-    /// ```
-    pub fn execute_operation(
+    async fn execute_operation(
         mut self,
         context: &OperationContext,
         operation: &[u8],
-    ) -> GuestFuture<'context, A::ExecuteOperation, A> {
-        let future =
-            self.application
-                .execute_operation_new(&mut self.store, (*context).into(), operation);
+    ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError>;
 
-        GuestFuture::new(future, self)
-    }
-
-    /// Call the guest WASM module's implementation of
+    /// Calls the guest WASM module's implementation of
     /// [`UserApplication::execute_effect`][`linera_execution::UserApplication::execute_effect`].
-    ///
-    /// This method returns a [`Future`][`std::future::Future`], and is equivalent to
-    ///
-    /// ```ignore
-    /// pub async fn execute_effect(
-    ///     mut self,
-    ///     context: &EffectContext,
-    ///     effect: &[u8],
-    /// ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError>
-    /// ```
-    pub fn execute_effect(
+    async fn execute_effect(
         mut self,
         context: &EffectContext,
         effect: &[u8],
-    ) -> GuestFuture<'context, A::ExecuteEffect, A> {
-        let future =
-            self.application
-                .execute_effect_new(&mut self.store, (*context).into(), effect);
+    ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError>;
 
-        GuestFuture::new(future, self)
-    }
-
-    /// Call the guest WASM module's implementation of
+    /// Calls the guest WASM module's implementation of
     /// [`UserApplication::handle_application_call`][`linera_execution::UserApplication::handle_application_call`].
-    ///
-    /// This method returns a [`Future`][`std::future::Future`], and is equivalent to
-    ///
-    /// ```ignore
-    /// pub async fn handle_application_call(
-    ///     mut self,
-    ///     context: &CalleeContext,
-    ///     argument: &[u8],
-    ///     forwarded_sessions: Vec<SessionId>,
-    /// ) -> Result<ApplicationCallResult, ExecutionError>
-    /// ```
-    pub fn handle_application_call(
+    async fn handle_application_call(
         mut self,
         context: &CalleeContext,
         argument: &[u8],
         forwarded_sessions: Vec<SessionId>,
-    ) -> GuestFuture<'context, A::HandleApplicationCall, A> {
-        let forwarded_sessions: Vec<_> = forwarded_sessions
-            .into_iter()
-            .map(A::SessionId::from)
-            .collect();
+    ) -> Result<ApplicationCallResult, ExecutionError>;
 
-        let future = self.application.handle_application_call_new(
-            &mut self.store,
-            (*context).into(),
-            argument,
-            &forwarded_sessions,
-        );
-
-        GuestFuture::new(future, self)
-    }
-
-    /// Call the guest WASM module's implementation of
+    /// Calls the guest WASM module's implementation of
     /// [`UserApplication::handle_session_call`][`linera_execution::UserApplication::handle_session_call`].
-    ///
-    /// This method returns a [`Future`][`std::future::Future`], and is equivalent to
-    ///
-    /// ```ignore
-    /// pub async fn handle_session_call(
-    ///     mut self,
-    ///     context: &CalleeContext,
-    ///     session_kind: u64,
-    ///     session_data: &mut Vec<u8>,
-    ///     argument: &[u8],
-    ///     forwarded_sessions: Vec<SessionId>,
-    /// ) -> Result<SessionCallResult, ExecutionError>
-    /// ```
-    pub fn handle_session_call<'session_data>(
+    async fn handle_session_call<'session_data>(
         mut self,
         context: &CalleeContext,
         session_kind: u64,
         session_data: &'session_data mut Vec<u8>,
         argument: &[u8],
         forwarded_sessions: Vec<SessionId>,
-    ) -> future::MapOk<
-        GuestFuture<'context, A::HandleSessionCall, A>,
-        impl FnOnce((SessionCallResult, Vec<u8>)) -> SessionCallResult + 'session_data,
-    >
-    where
-        A: Unpin + 'session_data,
-        A::Store: Unpin,
-        A::Error: Unpin,
-        A::Extra: Unpin,
-    {
-        let forwarded_sessions: Vec<_> = forwarded_sessions
-            .into_iter()
-            .map(A::SessionId::from)
-            .collect();
+    ) -> Result<SessionCallResult, ExecutionError>;
+}
 
-        let session = A::SessionParam::from((session_kind, &*session_data));
+#[async_trait]
+impl<'context, A> WasmContract for WasmRuntimeContext<'context, A>
+where
+    A: Contract + Send + Unpin,
+{
+    async fn initialize(
+        mut self,
+        context: &OperationContext,
+        argument: &[u8],
+    ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
+        let future = self
+            .application
+            .initialize_new(&mut self.store, (*context).into(), argument);
 
-        let future = self.application.handle_session_call_new(
-            &mut self.store,
-            (*context).into(),
-            session,
-            argument,
-            &forwarded_sessions,
-        );
+        GuestFuture::new(future, self).await
+    }
 
-        GuestFuture::new(future, self).map_ok(|(session_call_result, updated_data)| {
-            *session_data = updated_data;
-            session_call_result
-        })
+    async fn execute_operation(
+        mut self,
+        context: &OperationContext,
+        operation: &[u8],
+    ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
+        let future =
+            self.application
+                .execute_operation_new(&mut self.store, (*context).into(), operation);
+
+        GuestFuture::new(future, self).await
+    }
+
+    async fn execute_effect(
+        mut self,
+        context: &EffectContext,
+        effect: &[u8],
+    ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
+        let future =
+            self.application
+                .execute_effect_new(&mut self.store, (*context).into(), effect);
+
+        GuestFuture::new(future, self).await
+    }
+
+    async fn handle_application_call(
+        mut self,
+        context: &CalleeContext,
+        argument: &[u8],
+        forwarded_sessions: Vec<SessionId>,
+    ) -> Result<ApplicationCallResult, ExecutionError> {
+        let future = {
+            let forwarded_sessions: Vec<_> = forwarded_sessions
+                .into_iter()
+                .map(A::SessionId::from)
+                .collect();
+
+            self.application.handle_application_call_new(
+                &mut self.store,
+                (*context).into(),
+                argument,
+                &forwarded_sessions,
+            )
+        };
+
+        GuestFuture::new(future, self).await
+    }
+
+    async fn handle_session_call<'session_data>(
+        mut self,
+        context: &CalleeContext,
+        session_kind: u64,
+        session_data: &'session_data mut Vec<u8>,
+        argument: &[u8],
+        forwarded_sessions: Vec<SessionId>,
+    ) -> Result<SessionCallResult, ExecutionError> {
+        let future = {
+            let forwarded_sessions: Vec<_> = forwarded_sessions
+                .into_iter()
+                .map(A::SessionId::from)
+                .collect();
+
+            let session = A::SessionParam::from((session_kind, &*session_data));
+
+            self.application.handle_session_call_new(
+                &mut self.store,
+                (*context).into(),
+                session,
+                argument,
+                &forwarded_sessions,
+            )
+        };
+
+        let (session_call_result, updated_data) = GuestFuture::new(future, self).await?;
+
+        *session_data = updated_data;
+
+        Ok(session_call_result)
     }
 }
 
