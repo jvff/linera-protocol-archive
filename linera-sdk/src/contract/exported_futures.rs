@@ -23,7 +23,7 @@ use std::{future::Future, marker::PhantomData, pin::Pin};
 
 /// The storage APIs used by a contract.
 #[async_trait]
-pub trait ContractStateStorage<Application>: Send + 'static {
+pub trait ContractStateStorage<Application> {
     /// Loads the `Application` state and locks it for writing.
     async fn load_and_lock() -> Application;
 
@@ -62,7 +62,7 @@ pub trait ContractStateStorage<Application>: Send + 'static {
 #[async_trait]
 impl<Application> ContractStateStorage<Application> for SimpleStateStorage<Application>
 where
-    Application: Contract + Default + DeserializeOwned + Serialize + 'static,
+    Application: Contract + Default + DeserializeOwned + Serialize + Send + 'static,
 {
     async fn load_and_lock() -> Application {
         system_api::load_and_lock().expect("Failed to lock contract state")
@@ -76,7 +76,7 @@ where
 #[async_trait]
 impl<Application> ContractStateStorage<Application> for ViewStateStorage<Application>
 where
-    Application: Contract + RootView<WasmContext> + 'static,
+    Application: Contract + RootView<WasmContext> + Send + 'static,
 {
     async fn load_and_lock() -> Application {
         system_api::load_and_lock_view()
