@@ -49,7 +49,7 @@ macro_rules! contract {
                 use $crate::contract::exported_futures::ContractStateStorage as Storage;
 
                 <Self as $crate::Contract>::Storage::without_state(self, move || async move {
-                    $crate::contract::system_api::call_application(
+                    $crate::contract::system_api::call_application_without_persisting_state(
                         authenticated,
                         application,
                         argument,
