@@ -19,7 +19,7 @@ use async_trait::async_trait;
 use futures::FutureExt;
 use linera_views::views::RootView;
 use serde::{de::DeserializeOwned, Serialize};
-use std::{future::Future, marker::PhantomData, pin::Pin};
+use std::{future::Future, marker::PhantomData, mem, pin::Pin};
 
 /// The storage APIs used by a contract.
 #[async_trait]
@@ -57,6 +57,16 @@ pub trait ContractStateStorage<Application> {
         }
         result
     }
+
+    /// Executes an `operation`, persisting the `Application` `state` before execution and reloading
+    /// the `state` afterwards.
+    async fn without_state<Operation>(
+        state: &mut Application,
+        operation: impl FnOnce() -> Operation + Send,
+    ) -> Operation::Output
+    where
+        Operation: Future + Send,
+        Operation::Output: Send;
 }
 
 #[async_trait]
@@ -70,6 +80,20 @@ where
 
     async fn store_and_unlock(state: Application) {
         system_api::store_and_unlock(state).await;
+    }
+
+    async fn without_state<Operation>(
+        state: &mut Application,
+        operation: impl FnOnce() -> Operation + Send,
+    ) -> Operation::Output
+    where
+        Operation: Future + Send,
+        Operation::Output: Send,
+    {
+        Self::store_and_unlock(mem::take(state)).await;
+        let result = operation().await;
+        *state = Self::load_and_lock().await;
+        result
     }
 }
 
@@ -86,6 +110,20 @@ where
 
     async fn store_and_unlock(state: Application) {
         system_api::store_and_unlock_view(state).await;
+    }
+
+    async fn without_state<Operation>(
+        state: &mut Application,
+        operation: impl FnOnce() -> Operation + Send,
+    ) -> Operation::Output
+    where
+        Operation: Future + Send,
+        Operation::Output: Send,
+    {
+        state.save().await.expect("Failed to save view state");
+        let result = operation().await;
+        *state = system_api::load_view_using().await;
+        result
     }
 }
 
