@@ -122,7 +122,7 @@ where
     {
         state.save().await.expect("Failed to save view state");
         let result = operation().await;
-        *state = system_api::load_view_using().await;
+        *state = Self::load_and_lock().await;
         result
     }
 }
