@@ -50,17 +50,26 @@ pub enum Error {
 
 #[cfg(test)]
 mod tests {
-    use super::{Counter, Error};
+    use super::Error;
+    use crate::ReentrantCounter;
     use futures::FutureExt;
     use linera_sdk::{ChainId, QueryContext, Service};
+    use linera_views::{memory::create_test_context, views::View};
     use std::sync::Arc;
     use webassembly_test::webassembly_test;
 
     #[webassembly_test]
     fn query() {
         let value = 61_098_721_u128;
-        let counter = Arc::new(Counter { value });
-
+        let context = create_test_context()
+            .now_or_never()
+            .expect("Failed to acquire the guard");
+        let mut counter = ReentrantCounter::load(context)
+            .now_or_never()
+            .unwrap()
+            .expect("Failed to load Counter");
+        counter.value.set(value);
+        let counter = Arc::new(counter);
         let result = counter
             .query_application(&dummy_query_context(), &[])
             .now_or_never()
@@ -75,7 +84,15 @@ mod tests {
     #[webassembly_test]
     fn invalid_query() {
         let value = 4_u128;
-        let counter = Arc::new(Counter { value });
+        let context = create_test_context()
+            .now_or_never()
+            .expect("Failed to acquire the guard");
+        let mut counter = ReentrantCounter::load(context)
+            .now_or_never()
+            .unwrap()
+            .expect("Failed to load Counter");
+        counter.value.set(value);
+        let counter = Arc::new(counter);
 
         let dummy_argument = [2];
         let result = counter
