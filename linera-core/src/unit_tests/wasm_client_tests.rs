@@ -244,38 +244,60 @@ where
     Ok(())
 }
 
-#[cfg_attr(feature = "wasmer", test_case(WasmRuntime::Wasmer ; "wasmer"))]
-#[cfg_attr(feature = "wasmtime", test_case(WasmRuntime::Wasmtime ; "wasmtime"))]
+#[cfg_attr(feature = "wasmer", test_case(WasmRuntime::Wasmer, "" ; "wasmer_blob_storage"))]
+#[cfg_attr(feature = "wasmtime", test_case(WasmRuntime::Wasmtime, "" ; "wasmtime_blob_storage"))]
+#[cfg_attr(feature = "wasmer", test_case(WasmRuntime::Wasmer, "2" ; "wasmer_view_storage"))]
+#[cfg_attr(feature = "wasmtime", test_case(WasmRuntime::Wasmtime, "2" ; "wasmtime_view_storage"))]
 #[test_log::test(tokio::test)]
 async fn test_memory_run_reentrant_application(
     wasm_runtime: WasmRuntime,
+    variant_suffix: &str,
 ) -> Result<(), anyhow::Error> {
-    run_test_run_reentrant_application(MakeMemoryStoreClient::with_wasm_runtime(wasm_runtime)).await
+    run_test_run_reentrant_application(
+        MakeMemoryStoreClient::with_wasm_runtime(wasm_runtime),
+        variant_suffix,
+    )
+    .await
 }
 
-#[cfg_attr(feature = "wasmer", test_case(WasmRuntime::Wasmer ; "wasmer"))]
-#[cfg_attr(feature = "wasmtime", test_case(WasmRuntime::Wasmtime ; "wasmtime"))]
+#[cfg_attr(feature = "wasmer", test_case(WasmRuntime::Wasmer, "" ; "wasmer_blob_storage"))]
+#[cfg_attr(feature = "wasmtime", test_case(WasmRuntime::Wasmtime, "" ; "wasmtime_blob_storage"))]
+#[cfg_attr(feature = "wasmer", test_case(WasmRuntime::Wasmer, "2" ; "wasmer_view_storage"))]
+#[cfg_attr(feature = "wasmtime", test_case(WasmRuntime::Wasmtime, "2" ; "wasmtime_view_storage"))]
 #[test_log::test(tokio::test)]
 async fn test_rocksdb_run_reentrant_application(
     wasm_runtime: WasmRuntime,
+    variant_suffix: &str,
 ) -> Result<(), anyhow::Error> {
     let _lock = ROCKSDB_SEMAPHORE.acquire().await;
-    run_test_run_reentrant_application(MakeRocksdbStoreClient::with_wasm_runtime(wasm_runtime))
-        .await
+    run_test_run_reentrant_application(
+        MakeRocksdbStoreClient::with_wasm_runtime(wasm_runtime),
+        variant_suffix,
+    )
+    .await
 }
 
 #[cfg(feature = "aws")]
-#[cfg_attr(feature = "wasmer", test_case(WasmRuntime::Wasmer ; "wasmer"))]
-#[cfg_attr(feature = "wasmtime", test_case(WasmRuntime::Wasmtime ; "wasmtime"))]
+#[cfg_attr(feature = "wasmer", test_case(WasmRuntime::Wasmer, "" ; "wasmer_blob_storage"))]
+#[cfg_attr(feature = "wasmtime", test_case(WasmRuntime::Wasmtime, "" ; "wasmtime_blob_storage"))]
+#[cfg_attr(feature = "wasmer", test_case(WasmRuntime::Wasmer, "2" ; "wasmer_view_storage"))]
+#[cfg_attr(feature = "wasmtime", test_case(WasmRuntime::Wasmtime, "2" ; "wasmtime_view_storage"))]
 #[test_log::test(tokio::test)]
 async fn test_dynamo_db_run_reentrant_application(
     wasm_runtime: WasmRuntime,
+    variant_suffix: &str,
 ) -> Result<(), anyhow::Error> {
-    run_test_run_reentrant_application(MakeDynamoDbStoreClient::with_wasm_runtime(wasm_runtime))
-        .await
+    run_test_run_reentrant_application(
+        MakeDynamoDbStoreClient::with_wasm_runtime(wasm_runtime),
+        variant_suffix,
+    )
+    .await
 }
 
-async fn run_test_run_reentrant_application<B>(store_builder: B) -> Result<(), anyhow::Error>
+async fn run_test_run_reentrant_application<B>(
+    store_builder: B,
+    variant_suffix: &str,
+) -> Result<(), anyhow::Error>
 where
     B: StoreBuilder,
     ViewError: From<<B::Store as Store>::ContextError>,
@@ -299,7 +321,9 @@ where
 
     let (bytecode_id, certificate) = {
         let (contract_path, service_path) =
-            linera_execution::wasm_test::get_example_bytecode_paths("reentrant-counter")?;
+            linera_execution::wasm_test::get_example_bytecode_paths(&format!(
+                "reentrant-counter{variant_suffix}"
+            ))?;
         publisher
             .publish_bytecode(
                 Bytecode::load_from_file(contract_path).await?,
