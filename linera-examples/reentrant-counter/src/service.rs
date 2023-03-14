@@ -40,7 +40,7 @@ pub enum Error {
 
 #[cfg(test)]
 mod tests {
-    use super::{Counter, Error};
+    use super::{Error, ReentrantCounter};
     use futures::FutureExt;
     use linera_sdk::{ChainId, QueryContext, Service};
     use std::sync::Arc;
@@ -49,7 +49,7 @@ mod tests {
     #[webassembly_test]
     fn query() {
         let value = 61_098_721_u128;
-        let counter = Arc::new(Counter { value });
+        let counter = Arc::new(ReentrantCounter { value });
 
         let result = counter
             .query_application(&dummy_query_context(), &[])
@@ -65,7 +65,7 @@ mod tests {
     #[webassembly_test]
     fn invalid_query() {
         let value = 4_u128;
-        let counter = Arc::new(Counter { value });
+        let counter = Arc::new(ReentrantCounter { value });
 
         let dummy_argument = [2];
         let result = counter
