@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 extern crate linera_views_derive;
-use crate::common::Batch;
+use crate::common::{Batch, HasherOutputSize};
 use async_trait::async_trait;
 #[cfg(not(target_arch = "wasm32"))]
 use linera_base::crypto::CryptoHash;
@@ -146,10 +146,7 @@ pub trait Hasher: Default + Write + Send + Sync + 'static {
 }
 
 impl Hasher for sha3::Sha3_256 {
-    type Output = generic_array::GenericArray<
-        u8,
-        <sha3::Sha3_256 as sha3::digest::OutputSizeUser>::OutputSize,
-    >;
+    type Output = generic_array::GenericArray<u8, HasherOutputSize>;
 
     fn finalize(self) -> Self::Output {
         <sha3::Sha3_256 as sha3::Digest>::finalize(self)
