@@ -23,14 +23,20 @@ mod wasmer;
 #[path = "wasmtime.rs"]
 mod wasmtime;
 
-use self::{common::WasmContract, sanitizer::sanitize};
+use self::{
+    common::{WasmContract, WasmRuntimeContext},
+    sanitizer::sanitize,
+};
 use crate::{
     ApplicationCallResult, Bytecode, CalleeContext, EffectContext, ExecutionError,
     OperationContext, QueryContext, QueryableStorage, RawExecutionResult, SessionCallResult,
     SessionId, UserApplication, WasmRuntime, WritableStorage,
 };
 use async_trait::async_trait;
-use std::path::Path;
+use std::{
+    path::Path,
+    sync::{Arc, Weak},
+};
 use thiserror::Error;
 
 /// A user application in a compiled WebAssembly module.
@@ -38,6 +44,7 @@ pub struct WasmApplication {
     contract_bytecode: Bytecode,
     service_bytecode: Bytecode,
     runtime: WasmRuntime,
+    contract: Weak<std::sync::Mutex<dyn WasmContract + Send>>,
 }
 
 impl WasmApplication {
@@ -47,10 +54,24 @@ impl WasmApplication {
         service_bytecode: Bytecode,
         runtime: WasmRuntime,
     ) -> Result<Self, WasmExecutionError> {
+        let contract = match runtime {
+            #[cfg(feature = "wasmtime")]
+            WasmRuntime::Wasmtime => Weak::<
+                std::sync::Mutex<WasmRuntimeContext<'static, wasmtime::Contract<'static>>>,
+            >::new()
+                as Weak<std::sync::Mutex<dyn WasmContract + Send>>,
+            #[cfg(feature = "wasmer")]
+            WasmRuntime::Wasmer => {
+                Weak::<std::sync::Mutex<WasmRuntimeContext<'static, wasmer::Contract>>>::new()
+                    as Weak<std::sync::Mutex<dyn WasmContract + Send>>
+            }
+        };
+
         Ok(WasmApplication {
             contract_bytecode: sanitize(contract_bytecode)?,
             service_bytecode,
             runtime,
+            contract,
         })
     }
 
@@ -69,6 +90,26 @@ impl WasmApplication {
                 .map_err(anyhow::Error::from)?,
             runtime,
         )
+    }
+
+    /// Prepares a [`WasmRuntimeContext`] to be able to call an application's contract methods.
+    fn prepare_contract_runtime<'storage>(
+        &self,
+        storage: &'storage dyn WritableStorage,
+    ) -> Result<Arc<std::sync::Mutex<dyn WasmContract + Send + 'storage>>, WasmExecutionError> {
+        let contract = match self.runtime {
+            #[cfg(feature = "wasmtime")]
+            WasmRuntime::Wasmtime => Arc::new(std::sync::Mutex::new(
+                self.prepare_contract_runtime_with_wasmtime(storage)?,
+            ))
+                as Arc<std::sync::Mutex<dyn WasmContract + Send>>,
+            #[cfg(feature = "wasmer")]
+            WasmRuntime::Wasmer => Arc::new(std::sync::Mutex::new(
+                self.prepare_contract_runtime_with_wasmer(storage)?,
+            )) as Arc<std::sync::Mutex<dyn WasmContract + Send>>,
+        };
+
+        Ok(contract)
     }
 }
 
@@ -98,21 +139,11 @@ impl UserApplication for WasmApplication {
         storage: &dyn WritableStorage,
         argument: &[u8],
     ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
-        let result = match self.runtime {
-            #[cfg(feature = "wasmtime")]
-            WasmRuntime::Wasmtime => {
-                self.prepare_contract_runtime_with_wasmtime(storage)?
-                    .initialize(context, argument)
-                    .await?
-            }
-            #[cfg(feature = "wasmer")]
-            WasmRuntime::Wasmer => {
-                self.prepare_contract_runtime_with_wasmer(storage)?
-                    .initialize(context, argument)
-                    .await?
-            }
-        };
-        Ok(result)
+        self.prepare_contract_runtime(storage)?
+            .try_lock()
+            .expect("Concurrent execution of a WASM application")
+            .initialize(context, argument)
+            .await
     }
 
     async fn execute_operation(
