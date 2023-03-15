@@ -1883,7 +1883,6 @@ dependencies = [
  "bcs",
  "futures",
  "linera-sdk",
- "log",
  "serde",
  "thiserror",
  "webassembly-test",
@@ -1898,8 +1897,6 @@ dependencies = [
  "futures",
  "linera-sdk",
  "linera-views",
- "log",
- "serde",
  "thiserror",
  "webassembly-test",
 ]
