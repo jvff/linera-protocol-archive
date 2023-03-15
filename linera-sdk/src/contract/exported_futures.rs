@@ -62,7 +62,7 @@ pub trait ContractStateStorage<Application> {
 
     /// Executes an `operation`, persisting the `Application` `state` before execution and reloading
     /// the `state` afterwards.
-    async fn without_state<Operation>(
+    async fn execute_with_released_state<Operation>(
         state: &mut Application,
         operation: impl FnOnce() -> Operation + Send,
     ) -> Operation::Output
@@ -84,7 +84,7 @@ where
         system_api::store_and_unlock(state).await;
     }
 
-    async fn without_state<Operation>(
+    async fn with_released_state<Operation>(
         state: &mut Application,
         operation: impl FnOnce() -> Operation + Send,
     ) -> Operation::Output
@@ -114,7 +114,7 @@ where
         system_api::store_and_unlock_view(state).await;
     }
 
-    async fn without_state<Operation>(
+    async fn with_released_state<Operation>(
         state: &mut Application,
         operation: impl FnOnce() -> Operation + Send,
     ) -> Operation::Output
