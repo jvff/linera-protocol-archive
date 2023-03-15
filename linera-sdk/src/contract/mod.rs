@@ -72,7 +72,7 @@ macro_rules! contract {
             ) -> (Vec<u8>, Vec<SessionId>) {
                 use $crate::contract::exported_futures::ContractStateStorage as Storage;
 
-                <Self as $crate::Contract>::Storage::without_state(self, move || async move {
+                <Self as $crate::Contract>::Storage::with_released_state(self, move || async move {
                     $crate::contract::system_api::call_session_without_persisting_state(
                         authenticated,
                         session,
