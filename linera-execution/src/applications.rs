@@ -7,15 +7,15 @@ use linera_base::{crypto::CryptoHash, data_types::EffectId, hex_debug};
 use linera_views::{
     common::Context,
     map_view::MapView,
-    views::{HashableView, View, ViewError},
+    views::{HashableView, ViewError},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 #[cfg(any(test, feature = "test"))]
 use {
-    async_lock::Mutex, linera_views::memory::MemoryContext, std::collections::BTreeMap,
-    std::sync::Arc,
+    async_lock::Mutex, linera_views::memory::MemoryContext, linera_views::View,
+    std::collections::BTreeMap, std::sync::Arc,
 };
 
 #[cfg(test)]
