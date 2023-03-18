@@ -14,7 +14,7 @@ use std::collections::{HashMap, HashSet};
 
 #[cfg(any(test, feature = "test"))]
 use {
-    async_lock::Mutex, linera_views::memory::MemoryContext, linera_views::View,
+    async_lock::Mutex, linera_views::memory::MemoryContext, linera_views::views::View,
     std::collections::BTreeMap, std::sync::Arc,
 };
 
