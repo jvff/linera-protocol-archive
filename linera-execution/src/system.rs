@@ -8,6 +8,7 @@ use crate::{
     OperationContext, QueryContext, RawExecutionResult, UserApplicationDescription,
     UserApplicationId,
 };
+use async_graphql::Enum;
 use custom_debug_derive::Debug;
 use linera_base::{
     committee::Committee,
@@ -31,7 +32,6 @@ use std::{
 };
 use thiserror::Error;
 
-use async_graphql::Enum;
 #[cfg(any(test, feature = "test"))]
 use std::collections::BTreeSet;
 
