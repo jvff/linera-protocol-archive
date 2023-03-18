@@ -3,10 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    applications::ApplicationRegistry, ApplicationRegistryView, Bytecode, BytecodeId,
-    BytecodeLocation, ChainOwnership, ChannelId, ChannelName, Destination, EffectContext,
-    OperationContext, QueryContext, RawExecutionResult, UserApplicationDescription,
-    UserApplicationId,
+    ApplicationRegistryView, Bytecode, BytecodeId, BytecodeLocation, ChainOwnership, ChannelId,
+    ChannelName, Destination, EffectContext, OperationContext, QueryContext, RawExecutionResult,
+    UserApplicationDescription, UserApplicationId,
 };
 use async_graphql::Enum;
 use custom_debug_derive::Debug;
@@ -33,7 +32,7 @@ use std::{
 use thiserror::Error;
 
 #[cfg(any(test, feature = "test"))]
-use std::collections::BTreeSet;
+use {crate::applications::ApplicationRegistry, std::collections::BTreeSet};
 
 /// A view accessing the execution state of the system of a chain.
 #[derive(Debug, HashableView)]
