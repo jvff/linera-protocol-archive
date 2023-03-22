@@ -1,7 +1,7 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#![no_main]
+#![cfg_attr(target_arch = "wasm32", no_main)]
 
 mod state;
 
@@ -238,3 +238,6 @@ pub enum Error {
     #[error("The requested transfer is not correctly authenticated.")]
     IncorrectAuthentication,
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+fn main() {}

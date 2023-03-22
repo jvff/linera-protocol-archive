@@ -41,8 +41,14 @@ pub struct BlockHeight(pub u64);
 
 /// A Sha3-256 value.
 #[serde_as]
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord, Deserialize, Serialize)]
-pub struct CryptoHash(#[serde_as(as = "[_; 32]")] [u8; 32]);
+#[derive(Clone, Copy, Eq, Hash, PartialEq, PartialOrd, Ord, Deserialize, Serialize)]
+pub struct CryptoHash(#[serde_as(as = "[_; 32]")] pub(crate) [u8; 32]);
+
+impl std::fmt::Debug for CryptoHash {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        write!(f, "{}", hex::encode(&self.0[..8]))
+    }
+}
 
 impl From<[u64; 4]> for CryptoHash {
     fn from(integers: [u64; 4]) -> Self {

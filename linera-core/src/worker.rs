@@ -258,7 +258,13 @@ impl<Client> WorkerState<Client> {
         &self.nickname
     }
 
+    #[cfg(not(feature = "test"))]
     pub(crate) fn storage_client(&self) -> &Client {
+        &self.storage
+    }
+
+    #[cfg(feature = "test")]
+    pub fn storage_client(&self) -> &Client {
         &self.storage
     }
 
@@ -274,7 +280,7 @@ where
 {
     // NOTE: This only works for non-sharded workers!
     #[cfg(any(test, feature = "test"))]
-    pub(crate) async fn fully_handle_certificate(
+    pub async fn fully_handle_certificate(
         &mut self,
         certificate: Certificate,
         blobs: Vec<HashedValue>,
@@ -314,7 +320,8 @@ where
         Ok((effects, info))
     }
 
-    pub(crate) async fn query_application(
+    /// Executes a [`Query`] for an application's state on a specific chain.
+    pub async fn query_application(
         &mut self,
         chain_id: ChainId,
         application_id: ApplicationId,
@@ -713,6 +720,30 @@ where
         }
         // Cache the certificate so that clients don't have to send the value again.
         self.recent_values.push(hash, value);
+    }
+
+    #[cfg(any(test, feature = "test"))]
+    pub async fn get_certificate(
+        &self,
+        chain_id: ChainId,
+        height: BlockHeight,
+    ) -> Result<Option<Certificate>, WorkerError> {
+        let chain = self.storage.load_active_chain(chain_id).await?;
+        let certificate_hash = match chain.confirmed_log.get(height.0 as usize).await? {
+            Some(hash) => hash,
+            None => return Ok(None),
+        };
+        let certificate = self.storage.read_certificate(certificate_hash).await?;
+        Ok(Some(certificate))
+    }
+
+    #[cfg(any(test, feature = "test"))]
+    pub async fn get_application_registry(
+        &self,
+        chain_id: ChainId,
+    ) -> Result<linera_execution::ApplicationRegistryView<Client::Context>, WorkerError> {
+        let chain = self.storage.load_active_chain(chain_id).await?;
+        Ok(chain.execution_state.system.registry)
     }
 }
 

@@ -1,7 +1,13 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use linera_sdk::base::{Amount, ApplicationId, ChainId, Owner};
+#[cfg(any(test, not(target_arch = "wasm32")))]
+pub mod test_utils;
+
+use linera_sdk::{
+    base::{Amount, ApplicationId, ChainId, Owner},
+    crypto::PublicKey,
+};
 use serde::{Deserialize, Serialize};
 
 /// An operation.
@@ -57,6 +63,18 @@ pub enum AccountOwner {
     User(Owner),
     /// An account for an application.
     Application(ApplicationId),
+}
+
+impl From<Owner> for AccountOwner {
+    fn from(owner: Owner) -> Self {
+        AccountOwner::User(owner)
+    }
+}
+
+impl From<PublicKey> for AccountOwner {
+    fn from(public_key: PublicKey) -> Self {
+        AccountOwner::User(public_key.into())
+    }
 }
 
 /// An account.

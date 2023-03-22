@@ -2,6 +2,7 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::base::{CryptoHash, Owner};
 use ed25519_dalek as dalek;
 use ed25519_dalek::{Signer, Verifier};
 use generic_array::typenum::Unsigned;
@@ -26,11 +27,6 @@ pub struct KeyPair(dalek::Keypair);
 pub struct PublicKey(pub [u8; dalek::PUBLIC_KEY_LENGTH]);
 
 type HasherOutputSize = <sha3::Sha3_256 as sha3::digest::OutputSizeUser>::OutputSize;
-type HasherOutput = generic_array::GenericArray<u8, HasherOutputSize>;
-
-/// A Sha3-256 value.
-#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash)]
-pub struct CryptoHash(HasherOutput);
 
 /// A signature value.
 #[derive(Eq, PartialEq, Copy, Clone)]
@@ -56,6 +52,14 @@ pub enum CryptoError {
 }
 
 impl KeyPair {
+    /// Generate a new key-pair.
+    #[cfg(all(not(target_arch = "wasm32"), any(feature = "test", test)))]
+    pub fn generate() -> Self {
+        let mut csprng = rand::rngs::OsRng;
+        let keypair = dalek::Keypair::generate(&mut csprng);
+        KeyPair(keypair)
+    }
+
     /// Obtain the public key of a key-pair.
     pub fn public(&self) -> PublicKey {
         PublicKey(self.0.public.to_bytes())
@@ -97,40 +101,6 @@ impl<'de> Deserialize<'de> for PublicKey {
             #[derive(Deserialize)]
             #[serde(rename = "PublicKey")]
             struct Foo([u8; dalek::PUBLIC_KEY_LENGTH]);
-
-            let value = Foo::deserialize(deserializer)?;
-            Ok(Self(value.0))
-        }
-    }
-}
-
-impl Serialize for CryptoHash {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::ser::Serializer,
-    {
-        if serializer.is_human_readable() {
-            serializer.serialize_str(&self.to_string())
-        } else {
-            serializer.serialize_newtype_struct("CryptoHash", &self.0)
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for CryptoHash {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::de::Deserializer<'de>,
-    {
-        if deserializer.is_human_readable() {
-            let s = String::deserialize(deserializer)?;
-            let value =
-                Self::from_str(&s).map_err(|err| serde::de::Error::custom(err.to_string()))?;
-            Ok(value)
-        } else {
-            #[derive(Deserialize)]
-            #[serde(rename = "CryptoHash")]
-            struct Foo(HasherOutput);
 
             let value = Foo::deserialize(deserializer)?;
             Ok(Self(value.0))
@@ -234,12 +204,10 @@ impl TryFrom<&[u8]> for CryptoHash {
     type Error = CryptoError;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        if value.len() != HasherOutputSize::to_usize() {
-            return Err(CryptoError::IncorrectHashSize(value.len()));
-        }
-        let mut bytes = HasherOutput::default();
-        bytes.copy_from_slice(&value[..HasherOutputSize::to_usize()]);
-        Ok(Self(bytes))
+        value
+            .try_into()
+            .map(CryptoHash)
+            .map_err(|_| CryptoError::IncorrectHashSize(value.len()))
     }
 }
 
@@ -284,12 +252,6 @@ impl std::fmt::Debug for PublicKey {
     }
 }
 
-impl std::fmt::Debug for CryptoHash {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
-        write!(f, "{}", hex::encode(&self.0[..8]))
-    }
-}
-
 /// Something that we know how to hash and sign.
 pub trait Signable<Hasher> {
     fn write(&self, hasher: &mut Hasher);
@@ -323,10 +285,14 @@ impl CryptoHash {
 
         let mut hasher = sha3::Sha3_256::default();
         value.write(&mut hasher);
-        CryptoHash(hasher.finalize())
+        hasher
+            .finalize()
+            .as_slice()
+            .try_into()
+            .expect("`HasherOutputSize` does not match array length in `CryptoHash`")
     }
 
-    pub fn as_bytes(&self) -> &HasherOutput {
+    pub fn as_bytes(&self) -> &[u8] {
         &self.0
     }
 }
@@ -392,5 +358,63 @@ impl Signature {
                 type_name: T::type_name().to_string(),
             }
         })
+    }
+}
+
+impl From<PublicKey> for Owner {
+    fn from(public_key: PublicKey) -> Self {
+        struct Foo([u8; dalek::PUBLIC_KEY_LENGTH]);
+
+        impl Serialize for Foo {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::ser::Serializer,
+            {
+                if serializer.is_human_readable() {
+                    serializer.serialize_str(&self.to_string())
+                } else {
+                    serializer.serialize_newtype_struct("PublicKey", &self.0)
+                }
+            }
+        }
+
+        impl<'de> Deserialize<'de> for Foo {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::de::Deserializer<'de>,
+            {
+                if deserializer.is_human_readable() {
+                    let s = String::deserialize(deserializer)?;
+                    let value = Self::from_str(&s).map_err(serde::de::Error::custom)?;
+                    Ok(value)
+                } else {
+                    #[derive(Deserialize)]
+                    #[serde(rename = "PublicKey")]
+                    struct Bar([u8; dalek::PUBLIC_KEY_LENGTH]);
+
+                    let value = Bar::deserialize(deserializer)?;
+                    Ok(Self(value.0))
+                }
+            }
+        }
+
+        impl BcsSignable for Foo {}
+
+        impl FromStr for Foo {
+            type Err = String;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                let value = hex::decode(s).map_err(|error| error.to_string())?;
+                Ok(Foo(value.as_slice().try_into().unwrap()))
+            }
+        }
+
+        impl std::fmt::Display for Foo {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}", hex::encode(&self.0[..]))
+            }
+        }
+
+        Owner(CryptoHash::new(&Foo(public_key.0)))
     }
 }
