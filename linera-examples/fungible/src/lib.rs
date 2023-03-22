@@ -1,13 +1,15 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-pub mod types;
+mod types;
 
-pub use self::types::AccountOwner;
+#[cfg(feature = "test")]
+pub mod test_utils;
 
-use self::types::Nonce;
+pub use self::types::{AccountOwner, Nonce};
+
 use linera_sdk::{
-    crypto::{BcsSignable, CryptoError, PublicKey, Signature},
+    crypto::{BcsSignable, CryptoError, KeyPair, PublicKey, Signature},
     ApplicationId, ChainId,
 };
 use serde::{Deserialize, Serialize};
@@ -76,6 +78,18 @@ pub struct SignedTransferPayload {
     pub source_chain: ChainId,
     pub nonce: Nonce,
     pub transfer: Transfer,
+}
+
+impl SignedTransferPayload {
+    pub fn sign(self, keys: &KeyPair) -> SignedTransfer {
+        let signature = Signature::new(&self, &keys);
+
+        SignedTransfer {
+            source: keys.public(),
+            signature,
+            payload: self,
+        }
+    }
 }
 
 /// A transfer payload.

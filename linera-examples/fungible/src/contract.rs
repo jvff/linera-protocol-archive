@@ -1,15 +1,15 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#![no_main]
+#![cfg_attr(target_arch = "wasm32", no_main)]
 
 mod state;
 
 use self::state::FungibleToken;
 use async_trait::async_trait;
 use fungible::{
-    types::{AccountOwner, Nonce},
-    ApplicationCall, ApplicationTransfer, SessionCall, SignedTransfer, Transfer,
+    AccountOwner, ApplicationCall, ApplicationTransfer, Nonce, SessionCall, SignedTransfer,
+    Transfer,
 };
 use linera_sdk::{
     contract::system_api, crypto::CryptoError, ensure, ApplicationCallResult, CalleeContext,
@@ -319,3 +319,6 @@ pub enum Error {
     #[error("Application doesn't support any cross-application sessions")]
     SessionsNotSupported,
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+fn main() {}

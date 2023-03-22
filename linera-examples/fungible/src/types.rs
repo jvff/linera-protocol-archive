@@ -13,6 +13,12 @@ pub enum AccountOwner {
     Application(ApplicationId),
 }
 
+impl From<PublicKey> for AccountOwner {
+    fn from(public_key: PublicKey) -> Self {
+        AccountOwner::Key(public_key)
+    }
+}
+
 /// A single-use number to prevent replay attacks.
 #[derive(Debug, Copy, Clone, Default, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Nonce(u64);

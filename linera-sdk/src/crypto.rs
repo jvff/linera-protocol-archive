@@ -56,6 +56,13 @@ pub enum CryptoError {
 }
 
 impl KeyPair {
+    /// Generate a new key-pair.
+    #[cfg(all(not(target_arch = "wasm32"), any(feature = "test", test)))]
+    pub fn generate() -> Self {
+        let mut csprng = rand::rngs::OsRng;
+        let keypair = dalek::Keypair::generate(&mut csprng);
+        KeyPair(keypair)
+    }
     /// Obtain the public key of a key-pair.
     pub fn public(&self) -> PublicKey {
         PublicKey(self.0.public.to_bytes())
