@@ -11,11 +11,14 @@
 use crate::client::client_tests::{
     MakeMemoryStoreClient, MakeRocksdbStoreClient, StoreBuilder, TestBuilder, ROCKSDB_SEMAPHORE,
 };
-use linera_base::data_types::{ChainDescription, ChainId, Owner};
+use linera_base::{
+    data_types::Balance,
+    identifiers::{ChainDescription, ChainId, Owner},
+};
 use linera_chain::data_types::OutgoingEffect;
 use linera_execution::{
-    system::Balance, ApplicationId, Bytecode, Destination, Effect, Operation, Query, Response,
-    SystemEffect, UserApplicationDescription, WasmRuntime,
+    ApplicationId, Bytecode, Destination, Effect, Operation, Query, Response, SystemEffect,
+    UserApplicationDescription, WasmRuntime,
 };
 use linera_storage::Store;
 use linera_views::views::ViewError;

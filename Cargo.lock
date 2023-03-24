@@ -2364,6 +2364,7 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "serde-name",
+ "serde_bytes",
  "sha3",
  "test-strategy",
  "thiserror",

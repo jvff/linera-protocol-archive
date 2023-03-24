@@ -17,13 +17,13 @@ impl BcsSignable for Dummy2 {}
 
 fn make_event(
     certificate_hash: CryptoHash,
-    height: u64,
+    height: usize,
     index: usize,
     effect: impl Into<Vec<u8>>,
 ) -> Event {
     Event {
         certificate_hash,
-        height: BlockHeight::from(height),
+        height: BlockHeight::from(height as u64),
         index,
         authenticated_signer: None,
         timestamp: Default::default(),
