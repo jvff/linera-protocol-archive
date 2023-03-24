@@ -15,6 +15,7 @@ pub use applications::{
     UserApplicationDescription, UserApplicationId,
 };
 pub use execution::ExecutionStateView;
+pub use linera_base::identifiers::{ChannelName, Destination, SessionId};
 pub use ownership::ChainOwnership;
 pub use system::{
     SystemEffect, SystemExecutionError, SystemExecutionStateView, SystemOperation, SystemQuery,
@@ -301,8 +302,6 @@ pub trait QueryableStorage: ReadableStorage {
     ) -> Result<Vec<u8>, ExecutionError>;
 }
 
-pub type SessionId = linera_base::identifiers::SessionId;
-
 /// The result of calling into an application or a session.
 pub struct CallResult {
     /// The return value.
@@ -419,9 +418,6 @@ pub struct RawExecutionResult<Effect> {
     /// Unsubscribe chains to channels.
     pub unsubscribe: Vec<(ChannelName, ChainId)>,
 }
-
-pub type ChannelName = linera_base::identifiers::ChannelName;
-pub type Destination = linera_base::identifiers::Destination;
 
 /// The identifier of a channel, relative to a particular application.
 #[derive(

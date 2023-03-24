@@ -3,6 +3,7 @@
 
 use crate::SystemExecutionError;
 use custom_debug_derive::Debug;
+pub use linera_base::identifiers::{ApplicationId as UserApplicationId, BytecodeId};
 use linera_base::{crypto::CryptoHash, hex_debug, identifiers::EffectId};
 use linera_views::{
     common::Context,
@@ -40,8 +41,6 @@ impl ApplicationId {
         }
     }
 }
-
-pub type UserApplicationId = linera_base::identifiers::ApplicationId;
 
 /// Description of the necessary information to run a user application.
 #[allow(clippy::large_enum_variant)]
@@ -88,8 +87,6 @@ impl From<&UserApplicationDescription> for UserApplicationId {
         }
     }
 }
-
-pub type BytecodeId = linera_base::identifiers::BytecodeId;
 
 /// A reference to where the application bytecode is stored.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
