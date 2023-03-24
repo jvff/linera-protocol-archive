@@ -22,7 +22,6 @@ use linera_execution::{
 };
 use linera_storage::Store;
 use linera_views::views::ViewError;
-use serde::{de::DeserializeOwned, Serialize};
 use std::collections::BTreeMap;
 use test_case::test_case;
 
@@ -435,10 +434,6 @@ where
     B: StoreBuilder,
     ViewError: From<<B::Store as Store>::ContextError>,
 {
-    fn convert<S: ?Sized + Serialize, T: DeserializeOwned>(s: &S) -> bcs::Result<T> {
-        bcs::from_bytes(&bcs::to_bytes(s)?)
-    }
-
     let mut builder = TestBuilder::new(store_builder, 4, 1).await?;
     let mut sender = builder
         .add_initial_chain(ChainDescription::Root(0), Balance::from(3))
@@ -467,9 +462,9 @@ where
     sender.process_inbox().await.unwrap();
 
     let sender_owner =
-        fungible::AccountOwner::User(convert(&Owner::from(sender.key_pair().await?.public()))?);
+        fungible::AccountOwner::User(Owner::from(sender.key_pair().await?.public()));
     let receiver_owner =
-        fungible::AccountOwner::User(convert(&Owner::from(receiver.key_pair().await?.public()))?);
+        fungible::AccountOwner::User(Owner::from(receiver.key_pair().await?.public()));
 
     let accounts = BTreeMap::from_iter([(sender_owner, linera_sdk::base::Amount::from(1_000_000))]);
     let initial_value_bytes = bcs::to_bytes(&accounts)?;
@@ -482,7 +477,7 @@ where
         owner: sender_owner,
         amount: 100.into(),
         target_account: fungible::Account {
-            chain_id: convert(&receiver.chain_id())?,
+            chain_id: receiver.chain_id(),
             owner: receiver_owner,
         },
     };
@@ -525,7 +520,7 @@ where
         owner: sender_owner,
         amount: 200.into(),
         target_account: fungible::Account {
-            chain_id: convert(&receiver.chain_id())?,
+            chain_id: receiver.chain_id(),
             owner: receiver_owner,
         },
     };
@@ -557,7 +552,7 @@ where
         owner: receiver_owner,
         amount: 301.into(),
         target_account: fungible::Account {
-            chain_id: convert(&sender.chain_id())?,
+            chain_id: sender.chain_id(),
             owner: sender_owner,
         },
     };
@@ -575,7 +570,7 @@ where
         owner: receiver_owner,
         amount: 300.into(),
         target_account: fungible::Account {
-            chain_id: convert(&sender.chain_id())?,
+            chain_id: sender.chain_id(),
             owner: sender_owner,
         },
     };
