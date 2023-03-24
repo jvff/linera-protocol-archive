@@ -741,6 +741,16 @@ where
         let certificate = self.storage.read_certificate(certificate_hash).await?;
         Ok(Some(certificate))
     }
+
+    /// Returns the application registry for a specific chain.
+    #[cfg(any(test, feature = "test"))]
+    pub async fn get_application_registry(
+        &self,
+        chain_id: ChainId,
+    ) -> Result<linera_execution::ApplicationRegistryView<Client::Context>, WorkerError> {
+        let chain = self.storage.load_active_chain(chain_id).await?;
+        Ok(chain.execution_state.system.registry)
+    }
 }
 
 #[async_trait]
