@@ -461,8 +461,7 @@ where
     sender.receive_certificate(pub_cert.clone()).await.unwrap();
     sender.process_inbox().await.unwrap();
 
-    let sender_owner =
-        fungible::AccountOwner::User(Owner::from(sender.key_pair().await?.public()));
+    let sender_owner = fungible::AccountOwner::User(Owner::from(sender.key_pair().await?.public()));
     let receiver_owner =
         fungible::AccountOwner::User(Owner::from(receiver.key_pair().await?.public()));
 
