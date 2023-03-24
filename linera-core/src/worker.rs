@@ -260,7 +260,15 @@ impl<Client> WorkerState<Client> {
         &self.nickname
     }
 
+    /// Returns the storage client so that it can be manipulated or queried by tests.
+    #[cfg(not(feature = "test"))]
     pub(crate) fn storage_client(&self) -> &Client {
+        &self.storage
+    }
+
+    /// Returns the storage client so that it can be manipulated or queried by tests.
+    #[cfg(feature = "test")]
+    pub fn storage_client(&self) -> &Client {
         &self.storage
     }
 
