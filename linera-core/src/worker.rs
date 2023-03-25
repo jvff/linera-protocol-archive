@@ -39,6 +39,12 @@ use std::{
 use thiserror::Error;
 use tracing::instrument;
 
+#[cfg(any(test, feature = "test"))]
+use {
+    linera_base::identifiers::{Destination, EffectId},
+    linera_execution::ApplicationRegistryView,
+};
+
 #[cfg(test)]
 #[path = "unit_tests/worker_tests.rs"]
 mod worker_tests;
@@ -260,13 +266,14 @@ impl<Client> WorkerState<Client> {
         &self.nickname
     }
 
-    /// Returns the storage client so that it can be manipulated or queried by tests.
+    /// Returns the storage client so that it can be manipulated or queried.
     #[cfg(not(feature = "test"))]
     pub(crate) fn storage_client(&self) -> &Client {
         &self.storage
     }
 
-    /// Returns the storage client so that it can be manipulated or queried by tests.
+    /// Returns the storage client so that it can be manipulated or queried by tests in other
+    /// crates.
     #[cfg(feature = "test")]
     pub fn storage_client(&self) -> &Client {
         &self.storage
@@ -728,7 +735,7 @@ where
 
     /// Returns a stored [`Certificate`] for a chain's block.
     #[cfg(any(test, feature = "test"))]
-    pub async fn get_certificate(
+    pub async fn read_certificate(
         &self,
         chain_id: ChainId,
         height: BlockHeight,
@@ -743,13 +750,70 @@ where
     }
 
     /// Returns the application registry for a specific chain.
+    ///
+    /// # Notes
+    ///
+    /// The returned [`ApplicationRegistryView`] holds a lock of the chain it belongs to. Incorrect
+    /// usage of this method may cause deadlocks.
     #[cfg(any(test, feature = "test"))]
     pub async fn get_application_registry(
         &self,
         chain_id: ChainId,
-    ) -> Result<linera_execution::ApplicationRegistryView<Client::Context>, WorkerError> {
+    ) -> Result<ApplicationRegistryView<Client::Context>, WorkerError> {
         let chain = self.storage.load_active_chain(chain_id).await?;
         Ok(chain.execution_state.system.registry)
+    }
+
+    /// Returns a [`Message`] that's awaiting to be received by the chain specified by `chain_id`.
+    #[cfg(any(test, feature = "test"))]
+    pub async fn find_incoming_message(
+        &self,
+        chain_id: ChainId,
+        effect_id: EffectId,
+    ) -> Result<Option<Message>, WorkerError> {
+        let Some(certificate) = self.read_certificate(effect_id.chain_id, effect_id.height).await?
+            else { return Ok(None) };
+
+        let Some(outgoing_effect) =
+            certificate.value.effects().get(effect_id.index as usize).cloned()
+            else { return Ok(None) };
+
+        let application_id = outgoing_effect.application_id;
+        let origin = Origin {
+            sender: effect_id.chain_id,
+            medium: match outgoing_effect.destination {
+                Destination::Recipient(_) => Medium::Direct,
+                Destination::Subscribers(channel) => Medium::Channel(channel),
+            },
+        };
+
+        let mut chain = self.storage.load_active_chain(chain_id).await?;
+        let communication_state = chain
+            .communication_states
+            .load_entry_mut(&application_id)
+            .await?;
+        let inbox = communication_state.inboxes.load_entry_mut(&origin).await?;
+
+        let certificate_hash = certificate.value.hash();
+        let Some(event) =
+            inbox
+                .added_events
+                .iter_mut()
+                .await?
+                .find(|event| {
+                    event.certificate_hash == certificate_hash
+                        && event.height == effect_id.height
+                        && event.index == effect_id.index as usize
+                        && event.effect == outgoing_effect.effect
+                })
+                .cloned()
+            else { return Ok(None) };
+
+        Ok(Some(Message {
+            application_id,
+            origin,
+            event,
+        }))
     }
 }
 
