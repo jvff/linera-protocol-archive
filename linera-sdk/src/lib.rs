@@ -8,6 +8,8 @@ mod exported_future;
 mod extensions;
 mod log;
 pub mod service;
+#[cfg(feature = "test")]
+pub mod test;
 
 use async_trait::async_trait;
 use custom_debug_derive::Debug;
@@ -20,7 +22,7 @@ use std::{error::Error, sync::Arc};
 
 pub use self::{
     exported_future::ExportedFuture,
-    extensions::FromBcsBytes,
+    extensions::{FromBcsBytes, ToBcsBytes},
     log::{ContractLogger, ServiceLogger},
 };
 #[doc(hidden)]

@@ -39,5 +39,8 @@ macro_rules! service {
                 argument: Vec<u8>,
             ) -> PollQuery
         }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        fn main() {}
     };
 }
