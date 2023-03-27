@@ -130,5 +130,8 @@ macro_rules! contract {
                 forwarded_sessions: Vec<$crate::contract::SessionId>,
             ) -> PollCallSession
         }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        fn main() {}
     };
 }
