@@ -350,9 +350,9 @@ impl TestRunner {
             .kill_on_drop(true)
             .arg("run")
             .arg("--manifest-path")
+            .arg(env::current_dir().unwrap().join("Cargo.toml"))
             .arg("--features")
-            .arg("benchmark")
-            .arg(env::current_dir().unwrap().join("Cargo.toml"));
+            .arg("benchmark");
         command
     }
 
