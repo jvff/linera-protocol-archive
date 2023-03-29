@@ -45,7 +45,14 @@ impl BlockBuilder {
     ) -> Self {
         let previous_block_hash = previous_block.map(|certificate| certificate.value.hash());
         let height = previous_block
-            .and_then(|certificate| certificate.value.block().height.try_add_one().ok())
+            .map(|certificate| {
+                certificate
+                    .value
+                    .block()
+                    .height
+                    .try_add_one()
+                    .expect("Block height limit reached")
+            })
             .unwrap_or_default();
 
         BlockBuilder {
