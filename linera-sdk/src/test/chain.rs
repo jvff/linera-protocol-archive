@@ -245,7 +245,7 @@ impl ActiveChain {
             .await;
 
         let effect_id = EffectId {
-            chain_id: publisher.description.into(),
+            chain_id: publisher.id(),
             height: publisher.tip_height().await,
             index: 0,
         };
