@@ -177,7 +177,7 @@ impl ActiveChain {
             .bin
             .into_iter()
             .filter_map(|binary| binary.name)
-            .filter(|name| name.contains("service") || name.contains("contract"))
+            .filter(|name| name.ends_with("service") || name.ends_with("contract"))
             .collect();
 
         assert_eq!(
@@ -187,12 +187,11 @@ impl ActiveChain {
             Please specify them manually using `publish_bytecode`."
         );
 
-        let (contract_binary, service_binary) =
-            if binaries[0].contains("service") && !binaries[0].contains("contract") {
-                (&binaries[1], &binaries[0])
-            } else {
-                (&binaries[0], &binaries[1])
-            };
+        let (contract_binary, service_binary) = if binaries[0].ends_with("contract") {
+            (&binaries[0], &binaries[1])
+        } else {
+            (&binaries[1], &binaries[0])
+        };
 
         let base_path = PathBuf::from("../target/wasm32-unknown-unknown/release");
         let contract_path = base_path.join(format!("{}.wasm", contract_binary));
