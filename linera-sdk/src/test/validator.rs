@@ -6,7 +6,9 @@
 //! The [`TestValidator`] is a minimal validator with a single shard. Micro-chains can be added to
 //! it, and blocks can be added to each micro-chain individually.
 
-use linera_base::crypto::KeyPair;
+use super::ActiveChain;
+use dashmap::DashMap;
+use linera_base::{crypto::KeyPair, identifiers::ChainId};
 use linera_core::worker::WorkerState;
 use linera_execution::{
     committee::{Committee, ValidatorName},
@@ -22,6 +24,7 @@ pub struct TestValidator {
     committee: Committee,
     worker: Arc<Mutex<WorkerState<MemoryStoreClient>>>,
     root_chain_counter: Arc<AtomicUsize>,
+    chains: Arc<DashMap<ChainId, ActiveChain>>,
 }
 
 impl Clone for TestValidator {
@@ -31,6 +34,7 @@ impl Clone for TestValidator {
             committee: self.committee.clone(),
             worker: self.worker.clone(),
             root_chain_counter: self.root_chain_counter.clone(),
+            chains: self.chains.clone(),
         }
     }
 }
@@ -53,6 +57,7 @@ impl TestValidator {
             committee,
             worker: Arc::new(Mutex::new(worker)),
             root_chain_counter: Arc::default(),
+            chains: Arc::default(),
         }
     }
 
