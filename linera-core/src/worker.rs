@@ -804,10 +804,11 @@ where
                     event.certificate_hash == certificate_hash
                         && event.height == effect_id.height
                         && event.index == effect_id.index as usize
-                        && event.effect == outgoing_effect.effect
                 })
                 .cloned()
             else { return Ok(None) };
+
+        assert_eq!(event.effect, outgoing_effect.effect);
 
         Ok(Some(Message {
             application_id,
