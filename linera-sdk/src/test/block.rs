@@ -102,7 +102,7 @@ impl BlockBuilder {
     ///
     /// The block that produces the effect must have already been executed by the test validator,
     /// so that the message is already in the inbox of the micro-chain this block belongs to.
-    pub fn with_message(&mut self, effect_id: EffectId) -> &mut Self {
+    pub fn with_incoming_message(&mut self, effect_id: EffectId) -> &mut Self {
         self.incoming_messages.push(effect_id);
         self
     }

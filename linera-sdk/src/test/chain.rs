@@ -138,7 +138,7 @@ impl ActiveChain {
         };
 
         self.add_block(|block| {
-            block.with_message(publish_effect_id);
+            block.with_incoming_message(publish_effect_id);
         })
         .await;
 
@@ -239,7 +239,7 @@ impl ActiveChain {
 
         publisher
             .add_block(|block| {
-                block.with_message(effect_id);
+                block.with_incoming_message(effect_id);
             })
             .await;
 
@@ -250,7 +250,7 @@ impl ActiveChain {
         };
 
         self.add_block(|block| {
-            block.with_message(effect_id);
+            block.with_incoming_message(effect_id);
         })
         .await;
     }
@@ -282,7 +282,7 @@ impl ActiveChain {
 
         self.add_block(|block| {
             if let Some(effect_id) = bytecode_location_effect {
-                block.with_message(effect_id);
+                block.with_incoming_message(effect_id);
             }
 
             block.with_system_operation(SystemOperation::CreateApplication {
