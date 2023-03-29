@@ -34,21 +34,8 @@ pub struct TestValidator {
     chains: Arc<DashMap<ChainId, ActiveChain>>,
 }
 
-impl Clone for TestValidator {
-    fn clone(&self) -> Self {
-        TestValidator {
-            key_pair: self.key_pair.copy(),
-            committee: self.committee.clone(),
-            worker: self.worker.clone(),
-            root_chain_counter: self.root_chain_counter.clone(),
-            chains: self.chains.clone(),
-        }
-    }
-}
-
-impl TestValidator {
-    /// Creates a new empty [`TestValidator`] instance.
-    pub fn new() -> Self {
+impl Default for TestValidator {
+    fn default() -> Self {
         let key_pair = KeyPair::generate();
         let committee = Committee::make_simple(vec![ValidatorName(key_pair.public())]);
         let client = MemoryStoreClient::new(Some(WasmRuntime::default()));
@@ -67,13 +54,27 @@ impl TestValidator {
             chains: Arc::default(),
         }
     }
+}
 
+impl Clone for TestValidator {
+    fn clone(&self) -> Self {
+        TestValidator {
+            key_pair: self.key_pair.copy(),
+            committee: self.committee.clone(),
+            worker: self.worker.clone(),
+            root_chain_counter: self.root_chain_counter.clone(),
+            chains: self.chains.clone(),
+        }
+    }
+}
+
+impl TestValidator {
     /// Creates a new [`TestValidator`] with a single micro-chain with the bytecode of the crate
     /// calling this method published on it.
     ///
     /// Returns the new [`TestValidator`] and the [`BytecodeId`] of the published bytecode.
     pub async fn with_current_bytecode() -> (TestValidator, BytecodeId) {
-        let validator = TestValidator::new();
+        let validator = TestValidator::default();
         let publisher = validator.new_chain().await;
 
         let bytecode_id = publisher.publish_current_bytecode().await;
