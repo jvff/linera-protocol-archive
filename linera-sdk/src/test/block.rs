@@ -17,7 +17,7 @@ use linera_chain::data_types::{
 use linera_execution::system::SystemOperation;
 use std::mem;
 
-/// A helper type to build [`Blocks`] using the builder pattern, and then signing them into
+/// A helper type to build [`Block`]s using the builder pattern, and then signing them into
 /// [`Certificate`]s using a [`TestValidator`].
 pub struct BlockBuilder {
     block: Block,
