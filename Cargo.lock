@@ -2511,6 +2511,7 @@ dependencies = [
  "bcs",
  "cargo_toml",
  "custom_debug_derive",
+ "dashmap",
  "futures",
  "linera-base",
  "linera-chain",
