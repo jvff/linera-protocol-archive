@@ -107,6 +107,10 @@ impl BlockBuilder {
         self
     }
 
+    /// Adds the `messages` directly to this block.
+    ///
+    /// This is an internal method that bypasses the check to see if the messages are already
+    /// present in the inboxes of the micro-chain that owns this block.
     pub(crate) fn with_raw_messages(
         &mut self,
         messages: impl IntoIterator<Item = Message>,
