@@ -20,11 +20,11 @@
 //! framework that allows loading selected parts of the state. This is useful if the application's
 //! state is large and doesn't need to be loaded in its entirety for every execution.
 //!
-//! The contract binary should use the [`contract!`][`contract::contract`] macro to export the
-//! application's contract endpoints implemented via the [`Contract`] trait implementation.
+//! The contract binary should use the [`contract!`] macro to export the application's contract
+//! endpoints implemented via the [`Contract`] trait implementation.
 //!
-//! The service binary should use the [`service!`][`service::service`] macro to export the
-//! application's service endpoints implemented via the [`Service`] trait implementation.
+//! The service binary should use the [`service!`] macro to export the application's service
+//! endpoints implemented via the [`Service`] trait implementation.
 //!
 //! # Examples
 //!
