@@ -37,7 +37,7 @@ use super::{
     common::{self, ApplicationRuntimeContext, WasmRuntimeContext},
     WasmApplication, WasmExecutionError,
 };
-use crate::{ExecutionError, QueryableStorage, SessionId, WritableStorage};
+use crate::{ExecutionError, ServiceSystemApi, SessionId, WritableStorage};
 use linera_views::{batch::Batch, views::ViewError};
 use std::{error::Error, task::Poll};
 use wasmtime::{Config, Engine, Linker, Module, Store, Trap};
@@ -117,7 +117,7 @@ impl WasmApplication {
     /// Prepare a runtime instance to call into the WASM service.
     pub fn prepare_service_runtime_with_wasmtime<'storage>(
         &self,
-        storage: &'storage dyn QueryableStorage,
+        storage: &'storage dyn ServiceSystemApi,
     ) -> Result<WasmRuntimeContext<'storage, Service<'storage>>, WasmExecutionError> {
         let engine = Engine::default();
         let mut linker = Linker::new(&engine);
@@ -195,7 +195,7 @@ impl<'storage> ServiceState<'storage> {
     ///
     /// Uses `storage` to export the system API, and the `waker` to be able to correctly handle
     /// asynchronous calls from the guest WASM module.
-    pub fn new(storage: &'storage dyn QueryableStorage, waker: WakerForwarder) -> Self {
+    pub fn new(storage: &'storage dyn ServiceSystemApi, waker: WakerForwarder) -> Self {
         Self {
             data: ServiceData::default(),
             system_api: ServiceSystemApiExport::new(waker, storage),
@@ -403,20 +403,20 @@ impl_writable_system!(ContractSystemApiExport<'storage>);
 /// Implementation to forward service system calls from the guest WASM module to the host
 /// implementation.
 pub struct ServiceSystemApiExport<'storage> {
-    shared: SystemApiExport<&'storage dyn QueryableStorage>,
+    shared: SystemApiExport<&'storage dyn ServiceSystemApi>,
 }
 
 impl<'storage> ServiceSystemApiExport<'storage> {
     /// Creates a new [`ServiceSystemApiExport`] instance using the provided asynchronous `waker`
     /// and exporting the API from `storage`.
-    pub fn new(waker: WakerForwarder, storage: &'storage dyn QueryableStorage) -> Self {
+    pub fn new(waker: WakerForwarder, storage: &'storage dyn ServiceSystemApi) -> Self {
         ServiceSystemApiExport {
             shared: SystemApiExport { waker, storage },
         }
     }
 
-    /// Returns the [`QueryableStorage`] trait object instance to handle a system call.
-    fn storage(&self) -> &'storage dyn QueryableStorage {
+    /// Returns the [`ServiceSystemApi`] trait object instance to handle a system call.
+    fn storage(&self) -> &'storage dyn ServiceSystemApi {
         self.shared.storage
     }
 

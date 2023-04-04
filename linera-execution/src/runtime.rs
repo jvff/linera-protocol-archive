@@ -3,7 +3,7 @@
 
 use crate::{
     execution::ExecutionStateView, BaseSystemApi, CallResult, ExecutionError, ExecutionResult,
-    ExecutionRuntimeContext, NewSession, QueryableStorage, SessionId, UserApplicationCode,
+    ExecutionRuntimeContext, NewSession, ServiceSystemApi, SessionId, UserApplicationCode,
     UserApplicationDescription, UserApplicationId, WritableStorage,
 };
 use async_trait::async_trait;
@@ -403,7 +403,7 @@ where
 }
 
 #[async_trait]
-impl<'a, C> QueryableStorage for ExecutionRuntime<'a, C, false>
+impl<'a, C> ServiceSystemApi for ExecutionRuntime<'a, C, false>
 where
     C: Context + Clone + Send + Sync + 'static,
     ViewError: From<C::Error>,
