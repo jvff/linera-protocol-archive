@@ -153,8 +153,8 @@ pub struct ContractState<'storage> {
 /// Data stored by the runtime that's necessary for handling queries to and from the WASM module.
 pub struct ServiceState<'storage> {
     data: ServiceData,
-    system_api: ServiceSystemApi<'storage>,
-    system_tables: QueryableSystemTables<ServiceSystemApi<'storage>>,
+    system_api: ServiceSystemApiExport<'storage>,
+    system_tables: QueryableSystemTables<ServiceSystemApiExport<'storage>>,
 }
 
 impl<'storage> ContractState<'storage> {
@@ -198,7 +198,7 @@ impl<'storage> ServiceState<'storage> {
     pub fn new(storage: &'storage dyn QueryableStorage, waker: WakerForwarder) -> Self {
         Self {
             data: ServiceData::default(),
-            system_api: ServiceSystemApi::new(waker, storage),
+            system_api: ServiceSystemApiExport::new(waker, storage),
             system_tables: QueryableSystemTables::default(),
         }
     }
@@ -212,8 +212,8 @@ impl<'storage> ServiceState<'storage> {
     pub fn system_api(
         &mut self,
     ) -> (
-        &mut ServiceSystemApi<'storage>,
-        &mut QueryableSystemTables<ServiceSystemApi<'storage>>,
+        &mut ServiceSystemApiExport<'storage>,
+        &mut QueryableSystemTables<ServiceSystemApiExport<'storage>>,
     ) {
         (&mut self.system_api, &mut self.system_tables)
     }
@@ -402,15 +402,15 @@ impl_writable_system!(ContractSystemApi<'storage>);
 
 /// Implementation to forward service system calls from the guest WASM module to the host
 /// implementation.
-pub struct ServiceSystemApi<'storage> {
+pub struct ServiceSystemApiExport<'storage> {
     shared: SystemApi<&'storage dyn QueryableStorage>,
 }
 
-impl<'storage> ServiceSystemApi<'storage> {
-    /// Creates a new [`ServiceSystemApi`] instance using the provided asynchronous `waker` and
-    /// exporting the API from `storage`.
+impl<'storage> ServiceSystemApiExport<'storage> {
+    /// Creates a new [`ServiceSystemApiExport`] instance using the provided asynchronous `waker`
+    /// and exporting the API from `storage`.
     pub fn new(waker: WakerForwarder, storage: &'storage dyn QueryableStorage) -> Self {
-        ServiceSystemApi {
+        ServiceSystemApiExport {
             shared: SystemApi { waker, storage },
         }
     }
@@ -426,7 +426,7 @@ impl<'storage> ServiceSystemApi<'storage> {
     }
 }
 
-impl_queryable_system!(ServiceSystemApi<'storage>);
+impl_queryable_system!(ServiceSystemApiExport<'storage>);
 
 impl From<ExecutionError> for wasmtime::Trap {
     fn from(error: ExecutionError) -> Self {

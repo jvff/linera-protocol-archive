@@ -149,7 +149,8 @@ impl WasmApplication {
         let mut imports = imports! {};
         let waker_forwarder = WakerForwarder::default();
         let (future_queue, _queued_future_factory) = HostFutureQueue::new();
-        let (system_api, storage_guard) = ServiceSystemApi::new(waker_forwarder.clone(), storage);
+        let (system_api, storage_guard) =
+            ServiceSystemApiExport::new(waker_forwarder.clone(), storage);
         let system_api_setup =
             queryable_system::add_to_imports(&mut store, &mut imports, system_api);
         let (service, instance) = service::Service::instantiate(&mut store, &module, &mut imports)?;
@@ -404,12 +405,12 @@ impl_writable_system!(ContractSystemApi);
 
 /// Implementation to forward service system calls from the guest WASM module to the host
 /// implementation.
-pub struct ServiceSystemApi {
+pub struct ServiceSystemApiExport {
     shared: SystemApi<&'static dyn QueryableStorage>,
 }
 
-impl ServiceSystemApi {
-    /// Creates a new [`ServiceSystemApi`] instance, ensuring that the lifetime of the
+impl ServiceSystemApiExport {
+    /// Creates a new [`ServiceSystemApiExport`] instance, ensuring that the lifetime of the
     /// [`QueryableStorage`] trait object is respected.
     ///
     /// # Safety
@@ -434,7 +435,7 @@ impl ServiceSystemApi {
         };
 
         (
-            ServiceSystemApi {
+            ServiceSystemApiExport {
                 shared: SystemApi { waker, storage },
             },
             guard,
@@ -465,7 +466,7 @@ impl ServiceSystemApi {
     }
 }
 
-impl_queryable_system!(ServiceSystemApi);
+impl_queryable_system!(ServiceSystemApiExport);
 
 /// Extra parameters necessary when cleaning up after contract execution.
 pub struct WasmerContractExtra<'storage> {
