@@ -114,7 +114,7 @@ impl WasmApplication {
         let waker_forwarder = WakerForwarder::default();
         let (future_queue, queued_future_factory) = HostFutureQueue::new();
         let (system_api, storage_guard) =
-            ContractSystemApi::new(waker_forwarder.clone(), storage, queued_future_factory);
+            ContractSystemApiExport::new(waker_forwarder.clone(), storage, queued_future_factory);
         let system_api_setup =
             writable_system::add_to_imports(&mut store, &mut imports, system_api);
         let (contract, instance) =
@@ -337,13 +337,13 @@ struct SystemApi<S> {
 
 /// Implementation to forward contract system calls from the guest WASM module to the host
 /// implementation.
-pub struct ContractSystemApi {
+pub struct ContractSystemApiExport {
     shared: SystemApi<&'static dyn WritableStorage>,
     queued_future_factory: QueuedHostFutureFactory<'static>,
 }
 
-impl ContractSystemApi {
-    /// Creates a new [`ContractSystemApi`] instance, ensuring that the lifetime of the
+impl ContractSystemApiExport {
+    /// Creates a new [`ContractSystemApiExport`] instance, ensuring that the lifetime of the
     /// [`WritableStorage`] trait object is respected.
     ///
     /// # Safety
@@ -369,7 +369,7 @@ impl ContractSystemApi {
         };
 
         (
-            ContractSystemApi {
+            ContractSystemApiExport {
                 shared: SystemApi { waker, storage },
                 queued_future_factory,
             },
@@ -401,7 +401,7 @@ impl ContractSystemApi {
     }
 }
 
-impl_writable_system!(ContractSystemApi);
+impl_writable_system!(ContractSystemApiExport);
 
 /// Implementation to forward service system calls from the guest WASM module to the host
 /// implementation.

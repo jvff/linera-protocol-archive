@@ -146,8 +146,8 @@ impl WasmApplication {
 /// Data stored by the runtime that's necessary for handling calls to and from the WASM module.
 pub struct ContractState<'storage> {
     data: ContractData,
-    system_api: ContractSystemApi<'storage>,
-    system_tables: WritableSystemTables<ContractSystemApi<'storage>>,
+    system_api: ContractSystemApiExport<'storage>,
+    system_tables: WritableSystemTables<ContractSystemApiExport<'storage>>,
 }
 
 /// Data stored by the runtime that's necessary for handling queries to and from the WASM module.
@@ -169,7 +169,7 @@ impl<'storage> ContractState<'storage> {
     ) -> Self {
         Self {
             data: ContractData::default(),
-            system_api: ContractSystemApi::new(waker, storage, queued_future_factory),
+            system_api: ContractSystemApiExport::new(waker, storage, queued_future_factory),
             system_tables: WritableSystemTables::default(),
         }
     }
@@ -183,8 +183,8 @@ impl<'storage> ContractState<'storage> {
     pub fn system_api(
         &mut self,
     ) -> (
-        &mut ContractSystemApi<'storage>,
-        &mut WritableSystemTables<ContractSystemApi<'storage>>,
+        &mut ContractSystemApiExport<'storage>,
+        &mut WritableSystemTables<ContractSystemApiExport<'storage>>,
     ) {
         (&mut self.system_api, &mut self.system_tables)
     }
@@ -368,20 +368,20 @@ struct SystemApi<S> {
 
 /// Implementation to forward contract system calls from the guest WASM module to the host
 /// implementation.
-pub struct ContractSystemApi<'storage> {
+pub struct ContractSystemApiExport<'storage> {
     shared: SystemApi<&'storage dyn WritableStorage>,
     queued_future_factory: QueuedHostFutureFactory<'storage>,
 }
 
-impl<'storage> ContractSystemApi<'storage> {
-    /// Creates a new [`ContractSystemApi`] instance using the provided asynchronous `waker` and
-    /// exporting the API from `storage`.
+impl<'storage> ContractSystemApiExport<'storage> {
+    /// Creates a new [`ContractSystemApiExport`] instance using the provided asynchronous `waker`
+    /// and exporting the API from `storage`.
     pub fn new(
         waker: WakerForwarder,
         storage: &'storage dyn WritableStorage,
         queued_future_factory: QueuedHostFutureFactory<'storage>,
     ) -> Self {
-        ContractSystemApi {
+        ContractSystemApiExport {
             shared: SystemApi { waker, storage },
             queued_future_factory,
         }
@@ -398,7 +398,7 @@ impl<'storage> ContractSystemApi<'storage> {
     }
 }
 
-impl_writable_system!(ContractSystemApi<'storage>);
+impl_writable_system!(ContractSystemApiExport<'storage>);
 
 /// Implementation to forward service system calls from the guest WASM module to the host
 /// implementation.
