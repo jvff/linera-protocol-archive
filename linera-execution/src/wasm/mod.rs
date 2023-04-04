@@ -25,9 +25,9 @@ mod wasmtime;
 
 use self::sanitizer::sanitize;
 use crate::{
-    ApplicationCallResult, Bytecode, CalleeContext, EffectContext, ExecutionError,
-    OperationContext, QueryContext, RawExecutionResult, ServiceSystemApi, SessionCallResult,
-    SessionId, UserApplication, WasmRuntime, WritableStorage,
+    ApplicationCallResult, Bytecode, CalleeContext, ContractSystemApi, EffectContext,
+    ExecutionError, OperationContext, QueryContext, RawExecutionResult, ServiceSystemApi,
+    SessionCallResult, SessionId, UserApplication, WasmRuntime,
 };
 use async_trait::async_trait;
 use std::path::Path;
@@ -95,7 +95,7 @@ impl UserApplication for WasmApplication {
     async fn initialize(
         &self,
         context: &OperationContext,
-        storage: &dyn WritableStorage,
+        storage: &dyn ContractSystemApi,
         argument: &[u8],
     ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
         let result = match self.runtime {
@@ -118,7 +118,7 @@ impl UserApplication for WasmApplication {
     async fn execute_operation(
         &self,
         context: &OperationContext,
-        storage: &dyn WritableStorage,
+        storage: &dyn ContractSystemApi,
         operation: &[u8],
     ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
         let result = match self.runtime {
@@ -141,7 +141,7 @@ impl UserApplication for WasmApplication {
     async fn execute_effect(
         &self,
         context: &EffectContext,
-        storage: &dyn WritableStorage,
+        storage: &dyn ContractSystemApi,
         effect: &[u8],
     ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
         let result = match self.runtime {
@@ -164,7 +164,7 @@ impl UserApplication for WasmApplication {
     async fn handle_application_call(
         &self,
         context: &CalleeContext,
-        storage: &dyn WritableStorage,
+        storage: &dyn ContractSystemApi,
         argument: &[u8],
         forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallResult, ExecutionError> {
@@ -188,7 +188,7 @@ impl UserApplication for WasmApplication {
     async fn handle_session_call(
         &self,
         context: &CalleeContext,
-        storage: &dyn WritableStorage,
+        storage: &dyn ContractSystemApi,
         session_kind: u64,
         session_data: &mut Vec<u8>,
         argument: &[u8],

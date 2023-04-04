@@ -35,7 +35,7 @@ use super::{
     WasmApplication, WasmExecutionError,
 };
 
-use crate::{ExecutionError, ServiceSystemApi, SessionId, WritableStorage};
+use crate::{ContractSystemApi, ExecutionError, ServiceSystemApi, SessionId};
 use linera_views::{batch::Batch, views::ViewError};
 use std::{marker::PhantomData, mem, sync::Arc, task::Poll};
 use tokio::sync::Mutex;
@@ -66,7 +66,7 @@ impl<'storage> ApplicationRuntimeContext for Contract<'storage> {
             .storage_guard
             .storage
             .try_lock()
-            .expect("Unexpected concurrent access to WritableStorage");
+            .expect("Unexpected concurrent access to ContractSystemApi");
         let storage = storage_guard
             .as_ref()
             .expect("Storage guard dropped prematurely");
@@ -97,7 +97,7 @@ impl WasmApplication {
     /// Prepare a runtime instance to call into the WASM contract.
     pub fn prepare_contract_runtime_with_wasmer<'storage>(
         &self,
-        storage: &'storage dyn WritableStorage,
+        storage: &'storage dyn ContractSystemApi,
     ) -> Result<WasmRuntimeContext<'static, Contract<'storage>>, WasmExecutionError> {
         let metering = Arc::new(Metering::new(
             storage.remaining_fuel(),
@@ -338,13 +338,13 @@ struct SystemApiExport<S> {
 /// Implementation to forward contract system calls from the guest WASM module to the host
 /// implementation.
 pub struct ContractSystemApiExport {
-    shared: SystemApiExport<&'static dyn WritableStorage>,
+    shared: SystemApiExport<&'static dyn ContractSystemApi>,
     queued_future_factory: QueuedHostFutureFactory<'static>,
 }
 
 impl ContractSystemApiExport {
     /// Creates a new [`ContractSystemApiExport`] instance, ensuring that the lifetime of the
-    /// [`WritableStorage`] trait object is respected.
+    /// [`ContractSystemApi`] trait object is respected.
     ///
     /// # Safety
     ///
@@ -357,9 +357,9 @@ impl ContractSystemApiExport {
     /// be alive and usable by the WASM application.
     pub fn new<'storage>(
         waker: WakerForwarder,
-        storage: &'storage dyn WritableStorage,
+        storage: &'storage dyn ContractSystemApi,
         queued_future_factory: QueuedHostFutureFactory<'static>,
-    ) -> (Self, StorageGuard<'storage, &'static dyn WritableStorage>) {
+    ) -> (Self, StorageGuard<'storage, &'static dyn ContractSystemApi>) {
         let storage_without_lifetime = unsafe { mem::transmute(storage) };
         let storage = Arc::new(Mutex::new(Some(storage_without_lifetime)));
 
@@ -377,7 +377,7 @@ impl ContractSystemApiExport {
         )
     }
 
-    /// Safely obtains the [`WritableStorage`] trait object instance to handle a system call.
+    /// Safely obtains the [`ContractSystemApi`] trait object instance to handle a system call.
     ///
     /// # Panics
     ///
@@ -385,7 +385,7 @@ impl ContractSystemApiExport {
     /// is executed in a single thread) or if the trait object is no longer alive (or more
     /// accurately, if the [`StorageGuard`] returned by [`Self::new`] was dropped to indicate it's
     /// no longer alive).
-    fn storage(&self) -> &'static dyn WritableStorage {
+    fn storage(&self) -> &'static dyn ContractSystemApi {
         *self
             .shared
             .storage
@@ -470,11 +470,11 @@ impl_queryable_system!(ServiceSystemApiExport);
 
 /// Extra parameters necessary when cleaning up after contract execution.
 pub struct WasmerContractExtra<'storage> {
-    storage_guard: StorageGuard<'storage, &'static dyn WritableStorage>,
+    storage_guard: StorageGuard<'storage, &'static dyn ContractSystemApi>,
     instance: Instance,
 }
 
-/// A guard to unsure that the [`WritableStorage`] trait object isn't called after it's no longer
+/// A guard to unsure that the [`ContractSystemApi`] trait object isn't called after it's no longer
 /// borrowed.
 pub struct StorageGuard<'storage, S> {
     storage: Arc<Mutex<Option<S>>>,
