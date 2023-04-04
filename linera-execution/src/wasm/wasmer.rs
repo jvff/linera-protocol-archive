@@ -330,7 +330,7 @@ impl<'storage> common::Service for Service<'storage> {
 
 /// Helper type with common functionality across the contract and service system API
 /// implementations.
-struct SystemApi<S> {
+struct SystemApiExport<S> {
     waker: WakerForwarder,
     storage: Arc<Mutex<Option<S>>>,
 }
@@ -338,7 +338,7 @@ struct SystemApi<S> {
 /// Implementation to forward contract system calls from the guest WASM module to the host
 /// implementation.
 pub struct ContractSystemApiExport {
-    shared: SystemApi<&'static dyn WritableStorage>,
+    shared: SystemApiExport<&'static dyn WritableStorage>,
     queued_future_factory: QueuedHostFutureFactory<'static>,
 }
 
@@ -370,7 +370,7 @@ impl ContractSystemApiExport {
 
         (
             ContractSystemApiExport {
-                shared: SystemApi { waker, storage },
+                shared: SystemApiExport { waker, storage },
                 queued_future_factory,
             },
             guard,
@@ -406,7 +406,7 @@ impl_writable_system!(ContractSystemApiExport);
 /// Implementation to forward service system calls from the guest WASM module to the host
 /// implementation.
 pub struct ServiceSystemApiExport {
-    shared: SystemApi<&'static dyn QueryableStorage>,
+    shared: SystemApiExport<&'static dyn QueryableStorage>,
 }
 
 impl ServiceSystemApiExport {
@@ -436,7 +436,7 @@ impl ServiceSystemApiExport {
 
         (
             ServiceSystemApiExport {
-                shared: SystemApi { waker, storage },
+                shared: SystemApiExport { waker, storage },
             },
             guard,
         )

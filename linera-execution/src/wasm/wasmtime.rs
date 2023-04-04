@@ -361,7 +361,7 @@ impl<'storage> common::Service for Service<'storage> {
 
 /// Helper type with common functionality across the contract and service system API
 /// implementations.
-struct SystemApi<S> {
+struct SystemApiExport<S> {
     waker: WakerForwarder,
     storage: S,
 }
@@ -369,7 +369,7 @@ struct SystemApi<S> {
 /// Implementation to forward contract system calls from the guest WASM module to the host
 /// implementation.
 pub struct ContractSystemApiExport<'storage> {
-    shared: SystemApi<&'storage dyn WritableStorage>,
+    shared: SystemApiExport<&'storage dyn WritableStorage>,
     queued_future_factory: QueuedHostFutureFactory<'storage>,
 }
 
@@ -382,7 +382,7 @@ impl<'storage> ContractSystemApiExport<'storage> {
         queued_future_factory: QueuedHostFutureFactory<'storage>,
     ) -> Self {
         ContractSystemApiExport {
-            shared: SystemApi { waker, storage },
+            shared: SystemApiExport { waker, storage },
             queued_future_factory,
         }
     }
@@ -403,7 +403,7 @@ impl_writable_system!(ContractSystemApiExport<'storage>);
 /// Implementation to forward service system calls from the guest WASM module to the host
 /// implementation.
 pub struct ServiceSystemApiExport<'storage> {
-    shared: SystemApi<&'storage dyn QueryableStorage>,
+    shared: SystemApiExport<&'storage dyn QueryableStorage>,
 }
 
 impl<'storage> ServiceSystemApiExport<'storage> {
@@ -411,7 +411,7 @@ impl<'storage> ServiceSystemApiExport<'storage> {
     /// and exporting the API from `storage`.
     pub fn new(waker: WakerForwarder, storage: &'storage dyn QueryableStorage) -> Self {
         ServiceSystemApiExport {
-            shared: SystemApi { waker, storage },
+            shared: SystemApiExport { waker, storage },
         }
     }
 
