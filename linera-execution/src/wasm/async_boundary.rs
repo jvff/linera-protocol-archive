@@ -99,6 +99,39 @@ impl<'context, Future, Application> GuestFuture<'context, Future, Application>
 where
     Application: ApplicationRuntimeContext,
 {
+    /// Creates a deterministic [`GuestFuture`] instance from the `creation_result` of a WIT future
+    /// resource type.
+    ///
+    /// This will create a new [`HostFutureQueue`] using the [`WasmRuntimeContext`], so that any
+    /// asynchronous calls from the guest module can use the [`QueuedHostFutureFactory`] endpoint
+    /// to force them to complete deterministically.
+    ///
+    /// If the guest resource type could not be created by the WASM module, the error is stored so
+    /// that it can be returned when the [`GuestFuture`] is polled.
+    pub fn new_deterministic(
+        creation_result: Result<Future, Application::Error>,
+        context: WasmRuntimeContext<'context, Application>,
+    ) -> Self {
+        let host_future_queue = context.new_host_future_queue();
+        GuestFuture::new(creation_result, context, Some(host_future_queue));
+    }
+
+    /// Creates a non-deterministic [`GuestFuture`] instance from the `creation_result` of a WIT
+    /// future resource type.
+    ///
+    /// This will *not* create a new [`HostFutureQueue`], and therefore the asynchronous calls from
+    /// the guest module execute concurrently and *must not* be queued
+    /// to force them to complete deterministically.
+    ///
+    /// If the guest resource type could not be created by the WASM module, the error is stored so
+    /// that it can be returned when the [`GuestFuture`] is polled.
+    pub fn new_non_deterministic(
+        creation_result: Result<Future, Application::Error>,
+        context: WasmRuntimeContext<'context, Application>,
+    ) -> Self {
+        GuestFuture::new(creation_result, context, None);
+    }
+
     /// Create a [`GuestFuture`] instance with `creation_result` of a future resource type.
     ///
     /// If the guest resource type could not be created by the WASM module, the error is stored so
