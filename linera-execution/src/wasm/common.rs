@@ -5,7 +5,7 @@
 
 use super::{
     async_boundary::{GuestFuture, GuestFutureInterface, WakerForwarder},
-    async_determinism::HostFutureQueue,
+    async_determinism::{HostFutureQueue, QueuedHostFutureFactory},
     ExecutionError,
 };
 use crate::{
@@ -13,6 +13,8 @@ use crate::{
     RawExecutionResult, SessionCallResult, SessionId,
 };
 use futures::future::{self, TryFutureExt};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 /// Types that are specific to the context of an application ready to be executedy by a WebAssembly
 /// runtime.
@@ -207,8 +209,12 @@ where
     /// The application type.
     pub(crate) application: A,
 
-    /// A queue of host futures called by the guest that must complete deterministically.
-    pub(crate) future_queue: HostFutureQueue<'context>,
+    /// The endpoints to the queues of host futures called by the guest that must complete
+    /// deterministically.
+    ///
+    /// There is a separate queue for each call to the application, and every queue has an endpoint
+    /// stored in this shared list.
+    pub(crate) future_queues: Option<Arc<Mutex<Vec<QueuedHostFutureFactory<'context>>>>>,
 
     /// The application's memory state.
     pub(crate) store: A::Store,
@@ -216,6 +222,27 @@ where
     /// Guard type to clean up any host state after the call to the WASM application finishes.
     #[allow(dead_code)]
     pub(crate) extra: A::Extra,
+}
+
+impl<'context, A> WasmRuntimeContext<'context, A>
+where
+    A: ApplicationRuntimeContext,
+{
+    /// Creates a new [`HostFutureQueue`] instance to use when calling one of the application's
+    /// asynchronous methods.
+    pub fn new_host_future_queue(&self) -> Option<HostFutureQueue<'context>> {
+        let mut future_queues = self
+            .future_queues
+            .as_ref()?
+            .try_lock()
+            .expect("Concurrent execution of an application");
+
+        let (queue, endpoint) = HostFutureQueue::new();
+
+        future_queues.push(endpoint);
+
+        Some(queue)
+    }
 }
 
 impl<'context, A> WasmRuntimeContext<'context, A>

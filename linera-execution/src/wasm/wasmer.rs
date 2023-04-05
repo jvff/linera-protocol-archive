@@ -30,7 +30,7 @@ mod guest_futures;
 use self::{queryable_system::QueryableSystem, writable_system::WritableSystem};
 use super::{
     async_boundary::{HostFuture, WakerForwarder},
-    async_determinism::{HostFutureQueue, QueuedHostFutureFactory},
+    async_determinism::QueuedHostFutureFactory,
     common::{self, ApplicationRuntimeContext, WasmRuntimeContext},
     WasmApplication, WasmExecutionError,
 };
@@ -112,9 +112,9 @@ impl WasmApplication {
             .map_err(wit_bindgen_host_wasmer_rust::anyhow::Error::from)?;
         let mut imports = imports! {};
         let waker_forwarder = WakerForwarder::default();
-        let (future_queue, queued_future_factory) = HostFutureQueue::new();
+        let future_queues = Arc::new(Mutex::new(Vec::default()));
         let (system_api, storage_guard) =
-            ContractSystemApiExport::new(waker_forwarder.clone(), storage, queued_future_factory);
+            ContractSystemApiExport::new(waker_forwarder.clone(), storage, future_queues.clone());
         let system_api_setup =
             writable_system::add_to_imports(&mut store, &mut imports, system_api);
         let (contract, instance) =
@@ -129,7 +129,7 @@ impl WasmApplication {
         Ok(WasmRuntimeContext {
             waker_forwarder,
             application,
-            future_queue,
+            future_queues: Some(future_queues),
             store,
             extra: WasmerContractExtra {
                 instance,
@@ -148,7 +148,6 @@ impl WasmApplication {
             .map_err(wit_bindgen_host_wasmer_rust::anyhow::Error::from)?;
         let mut imports = imports! {};
         let waker_forwarder = WakerForwarder::default();
-        let (future_queue, _queued_future_factory) = HostFutureQueue::new();
         let (system_api, storage_guard) =
             ServiceSystemApiExport::new(waker_forwarder.clone(), storage);
         let system_api_setup =
@@ -164,7 +163,7 @@ impl WasmApplication {
         Ok(WasmRuntimeContext {
             waker_forwarder,
             application,
-            future_queue,
+            future_queues: None,
             store,
             extra: storage_guard,
         })
@@ -339,7 +338,7 @@ struct SystemApiExport<S> {
 /// implementation.
 pub struct ContractSystemApiExport {
     shared: SystemApiExport<&'static dyn ContractSystemApi>,
-    queued_future_factory: QueuedHostFutureFactory<'static>,
+    future_queues: Arc<Mutex<Vec<QueuedHostFutureFactory<'static>>>>,
 }
 
 impl ContractSystemApiExport {
@@ -358,7 +357,7 @@ impl ContractSystemApiExport {
     pub fn new<'storage>(
         waker: WakerForwarder,
         storage: &'storage dyn ContractSystemApi,
-        queued_future_factory: QueuedHostFutureFactory<'static>,
+        future_queues: Arc<Mutex<Vec<QueuedHostFutureFactory<'static>>>>,
     ) -> (Self, StorageGuard<'storage, &'static dyn ContractSystemApi>) {
         let storage_without_lifetime = unsafe { mem::transmute(storage) };
         let storage = Arc::new(Mutex::new(Some(storage_without_lifetime)));
@@ -371,11 +370,26 @@ impl ContractSystemApiExport {
         (
             ContractSystemApiExport {
                 shared: SystemApiExport { waker, storage },
-                queued_future_factory,
+                future_queues,
             },
             guard,
         )
     }
+
+    // fn queue_future<Output>(
+    // &self,
+    // future: impl std::future::Future<Output = Output> + Send + 'static,
+    // ) -> HostFuture<'static, Output>
+    // where
+    // Output: Send + 'static,
+    // {
+    // self.future_queues
+    // .try_lock()
+    // .expect("Concurrent execution of an application")
+    // .first_mut()
+    // .expect("Missing system API future queue in an executing application")
+    // .enqueue(future)
+    // }
 
     /// Safely obtains the [`ContractSystemApi`] trait object instance to handle a system call.
     ///

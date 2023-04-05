@@ -208,6 +208,11 @@ impl<'futures> QueuedHostFutureFactory<'futures> {
             )
         })
     }
+
+    /// Returns if the associated [`HostFutureQueue`] is still active and receiving new futures.
+    pub fn is_open(&self) -> bool {
+        !self.sender.is_closed()
+    }
 }
 
 #[cfg(test)]

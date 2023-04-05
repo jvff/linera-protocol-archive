@@ -33,13 +33,14 @@ use self::{
 };
 use super::{
     async_boundary::{HostFuture, WakerForwarder},
-    async_determinism::{HostFutureQueue, QueuedHostFutureFactory},
+    async_determinism::QueuedHostFutureFactory,
     common::{self, ApplicationRuntimeContext, WasmRuntimeContext},
     WasmApplication, WasmExecutionError,
 };
 use crate::{ContractSystemApi, ExecutionError, ServiceSystemApi, SessionId};
 use linera_views::{batch::Batch, views::ViewError};
-use std::{error::Error, task::Poll};
+use std::{error::Error, sync::Arc, task::Poll};
+use tokio::sync::Mutex;
 use wasmtime::{Config, Engine, Linker, Module, Store, Trap};
 use wit_bindgen_host_wasmtime_rust::Le;
 
@@ -94,8 +95,8 @@ impl WasmApplication {
 
         let module = Module::new(&engine, &self.contract_bytecode)?;
         let waker_forwarder = WakerForwarder::default();
-        let (future_queue, queued_future_factory) = HostFutureQueue::new();
-        let state = ContractState::new(storage, waker_forwarder.clone(), queued_future_factory);
+        let future_queues = Arc::new(Mutex::new(Vec::default()));
+        let state = ContractState::new(storage, waker_forwarder.clone(), future_queues.clone());
         let mut store = Store::new(&engine, state);
         let (contract, _instance) =
             contract::Contract::instantiate(&mut store, &module, &mut linker, ContractState::data)?;
@@ -108,7 +109,7 @@ impl WasmApplication {
         Ok(WasmRuntimeContext {
             waker_forwarder,
             application,
-            future_queue,
+            future_queues: Some(future_queues),
             store,
             extra: (),
         })
@@ -126,7 +127,6 @@ impl WasmApplication {
 
         let module = Module::new(&engine, &self.service_bytecode)?;
         let waker_forwarder = WakerForwarder::default();
-        let (future_queue, _queued_future_factory) = HostFutureQueue::new();
         let state = ServiceState::new(storage, waker_forwarder.clone());
         let mut store = Store::new(&engine, state);
         let (service, _instance) =
@@ -136,7 +136,7 @@ impl WasmApplication {
         Ok(WasmRuntimeContext {
             waker_forwarder,
             application,
-            future_queue,
+            future_queues: None,
             store,
             extra: (),
         })
@@ -165,11 +165,11 @@ impl<'storage> ContractState<'storage> {
     pub fn new(
         storage: &'storage dyn ContractSystemApi,
         waker: WakerForwarder,
-        queued_future_factory: QueuedHostFutureFactory<'storage>,
+        future_queues: Arc<Mutex<Vec<QueuedHostFutureFactory<'storage>>>>,
     ) -> Self {
         Self {
             data: ContractData::default(),
-            system_api: ContractSystemApiExport::new(waker, storage, queued_future_factory),
+            system_api: ContractSystemApiExport::new(waker, storage, future_queues),
             system_tables: WritableSystemTables::default(),
         }
     }
@@ -370,20 +370,35 @@ struct SystemApiExport<S> {
 /// implementation.
 pub struct ContractSystemApiExport<'storage> {
     shared: SystemApiExport<&'storage dyn ContractSystemApi>,
-    queued_future_factory: QueuedHostFutureFactory<'storage>,
+    future_queues: Arc<Mutex<Vec<QueuedHostFutureFactory<'storage>>>>,
 }
 
 impl<'storage> ContractSystemApiExport<'storage> {
+    // fn queue_future<Output>(
+    // &self,
+    // future: impl std::future::Future<Output = Output> + Send + 'storage,
+    // ) -> HostFuture<'storage, Output>
+    // where
+    // Output: Send + 'storage,
+    // {
+    // self.future_queues
+    // .try_lock()
+    // .expect("Concurrent execution of an application")
+    // .first_mut()
+    // .expect("Missing system API future queue in an executing application")
+    // .enqueue(future)
+    // }
+
     /// Creates a new [`ContractSystemApiExport`] instance using the provided asynchronous `waker`
     /// and exporting the API from `storage`.
     pub fn new(
         waker: WakerForwarder,
         storage: &'storage dyn ContractSystemApi,
-        queued_future_factory: QueuedHostFutureFactory<'storage>,
+        future_queues: Arc<Mutex<Vec<QueuedHostFutureFactory<'storage>>>>,
     ) -> Self {
         ContractSystemApiExport {
             shared: SystemApiExport { waker, storage },
-            queued_future_factory,
+            future_queues,
         }
     }
 

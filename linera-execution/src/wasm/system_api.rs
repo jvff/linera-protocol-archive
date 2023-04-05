@@ -42,9 +42,7 @@ macro_rules! impl_writable_system {
                 Ok(self.storage().application_parameters())
             }
 
-            fn read_system_balance(
-                &mut self,
-            ) -> Result<writable_system::Balance, Self::Error> {
+            fn read_system_balance(&mut self) -> Result<writable_system::Balance, Self::Error> {
                 Ok(self.storage().read_system_balance().into())
             }
 
@@ -72,9 +70,7 @@ macro_rules! impl_writable_system {
             }
 
             fn lock_new(&mut self) -> Result<Self::Lock, Self::Error> {
-                Ok(self
-                    .queued_future_factory
-                    .enqueue(self.storage().lock_view_user_state()))
+                Ok(self.queue_future(self.storage().lock_view_user_state()))
             }
 
             fn lock_poll(
@@ -96,9 +92,7 @@ macro_rules! impl_writable_system {
                 &mut self,
                 key: &[u8],
             ) -> Result<Self::ReadKeyBytes, Self::Error> {
-                Ok(self
-                    .queued_future_factory
-                    .enqueue(self.storage().read_key_bytes(key.to_owned())))
+                Ok(self.queue_future(self.storage().read_key_bytes(key.to_owned())))
             }
 
             fn read_key_bytes_poll(
@@ -113,9 +107,7 @@ macro_rules! impl_writable_system {
             }
 
             fn find_keys_new(&mut self, key_prefix: &[u8]) -> Result<Self::FindKeys, Self::Error> {
-                Ok(self
-                    .queued_future_factory
-                    .enqueue(self.storage().find_keys_by_prefix(key_prefix.to_owned())))
+                Ok(self.queue_future(self.storage().find_keys_by_prefix(key_prefix.to_owned())))
             }
 
             fn find_keys_poll(
@@ -133,7 +125,7 @@ macro_rules! impl_writable_system {
                 &mut self,
                 key_prefix: &[u8],
             ) -> Result<Self::FindKeyValues, Self::Error> {
-                Ok(self.queued_future_factory.enqueue(
+                Ok(self.queue_future(
                     self.storage()
                         .find_key_values_by_prefix(key_prefix.to_owned()),
                 ))
@@ -168,9 +160,7 @@ macro_rules! impl_writable_system {
                         }
                     }
                 }
-                Ok(self
-                    .queued_future_factory
-                    .enqueue(self.storage().write_batch_and_unlock(batch)))
+                Ok(self.queue_future(self.storage().write_batch_and_unlock(batch)))
             }
 
             fn write_batch_poll(
@@ -247,7 +237,36 @@ macro_rules! impl_writable_system {
             }
         }
 
+
         impl$(<$param>)? $contract_system_api {
+            fn queue_future<Output>(
+                &self,
+                future: impl std::future::Future<Output = Output> + Send + $storage,
+            ) -> HostFuture<$storage, Output>
+            where
+                Output: Send + 'static,
+            {
+                let mut future_queues = self
+                    .future_queues
+                    .try_lock()
+                    .expect("Concurrent execution of an application");
+
+                let inactive_queues = future_queues
+                    .iter()
+                    .position($crate::wasm::async_determinism::QueuedHostFutureFactory::is_open)
+                    .expect("Missing system API future queue in an executing application");
+                dbg!(inactive_queues);
+
+                if inactive_queues > 0 {
+                    future_queues.drain(..inactive_queues);
+                }
+
+                future_queues
+                    .first_mut()
+                    .expect("Missing system API future queue in an executing application")
+                    .enqueue(future)
+            }
+
             /// Calls a `future` in a blocking manner.
             fn block_on<F>(future: F) -> F::Output
             where
