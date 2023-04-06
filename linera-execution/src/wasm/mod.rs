@@ -23,10 +23,10 @@ mod wasmer;
 #[path = "wasmtime.rs"]
 mod wasmtime;
 
-use self::sanitizer::sanitize;
+use self::{common::WasmRuntimeContext, sanitizer::sanitize};
 use crate::{
-    ApplicationCallResult, Bytecode, CalleeContext, ContractSystemApi, EffectContext,
-    ExecutionError, OperationContext, QueryContext, RawExecutionResult, ServiceSystemApi,
+    ApplicationCallResult, Bytecode, CalleeContext, Contract, ContractSystemApi, EffectContext,
+    ExecutionError, OperationContext, QueryContext, RawExecutionResult, Service, ServiceSystemApi,
     SessionCallResult, SessionId, UserApplication, WasmRuntime,
 };
 use async_trait::async_trait;
@@ -72,6 +72,20 @@ impl WasmApplication {
     }
 }
 
+pub enum WasmContract<'storage> {
+    #[cfg(feature = "wasmer")]
+    Wasmer(WasmRuntimeContext<'static, self::wasmer::Contract<'storage>>),
+    #[cfg(feature = "wasmtime")]
+    Wasmtime(WasmRuntimeContext<'storage, self::wasmtime::Contract<'storage>>),
+}
+
+pub enum WasmService<'storage> {
+    #[cfg(feature = "wasmer")]
+    Wasmer(WasmRuntimeContext<'static, self::wasmer::Service<'storage>>),
+    #[cfg(feature = "wasmtime")]
+    Wasmtime(WasmRuntimeContext<'storage, self::wasmtime::Service<'storage>>),
+}
+
 /// Errors that can occur when executing a user application in a WebAssembly module.
 #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
 #[derive(Debug, Error)]
@@ -90,114 +104,123 @@ pub enum WasmExecutionError {
     ExecuteModuleInWasmtime(#[from] ::wasmtime::Trap),
 }
 
-#[async_trait]
 impl UserApplication for WasmApplication {
-    async fn initialize(
+    fn contract_instance<'system>(
         &self,
-        context: &OperationContext,
-        storage: &dyn ContractSystemApi,
-        argument: &[u8],
-    ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
-        let result = match self.runtime {
+        system_api: &'system dyn ContractSystemApi,
+    ) -> Result<Box<dyn Contract + 'system>, ExecutionError> {
+        let contract = match self.runtime {
             #[cfg(feature = "wasmtime")]
             WasmRuntime::Wasmtime => {
-                self.prepare_contract_runtime_with_wasmtime(storage)?
-                    .initialize(context, argument)
-                    .await?
+                WasmContract::Wasmtime(self.prepare_contract_runtime_with_wasmtime(system_api)?)
             }
             #[cfg(feature = "wasmer")]
             WasmRuntime::Wasmer => {
-                self.prepare_contract_runtime_with_wasmer(storage)?
-                    .initialize(context, argument)
-                    .await?
+                WasmContract::Wasmer(self.prepare_contract_runtime_with_wasmer(system_api)?)
             }
         };
-        Ok(result)
+        Ok(Box::new(contract))
+    }
+
+    fn service_instance<'system>(
+        &self,
+        system_api: &'system dyn ServiceSystemApi,
+    ) -> Result<Box<dyn Service + 'system>, ExecutionError> {
+        let service = match self.runtime {
+            #[cfg(feature = "wasmtime")]
+            WasmRuntime::Wasmtime => {
+                WasmService::Wasmtime(self.prepare_service_runtime_with_wasmtime(system_api)?)
+            }
+            #[cfg(feature = "wasmer")]
+            WasmRuntime::Wasmer => {
+                WasmService::Wasmer(self.prepare_service_runtime_with_wasmer(system_api)?)
+            }
+        };
+        Ok(Box::new(service))
+    }
+}
+
+#[async_trait]
+impl Contract for WasmContract<'_> {
+    async fn initialize(
+        &self,
+        context: &OperationContext,
+        argument: &[u8],
+    ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
+        match self {
+            #[cfg(feature = "wasmtime")]
+            WasmContract::Wasmtime(contract) => {
+                WasmRuntimeContext::clone(&contract)
+                    .initialize(context, argument)
+                    .await
+            }
+            #[cfg(feature = "wasmer")]
+            WasmContract::Wasmer(contract) => contract.clone().initialize(context, argument).await,
+        }
     }
 
     async fn execute_operation(
         &self,
         context: &OperationContext,
-        storage: &dyn ContractSystemApi,
         operation: &[u8],
     ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
-        let result = match self.runtime {
+        match self {
             #[cfg(feature = "wasmtime")]
-            WasmRuntime::Wasmtime => {
-                self.prepare_contract_runtime_with_wasmtime(storage)?
-                    .execute_operation(context, operation)
-                    .await?
+            WasmContract::Wasmtime(contract) => {
+                contract.execute_operation(context, operation).await
             }
             #[cfg(feature = "wasmer")]
-            WasmRuntime::Wasmer => {
-                self.prepare_contract_runtime_with_wasmer(storage)?
-                    .execute_operation(context, operation)
-                    .await?
-            }
-        };
-        Ok(result)
+            WasmContract::Wasmer(contract) => contract.execute_operation(context, operation).await,
+        }
     }
 
     async fn execute_effect(
         &self,
         context: &EffectContext,
-        storage: &dyn ContractSystemApi,
         effect: &[u8],
     ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
-        let result = match self.runtime {
+        match self {
             #[cfg(feature = "wasmtime")]
-            WasmRuntime::Wasmtime => {
-                self.prepare_contract_runtime_with_wasmtime(storage)?
-                    .execute_effect(context, effect)
-                    .await?
-            }
+            WasmContract::Wasmtime(contract) => contract.execute_effect(context, effect).await,
             #[cfg(feature = "wasmer")]
-            WasmRuntime::Wasmer => {
-                self.prepare_contract_runtime_with_wasmer(storage)?
-                    .execute_effect(context, effect)
-                    .await?
-            }
-        };
-        Ok(result)
+            WasmContract::Wasmer(contract) => contract.execute_effect(context, effect).await,
+        }
     }
 
     async fn handle_application_call(
         &self,
         context: &CalleeContext,
-        storage: &dyn ContractSystemApi,
         argument: &[u8],
         forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallResult, ExecutionError> {
-        let result = match self.runtime {
+        match self {
             #[cfg(feature = "wasmtime")]
-            WasmRuntime::Wasmtime => {
-                self.prepare_contract_runtime_with_wasmtime(storage)?
+            WasmContract::Wasmtime(contract) => {
+                contract
                     .handle_application_call(context, argument, forwarded_sessions)
-                    .await?
+                    .await
             }
             #[cfg(feature = "wasmer")]
-            WasmRuntime::Wasmer => {
-                self.prepare_contract_runtime_with_wasmer(storage)?
+            WasmContract::Wasmer(contract) => {
+                contract
                     .handle_application_call(context, argument, forwarded_sessions)
-                    .await?
+                    .await
             }
-        };
-        Ok(result)
+        }
     }
 
     async fn handle_session_call(
         &self,
         context: &CalleeContext,
-        storage: &dyn ContractSystemApi,
         session_kind: u64,
         session_data: &mut Vec<u8>,
         argument: &[u8],
         forwarded_sessions: Vec<SessionId>,
     ) -> Result<SessionCallResult, ExecutionError> {
-        let result = match self.runtime {
+        match self {
             #[cfg(feature = "wasmtime")]
-            WasmRuntime::Wasmtime => {
-                self.prepare_contract_runtime_with_wasmtime(storage)?
+            WasmContract::Wasmtime(contract) => {
+                contract
                     .handle_session_call(
                         context,
                         session_kind,
@@ -205,11 +228,11 @@ impl UserApplication for WasmApplication {
                         argument,
                         forwarded_sessions,
                     )
-                    .await?
+                    .await
             }
             #[cfg(feature = "wasmer")]
-            WasmRuntime::Wasmer => {
-                self.prepare_contract_runtime_with_wasmer(storage)?
+            WasmContract::Wasmer(contract) => {
+                contract
                     .handle_session_call(
                         context,
                         session_kind,
@@ -217,33 +240,25 @@ impl UserApplication for WasmApplication {
                         argument,
                         forwarded_sessions,
                     )
-                    .await?
+                    .await
             }
-        };
-        Ok(result)
+        }
     }
+}
 
+#[async_trait]
+impl Service for WasmService<'_> {
     async fn query_application(
         &self,
         context: &QueryContext,
-        storage: &dyn ServiceSystemApi,
         argument: &[u8],
     ) -> Result<Vec<u8>, ExecutionError> {
-        let result = match self.runtime {
+        match self {
             #[cfg(feature = "wasmtime")]
-            WasmRuntime::Wasmtime => {
-                self.prepare_service_runtime_with_wasmtime(storage)?
-                    .query_application(context, argument)
-                    .await?
-            }
+            WasmService::Wasmtime(contract) => contract.query_application(context, argument).await,
             #[cfg(feature = "wasmer")]
-            WasmRuntime::Wasmer => {
-                self.prepare_service_runtime_with_wasmer(storage)?
-                    .query_application(context, argument)
-                    .await?
-            }
-        };
-        Ok(result)
+            WasmService::Wasmer(contract) => contract.query_application(context, argument).await,
+        }
     }
 }
 

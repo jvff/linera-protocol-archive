@@ -100,13 +100,24 @@ impl From<ViewError> for ExecutionError {
 }
 
 /// The public entry points provided by an application.
-#[async_trait]
 pub trait UserApplication {
+    fn contract_instance<'system>(
+        &self,
+        system_api: &'system dyn ContractSystemApi,
+    ) -> Result<Box<dyn Contract + 'system>, ExecutionError>;
+
+    fn service_instance<'system>(
+        &self,
+        system_api: &'system dyn ServiceSystemApi,
+    ) -> Result<Box<dyn Service + 'system>, ExecutionError>;
+}
+
+#[async_trait]
+pub trait Contract: Send + Sync {
     /// Initializes the application state on the chain that owns the application.
     async fn initialize(
         &self,
         context: &OperationContext,
-        storage: &dyn ContractSystemApi,
         argument: &[u8],
     ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError>;
 
@@ -114,7 +125,6 @@ pub trait UserApplication {
     async fn execute_operation(
         &self,
         context: &OperationContext,
-        storage: &dyn ContractSystemApi,
         operation: &[u8],
     ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError>;
 
@@ -122,7 +132,6 @@ pub trait UserApplication {
     async fn execute_effect(
         &self,
         context: &EffectContext,
-        storage: &dyn ContractSystemApi,
         effect: &[u8],
     ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError>;
 
@@ -133,7 +142,6 @@ pub trait UserApplication {
     async fn handle_application_call(
         &self,
         context: &CalleeContext,
-        storage: &dyn ContractSystemApi,
         argument: &[u8],
         forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallResult, ExecutionError>;
@@ -142,13 +150,15 @@ pub trait UserApplication {
     async fn handle_session_call(
         &self,
         context: &CalleeContext,
-        storage: &dyn ContractSystemApi,
         session_kind: u64,
         session_data: &mut Vec<u8>,
         argument: &[u8],
         forwarded_sessions: Vec<SessionId>,
     ) -> Result<SessionCallResult, ExecutionError>;
+}
 
+#[async_trait]
+pub trait Service: Send + Sync {
     /// Executes unmetered read-only queries on the state of this application.
     ///
     /// # Note
@@ -157,7 +167,6 @@ pub trait UserApplication {
     async fn query_application(
         &self,
         context: &QueryContext,
-        storage: &dyn ServiceSystemApi,
         argument: &[u8],
     ) -> Result<Vec<u8>, ExecutionError>;
 }

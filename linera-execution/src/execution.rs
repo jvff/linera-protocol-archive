@@ -207,17 +207,18 @@ where
             available_fuel,
         );
         // Make the call to user code.
-        let call_result = match action {
-            UserAction::Initialize(context, argument) => {
-                application.initialize(context, &runtime, &argument).await
-            }
-            UserAction::Operation(context, operation) => {
-                application
-                    .execute_operation(context, &runtime, operation)
-                    .await
-            }
-            UserAction::Effect(context, effect) => {
-                application.execute_effect(context, &runtime, effect).await
+        let call_result = {
+            let contract = application.contract_instance(&runtime)?;
+            match action {
+                UserAction::Initialize(context, argument) => {
+                    contract.initialize(context, &argument).await
+                }
+                UserAction::Operation(context, operation) => {
+                    contract.execute_operation(context, operation).await
+                }
+                UserAction::Effect(context, effect) => {
+                    contract.execute_effect(context, effect).await
+                }
             }
         };
         if let Err(ExecutionError::UserError(message)) = &call_result {
@@ -362,7 +363,8 @@ where
                 );
                 // Run the query.
                 let response = application
-                    .query_application(context, &runtime, query)
+                    .service_instance(&runtime)?
+                    .query_application(context, query)
                     .await?;
                 // Check that applications were correctly stacked and unstacked.
                 assert_eq!(applications.len(), 1);

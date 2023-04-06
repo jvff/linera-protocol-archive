@@ -427,7 +427,8 @@ where
             signer: None,
         });
         let value = code
-            .query_application(&query_context, self, argument)
+            .service_instance(self)?
+            .query_application(&query_context, argument)
             .await?;
         self.applications_mut().pop();
         Ok(value)
@@ -527,7 +528,8 @@ where
             signer: authenticated_signer,
         });
         let raw_result = code
-            .handle_application_call(&callee_context, self, argument, forwarded_sessions)
+            .contract_instance(self)?
+            .handle_application_call(&callee_context, argument, forwarded_sessions)
             .await?;
         self.applications_mut().pop();
         // Interpret the results of the call.
@@ -583,9 +585,9 @@ where
             signer: authenticated_signer,
         });
         let raw_result = code
+            .contract_instance(self)?
             .handle_session_call(
                 &callee_context,
-                self,
                 session_id.kind,
                 &mut session_data,
                 argument,

@@ -224,6 +224,17 @@ where
     pub(crate) extra: A::Extra,
 }
 
+// impl<A> Clone for WasmRuntimeContext<'_, A>
+// where
+// A: ApplicationRuntimeContext,
+// {
+// fn clone(&self) -> Self {
+// WasmRuntimeContext {
+// store:
+// }
+// }
+// }
+
 impl<'context, A> WasmRuntimeContext<'context, A>
 where
     A: ApplicationRuntimeContext,

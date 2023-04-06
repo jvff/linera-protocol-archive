@@ -38,7 +38,7 @@ use super::{
 use crate::{ContractSystemApi, ExecutionError, ServiceSystemApi, SessionId};
 use linera_views::{batch::Batch, views::ViewError};
 use std::{marker::PhantomData, mem, sync::Arc, task::Poll};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, MutexGuard};
 use wasmer::{
     imports, wasmparser::Operator, CompilerConfig, EngineBuilder, Instance, Module, RuntimeError,
     Singlepass, Store,
@@ -51,7 +51,7 @@ use wit_bindgen_host_wasmer_rust::Le;
 /// The runtime has a lifetime so that it does not outlive the trait object used to export the
 /// system API.
 pub struct Contract<'storage> {
-    contract: contract::Contract,
+    contract: Arc<Mutex<contract::Contract>>,
     _lifetime: PhantomData<&'storage ()>,
 }
 
@@ -83,7 +83,7 @@ impl<'storage> ApplicationRuntimeContext for Contract<'storage> {
 
 /// Type representing the [Wasmer](https://wasmer.io/) service runtime.
 pub struct Service<'storage> {
-    service: service::Service,
+    service: Arc<Mutex<service::Service>>,
     _lifetime: PhantomData<&'storage ()>,
 }
 
@@ -120,7 +120,7 @@ impl WasmApplication {
         let (contract, instance) =
             contract::Contract::instantiate(&mut store, &module, &mut imports)?;
         let application = Contract {
-            contract,
+            contract: Arc::new(Mutex::new(contract)),
             _lifetime: PhantomData,
         };
 
@@ -154,7 +154,7 @@ impl WasmApplication {
             queryable_system::add_to_imports(&mut store, &mut imports, system_api);
         let (service, instance) = service::Service::instantiate(&mut store, &module, &mut imports)?;
         let application = Service {
-            service,
+            service: Arc::new(Mutex::new(service)),
             _lifetime: PhantomData,
         };
 
@@ -187,6 +187,14 @@ impl WasmApplication {
     }
 }
 
+impl Contract<'_> {
+    fn contract(&self) -> MutexGuard<contract::Contract> {
+        self.contract
+            .try_lock()
+            .expect("Concurrent execution of application")
+    }
+}
+
 impl<'storage> common::Contract for Contract<'storage> {
     type Initialize = contract::Initialize;
     type ExecuteOperation = contract::ExecuteOperation;
@@ -208,7 +216,7 @@ impl<'storage> common::Contract for Contract<'storage> {
         context: contract::OperationContext,
         argument: &[u8],
     ) -> Result<contract::Initialize, RuntimeError> {
-        contract::Contract::initialize_new(&self.contract, store, context, argument)
+        contract::Contract::initialize_new(&self.contract(), store, context, argument)
     }
 
     fn initialize_poll(
@@ -216,7 +224,7 @@ impl<'storage> common::Contract for Contract<'storage> {
         store: &mut Store,
         future: &contract::Initialize,
     ) -> Result<contract::PollExecutionResult, RuntimeError> {
-        contract::Contract::initialize_poll(&self.contract, store, future)
+        contract::Contract::initialize_poll(&self.contract(), store, future)
     }
 
     fn execute_operation_new(
@@ -225,7 +233,7 @@ impl<'storage> common::Contract for Contract<'storage> {
         context: contract::OperationContext,
         operation: &[u8],
     ) -> Result<contract::ExecuteOperation, RuntimeError> {
-        contract::Contract::execute_operation_new(&self.contract, store, context, operation)
+        contract::Contract::execute_operation_new(&self.contract(), store, context, operation)
     }
 
     fn execute_operation_poll(
@@ -233,7 +241,7 @@ impl<'storage> common::Contract for Contract<'storage> {
         store: &mut Store,
         future: &contract::ExecuteOperation,
     ) -> Result<contract::PollExecutionResult, RuntimeError> {
-        contract::Contract::execute_operation_poll(&self.contract, store, future)
+        contract::Contract::execute_operation_poll(&self.contract(), store, future)
     }
 
     fn execute_effect_new(
@@ -242,7 +250,7 @@ impl<'storage> common::Contract for Contract<'storage> {
         context: contract::EffectContext,
         effect: &[u8],
     ) -> Result<contract::ExecuteEffect, RuntimeError> {
-        contract::Contract::execute_effect_new(&self.contract, store, context, effect)
+        contract::Contract::execute_effect_new(&self.contract(), store, context, effect)
     }
 
     fn execute_effect_poll(
@@ -250,7 +258,7 @@ impl<'storage> common::Contract for Contract<'storage> {
         store: &mut Store,
         future: &contract::ExecuteEffect,
     ) -> Result<contract::PollExecutionResult, RuntimeError> {
-        contract::Contract::execute_effect_poll(&self.contract, store, future)
+        contract::Contract::execute_effect_poll(&self.contract(), store, future)
     }
 
     fn handle_application_call_new(
@@ -261,7 +269,7 @@ impl<'storage> common::Contract for Contract<'storage> {
         forwarded_sessions: &[contract::SessionId],
     ) -> Result<contract::HandleApplicationCall, RuntimeError> {
         contract::Contract::handle_application_call_new(
-            &self.contract,
+            &self.contract(),
             store,
             context,
             argument,
@@ -274,7 +282,7 @@ impl<'storage> common::Contract for Contract<'storage> {
         store: &mut Store,
         future: &contract::HandleApplicationCall,
     ) -> Result<contract::PollCallApplication, RuntimeError> {
-        contract::Contract::handle_application_call_poll(&self.contract, store, future)
+        contract::Contract::handle_application_call_poll(&self.contract(), store, future)
     }
 
     fn handle_session_call_new(
@@ -286,7 +294,7 @@ impl<'storage> common::Contract for Contract<'storage> {
         forwarded_sessions: &[contract::SessionId],
     ) -> Result<contract::HandleSessionCall, RuntimeError> {
         contract::Contract::handle_session_call_new(
-            &self.contract,
+            &self.contract(),
             store,
             context,
             session,
@@ -300,7 +308,15 @@ impl<'storage> common::Contract for Contract<'storage> {
         store: &mut Store,
         future: &contract::HandleSessionCall,
     ) -> Result<contract::PollCallSession, RuntimeError> {
-        contract::Contract::handle_session_call_poll(&self.contract, store, future)
+        contract::Contract::handle_session_call_poll(&self.contract(), store, future)
+    }
+}
+
+impl Service<'_> {
+    fn service(&self) -> MutexGuard<service::Service> {
+        self.service
+            .try_lock()
+            .expect("Concurrent execution of application")
     }
 }
 
@@ -315,7 +331,7 @@ impl<'storage> common::Service for Service<'storage> {
         context: service::QueryContext,
         argument: &[u8],
     ) -> Result<service::QueryApplication, RuntimeError> {
-        service::Service::query_application_new(&self.service, store, context, argument)
+        service::Service::query_application_new(&self.service(), store, context, argument)
     }
 
     fn query_application_poll(
@@ -323,7 +339,7 @@ impl<'storage> common::Service for Service<'storage> {
         store: &mut Store,
         future: &service::QueryApplication,
     ) -> Result<service::PollQuery, RuntimeError> {
-        service::Service::query_application_poll(&self.service, store, future)
+        service::Service::query_application_poll(&self.service(), store, future)
     }
 }
 
