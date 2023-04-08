@@ -40,6 +40,7 @@ mod extensions;
 mod log;
 pub mod service;
 #[cfg(feature = "test")]
+#[path = "./test/integration/mod.rs"]
 pub mod test;
 
 use async_trait::async_trait;
