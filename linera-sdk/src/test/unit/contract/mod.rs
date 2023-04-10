@@ -62,7 +62,12 @@ impl wit::MockWritableSystem for MockWritableSystem {
     }
 
     fn mock_writable_read_system_timestamp() -> u64 {
-        todo!();
+        unsafe { super::MOCK_SYSTEM_TIMESTAMP }
+            .expect(
+                "Unexpected call to the `read_system_timestamp` system API. \
+                Please call `mock_system_timestamp` first",
+            )
+            .micros()
     }
 
     fn mock_writable_log(message: String, level: wit::LogLevel) {
