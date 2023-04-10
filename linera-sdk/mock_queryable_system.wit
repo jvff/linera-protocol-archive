@@ -1,0 +1,113 @@
+mock-queryable-chain-id: func() -> chain-id
+mock-queryable-application-id: func() -> application-id
+mock-queryable-application-parameters: func() -> list<u8>
+mock-queryable-read-system-balance: func() -> balance
+mock-queryable-read-system-timestamp: func() -> timestamp
+
+mock-queryable-log: func(message: string, level: log-level)
+
+enum log-level {
+    trace,
+    debug,
+    info,
+    warn,
+    error,
+}
+
+resource mock-queryable-load {
+    static new: func() -> mock-queryable-load
+    poll: func() -> poll-load
+}
+
+variant poll-load {
+    pending,
+    ready(result<list<u8>, string>),
+}
+
+resource mock-queryable-lock {
+    static new: func() -> mock-queryable-lock
+    poll: func() -> poll-lock
+}
+
+variant poll-lock {
+    pending,
+    ready(result<unit, string>),
+}
+
+resource mock-queryable-unlock {
+    static new: func() -> mock-queryable-unlock
+    poll: func() -> poll-unlock
+}
+
+variant poll-unlock {
+    pending,
+    ready(result<unit, string>),
+}
+
+resource mock-queryable-read-key-bytes {
+    static new: func(key: list<u8>) -> mock-queryable-read-key-bytes
+    poll: func() -> poll-read-key-bytes
+}
+
+variant poll-read-key-bytes {
+    pending,
+    ready(result<option<list<u8>>, string>),
+}
+
+resource mock-queryable-find-keys {
+    static new: func(prefix: list<u8>) -> mock-queryable-find-keys
+    poll: func() -> poll-find-keys
+}
+
+variant poll-find-keys {
+    pending,
+    ready(result<list<list<u8>>, string>),
+}
+
+resource mock-queryable-find-key-values {
+    static new: func(prefix: list<u8>) -> mock-queryable-find-key-values
+    poll: func() -> poll-find-key-values
+}
+
+variant poll-find-key-values {
+    pending,
+    ready(result<list<tuple<list<u8>,list<u8>>>, string>),
+}
+
+resource mock-queryable-try-query-application {
+    static new: func(
+        application: application-id,
+        argument: list<u8>,
+    ) -> mock-queryable-try-query-application
+
+    poll: func() -> poll-load
+}
+
+record application-id {
+    bytecode-id: bytecode-id,
+    creation: effect-id,
+}
+
+type bytecode-id = effect-id
+
+record effect-id {
+    chain-id: chain-id,
+    height: block-height,
+    index: u64,
+}
+
+type chain-id = crypto-hash
+type block-height = u64
+type timestamp = u64
+
+record crypto-hash {
+    part1: u64,
+    part2: u64,
+    part3: u64,
+    part4: u64,
+}
+
+record balance {
+    lower-half: u64,
+    upper-half: u64,
+}

@@ -1,0 +1,143 @@
+mock-writable-chain-id: func() -> chain-id
+mock-writable-application-id: func() -> application-id
+mock-writable-application-parameters: func() -> list<u8>
+mock-writable-read-system-balance: func() -> balance
+mock-writable-read-system-timestamp: func() -> timestamp
+
+mock-writable-log: func(message: string, level: log-level)
+
+enum log-level {
+    trace,
+    debug,
+    info,
+    warn,
+    error,
+}
+
+mock-writable-load: func() -> list<u8>
+mock-writable-load-and-lock: func() -> option<list<u8>>
+mock-writable-store-and-unlock: func(value: list<u8>) -> bool
+
+resource mock-writable-lock {
+    static new: func() -> mock-writable-lock
+    poll: func() -> poll-lock
+}
+
+variant poll-lock {
+    pending,
+    ready-locked,
+    ready-not-locked,
+}
+
+resource mock-writable-read-key-bytes {
+    static new: func(key: list<u8>) -> mock-writable-read-key-bytes
+    poll: func() -> poll-read-key-bytes
+}
+
+variant poll-read-key-bytes {
+    pending,
+    ready(option<list<u8>>),
+}
+
+resource mock-writable-find-keys {
+    static new: func(prefix: list<u8>) -> mock-writable-find-keys
+    poll: func() -> poll-find-keys
+}
+
+variant poll-find-keys {
+    pending,
+    ready(list<list<u8>>),
+}
+
+resource mock-writable-find-key-values {
+    static new: func(prefix: list<u8>) -> mock-writable-find-key-values
+    poll: func() -> poll-find-key-values
+}
+
+variant poll-find-key-values {
+    pending,
+    ready(list<tuple<list<u8>,list<u8>>>),
+}
+
+variant write-operation {
+    delete(list<u8>),
+    deleteprefix(list<u8>),
+    put(tuple<list<u8>,list<u8>>),
+}
+
+resource mock-writable-write-batch {
+    static new: func(key: list<write-operation>) -> mock-writable-write-batch
+    poll: func() -> poll-unit
+}
+
+variant poll-unit {
+    pending,
+    ready,
+}
+
+resource mock-writable-try-call-application {
+    static new: func(
+        authenticated: bool,
+        application: application-id,
+        argument: list<u8>,
+        forwarded-sessions: list<session-id>,
+    ) -> mock-writable-try-call-application
+
+    poll: func() -> poll-call-result
+}
+
+resource mock-writable-try-call-session {
+    static new: func(
+        authenticated: bool,
+        session: session-id,
+        argument: list<u8>,
+        forwarded-sessions: list<session-id>,
+    ) -> mock-writable-try-call-session
+
+    poll: func() -> poll-call-result
+}
+
+variant poll-call-result {
+    pending,
+    ready(call-result),
+}
+
+record call-result {
+    value: list<u8>,
+    sessions: list<session-id>,
+}
+
+record session-id {
+    application-id: application-id,
+    kind: u64,
+    index: u64,
+}
+
+record application-id {
+    bytecode-id: bytecode-id,
+    creation: effect-id,
+}
+
+type bytecode-id = effect-id
+
+record effect-id {
+    chain-id: chain-id,
+    height: block-height,
+    index: u64,
+}
+
+type chain-id = crypto-hash
+type block-height = u64
+type timestamp = u64
+
+record crypto-hash {
+    part1: u64,
+    part2: u64,
+    part3: u64,
+    part4: u64,
+}
+
+record balance {
+    lower-half: u64,
+    upper-half: u64,
+}
