@@ -19,6 +19,8 @@ static mut MOCK_APPLICATION_PARAMETERS: Option<Vec<u8>> = None;
 static mut MOCK_SYSTEM_BALANCE: Option<Balance> = None;
 static mut MOCK_SYSTEM_TIMESTAMP: Option<Timestamp> = None;
 static mut MOCK_LOG_COLLECTOR: Vec<(log::Level, String)> = Vec::new();
+static mut MOCK_APPLICATION_STATE: Option<Vec<u8>> = None;
+static mut MOCK_APPLICATION_STATE_LOCKED: bool = false;
 
 mod contract;
 mod service;
@@ -51,4 +53,9 @@ pub fn mock_system_timestamp(system_timestamp: impl Into<Option<Timestamp>>) {
 /// Returns all messages logged so far.
 pub fn log_messages() -> Vec<(log::Level, String)> {
     unsafe { MOCK_LOG_COLLECTOR.clone() }
+}
+
+/// Sets the mocked application state.
+pub fn mock_application_state(state: impl Into<Option<Vec<u8>>>) {
+    unsafe { MOCK_APPLICATION_STATE = state.into() };
 }

@@ -83,7 +83,15 @@ impl wit::MockQueryableLoad for MockQueryableLoad {
     }
 
     fn poll(&self) -> wit::PollLoad {
-        todo!();
+        if unsafe { super::MOCK_APPLICATION_STATE_LOCKED } {
+            let state = unsafe { super::MOCK_APPLICATION_STATE.clone() }.expect(
+                "Unexpected call to the `load` system API. \
+                Please call `mock_application_state` first",
+            );
+            wit::PollLoad::Ready(Ok(state))
+        } else {
+            wit::PollLoad::Ready(Err("Application state not locked".to_owned()))
+        }
     }
 }
 
@@ -95,7 +103,12 @@ impl wit::MockQueryableLock for MockQueryableLock {
     }
 
     fn poll(&self) -> wit::PollLock {
-        todo!();
+        if unsafe { super::MOCK_APPLICATION_STATE_LOCKED } {
+            wit::PollLock::Ready(Err("Application state already locked".to_owned()))
+        } else {
+            unsafe { super::MOCK_APPLICATION_STATE_LOCKED = true };
+            wit::PollLock::Ready(Ok(()))
+        }
     }
 }
 
@@ -107,7 +120,12 @@ impl wit::MockQueryableUnlock for MockQueryableUnlock {
     }
 
     fn poll(&self) -> wit::PollUnlock {
-        todo!();
+        if unsafe { super::MOCK_APPLICATION_STATE_LOCKED } {
+            unsafe { super::MOCK_APPLICATION_STATE_LOCKED = false };
+            wit::PollUnlock::Ready(Ok(()))
+        } else {
+            wit::PollUnlock::Ready(Err("Application state not locked".to_owned()))
+        }
     }
 }
 

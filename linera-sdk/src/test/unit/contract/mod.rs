@@ -75,15 +75,38 @@ impl wit::MockWritableSystem for MockWritableSystem {
     }
 
     fn mock_writable_load() -> Vec<u8> {
-        todo!();
+        unsafe { super::MOCK_APPLICATION_STATE.clone() }.expect(
+            "Unexpected call to the `load` system API. \
+            Please call `mock_application_state` first",
+        )
     }
 
     fn mock_writable_load_and_lock() -> Option<Vec<u8>> {
-        todo!();
+        if unsafe { super::MOCK_APPLICATION_STATE_LOCKED } {
+            None
+        } else {
+            let state = unsafe { super::MOCK_APPLICATION_STATE.clone() }.expect(
+                "Unexpected call to the `load_and_lock` system API. \
+                Please call `mock_application_state` first",
+            );
+            unsafe { super::MOCK_APPLICATION_STATE_LOCKED = true };
+            Some(state)
+        }
     }
 
     fn mock_writable_store_and_unlock(state: Vec<u8>) -> bool {
-        todo!();
+        if unsafe { super::MOCK_APPLICATION_STATE_LOCKED } {
+            assert!(
+                unsafe { super::MOCK_APPLICATION_STATE.is_some() },
+                "Unexpected call to `store_and_unlock` system API. \
+                Please call `mock_application_state` first."
+            );
+            unsafe { super::MOCK_APPLICATION_STATE = Some(state) };
+            unsafe { super::MOCK_APPLICATION_STATE_LOCKED = false };
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -95,7 +118,12 @@ impl wit::MockWritableLock for MockWritableLock {
     }
 
     fn poll(&self) -> wit::PollLock {
-        todo!();
+        if unsafe { super::MOCK_APPLICATION_STATE_LOCKED } {
+            wit::PollLock::ReadyNotLocked
+        } else {
+            unsafe { super::MOCK_APPLICATION_STATE_LOCKED = true };
+            wit::PollLock::ReadyLocked
+        }
     }
 }
 
