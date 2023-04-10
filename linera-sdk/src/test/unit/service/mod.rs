@@ -71,7 +71,7 @@ impl wit::MockQueryableSystem for MockQueryableSystem {
     }
 
     fn mock_queryable_log(message: String, level: wit::LogLevel) {
-        todo!();
+        unsafe { super::MOCK_LOG_COLLECTOR.push((level.into(), message)) }
     }
 }
 

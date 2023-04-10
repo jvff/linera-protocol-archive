@@ -71,7 +71,7 @@ impl wit::MockWritableSystem for MockWritableSystem {
     }
 
     fn mock_writable_log(message: String, level: wit::LogLevel) {
-        todo!();
+        unsafe { super::MOCK_LOG_COLLECTOR.push((level.into(), message)) }
     }
 
     fn mock_writable_load() -> Vec<u8> {
