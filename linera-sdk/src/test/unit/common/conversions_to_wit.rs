@@ -7,7 +7,7 @@
 
 use super::wit;
 use crate::{ApplicationId, ChainId, EffectId};
-use linera_base::crypto::CryptoHash;
+use linera_base::{crypto::CryptoHash, data_types::Balance};
 
 impl From<ChainId> for wit::CryptoHash {
     fn from(chain_id: ChainId) -> Self {
@@ -43,6 +43,15 @@ impl From<EffectId> for wit::EffectId {
             chain_id: effect_id.chain_id.0.into(),
             height: effect_id.height.0,
             index: effect_id.index,
+        }
+    }
+}
+
+impl From<Balance> for wit::Balance {
+    fn from(balance: Balance) -> Self {
+        wit::Balance {
+            lower_half: balance.lower_half(),
+            upper_half: balance.upper_half(),
         }
     }
 }

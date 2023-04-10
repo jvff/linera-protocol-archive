@@ -53,7 +53,12 @@ impl wit::MockQueryableSystem for MockQueryableSystem {
     }
 
     fn mock_queryable_read_system_balance() -> wit::Balance {
-        todo!();
+        unsafe { super::MOCK_SYSTEM_BALANCE }
+            .expect(
+                "Unexpected call to the `read_system_balance` system API. \
+                Please call `mock_system_balance` first",
+            )
+            .into()
     }
 
     fn mock_queryable_read_system_timestamp() -> u64 {

@@ -11,10 +11,12 @@
 //! and can be controlled by the test to return mock values using the functions in this module.
 
 use crate::{ApplicationId, ChainId};
+use linera_base::data_types::Balance;
 
 static mut MOCK_CHAIN_ID: Option<ChainId> = None;
 static mut MOCK_APPLICATION_ID: Option<ApplicationId> = None;
 static mut MOCK_APPLICATION_PARAMETERS: Option<Vec<u8>> = None;
+static mut MOCK_SYSTEM_BALANCE: Option<Balance> = None;
 
 mod contract;
 mod service;
@@ -32,4 +34,9 @@ pub fn mock_application_id(application_id: impl Into<Option<ApplicationId>>) {
 /// Sets the mocked application parameters.
 pub fn mock_application_parameters(application_parameters: impl Into<Option<Vec<u8>>>) {
     unsafe { MOCK_APPLICATION_PARAMETERS = application_parameters.into() };
+}
+
+/// Sets the mocked system balance.
+pub fn mock_system_balance(system_balance: impl Into<Option<Balance>>) {
+    unsafe { MOCK_SYSTEM_BALANCE = system_balance.into() };
 }
