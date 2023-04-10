@@ -9,6 +9,9 @@
 // Import the service system interface.
 wit_bindgen_guest_rust::export!("mock_queryable_system.wit");
 
+#[path = "../common/conversions_to_wit.rs"]
+mod common_conversions_to_wit;
+
 use self::mock_queryable_system as wit;
 use wit_bindgen_guest_rust::Handle;
 
@@ -24,7 +27,11 @@ impl wit::MockQueryableSystem for MockQueryableSystem {
     type MockQueryableTryQueryApplication = MockQueryableTryQueryApplication;
 
     fn mock_queryable_chain_id() -> wit::CryptoHash {
-        todo!();
+        unsafe { super::MOCK_CHAIN_ID }
+            .expect(
+                "Unexpected call to the `chain_id` system API. Please call `mock_chain_id` first",
+            )
+            .into()
     }
 
     fn mock_queryable_application_id() -> wit::ApplicationId {
