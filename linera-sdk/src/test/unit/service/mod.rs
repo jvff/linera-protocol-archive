@@ -35,7 +35,12 @@ impl wit::MockQueryableSystem for MockQueryableSystem {
     }
 
     fn mock_queryable_application_id() -> wit::ApplicationId {
-        todo!();
+        unsafe { super::MOCK_APPLICATION_ID }
+            .expect(
+                "Unexpected call to the `application_id` system API. \
+                Please call `mock_application_id` first",
+            )
+            .into()
     }
 
     fn mock_queryable_application_parameters() -> Vec<u8> {

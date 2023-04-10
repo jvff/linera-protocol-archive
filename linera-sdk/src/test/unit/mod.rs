@@ -10,9 +10,10 @@
 //! The system API isn't available to the tests by default. However, calls to them are intercepted
 //! and can be controlled by the test to return mock values using the functions in this module.
 
-use crate::ChainId;
+use crate::{ApplicationId, ChainId};
 
 static mut MOCK_CHAIN_ID: Option<ChainId> = None;
+static mut MOCK_APPLICATION_ID: Option<ApplicationId> = None;
 
 mod contract;
 mod service;
@@ -20,4 +21,9 @@ mod service;
 /// Sets the mocked chain ID.
 pub fn mock_chain_id(chain_id: impl Into<Option<ChainId>>) {
     unsafe { MOCK_CHAIN_ID = chain_id.into() };
+}
+
+/// Sets the mocked application ID.
+pub fn mock_application_id(application_id: impl Into<Option<ApplicationId>>) {
+    unsafe { MOCK_APPLICATION_ID = application_id.into() };
 }
