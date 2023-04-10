@@ -9,8 +9,6 @@
 //! are executed targeting the `wasm32-unknown-unknown` target. Integration tests are usually
 //! written in the `tests` directory instead, and are executed targeting the host architecture.
 
-#![cfg(any(feature = "wasmer", feature = "wasmtime"))]
-
 #[cfg(not(target_arch = "wasm32"))]
 mod integration;
 
