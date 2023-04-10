@@ -14,6 +14,7 @@ use crate::{ApplicationId, ChainId};
 
 static mut MOCK_CHAIN_ID: Option<ChainId> = None;
 static mut MOCK_APPLICATION_ID: Option<ApplicationId> = None;
+static mut MOCK_APPLICATION_PARAMETERS: Option<Vec<u8>> = None;
 
 mod contract;
 mod service;
@@ -26,4 +27,9 @@ pub fn mock_chain_id(chain_id: impl Into<Option<ChainId>>) {
 /// Sets the mocked application ID.
 pub fn mock_application_id(application_id: impl Into<Option<ApplicationId>>) {
     unsafe { MOCK_APPLICATION_ID = application_id.into() };
+}
+
+/// Sets the mocked application parameters.
+pub fn mock_application_parameters(application_parameters: impl Into<Option<Vec<u8>>>) {
+    unsafe { MOCK_APPLICATION_PARAMETERS = application_parameters.into() };
 }

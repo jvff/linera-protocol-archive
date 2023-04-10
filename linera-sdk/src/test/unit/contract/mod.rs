@@ -44,7 +44,12 @@ impl wit::MockWritableSystem for MockWritableSystem {
     }
 
     fn mock_writable_application_parameters() -> Vec<u8> {
-        todo!();
+        unsafe { super::MOCK_APPLICATION_PARAMETERS.clone() }
+            .expect(
+                "Unexpected call to the `application_parameters` system API. \
+                Please call `mock_application_parameters` first",
+            )
+            .into()
     }
 
     fn mock_writable_read_system_balance() -> wit::Balance {
