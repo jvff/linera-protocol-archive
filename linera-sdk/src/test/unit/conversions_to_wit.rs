@@ -7,7 +7,7 @@ use super::wit;
 use linera_base::{
     crypto::CryptoHash,
     data_types::Balance,
-    identifiers::{ApplicationId, ChainId, EffectId},
+    identifiers::{ApplicationId, ChainId, EffectId, SessionId},
 };
 
 impl From<ChainId> for wit::CryptoHash {
@@ -25,6 +25,16 @@ impl From<CryptoHash> for wit::CryptoHash {
             part2: parts[1],
             part3: parts[2],
             part4: parts[3],
+        }
+    }
+}
+
+impl From<SessionId> for wit::SessionId {
+    fn from(session_id: SessionId) -> Self {
+        wit::SessionId {
+            application_id: session_id.application_id.into(),
+            kind: session_id.kind,
+            index: session_id.index,
         }
     }
 }
@@ -53,6 +63,15 @@ impl From<Balance> for wit::Balance {
         wit::Balance {
             lower_half: balance.lower_half(),
             upper_half: balance.upper_half(),
+        }
+    }
+}
+
+impl From<(Vec<u8>, Vec<SessionId>)> for wit::CallResult {
+    fn from((value, sessions): (Vec<u8>, Vec<SessionId>)) -> Self {
+        wit::CallResult {
+            value,
+            sessions: sessions.into_iter().map(wit::SessionId::from).collect(),
         }
     }
 }

@@ -20,7 +20,7 @@ use self::mock_system_api as wit;
 use futures::FutureExt;
 use linera_base::{
     data_types::{Balance, Timestamp},
-    identifiers::{ApplicationId, ChainId},
+    identifiers::{ApplicationId, ChainId, SessionId},
 };
 use linera_views::{
     batch::{Batch, WriteOperation},
@@ -37,6 +37,9 @@ static mut MOCK_LOG_COLLECTOR: Vec<(log::Level, String)> = Vec::new();
 static mut MOCK_APPLICATION_STATE: Option<Vec<u8>> = None;
 static mut MOCK_APPLICATION_STATE_LOCKED: bool = false;
 static mut MOCK_KEY_VALUE_STORE: Option<MemoryContext<()>> = None;
+static mut MOCK_TRY_CALL_APPLICATION: Option<
+    Box<dyn FnMut(bool, ApplicationId, Vec<u8>, Vec<SessionId>) -> (Vec<u8>, Vec<SessionId>)>,
+> = None;
 
 /// Sets the mocked chain ID.
 pub fn mock_chain_id(chain_id: impl Into<Option<ChainId>>) {
@@ -78,6 +81,14 @@ pub fn mock_key_value_store() -> MemoryContext<()> {
     let store = linera_views::memory::create_test_context();
     unsafe { MOCK_KEY_VALUE_STORE = Some(store.clone()) };
     store
+}
+
+/// Mocks the `try_call_application` system API.
+pub fn mock_try_call_application(
+    handler: impl FnMut(bool, ApplicationId, Vec<u8>, Vec<SessionId>) -> (Vec<u8>, Vec<SessionId>)
+        + 'static,
+) {
+    unsafe { MOCK_TRY_CALL_APPLICATION = Some(Box::new(handler)) }
 }
 
 /// Implementation of type that exports an interface for using the mock system API.
@@ -241,7 +252,23 @@ impl wit::MockSystemApi for MockSystemApi {
         argument: Vec<u8>,
         forwarded_sessions: Vec<wit::SessionId>,
     ) -> wit::CallResult {
-        todo!();
+        let handler = unsafe { MOCK_TRY_CALL_APPLICATION.as_mut() }.expect(
+            "Unexpected call to `try_call_application` system API. \
+            Please call `mock_try_call_application` first",
+        );
+
+        let forwarded_sessions = forwarded_sessions
+            .into_iter()
+            .map(SessionId::from)
+            .collect();
+
+        handler(
+            authenticated,
+            application.into(),
+            argument,
+            forwarded_sessions,
+        )
+        .into()
     }
 
     fn mocked_try_call_session(
