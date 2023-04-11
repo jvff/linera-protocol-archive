@@ -9,11 +9,14 @@
 // Import the service system interface.
 wit_bindgen_guest_rust::export!("mock_queryable_system.wit");
 
+#[path = "../common/conversions_from_wit.rs"]
+mod common_conversions_from_wit;
 #[path = "../common/conversions_to_wit.rs"]
 mod common_conversions_to_wit;
 
 use self::mock_queryable_system as wit;
 use futures::FutureExt;
+use linera_base::identifiers::ApplicationId;
 use linera_views::common::Context;
 use wit_bindgen_guest_rust::Handle;
 
@@ -215,14 +218,25 @@ impl wit::MockQueryableFindKeyValues for MockQueryableFindKeyValues {
     }
 }
 
-pub struct MockQueryableTryQueryApplication;
+pub struct MockQueryableTryQueryApplication {
+    application: ApplicationId,
+    query: Vec<u8>,
+}
 
 impl wit::MockQueryableTryQueryApplication for MockQueryableTryQueryApplication {
     fn new(application: wit::ApplicationId, query: Vec<u8>) -> Handle<Self> {
-        Handle::new(MockQueryableTryQueryApplication)
+        Handle::new(MockQueryableTryQueryApplication {
+            application: application.into(),
+            query,
+        })
     }
 
     fn poll(&self) -> wit::PollLoad {
-        todo!();
+        let handler = unsafe { super::MOCK_TRY_QUERY_APPLICATION.as_mut() }.expect(
+            "Unexpected call to `try_query_application` system API. \
+            Please call `mock_try_query_application` first",
+        );
+
+        wit::PollLoad::Ready(handler(self.application, self.query.clone()).into())
     }
 }

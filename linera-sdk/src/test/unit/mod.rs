@@ -29,6 +29,9 @@ static mut MOCK_TRY_CALL_APPLICATION: Option<
 static mut MOCK_TRY_CALL_SESSION: Option<
     Box<dyn FnMut(bool, SessionId, Vec<u8>, Vec<SessionId>) -> (Vec<u8>, Vec<SessionId>)>,
 > = None;
+static mut MOCK_TRY_QUERY_APPLICATION: Option<
+    Box<dyn FnMut(ApplicationId, Vec<u8>) -> Result<Vec<u8>, String>>,
+> = None;
 
 mod contract;
 mod service;
@@ -88,4 +91,17 @@ pub fn mock_try_call_session(
     handler: impl FnMut(bool, SessionId, Vec<u8>, Vec<SessionId>) -> (Vec<u8>, Vec<SessionId>) + 'static,
 ) {
     unsafe { MOCK_TRY_CALL_SESSION = Some(Box::new(handler)) }
+}
+
+/// Mocks the `try_query_application` system API.
+pub fn mock_try_query_application<E>(
+    mut handler: impl FnMut(ApplicationId, Vec<u8>) -> Result<Vec<u8>, E> + 'static,
+) where
+    E: ToString + 'static,
+{
+    unsafe {
+        MOCK_TRY_QUERY_APPLICATION = Some(Box::new(move |application, query| {
+            handler(application, query).map_err(|error| error.to_string())
+        }))
+    }
 }
