@@ -40,6 +40,9 @@ static mut MOCK_KEY_VALUE_STORE: Option<MemoryContext<()>> = None;
 static mut MOCK_TRY_CALL_APPLICATION: Option<
     Box<dyn FnMut(bool, ApplicationId, Vec<u8>, Vec<SessionId>) -> (Vec<u8>, Vec<SessionId>)>,
 > = None;
+static mut MOCK_TRY_CALL_SESSION: Option<
+    Box<dyn FnMut(bool, SessionId, Vec<u8>, Vec<SessionId>) -> (Vec<u8>, Vec<SessionId>)>,
+> = None;
 
 /// Sets the mocked chain ID.
 pub fn mock_chain_id(chain_id: impl Into<Option<ChainId>>) {
@@ -89,6 +92,13 @@ pub fn mock_try_call_application(
         + 'static,
 ) {
     unsafe { MOCK_TRY_CALL_APPLICATION = Some(Box::new(handler)) }
+}
+
+/// Mocks the `try_call_session` system API.
+pub fn mock_try_call_session(
+    handler: impl FnMut(bool, SessionId, Vec<u8>, Vec<SessionId>) -> (Vec<u8>, Vec<SessionId>) + 'static,
+) {
+    unsafe { MOCK_TRY_CALL_SESSION = Some(Box::new(handler)) }
 }
 
 /// Implementation of type that exports an interface for using the mock system API.
@@ -277,7 +287,17 @@ impl wit::MockSystemApi for MockSystemApi {
         argument: Vec<u8>,
         forwarded_sessions: Vec<wit::SessionId>,
     ) -> wit::CallResult {
-        todo!();
+        let handler = unsafe { MOCK_TRY_CALL_SESSION.as_mut() }.expect(
+            "Unexpected call to `try_call_session` system API. \
+            Please call `mock_try_call_session` first",
+        );
+
+        let forwarded_sessions = forwarded_sessions
+            .into_iter()
+            .map(SessionId::from)
+            .collect();
+
+        handler(authenticated, session.into(), argument, forwarded_sessions).into()
     }
 
     fn mocked_try_query_application(
