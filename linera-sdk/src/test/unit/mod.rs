@@ -12,6 +12,7 @@
 
 use crate::{ApplicationId, ChainId};
 use linera_base::data_types::{Balance, Timestamp};
+use linera_views::memory::MemoryContext;
 
 static mut MOCK_CHAIN_ID: Option<ChainId> = None;
 static mut MOCK_APPLICATION_ID: Option<ApplicationId> = None;
@@ -21,6 +22,7 @@ static mut MOCK_SYSTEM_TIMESTAMP: Option<Timestamp> = None;
 static mut MOCK_LOG_COLLECTOR: Vec<(log::Level, String)> = Vec::new();
 static mut MOCK_APPLICATION_STATE: Option<Vec<u8>> = None;
 static mut MOCK_APPLICATION_STATE_LOCKED: bool = false;
+static mut MOCK_KEY_VALUE_STORE: Option<MemoryContext<()>> = None;
 
 mod contract;
 mod service;
@@ -58,4 +60,11 @@ pub fn log_messages() -> Vec<(log::Level, String)> {
 /// Sets the mocked application state.
 pub fn mock_application_state(state: impl Into<Option<Vec<u8>>>) {
     unsafe { MOCK_APPLICATION_STATE = state.into() };
+}
+
+/// Initializes and returns a view context for using as the mocked key-value store.
+pub fn mock_key_value_store() -> MemoryContext<()> {
+    let store = linera_views::memory::create_test_context();
+    unsafe { MOCK_KEY_VALUE_STORE = Some(store.clone()) };
+    store
 }

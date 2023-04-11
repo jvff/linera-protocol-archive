@@ -13,6 +13,8 @@ wit_bindgen_guest_rust::export!("mock_queryable_system.wit");
 mod common_conversions_to_wit;
 
 use self::mock_queryable_system as wit;
+use futures::FutureExt;
+use linera_views::common::Context;
 use wit_bindgen_guest_rust::Handle;
 
 pub struct MockQueryableSystem;
@@ -129,39 +131,87 @@ impl wit::MockQueryableUnlock for MockQueryableUnlock {
     }
 }
 
-pub struct MockQueryableReadKeyBytes;
+pub struct MockQueryableReadKeyBytes {
+    key: Vec<u8>,
+}
 
 impl wit::MockQueryableReadKeyBytes for MockQueryableReadKeyBytes {
     fn new(key: Vec<u8>) -> Handle<Self> {
-        Handle::new(MockQueryableReadKeyBytes)
+        Handle::new(MockQueryableReadKeyBytes { key })
     }
 
     fn poll(&self) -> wit::PollReadKeyBytes {
-        todo!();
+        if let Some(store) = unsafe { super::MOCK_KEY_VALUE_STORE.as_mut() } {
+            match store.read_key_bytes(&self.key).now_or_never() {
+                Some(result) => wit::PollReadKeyBytes::Ready(Ok(
+                    result.expect("Failed to read from memory store")
+                )),
+                None => wit::PollReadKeyBytes::Ready(Err(
+                    "Attempt to read from key-value store while it is being written to".to_owned(),
+                )),
+            }
+        } else {
+            panic!(
+                "Unexpected call to `read_key_bytes` system API. \
+                Please call `mock_key_value_store` first."
+            );
+        }
     }
 }
 
-pub struct MockQueryableFindKeys;
+pub struct MockQueryableFindKeys {
+    prefix: Vec<u8>,
+}
 
 impl wit::MockQueryableFindKeys for MockQueryableFindKeys {
     fn new(prefix: Vec<u8>) -> Handle<Self> {
-        Handle::new(MockQueryableFindKeys)
+        Handle::new(MockQueryableFindKeys { prefix })
     }
 
     fn poll(&self) -> wit::PollFindKeys {
-        todo!();
+        if let Some(store) = unsafe { super::MOCK_KEY_VALUE_STORE.as_mut() } {
+            match store.find_keys_by_prefix(&self.prefix).now_or_never() {
+                Some(result) => {
+                    wit::PollFindKeys::Ready(Ok(result.expect("Failed to read from memory store")))
+                }
+                None => wit::PollFindKeys::Ready(Err(
+                    "Attempt to read from key-value store while it is being written to".to_owned(),
+                )),
+            }
+        } else {
+            panic!(
+                "Unexpected call to `find_keys` system API. \
+                Please call `mock_key_value_store` first."
+            );
+        }
     }
 }
 
-pub struct MockQueryableFindKeyValues;
+pub struct MockQueryableFindKeyValues {
+    prefix: Vec<u8>,
+}
 
 impl wit::MockQueryableFindKeyValues for MockQueryableFindKeyValues {
     fn new(prefix: Vec<u8>) -> Handle<Self> {
-        Handle::new(MockQueryableFindKeyValues)
+        Handle::new(MockQueryableFindKeyValues { prefix })
     }
 
     fn poll(&self) -> wit::PollFindKeyValues {
-        todo!();
+        if let Some(store) = unsafe { super::MOCK_KEY_VALUE_STORE.as_mut() } {
+            match store.find_key_values_by_prefix(&self.prefix).now_or_never() {
+                Some(result) => wit::PollFindKeyValues::Ready(Ok(
+                    result.expect("Failed to read from memory store")
+                )),
+                None => wit::PollFindKeyValues::Ready(Err(
+                    "Attempt to read from key-value store while it is being written to".to_owned(),
+                )),
+            }
+        } else {
+            panic!(
+                "Unexpected call to `find_key_values` system API. \
+                Please call `mock_key_value_store` first."
+            );
+        }
     }
 }
 

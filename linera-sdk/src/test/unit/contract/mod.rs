@@ -11,8 +11,14 @@ wit_bindgen_guest_rust::export!("mock_writable_system.wit");
 
 #[path = "../common/conversions_to_wit.rs"]
 mod common_conversions_to_wit;
+mod conversions_from_wit;
 
 use self::mock_writable_system as wit;
+use futures::FutureExt;
+use linera_views::{
+    batch::{Batch, WriteOperation},
+    common::Context,
+};
 use wit_bindgen_guest_rust::Handle;
 
 pub struct MockWritableSystem;
@@ -127,51 +133,108 @@ impl wit::MockWritableLock for MockWritableLock {
     }
 }
 
-pub struct MockWritableReadKeyBytes;
+pub struct MockWritableReadKeyBytes {
+    key: Vec<u8>,
+}
 
 impl wit::MockWritableReadKeyBytes for MockWritableReadKeyBytes {
     fn new(key: Vec<u8>) -> Handle<Self> {
-        Handle::new(MockWritableReadKeyBytes)
+        Handle::new(MockWritableReadKeyBytes { key })
     }
 
     fn poll(&self) -> wit::PollReadKeyBytes {
-        todo!();
+        if let Some(store) = unsafe { super::MOCK_KEY_VALUE_STORE.as_mut() } {
+            let result = store
+                .read_key_bytes(&self.key)
+                .now_or_never()
+                .expect("Attempt to read from key-value store while it is being written to");
+            wit::PollReadKeyBytes::Ready(result.expect("Failed to read from memory store"))
+        } else {
+            panic!(
+                "Unexpected call to `read_key_bytes` system API. \
+                Please call `mock_key_value_store` first."
+            );
+        }
     }
 }
 
-pub struct MockWritableFindKeys;
+pub struct MockWritableFindKeys {
+    prefix: Vec<u8>,
+}
 
 impl wit::MockWritableFindKeys for MockWritableFindKeys {
     fn new(prefix: Vec<u8>) -> Handle<Self> {
-        Handle::new(MockWritableFindKeys)
+        Handle::new(MockWritableFindKeys { prefix })
     }
 
     fn poll(&self) -> wit::PollFindKeys {
-        todo!();
+        if let Some(store) = unsafe { super::MOCK_KEY_VALUE_STORE.as_mut() } {
+            let result = store
+                .find_keys_by_prefix(&self.prefix)
+                .now_or_never()
+                .expect("Attempt to read from key-value store while it is being written to");
+            wit::PollFindKeys::Ready(result.expect("Failed to read from memory store"))
+        } else {
+            panic!(
+                "Unexpected call to `find_keys` system API. \
+                Please call `mock_key_value_store` first."
+            );
+        }
     }
 }
 
-pub struct MockWritableFindKeyValues;
+pub struct MockWritableFindKeyValues {
+    prefix: Vec<u8>,
+}
 
 impl wit::MockWritableFindKeyValues for MockWritableFindKeyValues {
     fn new(prefix: Vec<u8>) -> Handle<Self> {
-        Handle::new(MockWritableFindKeyValues)
+        Handle::new(MockWritableFindKeyValues { prefix })
     }
 
     fn poll(&self) -> wit::PollFindKeyValues {
-        todo!();
+        if let Some(store) = unsafe { super::MOCK_KEY_VALUE_STORE.as_mut() } {
+            let result = store
+                .find_key_values_by_prefix(&self.prefix)
+                .now_or_never()
+                .expect("Attempt to read from key-value store while it is being written to");
+            wit::PollFindKeyValues::Ready(result.expect("Failed to read from memory store"))
+        } else {
+            panic!(
+                "Unexpected call to `find_key_values` system API. \
+                Please call `mock_key_value_store` first."
+            );
+        }
     }
 }
 
-pub struct MockWritableWriteBatch;
+pub struct MockWritableWriteBatch {
+    batch: Batch,
+}
 
 impl wit::MockWritableWriteBatch for MockWritableWriteBatch {
     fn new(operations: Vec<wit::WriteOperation>) -> Handle<Self> {
-        Handle::new(MockWritableWriteBatch)
+        Handle::new(MockWritableWriteBatch {
+            batch: Batch {
+                operations: operations.into_iter().map(WriteOperation::from).collect(),
+            },
+        })
     }
 
     fn poll(&self) -> wit::PollUnit {
-        todo!();
+        if let Some(store) = unsafe { super::MOCK_KEY_VALUE_STORE.as_mut() } {
+            store
+                .write_batch(self.batch.clone())
+                .now_or_never()
+                .expect("Attempt to write to key-value store while it is being used")
+                .expect("Failed to write to memory store");
+            wit::PollUnit::Ready
+        } else {
+            panic!(
+                "Unexpected call to `write_batch` system API. \
+                Please call `mock_key_value_store` first."
+            );
+        }
     }
 }
 
