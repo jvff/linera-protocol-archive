@@ -9,11 +9,15 @@
 // Import the contract system interface.
 wit_bindgen_guest_rust::export!("mock_writable_system.wit");
 
+#[path = "../common/conversions_from_wit.rs"]
+mod common_conversions_from_wit;
 #[path = "../common/conversions_to_wit.rs"]
 mod common_conversions_to_wit;
 mod conversions_from_wit;
+mod conversions_to_wit;
 
 use self::mock_writable_system as wit;
+use crate::{ApplicationId, SessionId};
 use futures::FutureExt;
 use linera_views::{
     batch::{Batch, WriteOperation},
@@ -238,7 +242,12 @@ impl wit::MockWritableWriteBatch for MockWritableWriteBatch {
     }
 }
 
-pub struct MockWritableTryCallApplication;
+pub struct MockWritableTryCallApplication {
+    authenticated: bool,
+    application: ApplicationId,
+    argument: Vec<u8>,
+    forwarded_sessions: Vec<SessionId>,
+}
 
 impl wit::MockWritableTryCallApplication for MockWritableTryCallApplication {
     fn new(
@@ -247,11 +256,32 @@ impl wit::MockWritableTryCallApplication for MockWritableTryCallApplication {
         argument: Vec<u8>,
         forwarded_sessions: Vec<wit::SessionId>,
     ) -> Handle<Self> {
-        Handle::new(MockWritableTryCallApplication)
+        Handle::new(MockWritableTryCallApplication {
+            authenticated,
+            application: application.into(),
+            argument,
+            forwarded_sessions: forwarded_sessions
+                .into_iter()
+                .map(SessionId::from)
+                .collect(),
+        })
     }
 
     fn poll(&self) -> wit::PollCallResult {
-        todo!();
+        let handler = unsafe { super::MOCK_TRY_CALL_APPLICATION.as_mut() }.expect(
+            "Unexpected call to `try_call_application` system API. \
+            Please call `mock_try_call_application` first",
+        );
+
+        wit::PollCallResult::Ready(
+            handler(
+                self.authenticated,
+                self.application,
+                self.argument.clone(),
+                self.forwarded_sessions.clone(),
+            )
+            .into(),
+        )
     }
 }
 

@@ -10,7 +10,7 @@
 //! The system API isn't available to the tests by default. However, calls to them are intercepted
 //! and can be controlled by the test to return mock values using the functions in this module.
 
-use crate::{ApplicationId, ChainId};
+use crate::{ApplicationId, ChainId, SessionId};
 use linera_base::data_types::{Balance, Timestamp};
 use linera_views::memory::MemoryContext;
 
@@ -23,6 +23,9 @@ static mut MOCK_LOG_COLLECTOR: Vec<(log::Level, String)> = Vec::new();
 static mut MOCK_APPLICATION_STATE: Option<Vec<u8>> = None;
 static mut MOCK_APPLICATION_STATE_LOCKED: bool = false;
 static mut MOCK_KEY_VALUE_STORE: Option<MemoryContext<()>> = None;
+static mut MOCK_TRY_CALL_APPLICATION: Option<
+    Box<dyn FnMut(bool, ApplicationId, Vec<u8>, Vec<SessionId>) -> (Vec<u8>, Vec<SessionId>)>,
+> = None;
 
 mod contract;
 mod service;
@@ -67,4 +70,12 @@ pub fn mock_key_value_store() -> MemoryContext<()> {
     let store = linera_views::memory::create_test_context();
     unsafe { MOCK_KEY_VALUE_STORE = Some(store.clone()) };
     store
+}
+
+/// Mocks the `try_call_application` system API.
+pub fn mock_try_call_application(
+    handler: impl FnMut(bool, ApplicationId, Vec<u8>, Vec<SessionId>) -> (Vec<u8>, Vec<SessionId>)
+        + 'static,
+) {
+    unsafe { MOCK_TRY_CALL_APPLICATION = Some(Box::new(handler)) }
 }

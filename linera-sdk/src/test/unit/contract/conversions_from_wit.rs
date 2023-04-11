@@ -4,6 +4,7 @@
 //! Conversions from WIT types to the types defined in the crate root.
 
 use super::wit;
+use linera_base::identifiers::SessionId;
 use linera_views::batch::WriteOperation;
 
 impl From<wit::WriteOperation> for WriteOperation {
@@ -14,6 +15,16 @@ impl From<wit::WriteOperation> for WriteOperation {
                 WriteOperation::DeletePrefix { key_prefix }
             }
             wit::WriteOperation::Put((key, value)) => WriteOperation::Put { key, value },
+        }
+    }
+}
+
+impl From<wit::SessionId> for SessionId {
+    fn from(session_id: wit::SessionId) -> Self {
+        SessionId {
+            application_id: session_id.application_id.into(),
+            kind: session_id.kind,
+            index: session_id.index,
         }
     }
 }
