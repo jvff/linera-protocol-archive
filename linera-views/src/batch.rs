@@ -35,7 +35,7 @@ use std::{
 /// * Deletion of a specific key.
 /// * Deletion of all keys matching a specific prefix.
 /// * Insertion or replacement of a key with a value.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum WriteOperation {
     /// Delete the given key.
     Delete {
@@ -57,7 +57,7 @@ pub enum WriteOperation {
 }
 
 /// A batch of writes inside a transaction.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Batch {
     /// The entries of the batch to be consumed when processed.
     pub operations: Vec<WriteOperation>,
