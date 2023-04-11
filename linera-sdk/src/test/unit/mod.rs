@@ -26,6 +26,9 @@ static mut MOCK_KEY_VALUE_STORE: Option<MemoryContext<()>> = None;
 static mut MOCK_TRY_CALL_APPLICATION: Option<
     Box<dyn FnMut(bool, ApplicationId, Vec<u8>, Vec<SessionId>) -> (Vec<u8>, Vec<SessionId>)>,
 > = None;
+static mut MOCK_TRY_CALL_SESSION: Option<
+    Box<dyn FnMut(bool, SessionId, Vec<u8>, Vec<SessionId>) -> (Vec<u8>, Vec<SessionId>)>,
+> = None;
 
 mod contract;
 mod service;
@@ -78,4 +81,11 @@ pub fn mock_try_call_application(
         + 'static,
 ) {
     unsafe { MOCK_TRY_CALL_APPLICATION = Some(Box::new(handler)) }
+}
+
+/// Mocks the `try_call_session` system API.
+pub fn mock_try_call_session(
+    handler: impl FnMut(bool, SessionId, Vec<u8>, Vec<SessionId>) -> (Vec<u8>, Vec<SessionId>) + 'static,
+) {
+    unsafe { MOCK_TRY_CALL_SESSION = Some(Box::new(handler)) }
 }

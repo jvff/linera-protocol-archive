@@ -285,7 +285,12 @@ impl wit::MockWritableTryCallApplication for MockWritableTryCallApplication {
     }
 }
 
-pub struct MockWritableTryCallSession;
+pub struct MockWritableTryCallSession {
+    authenticated: bool,
+    session: SessionId,
+    argument: Vec<u8>,
+    forwarded_sessions: Vec<SessionId>,
+}
 
 impl wit::MockWritableTryCallSession for MockWritableTryCallSession {
     fn new(
@@ -294,10 +299,31 @@ impl wit::MockWritableTryCallSession for MockWritableTryCallSession {
         argument: Vec<u8>,
         forwarded_sessions: Vec<wit::SessionId>,
     ) -> Handle<Self> {
-        Handle::new(MockWritableTryCallSession)
+        Handle::new(MockWritableTryCallSession {
+            authenticated,
+            session: session.into(),
+            argument,
+            forwarded_sessions: forwarded_sessions
+                .into_iter()
+                .map(SessionId::from)
+                .collect(),
+        })
     }
 
     fn poll(&self) -> wit::PollCallResult {
-        todo!();
+        let handler = unsafe { super::MOCK_TRY_CALL_SESSION.as_mut() }.expect(
+            "Unexpected call to `try_call_session` system API. \
+            Please call `mock_try_call_session` first",
+        );
+
+        wit::PollCallResult::Ready(
+            handler(
+                self.authenticated,
+                self.session,
+                self.argument.clone(),
+                self.forwarded_sessions.clone(),
+            )
+            .into(),
+        )
     }
 }
