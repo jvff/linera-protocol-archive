@@ -32,3 +32,4 @@ linera-execution = { path = "../linera-execution", default-features = false, fea
 linera-storage = { path = "../linera-storage", default-features = false, features = ["wasmer", "wasmtime"] }
 tokio = { version = "1.25.0", features = ["macros", "rt-multi-thread"] }
 wasmtime = "1.0"
+wit-bindgen-host-wasmtime-rust = { git = "https://github.com/jvff/wit-bindgen", rev = "b3f43500ec4a65379b65148e32941117c17bc2f1" }
