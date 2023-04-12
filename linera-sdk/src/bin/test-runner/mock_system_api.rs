@@ -165,6 +165,31 @@ pub fn add_to_linker(linker: &mut Linker<()>) -> Result<()> {
             })
         },
     )?;
+    linker.func_wrap0_async(
+        "writable_system",
+        "read-system-timestamp: func() -> u64",
+        move |mut caller: Caller<'_, ()>| {
+            Box::new(async move {
+                let function = get_function(
+                    &mut caller,
+                    "mock-writable-read-system-timestamp: func() -> u64",
+                )
+                .expect(
+                    "Missing `mock-writable-read-system-timestamp` function in the module. \
+                    Please ensure `linera_sdk::test::mock_system_timestamp` was called",
+                );
+
+                let (timestamp,) = function
+                    .typed::<(), (i64,), _>(&mut caller)
+                    .expect("Incorrect `mock-writable-read-system-timestamp` function signature")
+                    .call_async(&mut caller, ())
+                    .await
+                    .expect("Failed to call `mock-writable-read-system-timestamp` function");
+
+                timestamp
+            })
+        },
+    )?;
 
     linker.func_wrap1_async(
         "queryable_system",
@@ -287,6 +312,31 @@ pub fn add_to_linker(linker: &mut Linker<()>) -> Result<()> {
                     .expect("Failed to call `mock-queryable-read-system-balance` function");
 
                 copy_memory_slices(&mut caller, result_offset, return_offset, 16);
+            })
+        },
+    )?;
+    linker.func_wrap0_async(
+        "queryable_system",
+        "read-system-timestamp: func() -> u64",
+        move |mut caller: Caller<'_, ()>| {
+            Box::new(async move {
+                let function = get_function(
+                    &mut caller,
+                    "mock-queryable-read-system-timestamp: func() -> u64",
+                )
+                .expect(
+                    "Missing `mock-queryable-read-system-timestamp` function in the module. \
+                    Please ensure `linera_sdk::test::mock_system_timestamp` was called",
+                );
+
+                let (timestamp,) = function
+                    .typed::<(), (i64,), _>(&mut caller)
+                    .expect("Incorrect `mock-queryable-read-system-timestamp` function signature")
+                    .call_async(&mut caller, ())
+                    .await
+                    .expect("Failed to call `mock-queryable-read-system-timestamp` function");
+
+                timestamp
             })
         },
     )?;
