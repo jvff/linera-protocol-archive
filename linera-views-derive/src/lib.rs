@@ -106,7 +106,6 @@ fn generate_view_code(input: ItemStruct, root: bool) -> TokenStream2 {
                 self.#first_name_quote.context()
             }
 
-            #[cfg(not(target_arch = "wasm32"))]
             async fn load(context: #first_generic) -> Result<Self, linera_views::views::ViewError> {
                 #increment_counter
                 use linera_views::futures::join;
@@ -116,12 +115,6 @@ fn generate_view_code(input: ItemStruct, root: bool) -> TokenStream2 {
                 Ok(Self {#(#name_quotes),*})
             }
 
-            #[cfg(target_arch = "wasm32")]
-            async fn load(context: #first_generic) -> Result<Self, linera_views::views::ViewError> {
-                #increment_counter
-                #(#load_wasm_quotes)*
-                Ok(Self {#(#name_quotes),*})
-            }
 
             fn rollback(&mut self) {
                 #(#rollback_quotes)*
