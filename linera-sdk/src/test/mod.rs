@@ -11,6 +11,10 @@
 
 #[cfg(not(target_arch = "wasm32"))]
 mod integration;
+#[cfg(target_arch = "wasm32")]
+mod unit;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use self::integration::*;
+#[cfg(target_arch = "wasm32")]
+pub use self::unit::*;
