@@ -2,14 +2,44 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use anyhow::Result;
+use std::any::Any;
 use wasmtime::{Caller, Extern, Func, Linker};
 use wit_bindgen_host_wasmtime_rust::{
     rt::{get_memory, RawMem},
     Endian,
 };
 
+/// A map of resources allocated on the host side.
+#[derive(Default)]
+pub struct Resources(Vec<Box<dyn Any + Send + 'static>>);
+
+impl Resources {
+    /// Adds a resource to the map, returning its handle.
+    pub fn insert(&mut self, value: impl Any + Send + 'static) -> i32 {
+        let handle = self.0.len().try_into().expect("Resources map overflow");
+
+        self.0.push(Box::new(value));
+
+        handle
+    }
+
+    /// Returns an immutable reference to a resource referenced by the provided `handle`.
+    pub fn get<T: 'static>(&self, handle: i32) -> &T {
+        self.0[usize::try_from(handle).expect("Invalid handle")]
+            .downcast_ref()
+            .expect("Incorrect handle type")
+    }
+
+    /// Returns a mutable reference to a resource referenced by the provided `handle`.
+    pub fn get_mut<T: 'static>(&mut self, handle: i32) -> &mut T {
+        self.0[usize::try_from(handle).expect("Invalid handle")]
+            .downcast_mut()
+            .expect("Incorrect handle type")
+    }
+}
+
 /// Retrieves a function exported from the guest WebAssembly module.
-fn get_function(caller: &mut Caller<'_, ()>, name: &str) -> Option<Func> {
+fn get_function(caller: &mut Caller<'_, Resources>, name: &str) -> Option<Func> {
     match caller.get_export(name)? {
         Extern::Func(function) => Some(function),
         _ => None,
@@ -19,7 +49,7 @@ fn get_function(caller: &mut Caller<'_, ()>, name: &str) -> Option<Func> {
 /// Copies data from the `source_offset` to the `destination_offset` inside the guest WebAssembly
 /// module's memory.
 fn copy_memory_slices(
-    caller: &mut Caller<'_, ()>,
+    caller: &mut Caller<'_, Resources>,
     source_offset: i32,
     destination_offset: i32,
     size: i32,
@@ -39,7 +69,7 @@ fn copy_memory_slices(
 }
 
 /// Stores a `value` at the `offset` of the guest WebAssembly module's memory.
-fn store_in_memory(caller: &mut Caller<'_, ()>, offset: i32, value: impl Endian) {
+fn store_in_memory(caller: &mut Caller<'_, Resources>, offset: i32, value: impl Endian) {
     let memory = get_memory(caller, "memory").expect("Missing `memory` export in the module.");
     let memory_data = memory.data_mut(caller);
 
@@ -53,11 +83,11 @@ fn store_in_memory(caller: &mut Caller<'_, ()>, offset: i32, value: impl Endian)
 ///
 /// The system APIs are proxied back to the guest module, to be handled by the functions exported
 /// from `linera_sdk::test::unit`.
-pub fn add_to_linker(linker: &mut Linker<()>) -> Result<()> {
+pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
     linker.func_wrap1_async(
         "writable_system",
         "chain-id: func() -> record { part1: u64, part2: u64, part3: u64, part4: u64 }",
-        move |mut caller: Caller<'_, ()>, return_offset: i32| {
+        move |mut caller: Caller<'_, Resources>, return_offset: i32| {
             Box::new(async move {
                 let function = get_function(
                     &mut caller,
@@ -94,7 +124,7 @@ pub fn add_to_linker(linker: &mut Linker<()>) -> Result<()> {
                 index: u32 \
             } \
         }",
-        move |mut caller: Caller<'_, ()>, return_offset: i32| {
+        move |mut caller: Caller<'_, Resources>, return_offset: i32| {
             Box::new(async move {
                 let function = get_function(
                     &mut caller,
@@ -130,7 +160,7 @@ pub fn add_to_linker(linker: &mut Linker<()>) -> Result<()> {
     linker.func_wrap1_async(
         "writable_system",
         "application-parameters: func() -> list<u8>",
-        move |mut caller: Caller<'_, ()>, return_offset: i32| {
+        move |mut caller: Caller<'_, Resources>, return_offset: i32| {
             Box::new(async move {
                 let function = get_function(
                     &mut caller,
@@ -155,7 +185,7 @@ pub fn add_to_linker(linker: &mut Linker<()>) -> Result<()> {
     linker.func_wrap1_async(
         "writable_system",
         "read-system-balance: func() -> record { lower-half: u64, upper-half: u64 }",
-        move |mut caller: Caller<'_, ()>, return_offset: i32| {
+        move |mut caller: Caller<'_, Resources>, return_offset: i32| {
             Box::new(async move {
                 let function = get_function(
                     &mut caller,
@@ -181,7 +211,7 @@ pub fn add_to_linker(linker: &mut Linker<()>) -> Result<()> {
     linker.func_wrap0_async(
         "writable_system",
         "read-system-timestamp: func() -> u64",
-        move |mut caller: Caller<'_, ()>| {
+        move |mut caller: Caller<'_, Resources>| {
             Box::new(async move {
                 let function =
                     get_function(&mut caller, "mocked-read-system-timestamp: func() -> u64")
@@ -204,7 +234,10 @@ pub fn add_to_linker(linker: &mut Linker<()>) -> Result<()> {
     linker.func_wrap3_async(
         "writable_system",
         "log: func(message: string, level: enum { trace, debug, info, warn, error }) -> unit",
-        move |mut caller: Caller<'_, ()>, message_address: i32, message_length: i32, level: i32| {
+        move |mut caller: Caller<'_, Resources>,
+              message_address: i32,
+              message_length: i32,
+              level: i32| {
             Box::new(async move {
                 let function = get_function(
                     &mut caller,
@@ -249,7 +282,7 @@ pub fn add_to_linker(linker: &mut Linker<()>) -> Result<()> {
     linker.func_wrap1_async(
         "writable_system",
         "load: func() -> list<u8>",
-        move |mut caller: Caller<'_, ()>, return_offset: i32| {
+        move |mut caller: Caller<'_, Resources>, return_offset: i32| {
             Box::new(async move {
                 let function = get_function(&mut caller, "mocked-load: func() -> list<u8>").expect(
                     "Missing `mocked-load` function in the module. \
@@ -270,7 +303,7 @@ pub fn add_to_linker(linker: &mut Linker<()>) -> Result<()> {
     linker.func_wrap1_async(
         "writable_system",
         "load-and-lock: func() -> option<list<u8>>",
-        move |mut caller: Caller<'_, ()>, return_offset: i32| {
+        move |mut caller: Caller<'_, Resources>, return_offset: i32| {
             Box::new(async move {
                 let function = get_function(
                     &mut caller,
@@ -296,7 +329,7 @@ pub fn add_to_linker(linker: &mut Linker<()>) -> Result<()> {
     linker.func_wrap1_async(
         "queryable_system",
         "chain-id: func() -> record { part1: u64, part2: u64, part3: u64, part4: u64 }",
-        move |mut caller: Caller<'_, ()>, return_offset: i32| {
+        move |mut caller: Caller<'_, Resources>, return_offset: i32| {
             Box::new(async move {
                 let function = get_function(
                     &mut caller,
@@ -333,7 +366,7 @@ pub fn add_to_linker(linker: &mut Linker<()>) -> Result<()> {
                 index: u32 \
             } \
         }",
-        move |mut caller: Caller<'_, ()>, return_offset: i32| {
+        move |mut caller: Caller<'_, Resources>, return_offset: i32| {
             Box::new(async move {
                 let function = get_function(
                     &mut caller,
@@ -369,7 +402,7 @@ pub fn add_to_linker(linker: &mut Linker<()>) -> Result<()> {
     linker.func_wrap1_async(
         "queryable_system",
         "application-parameters: func() -> list<u8>",
-        move |mut caller: Caller<'_, ()>, return_offset: i32| {
+        move |mut caller: Caller<'_, Resources>, return_offset: i32| {
             Box::new(async move {
                 let function = get_function(
                     &mut caller,
@@ -394,7 +427,7 @@ pub fn add_to_linker(linker: &mut Linker<()>) -> Result<()> {
     linker.func_wrap1_async(
         "queryable_system",
         "read-system-balance: func() -> record { lower-half: u64, upper-half: u64 }",
-        move |mut caller: Caller<'_, ()>, return_offset: i32| {
+        move |mut caller: Caller<'_, Resources>, return_offset: i32| {
             Box::new(async move {
                 let function = get_function(
                     &mut caller,
@@ -420,7 +453,7 @@ pub fn add_to_linker(linker: &mut Linker<()>) -> Result<()> {
     linker.func_wrap0_async(
         "queryable_system",
         "read-system-timestamp: func() -> u64",
-        move |mut caller: Caller<'_, ()>| {
+        move |mut caller: Caller<'_, Resources>| {
             Box::new(async move {
                 let function =
                     get_function(&mut caller, "mocked-read-system-timestamp: func() -> u64")
@@ -443,7 +476,10 @@ pub fn add_to_linker(linker: &mut Linker<()>) -> Result<()> {
     linker.func_wrap3_async(
         "queryable_system",
         "log: func(message: string, level: enum { trace, debug, info, warn, error }) -> unit",
-        move |mut caller: Caller<'_, ()>, message_address: i32, message_length: i32, level: i32| {
+        move |mut caller: Caller<'_, Resources>,
+              message_address: i32,
+              message_length: i32,
+              level: i32| {
             Box::new(async move {
                 let function = get_function(
                     &mut caller,
@@ -488,13 +524,13 @@ pub fn add_to_linker(linker: &mut Linker<()>) -> Result<()> {
     linker.func_wrap0_async(
         "queryable_system",
         "load::new: func() -> handle<load>",
-        move |_: Caller<'_, ()>| Box::new(async move { 0 }),
+        move |_: Caller<'_, Resources>| Box::new(async move { 0 }),
     )?;
     linker.func_wrap2_async(
         "queryable_system",
         "load::poll: \
             func(self: handle<load>) -> variant { pending(unit), ready(result<list<u8>, string>) }",
-        move |mut caller: Caller<'_, ()>, _handle: i32, return_offset: i32| {
+        move |mut caller: Caller<'_, Resources>, _handle: i32, return_offset: i32| {
             Box::new(async move {
                 let function = get_function(&mut caller, "mocked-load: func() -> list<u8>").expect(
                     "Missing `mocked-load` function in the module. \
@@ -517,7 +553,7 @@ pub fn add_to_linker(linker: &mut Linker<()>) -> Result<()> {
     linker.func_wrap1_async(
         "canonical_abi",
         "resource_drop_load",
-        move |_: Caller<'_, ()>, _handle: i32| Box::new(async move { () }),
+        move |_: Caller<'_, Resources>, _handle: i32| Box::new(async move { () }),
     )?;
 
     Ok(())
