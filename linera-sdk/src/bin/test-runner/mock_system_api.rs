@@ -222,6 +222,35 @@ fn store_in_memory(caller: &mut Caller<'_, Resources>, offset: i32, value: impl 
         .expect("Failed to write to guest WebAssembly module");
 }
 
+/// Stores an [`ApplicationId`] in the provided slice of the guest WebAssembly module's memory.
+fn store_application_id(application_id: &ApplicationId, memory: &mut [u8]) {
+    store_effect_id(&application_id.bytecode_id.0, memory);
+    store_effect_id(&application_id.creation, &mut memory[48..]);
+}
+
+/// Stores an [`EffectId`] in the provided slice of the guest WebAssembly module's memory.
+fn store_effect_id(effect_id: &EffectId, memory: &mut [u8]) {
+    let chain_id: [u64; 4] = effect_id.chain_id.0.into();
+
+    for (index, value) in chain_id.into_iter().enumerate() {
+        let offset = i32::try_from(index).expect("Too many values to store") * 8;
+
+        memory
+            .store(offset, value)
+            .expect("Failed to write to guest WebAssembly module's memory");
+    }
+
+    let height_offset = 4 * 8;
+    let index_offset = 5 * 8;
+
+    memory
+        .store(height_offset, effect_id.height.0)
+        .expect("Failed to write to guest WebAssembly module's memory");
+    memory
+        .store(index_offset, effect_id.index)
+        .expect("Failed to write to guest WebAssembly module's memory");
+}
+
 /// Adds the mock system APIs to the linker, so that they are available to guest WebAsembly
 /// modules.
 ///
