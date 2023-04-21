@@ -10,7 +10,9 @@
 
 use futures::FutureExt;
 use linera_sdk::{
-    base::{ApplicationId, Balance, BlockHeight, BytecodeId, ChainId, EffectId, Timestamp},
+    base::{
+        ApplicationId, Balance, BlockHeight, BytecodeId, ChainId, EffectId, SessionId, Timestamp,
+    },
     contract, service, test, ContractLogger, ServiceLogger,
 };
 use linera_views::{
@@ -404,4 +406,156 @@ fn mock_write_batch() {
     assert_eq!(loaded_view.two.get(), altered_view.two.get());
     assert_eq!(loaded_view.three.get(), initial_view.three.get());
     assert!(loaded_keys.is_empty());
+}
+
+static mut INTERCEPTED_AUTHENTICATED: Option<bool> = None;
+static mut INTERCEPTED_APPLICATION_ID: Option<ApplicationId> = None;
+static mut INTERCEPTED_ARGUMENT: Option<Vec<u8>> = None;
+static mut INTERCEPTED_FORWARDED_SESSIONS: Option<Vec<SessionId>> = None;
+
+/// Test mocking cross-application calls.
+#[webassembly_test]
+fn mock_cross_application_call() {
+    let response = vec![0xff, 0xfe, 0xfd];
+    let new_sessions = vec![
+        SessionId {
+            application_id: ApplicationId {
+                bytecode_id: BytecodeId(EffectId {
+                    chain_id: ChainId([0xfc, 0xfb, 0xfa, 0xf9].into()),
+                    height: BlockHeight::from(0xf8),
+                    index: 0xf7,
+                }),
+                creation: EffectId {
+                    chain_id: ChainId([0xf6, 0xf5, 0xf4, 0xf3].into()),
+                    height: BlockHeight::from(0xf2),
+                    index: 0xf1,
+                },
+            },
+            index: 0xf0,
+            kind: 0xef,
+        },
+        SessionId {
+            application_id: ApplicationId {
+                bytecode_id: BytecodeId(EffectId {
+                    chain_id: ChainId([0xee, 0xed, 0xec, 0xeb].into()),
+                    height: BlockHeight::from(0xea),
+                    index: 0xe9,
+                }),
+                creation: EffectId {
+                    chain_id: ChainId([0xe8, 0xe7, 0xe6, 0xe5].into()),
+                    height: BlockHeight::from(0xe4),
+                    index: 0xe3,
+                },
+            },
+            index: 0xe2,
+            kind: 0xe1,
+        },
+        SessionId {
+            application_id: ApplicationId {
+                bytecode_id: BytecodeId(EffectId {
+                    chain_id: ChainId([0xe0, 0xdf, 0xde, 0xdd].into()),
+                    height: BlockHeight::from(0xdc),
+                    index: 0xdb,
+                }),
+                creation: EffectId {
+                    chain_id: ChainId([0xda, 0xd9, 0xd8, 0xd7].into()),
+                    height: BlockHeight::from(0xd6),
+                    index: 0xd5,
+                },
+            },
+            index: 0xd4,
+            kind: 0xd3,
+        },
+    ];
+
+    let expected_response = response.clone();
+    let expected_new_sessions = new_sessions.clone();
+
+    test::mock_try_call_application(
+        move |authenticated, application_id, argument, forwarded_sessions| {
+            unsafe {
+                INTERCEPTED_AUTHENTICATED = Some(authenticated);
+                INTERCEPTED_APPLICATION_ID = Some(application_id);
+                INTERCEPTED_ARGUMENT = Some(argument);
+                INTERCEPTED_FORWARDED_SESSIONS = Some(forwarded_sessions);
+            }
+
+            (response.clone(), new_sessions.clone())
+        },
+    );
+
+    let authenticated = true;
+    let application_id = ApplicationId {
+        bytecode_id: BytecodeId(EffectId {
+            chain_id: ChainId([0, 1, 2, 3].into()),
+            height: BlockHeight::from(4),
+            index: 5,
+        }),
+        creation: EffectId {
+            chain_id: ChainId([6, 7, 8, 9].into()),
+            height: BlockHeight::from(10),
+            index: 11,
+        },
+    };
+    let argument = vec![17, 23, 31, 37];
+    let forwarded_sessions = vec![
+        SessionId {
+            application_id: ApplicationId {
+                bytecode_id: BytecodeId(EffectId {
+                    chain_id: ChainId([100, 101, 102, 103].into()),
+                    height: BlockHeight::from(104),
+                    index: 105,
+                }),
+                creation: EffectId {
+                    chain_id: ChainId([106, 107, 108, 109].into()),
+                    height: BlockHeight::from(110),
+                    index: 111,
+                },
+            },
+            index: 112,
+            kind: 113,
+        },
+        SessionId {
+            application_id: ApplicationId {
+                bytecode_id: BytecodeId(EffectId {
+                    chain_id: ChainId([114, 115, 116, 117].into()),
+                    height: BlockHeight::from(118),
+                    index: 119,
+                }),
+                creation: EffectId {
+                    chain_id: ChainId([120, 121, 122, 123].into()),
+                    height: BlockHeight::from(124),
+                    index: 125,
+                },
+            },
+            index: 126,
+            kind: 127,
+        },
+    ];
+
+    let (response, new_sessions) = contract::system_api::call_application_without_persisting_state(
+        authenticated,
+        application_id,
+        &argument,
+        forwarded_sessions.clone(),
+    )
+    .now_or_never()
+    .expect("Mock cross-application call should return immediately");
+
+    assert_eq!(
+        unsafe { INTERCEPTED_AUTHENTICATED.take() },
+        Some(authenticated)
+    );
+    assert_eq!(
+        unsafe { INTERCEPTED_APPLICATION_ID.take() },
+        Some(application_id)
+    );
+    assert_eq!(unsafe { INTERCEPTED_ARGUMENT.take() }, Some(argument));
+    assert_eq!(
+        unsafe { INTERCEPTED_FORWARDED_SESSIONS.take() },
+        Some(forwarded_sessions)
+    );
+
+    assert_eq!(response, expected_response);
+    assert_eq!(new_sessions, expected_new_sessions);
 }
