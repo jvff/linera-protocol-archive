@@ -52,6 +52,15 @@ struct CallApplication {
     forwarded_sessions: Vec<SessionId>,
 }
 
+/// A resource representing a session call.
+#[derive(Clone)]
+struct CallSession {
+    authenticated: bool,
+    session_id: SessionId,
+    argument: Vec<u8>,
+    forwarded_sessions: Vec<SessionId>,
+}
+
 /// Retrieves a function exported from the guest WebAssembly module.
 fn get_function(caller: &mut Caller<'_, Resources>, name: &str) -> Option<Func> {
     match caller.get_export(name)? {
@@ -1161,6 +1170,274 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
             })
         },
     )?;
+    linker.func_wrap1_async(
+        "writable_system",
+        "try-call-session::new: func(\
+            authenticated: bool, \
+            session: record { \
+                application-id: record { \
+                    bytecode-id: record { \
+                        chain-id: record { part1: u64, part2: u64, part3: u64, part4: u64 }, \
+                        height: u64, \
+                        index: u32 \
+                    }, \
+                    creation: record { \
+                        chain-id: record { part1: u64, part2: u64, part3: u64, part4: u64 }, \
+                        height: u64, \
+                        index: u32 \
+                    } \
+                }, \
+                kind: u64, \
+                index: u64 \
+            }, \
+            argument: list<u8>, \
+            forwarded-sessions: list<record { \
+                application-id: record { \
+                    bytecode-id: record { \
+                        chain-id: record { part1: u64, part2: u64, part3: u64, part4: u64 }, \
+                        height: u64, \
+                        index: u32 \
+                    }, creation: record { \
+                        chain-id: record { part1: u64, part2: u64, part3: u64, part4: u64 }, \
+                        height: u64, \
+                        index: u32 \
+                    } \
+                }, \
+                kind: u64, \
+                index: u64 \
+            }>\
+        ) -> handle<try-call-session>",
+        move |mut caller: Caller<'_, Resources>, parameters_address: i32| {
+            Box::new(async move {
+                let memory = get_memory(&mut caller, "memory")
+                    .expect("Missing `memory` export in the module.");
+                let memory_data = memory.data_mut(&mut caller);
+
+                let session_id_start = usize::try_from(parameters_address + 8)
+                    .expect("Invalid address for session ID parameter");
+
+                let authenticated = memory_data
+                    .load::<u8>(parameters_address)
+                    .expect("Failed to read from guest memory")
+                    != 0;
+                let session_id = load_session_id(&memory_data[session_id_start..]);
+                let argument = load_indirect_bytes(&mut caller, parameters_address + 120);
+                let forwarded_sessions =
+                    load_session_id_list(&mut caller, parameters_address + 128);
+
+                let call_session = CallSession {
+                    authenticated,
+                    session_id,
+                    argument,
+                    forwarded_sessions,
+                };
+
+                let resources = caller.data_mut();
+
+                resources.insert(call_session)
+            })
+        },
+    )?;
+    linker.func_wrap2_async(
+        "writable_system",
+        "try-call-session::poll: func(self: handle<try-call-session>) -> variant { \
+            pending(unit), \
+            ready(record { \
+                value: list<u8>, \
+                sessions: list<record { \
+                    application-id: record { \
+                        bytecode-id: record { \
+                            chain-id: record { part1: u64, part2: u64, part3: u64, part4: u64 }, \
+                            height: u64, \
+                            index: u32 \
+                        }, \
+                        creation: record { \
+                            chain-id: record { part1: u64, part2: u64, part3: u64, part4: u64 }, \
+                            height: u64, \
+                            index: u32 \
+                        } \
+                    }, \
+                    kind: u64, \
+                    index: u64 \
+                }> \
+            }) \
+        }",
+        move |mut caller: Caller<'_, Resources>, handle: i32, return_offset: i32| {
+            Box::new(async move {
+                let function = get_function(
+                    &mut caller,
+                    "mocked-try-call-session: func(\
+                        authenticated: bool, \
+                        session: record { \
+                            application-id: record { \
+                                bytecode-id: record { \
+                                    chain-id: record { \
+                                        part1: u64, \
+                                        part2: u64, \
+                                        part3: u64, \
+                                        part4: u64 \
+                                    }, \
+                                    height: u64, \
+                                    index: u32 \
+                                }, \
+                                creation: record { \
+                                    chain-id: record { \
+                                        part1: u64, \
+                                        part2: u64, \
+                                        part3: u64, \
+                                        part4: u64 \
+                                    }, \
+                                    height: u64, \
+                                    index: u32 \
+                                } \
+                            }, \
+                            kind: u64, \
+                            index: u64 \
+                        }, \
+                        argument: list<u8>, \
+                        forwarded-sessions: list<record { \
+                            application-id: record { \
+                                bytecode-id: record { \
+                                    chain-id: record { \
+                                        part1: u64, \
+                                        part2: u64, \
+                                        part3: u64, \
+                                        part4: u64 \
+                                    }, \
+                                    height: u64, \
+                                    index: u32 \
+                                }, \
+                                creation: record { \
+                                    chain-id: record { \
+                                        part1: u64, \
+                                        part2: u64, \
+                                        part3: u64, \
+                                        part4: u64 \
+                                    }, \
+                                    height: u64, \
+                                    index: u32 \
+                                } \
+                            }, \
+                            kind: u64, \
+                            index: u64 \
+                        }>\
+                    ) -> record { \
+                        value: list<u8>, \
+                        sessions: list<record { \
+                            application-id: record { \
+                                bytecode-id: record { \
+                                    chain-id: record { \
+                                        part1: u64, \
+                                        part2: u64, \
+                                        part3: u64, \
+                                        part4: u64 \
+                                    }, \
+                                    height: u64, \
+                                    index: u32 \
+                                }, \
+                                creation: record { \
+                                    chain-id: record { \
+                                        part1: u64, \
+                                        part2: u64, \
+                                        part3: u64, \
+                                        part4: u64 \
+                                    }, \
+                                    height: u64, \
+                                    index: u32 \
+                                } \
+                            }, \
+                            kind: u64, \
+                            index: u64 \
+                        }> \
+                    }",
+                )
+                .expect(
+                    "Missing `mocked-try-call-session` function in the module. \
+                    Please ensure `linera_sdk::test::mock_try_call_session` was called",
+                );
+
+                let session_id_size = 14 * 8;
+                let parameters_size = 1 /* authenticated: bool */ + 7 /* padding for alignment */
+                    + session_id_size
+                    + 8 /* argument: list<u8> */
+                    + 8 /* forwarded_sessions: list<_> */;
+
+                let alloc_function = get_function(&mut caller, "cabi_realloc")
+                    .expect(
+                        "Missing `cabi_realloc` function in the module. \
+                        Please ensure `linera_sdk` is compiled in with the module",
+                    )
+                    .typed::<(i32, i32, i32, i32), i32, _>(&mut caller)
+                    .expect("Incorrect `cabi_realloc` function signature");
+
+                let resources = caller.data_mut();
+                let parameters = resources.get::<CallSession>(handle).clone();
+
+                let parameters_address = alloc_function
+                    .call_async(&mut caller, (0, 0, 1, parameters_size))
+                    .await
+                    .expect("Failed to call `cabi_realloc` function");
+
+                let (call_argument_address, call_argument_length) =
+                    store_bytes_from_resource(&mut caller, |resources| {
+                        let parameters: &CallSession = resources.get(handle);
+                        &parameters.argument
+                    })
+                    .await;
+
+                let memory = get_memory(&mut caller, "memory")
+                    .expect("Missing `memory` export in the module.");
+                let memory_data = memory.data_mut(&mut caller);
+
+                memory_data
+                    .store(
+                        parameters_address,
+                        if parameters.authenticated { 1_u8 } else { 0 },
+                    )
+                    .expect("Failed to write to guest WebAssembly module's memory");
+
+                let address_for_session_id = parameters_address + 8;
+                let offset_for_session_id = usize::try_from(address_for_session_id)
+                    .expect("Invalid memory address for session ID");
+                let address_after_session_id = address_for_session_id + session_id_size;
+
+                store_session_id(
+                    &parameters.session_id,
+                    &mut memory_data[offset_for_session_id..],
+                );
+
+                let (forwarded_sessions_address, forwarded_sessions_length) =
+                    store_session_id_list(&mut caller, &parameters.forwarded_sessions).await;
+
+                store_in_memory(&mut caller, address_after_session_id, call_argument_address);
+                store_in_memory(
+                    &mut caller,
+                    address_after_session_id + 4,
+                    call_argument_length,
+                );
+                store_in_memory(
+                    &mut caller,
+                    address_after_session_id + 8,
+                    forwarded_sessions_address,
+                );
+                store_in_memory(
+                    &mut caller,
+                    address_after_session_id + 12,
+                    forwarded_sessions_length,
+                );
+
+                let (result_offset,) = function
+                    .typed::<(i32,), (i32,), _>(&mut caller)
+                    .expect("Incorrect `mocked-try-call-session` function signature")
+                    .call_async(&mut caller, (parameters_address,))
+                    .await
+                    .expect("Failed to call `mocked-try-call-session` function");
+
+                store_in_memory(&mut caller, return_offset, 1_i32);
+                copy_memory_slices(&mut caller, result_offset, return_offset + 4, 16);
+            })
+        },
+    )?;
 
     linker.func_wrap1_async(
         "queryable_system",
@@ -1620,6 +1897,11 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
     linker.func_wrap1_async(
         "canonical_abi",
         "resource_drop_try-call-application",
+        move |_: Caller<'_, Resources>, _handle: i32| Box::new(async move { () }),
+    )?;
+    linker.func_wrap1_async(
+        "canonical_abi",
+        "resource_drop_try-call-session",
         move |_: Caller<'_, Resources>, _handle: i32| Box::new(async move { () }),
     )?;
 
