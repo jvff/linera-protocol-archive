@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use anyhow::Result;
+use linera_base::{
+    data_types::BlockHeight,
+    identifiers::{ApplicationId, ChainId, EffectId},
+};
 use linera_views::batch::WriteOperation;
 use std::any::Any;
 use wasmtime::{Caller, Extern, Func, Linker};
@@ -100,6 +104,32 @@ fn load_indirect_bytes(
         .expect("Failed to read from module memory");
 
     load_bytes(caller, offset, length)
+}
+
+/// Loads an [`ApplicationId`] from the WebAssembly module's memory.
+fn load_application_id(memory: &[u8]) -> ApplicationId {
+    ApplicationId {
+        bytecode_id: load_effect_id(memory).into(),
+        creation: load_effect_id(&memory[48..]),
+    }
+}
+
+/// Loads an [`EffectId`] from the WebAssembly module's memory.
+fn load_effect_id(memory: &[u8]) -> EffectId {
+    let mut chain_id = [0_u64; 4];
+    chain_id[0] = memory.load(0).expect("Failed to read from guest memory");
+    chain_id[1] = memory.load(8).expect("Failed to read from guest memory");
+    chain_id[2] = memory.load(16).expect("Failed to read from guest memory");
+    chain_id[3] = memory.load(24).expect("Failed to read from guest memory");
+
+    let height = memory.load(32).expect("Failed to read from guest memory");
+    let index = memory.load(40).expect("Failed to read from guest memory");
+
+    EffectId {
+        chain_id: ChainId(chain_id.into()),
+        height: BlockHeight(height),
+        index,
+    }
 }
 
 /// Stores some bytes from a host-side resource to the WebAssembly module's memory.
