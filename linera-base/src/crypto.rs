@@ -269,12 +269,12 @@ impl From<[u64; 4]> for CryptoHash {
     fn from(integers: [u64; 4]) -> Self {
         let mut bytes = [0u8; 32];
 
-        bytes[0..8].copy_from_slice(&integers[0].to_le_bytes());
-        bytes[8..16].copy_from_slice(&integers[1].to_le_bytes());
-        bytes[16..24].copy_from_slice(&integers[2].to_le_bytes());
-        bytes[24..32].copy_from_slice(&integers[3].to_le_bytes());
+        bytes[0..8].copy_from_slice(&dbg!(integers[0].to_le_bytes()));
+        bytes[8..16].copy_from_slice(&dbg!(integers[1].to_le_bytes()));
+        bytes[16..24].copy_from_slice(&dbg!(integers[2].to_le_bytes()));
+        bytes[24..32].copy_from_slice(&dbg!(integers[3].to_le_bytes()));
 
-        CryptoHash(bytes.into())
+        CryptoHash(dbg!(bytes).into())
     }
 }
 

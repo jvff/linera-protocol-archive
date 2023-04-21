@@ -10,7 +10,9 @@
 
 use futures::FutureExt;
 use linera_sdk::{
-    base::{ApplicationId, Balance, BlockHeight, BytecodeId, ChainId, EffectId, Timestamp},
+    base::{
+        ApplicationId, Balance, BlockHeight, BytecodeId, ChainId, EffectId, SessionId, Timestamp,
+    },
     contract, service, test, ContractLogger, ServiceLogger,
 };
 use linera_views::{
@@ -404,4 +406,68 @@ fn mock_write_batch() {
     assert_eq!(loaded_view.two.get(), altered_view.two.get());
     assert_eq!(loaded_view.three.get(), initial_view.three.get());
     assert!(loaded_keys.is_empty());
+}
+
+static mut INTERCEPTED_AUTHENTICATED: Option<bool> = None;
+static mut INTERCEPTED_APPLICATION_ID: Option<ApplicationId> = None;
+static mut INTERCEPTED_ARGUMENT: Option<Vec<u8>> = None;
+static mut INTERCEPTED_FORWARDED_SESSIONS: Option<Vec<SessionId>> = None;
+
+/// Test mocking cross-application calls.
+#[webassembly_test]
+fn mock_cross_application_call() {
+    let response = vec![0xff, 0xfe, 0xfd];
+    let new_sessions = vec![];
+
+    test::mock_try_call_application(
+        move |authenticated, application_id, argument, forwarded_sessions| {
+            unsafe {
+                INTERCEPTED_AUTHENTICATED = Some(authenticated);
+                INTERCEPTED_APPLICATION_ID = Some(application_id);
+                INTERCEPTED_ARGUMENT = Some(argument);
+                INTERCEPTED_FORWARDED_SESSIONS = Some(forwarded_sessions);
+            }
+
+            (response.clone(), new_sessions.clone())
+        },
+    );
+
+    let authenticated = true;
+    let application_id = ApplicationId {
+        bytecode_id: BytecodeId(EffectId {
+            chain_id: ChainId([0, 1, 2, 3].into()),
+            height: BlockHeight::from(4),
+            index: 5,
+        }),
+        creation: EffectId {
+            chain_id: ChainId([6, 7, 8, 9].into()),
+            height: BlockHeight::from(10),
+            index: 11,
+        },
+    };
+    let argument = vec![17, 23, 31, 37];
+    let forwarded_sessions = vec![];
+
+    contract::system_api::call_application_without_persisting_state(
+        authenticated,
+        application_id,
+        &argument,
+        forwarded_sessions.clone(),
+    )
+    .now_or_never()
+    .expect("Mock cross-application call should return immediately");
+
+    assert_eq!(
+        unsafe { INTERCEPTED_AUTHENTICATED.take() },
+        Some(authenticated)
+    );
+    assert_eq!(
+        unsafe { INTERCEPTED_APPLICATION_ID.take() },
+        Some(application_id)
+    );
+    assert_eq!(unsafe { INTERCEPTED_ARGUMENT.take() }, Some(argument));
+    assert_eq!(
+        unsafe { INTERCEPTED_FORWARDED_SESSIONS.take() },
+        Some(forwarded_sessions)
+    );
 }
