@@ -4,7 +4,7 @@
 use anyhow::Result;
 use linera_base::{
     data_types::BlockHeight,
-    identifiers::{ApplicationId, ChainId, EffectId},
+    identifiers::{ApplicationId, ChainId, EffectId, SessionId},
 };
 use linera_views::batch::WriteOperation;
 use std::any::Any;
@@ -121,6 +121,56 @@ fn load_effect_id(memory: &[u8]) -> EffectId {
     EffectId {
         chain_id: ChainId(chain_id.into()),
         height: BlockHeight(height),
+        index,
+    }
+}
+
+/// Loads a list of [`SessionId`]s from the WebAssembly module's memory.
+fn load_session_id_list(
+    caller: &mut Caller<'_, Resources>,
+    offset_and_length_location: i32,
+) -> Vec<SessionId> {
+    let memory =
+        get_memory(&mut *caller, "memory").expect("Missing `memory` export in the module.");
+    let memory_data = memory.data_mut(&mut *caller);
+
+    let offset = memory_data
+        .load::<i32>(offset_and_length_location)
+        .expect("Failed to read from module memory");
+    let length = memory_data
+        .load::<i32>(offset_and_length_location + 4)
+        .expect("Failed to read from module memory")
+        .try_into()
+        .expect("Invalid vector length");
+
+    let mut session_ids = Vec::with_capacity(length);
+    let session_id_size = 14 * 8;
+
+    for index in 0..length {
+        let index = i32::try_from(index).expect("Vector index overflow");
+        let element_offset = usize::try_from(offset + index * session_id_size)
+            .expect("Invalid address of session ID");
+        let session_id = load_session_id(&memory_data[element_offset..]);
+
+        session_ids.push(session_id);
+    }
+
+    session_ids
+}
+
+/// Loads a [`SessionId`] from the WebAssembly module's memory.
+fn load_session_id(memory: &[u8]) -> SessionId {
+    let kind_offset = 12 * 8;
+    let kind = memory
+        .load(kind_offset)
+        .expect("Failed to read from guest memory");
+    let index = memory
+        .load(kind_offset + 8)
+        .expect("Failed to read from guest memory");
+
+    SessionId {
+        application_id: load_application_id(memory),
+        kind,
         index,
     }
 }
