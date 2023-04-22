@@ -86,7 +86,7 @@ pub trait Contract: Sized {
     /// state if [`SimpleStateStorage`] is used, or the [`Default`] value of all sub-views in the
     /// state if the [`ViewStateStorage`] is used.
     ///
-    /// Returns an [`ExecutionResult`], which can contains subscription or unsubscription requests
+    /// Returns an [`ExecutionResult`], which can contain subscription or unsubscription requests
     /// to channels and effects to be sent to this application on another micro-chain.
     async fn initialize(
         &mut self,
