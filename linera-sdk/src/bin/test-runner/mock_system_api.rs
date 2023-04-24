@@ -34,13 +34,6 @@ impl Resources {
             .downcast_ref()
             .expect("Incorrect handle type")
     }
-
-    /// Returns a mutable reference to a resource referenced by the provided `handle`.
-    pub fn get_mut<T: 'static>(&mut self, handle: i32) -> &mut T {
-        self.0[usize::try_from(handle).expect("Invalid handle")]
-            .downcast_mut()
-            .expect("Incorrect handle type")
-    }
 }
 
 /// A resource representing a cross-application call.
