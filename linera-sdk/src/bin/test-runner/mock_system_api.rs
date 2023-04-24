@@ -1739,7 +1739,7 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
                 let (key_address, key_length) =
                     store_bytes_from_resource(&mut caller, |resources| {
                         let key: &Vec<u8> = resources.get(handle);
-                        &*key
+                        key
                     })
                     .await;
 
