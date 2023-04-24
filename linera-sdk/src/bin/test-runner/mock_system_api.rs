@@ -1877,12 +1877,12 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
                 bytecode-id: record { \
                     chain-id: record { part1: u64, part2: u64, part3: u64, part4: u64 }, \
                     height: u64, \
-                    index: u64 \
+                    index: u32 \
                 }, \
                 creation: record { \
                     chain-id: record { part1: u64, part2: u64, part3: u64, part4: u64 }, \
                     height: u64, \
-                    index: u64 \
+                    index: u32 \
                 } \
             }, \
             query: list<u8>\
@@ -1893,13 +1893,13 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
               application_bytecode_chain_id_part3: i64,
               application_bytecode_chain_id_part4: i64,
               application_bytecode_height: i64,
-              application_bytecode_index: i64,
+              application_bytecode_index: i32,
               application_creation_chain_id_part1: i64,
               application_creation_chain_id_part2: i64,
               application_creation_chain_id_part3: i64,
               application_creation_chain_id_part4: i64,
               application_creation_height: i64,
-              application_creation_index: i64,
+              application_creation_index: i32,
               query_address: i32,
               query_length: i32| {
             Box::new(async move {
@@ -1926,13 +1926,13 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
                     bytecode_id: EffectId {
                         chain_id: bytecode_chain_id,
                         height: (application_bytecode_height as u64).into(),
-                        index: application_bytecode_index as u64,
+                        index: application_bytecode_index as u32,
                     }
                     .into(),
                     creation: EffectId {
                         chain_id: creation_chain_id,
                         height: (application_creation_height as u64).into(),
-                        index: application_creation_index as u64,
+                        index: application_creation_index as u32,
                     },
                 };
                 let query = load_bytes(&mut caller, query_address, query_length);
@@ -1968,7 +1968,7 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
                                     part4: u64 \
                                 }, \
                                 height: u64, \
-                                index: u64 \
+                                index: u32 \
                             }, \
                             creation: record { \
                                 chain-id: record { \
@@ -1978,7 +1978,7 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
                                     part4: u64 \
                                 }, \
                                 height: u64, \
-                                index: u64 \
+                                index: u32 \
                             } \
                         }, \
                         query: list<u8>\
@@ -2011,13 +2011,13 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
                         i64,
                         i64,
                         i64,
+                        i32,
                         i64,
                         i64,
                         i64,
                         i64,
                         i64,
-                        i64,
-                        i64,
+                        i32,
                         i32,
                         i32,
                     ), (i32,), _>(&mut caller)
@@ -2030,13 +2030,13 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
                             application_id_bytecode_chain_id[2] as i64,
                             application_id_bytecode_chain_id[3] as i64,
                             application_id.bytecode_id.0.height.0 as i64,
-                            application_id.bytecode_id.0.index as i64,
+                            application_id.bytecode_id.0.index as i32,
                             application_id_creation_chain_id[0] as i64,
                             application_id_creation_chain_id[1] as i64,
                             application_id_creation_chain_id[2] as i64,
                             application_id_creation_chain_id[3] as i64,
                             application_id.creation.height.0 as i64,
-                            application_id.creation.index as i64,
+                            application_id.creation.index as i32,
                             query_address,
                             query_length,
                         ),
