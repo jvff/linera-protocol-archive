@@ -2035,51 +2035,25 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
         },
     )?;
 
-    linker.func_wrap1_async(
-        "canonical_abi",
-        "resource_drop_load",
-        move |_: Caller<'_, Resources>, _handle: i32| Box::new(async move { () }),
-    )?;
-    linker.func_wrap1_async(
-        "canonical_abi",
-        "resource_drop_lock",
-        move |_: Caller<'_, Resources>, _handle: i32| Box::new(async move { () }),
-    )?;
-    linker.func_wrap1_async(
-        "canonical_abi",
-        "resource_drop_read-key-bytes",
-        move |_: Caller<'_, Resources>, _handle: i32| Box::new(async move { () }),
-    )?;
-    linker.func_wrap1_async(
-        "canonical_abi",
-        "resource_drop_find-keys",
-        move |_: Caller<'_, Resources>, _handle: i32| Box::new(async move { () }),
-    )?;
-    linker.func_wrap1_async(
-        "canonical_abi",
-        "resource_drop_find-key-values",
-        move |_: Caller<'_, Resources>, _handle: i32| Box::new(async move { () }),
-    )?;
-    linker.func_wrap1_async(
-        "canonical_abi",
-        "resource_drop_write-batch",
-        move |_: Caller<'_, Resources>, _handle: i32| Box::new(async move { () }),
-    )?;
-    linker.func_wrap1_async(
-        "canonical_abi",
-        "resource_drop_try-call-application",
-        move |_: Caller<'_, Resources>, _handle: i32| Box::new(async move { () }),
-    )?;
-    linker.func_wrap1_async(
-        "canonical_abi",
-        "resource_drop_try-call-session",
-        move |_: Caller<'_, Resources>, _handle: i32| Box::new(async move { () }),
-    )?;
-    linker.func_wrap1_async(
-        "canonical_abi",
-        "resource_drop_try-query-application",
-        move |_: Caller<'_, Resources>, _handle: i32| Box::new(async move { () }),
-    )?;
+    let resource_names = [
+        "load",
+        "lock",
+        "read-key-bytes",
+        "find-keys",
+        "find-key-values",
+        "write-batch",
+        "try-call-application",
+        "try-call-session",
+        "try-query-application",
+    ];
+
+    for resource_name in resource_names {
+        linker.func_wrap1_async(
+            "canonical_abi",
+            &format!("resource_drop_{resource_name}"),
+            move |_: Caller<'_, Resources>, _handle: i32| Box::new(async move {}),
+        )?;
+    }
 
     Ok(())
 }
