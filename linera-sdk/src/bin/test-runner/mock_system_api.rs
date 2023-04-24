@@ -1788,7 +1788,7 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
                 let (prefix_address, prefix_length) =
                     store_bytes_from_resource(&mut caller, |resources| {
                         let prefix: &Vec<u8> = resources.get(handle);
-                        &*prefix
+                        prefix
                     })
                     .await;
 
