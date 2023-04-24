@@ -876,12 +876,10 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
                             store_bytes_from_resource(&mut caller, |resources| {
                                 let operations: &Vec<WriteOperation> = resources.get(handle);
                                 match (&operations[index], parameter) {
-                                    (WriteOperation::Delete { key }, 0) => &*key,
-                                    (WriteOperation::DeletePrefix { key_prefix }, 0) => {
-                                        &*key_prefix
-                                    }
-                                    (WriteOperation::Put { key, .. }, 0) => &*key,
-                                    (WriteOperation::Put { value, .. }, 1) => &*value,
+                                    (WriteOperation::Delete { key }, 0) => key,
+                                    (WriteOperation::DeletePrefix { key_prefix }, 0) => key_prefix,
+                                    (WriteOperation::Put { key, .. }, 0) => key,
+                                    (WriteOperation::Put { value, .. }, 1) => value,
                                     _ => unreachable!("Unknown write operation parameter"),
                                 }
                             })
