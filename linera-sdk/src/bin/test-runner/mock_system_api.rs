@@ -192,12 +192,12 @@ fn load_session_id_list(
 
 /// Loads a [`SessionId`] from the WebAssembly module's memory.
 fn load_session_id(memory: &[u8]) -> SessionId {
-    let application_id_size = 12 * 8;
+    let kind_offset = 12 * 8;
     let kind = memory
-        .load(application_id_size)
+        .load(kind_offset)
         .expect("Failed to read from guest memory");
     let index = memory
-        .load(application_id_size + 8)
+        .load(kind_offset + 8)
         .expect("Failed to read from guest memory");
 
     SessionId {
