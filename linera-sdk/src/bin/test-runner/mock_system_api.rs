@@ -101,7 +101,7 @@ fn load_bytes(caller: &mut Caller<'_, Resources>, offset: i32, length: i32) -> V
         get_memory(&mut *caller, "memory").expect("Missing `memory` export in the module.");
     let memory_data = memory.data_mut(caller);
 
-    memory_data[start..end].iter().copied().collect()
+    memory_data[start..end].to_vec()
 }
 
 /// Loads a vector of bytes with its starting offset and length stored in the WebAssembly module's
@@ -209,7 +209,7 @@ async fn store_bytes_from_resource(
     bytes_getter: impl Fn(&Resources) -> &[u8],
 ) -> (i32, i32) {
     let resources = caller.data_mut();
-    let bytes = bytes_getter(&resources);
+    let bytes = bytes_getter(resources);
     let length = i32::try_from(bytes.len()).expect("Resource bytes is too large");
 
     let alloc_function = get_function(&mut *caller, "cabi_realloc")
@@ -228,7 +228,7 @@ async fn store_bytes_from_resource(
     let memory = get_memory(caller, "memory").expect("Missing `memory` export in the module.");
     let (memory, resources) = memory.data_and_store_mut(caller);
 
-    let bytes = bytes_getter(&resources);
+    let bytes = bytes_getter(resources);
     let start = usize::try_from(address).expect("Invalid address allocated");
     let end = start + bytes.len();
 
@@ -640,7 +640,7 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
                 let (key_address, key_length) =
                     store_bytes_from_resource(&mut caller, |resources| {
                         let key: &Vec<u8> = resources.get(handle);
-                        &*key
+                        key
                     })
                     .await;
 
