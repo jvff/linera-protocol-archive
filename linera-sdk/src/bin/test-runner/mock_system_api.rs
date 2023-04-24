@@ -1116,10 +1116,7 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
                 let memory_data = memory.data_mut(&mut caller);
 
                 memory_data
-                    .store(
-                        parameters_address,
-                        if parameters.authenticated { 1_u8 } else { 0 },
-                    )
+                    .store(parameters_address, u8::from(parameters.authenticated))
                     .expect("Failed to write to guest WebAssembly module's memory");
 
                 let address_for_application_id = parameters_address + 8;
