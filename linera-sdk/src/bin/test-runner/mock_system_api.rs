@@ -263,17 +263,24 @@ fn store_application_id(application_id: &ApplicationId, memory: &mut [u8]) {
 /// Stores an [`EffectId`] in the provided slice of the guest WebAssembly module's memory.
 fn store_effect_id(effect_id: &EffectId, memory: &mut [u8]) {
     let chain_id: [u64; 4] = effect_id.chain_id.0.into();
-    let values_to_store = chain_id
-        .into_iter()
-        .chain([effect_id.height.0, effect_id.index]);
 
-    for (index, value) in values_to_store.enumerate() {
+    for (index, value) in chain_id.into_iter().enumerate() {
         let offset = i32::try_from(index).expect("Too many values to store") * 8;
 
         memory
             .store(offset, value)
             .expect("Failed to write to guest WebAssembly module's memory");
     }
+
+    let height_offset = 4 * 8;
+    let index_offset = 5 * 8;
+
+    memory
+        .store(height_offset, effect_id.height.0)
+        .expect("Failed to write to guest WebAssembly module's memory");
+    memory
+        .store(index_offset, effect_id.index)
+        .expect("Failed to write to guest WebAssembly module's memory");
 }
 
 /// Stores a list of [`SessionId`]s in a newly allocated slice of the guest WebAssembly module's
