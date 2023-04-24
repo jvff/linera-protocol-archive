@@ -292,8 +292,8 @@ async fn store_session_id_list(
     session_ids: &[SessionId],
 ) -> (i32, i32) {
     let session_id_size: u16 = 12 * 8 /* application_id */
-                    + 8 /* kind: u64 */
-                    + 8 /* index: u64 */;
+        + 8 /* kind: u64 */
+        + 8 /* index: u64 */;
 
     let length = i32::try_from(session_ids.len()).expect("Too many session IDs in list");
     let size = length * i32::from(session_id_size);
