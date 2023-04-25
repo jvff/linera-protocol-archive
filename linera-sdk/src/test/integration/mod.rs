@@ -8,6 +8,8 @@
 //! executed targeting the host architecture, instead of targeting `wasm32-unknown-unknown` like
 //! done for unit tests.
 
+#![cfg(any(feature = "wasmer", feature = "wasmtime"))]
+
 mod block;
 mod chain;
 mod validator;
