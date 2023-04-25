@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use anyhow::Result;
+use linera_base::identifiers::{ApplicationId, ChainId, EffectId};
 use linera_views::batch::WriteOperation;
 use std::any::Any;
 use wasmtime::{Caller, Extern, Func, Linker};
