@@ -8,6 +8,8 @@ edition = "2021"
 development = ["linera-sdk"]
 
 [features]
+wasmer = ["linera-core/wasmer", "linera-execution/wasmer", "linera-storage/wasmer"]
+wasmtime = ["linera-core/wasmtime", "linera-execution/wasmtime", "linera-storage/wasmtime"]
 test = []
 
 [dependencies]
@@ -27,9 +29,9 @@ cargo_toml = "0.15.2"
 dashmap = "5.4.0"
 linera-base = { path = "../linera-base" }
 linera-chain = { path = "../linera-chain" }
-linera-core = { path = "../linera-core", default-features = false, features = ["test", "wasmer", "wasmtime"] }
-linera-execution = { path = "../linera-execution", default-features = false, features = ["wasmer", "wasmtime"] }
-linera-storage = { path = "../linera-storage", default-features = false, features = ["wasmer", "wasmtime"] }
+linera-core = { path = "../linera-core", default-features = false, features = ["test"] }
+linera-execution = { path = "../linera-execution", default-features = false }
+linera-storage = { path = "../linera-storage", default-features = false }
 tokio = { version = "1.25.0", features = ["macros", "rt-multi-thread"] }
 wasmtime = "1.0"
 wit-bindgen-host-wasmtime-rust = { git = "https://github.com/jvff/wit-bindgen", rev = "b3f43500ec4a65379b65148e32941117c17bc2f1" }
