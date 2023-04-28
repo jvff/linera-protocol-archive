@@ -19,10 +19,7 @@ use linera_execution::{
     system::{SystemChannel, SystemEffect, SystemOperation},
     Bytecode, Effect, Query, Response,
 };
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{path::PathBuf, sync::Arc};
 use tokio::{fs, sync::Mutex};
 
 /// A reference to a single microchain inside a [`TestValidator`].
@@ -169,7 +166,7 @@ impl ActiveChain {
         let manifest_path = fs::canonicalize("Cargo.toml")
             .await
             .expect("Failed to get absolute path of Cargo manifest");
-        let mut cargo_manifest =
+        let cargo_manifest =
             Manifest::from_path(manifest_path).expect("Failed to load Cargo.toml manifest");
 
         let binaries: Vec<_> = cargo_manifest
