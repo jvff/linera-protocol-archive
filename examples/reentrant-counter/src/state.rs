@@ -1,13 +1,11 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use linera_views::{
-    register_view::RegisterView,
-    views::{RootView, View},
-};
+use linera_sdk::views::RegisterView;
+use linera_views::views::WasmView;
 
 /// The application state.
-#[derive(Debug, RootView)]
-pub struct ReentrantCounter<C> {
-    pub value: RegisterView<C, u128>,
+#[derive(WasmView)]
+pub struct ReentrantCounter {
+    pub value: RegisterView<u128>,
 }
