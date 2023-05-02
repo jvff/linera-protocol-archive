@@ -15,14 +15,10 @@ use linera_sdk::{
 use linera_views::{common::Context, views::ViewError};
 use thiserror::Error;
 
-linera_sdk::contract!(Counter<ViewStorageContext>);
+linera_sdk::contract!(Counter);
 
 #[async_trait]
-impl<C> Contract for Counter<C>
-where
-    C: Context + Send + Sync + Clone + 'static,
-    ViewError: From<<C as Context>::Error>,
-{
+impl Contract for Counter {
     type Error = Error;
     type Storage = ViewStateStorage<Self>;
 

@@ -10,7 +10,7 @@ extern crate syn;
 use crate::util::{concat, create_entry_name, snakify};
 use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 use syn::{parse_macro_input, Field, GenericArgument, ItemStruct, PathArguments, Type, TypePath};
 
 fn get_seq_parameter(generics: syn::Generics) -> Vec<syn::Ident> {
@@ -35,13 +35,28 @@ fn get_type_field(field: syn::Field) -> Option<syn::Ident> {
     }
 }
 
-fn generate_view_code(input: ItemStruct, root: bool) -> TokenStream2 {
+fn generate_view_code(input: ItemStruct, root: bool, wasm: bool) -> TokenStream2 {
     let struct_name = input.ident;
     let generics = input.generics;
     let template_vect = get_seq_parameter(generics.clone());
-    let first_generic = template_vect
-        .get(0)
-        .expect("failed to find the first generic parameter");
+
+    let context;
+    let context_constraints;
+
+    if wasm {
+        context = quote! { linera_sdk::contract::system_api::ViewStorageContext };
+        context_constraints = quote! {};
+    } else {
+        context = template_vect
+            .get(0)
+            .expect("failed to find the first generic parameter")
+            .into_token_stream();
+        context_constraints = quote! {
+            where
+                #context: Context + Send + Sync + Clone + 'static,
+                linera_views::views::ViewError: From<#context::Error>,
+        }
+    }
 
     let mut name_quotes = Vec::new();
     let mut load_future_quotes = Vec::new();
@@ -91,16 +106,14 @@ fn generate_view_code(input: ItemStruct, root: bool) -> TokenStream2 {
 
     quote! {
         #[async_trait::async_trait]
-        impl #generics linera_views::views::View<#first_generic> for #struct_name #generics
-        where
-            #first_generic: Context + Send + Sync + Clone + 'static,
-            linera_views::views::ViewError: From<#first_generic::Error>,
+        impl #generics linera_views::views::View<#context> for #struct_name #generics
+        #context_constraints
         {
-            fn context(&self) -> &#first_generic {
+            fn context(&self) -> &#context {
                 self.#first_name_quote.context()
             }
 
-            async fn load(context: #first_generic) -> Result<Self, linera_views::views::ViewError> {
+            async fn load(context: #context) -> Result<Self, linera_views::views::ViewError> {
                 #increment_counter
                 use linera_views::futures::join;
                 #(#load_future_quotes)*
@@ -520,13 +533,13 @@ fn generate_graphql_code(input: ItemStruct) -> TokenStream2 {
 #[proc_macro_derive(View)]
 pub fn derive_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    generate_view_code(input, false).into()
+    generate_view_code(input, false, false).into()
 }
 
 #[proc_macro_derive(HashableView)]
 pub fn derive_hash_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    let mut stream = generate_view_code(input.clone(), false);
+    let mut stream = generate_view_code(input.clone(), false, false);
     stream.extend(generate_hash_view_code(input));
     stream.into()
 }
@@ -534,7 +547,15 @@ pub fn derive_hash_view(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(RootView)]
 pub fn derive_root_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    let mut stream = generate_view_code(input.clone(), true);
+    let mut stream = generate_view_code(input.clone(), true, false);
+    stream.extend(generate_save_delete_view_code(input));
+    stream.into()
+}
+
+#[proc_macro_derive(WasmView)]
+pub fn derive_wasm_view(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+    let mut stream = generate_view_code(input.clone(), true, true);
     stream.extend(generate_save_delete_view_code(input));
     stream.into()
 }
@@ -542,7 +563,7 @@ pub fn derive_root_view(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(CryptoHashView)]
 pub fn derive_crypto_hash_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    let mut stream = generate_view_code(input.clone(), false);
+    let mut stream = generate_view_code(input.clone(), false, false);
     stream.extend(generate_hash_view_code(input.clone()));
     stream.extend(generate_crypto_hash_code(input));
     stream.into()
@@ -551,7 +572,7 @@ pub fn derive_crypto_hash_view(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(CryptoHashRootView)]
 pub fn derive_crypto_hash_root_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    let mut stream = generate_view_code(input.clone(), true);
+    let mut stream = generate_view_code(input.clone(), true, false);
     stream.extend(generate_save_delete_view_code(input.clone()));
     stream.extend(generate_hash_view_code(input.clone()));
     stream.extend(generate_crypto_hash_code(input));
@@ -562,7 +583,7 @@ pub fn derive_crypto_hash_root_view(input: TokenStream) -> TokenStream {
 #[cfg(test)]
 pub fn derive_hashable_root_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    let mut stream = generate_view_code(input.clone(), true);
+    let mut stream = generate_view_code(input.clone(), true, false);
     stream.extend(generate_save_delete_view_code(input.clone()));
     stream.extend(generate_hash_view_code(input));
     stream.into()
@@ -600,7 +621,7 @@ pub mod tests {
                 collection: CollectionView<C, usize, RegisterView<C, usize>>,
             }
         );
-        let output = generate_view_code(input, true);
+        let output = generate_view_code(input, true, false);
 
         let expected = quote!(
             #[async_trait::async_trait]
