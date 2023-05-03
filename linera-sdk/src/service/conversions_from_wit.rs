@@ -110,10 +110,10 @@ impl From<PollFindKeys> for Poll<Vec<Vec<u8>>> {
     }
 }
 
-impl From<PollFindKeyValues> for Poll<Result<Vec<(Vec<u8>, Vec<u8>)>, ViewError>> {
+impl From<PollFindKeyValues> for Poll<Vec<(Vec<u8>, Vec<u8>)>> {
     fn from(poll_find_key_values: PollFindKeyValues) -> Self {
         match poll_find_key_values {
-            PollFindKeyValues::Ready(key_values) => Poll::Ready(Ok(key_values)),
+            PollFindKeyValues::Ready(key_values) => Poll::Ready(key_values),
             PollFindKeyValues::Pending => Poll::Pending,
         }
     }
