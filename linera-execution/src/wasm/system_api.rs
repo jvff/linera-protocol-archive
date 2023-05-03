@@ -272,15 +272,19 @@ macro_rules! impl_writable_system {
 /// Generates the common code for service system API types for all WASM runtimes.
 macro_rules! impl_queryable_system {
     ($service_system_api:ident<$runtime:lifetime>) => {
-        impl_queryable_system!(@generate $service_system_api<$runtime>, $runtime, <$runtime>);
+        impl_queryable_system!(
+            @generate $service_system_api<$runtime>, wasmtime::Trap, $runtime, <$runtime>
+        );
     };
 
     ($service_system_api:ident) => {
-        impl_queryable_system!(@generate $service_system_api, 'static);
+        impl_queryable_system!(@generate $service_system_api, wasmer::RuntimeError, 'static);
     };
 
-    (@generate $service_system_api:ty, $runtime:lifetime $(, <$param:lifetime> )?) => {
+    (@generate $service_system_api:ty, $trap:ty, $runtime:lifetime $(, <$param:lifetime> )?) => {
         impl$(<$param>)? QueryableSystem for $service_system_api {
+            type Error = ExecutionError;
+
             type Load = HostFuture<$runtime, Result<Vec<u8>, ExecutionError>>;
             type Lock = HostFuture<$runtime, Result<(), ExecutionError>>;
             type Unlock = HostFuture<$runtime, Result<(), ExecutionError>>;
@@ -290,141 +294,169 @@ macro_rules! impl_queryable_system {
                 HostFuture<$runtime, Result<Vec<(Vec<u8>, Vec<u8>)>, ExecutionError>>;
             type TryQueryApplication = HostFuture<$runtime, Result<Vec<u8>, ExecutionError>>;
 
-            fn chain_id(&mut self) -> queryable_system::ChainId {
-                self.runtime().chain_id().into()
+            fn error_to_trap(&mut self, error: Self::Error) -> $trap {
+                error.into()
             }
 
-            fn application_id(&mut self) -> queryable_system::ApplicationId {
-                self.runtime().application_id().into()
+            fn chain_id(&mut self) -> Result<queryable_system::ChainId, Self::Error> {
+                Ok(self.runtime().chain_id().into())
             }
 
-            fn application_parameters(&mut self) -> Vec<u8> {
-                self.runtime().application_parameters()
+            fn application_id(&mut self) -> Result<queryable_system::ApplicationId, Self::Error> {
+                Ok(self.runtime().application_id().into())
             }
 
-            fn read_system_balance(&mut self) -> queryable_system::Balance {
-                self.runtime().read_system_balance().into()
+            fn application_parameters(&mut self) -> Result<Vec<u8>, Self::Error> {
+                Ok(self.runtime().application_parameters())
             }
 
-            fn read_system_timestamp(&mut self) -> queryable_system::Timestamp {
-                self.runtime().read_system_timestamp().micros()
+            fn read_system_balance(&mut self) -> Result<queryable_system::Balance, Self::Error> {
+                Ok(self.runtime().read_system_balance().into())
             }
 
-            fn load_new(&mut self) -> Self::Load {
-                HostFuture::new(self.runtime().try_read_my_state())
+            fn read_system_timestamp(
+                &mut self,
+            ) -> Result<queryable_system::Timestamp, Self::Error> {
+                Ok(self.runtime().read_system_timestamp().micros())
             }
 
-            fn load_poll(&mut self, future: &Self::Load) -> queryable_system::PollLoad {
+            fn load_new(&mut self) -> Result<Self::Load, Self::Error> {
+                Ok(HostFuture::new(self.runtime().try_read_my_state()))
+            }
+
+            fn load_poll(
+                &mut self,
+                future: &Self::Load,
+            ) -> Result<queryable_system::PollLoad, Self::Error> {
                 use queryable_system::PollLoad;
-                match future.poll(self.waker()) {
+                Ok(match future.poll(self.waker()) {
                     Poll::Pending => PollLoad::Pending,
                     Poll::Ready(Ok(bytes)) => PollLoad::Ready(Ok(bytes)),
                     Poll::Ready(Err(error)) => PollLoad::Ready(Err(error.to_string())),
-                }
+                })
             }
 
-            fn lock_new(&mut self) -> Self::Lock {
-                HostFuture::new(self.runtime().lock_view_user_state())
+            fn lock_new(&mut self) -> Result<Self::Lock, Self::Error> {
+                Ok(HostFuture::new(self.runtime().lock_view_user_state()))
             }
 
-            fn lock_poll(&mut self, future: &Self::Lock) -> queryable_system::PollLock {
+            fn lock_poll(
+                &mut self,
+                future: &Self::Lock,
+            ) -> Result<queryable_system::PollLock, Self::Error> {
                 use queryable_system::PollLock;
-                match future.poll(self.waker()) {
+                Ok(match future.poll(self.waker()) {
                     Poll::Pending => PollLock::Pending,
                     Poll::Ready(Ok(())) => PollLock::Ready(Ok(())),
                     Poll::Ready(Err(error)) => PollLock::Ready(Err(error.to_string())),
-                }
+                })
             }
 
-            fn unlock_new(&mut self) -> Self::Unlock {
-                HostFuture::new(self.runtime().unlock_view_user_state())
+            fn unlock_new(&mut self) -> Result<Self::Unlock, Self::Error> {
+                Ok(HostFuture::new(self.runtime().unlock_view_user_state()))
             }
 
-            fn unlock_poll(&mut self, future: &Self::Lock) -> queryable_system::PollUnlock {
+            fn unlock_poll(
+                &mut self,
+                future: &Self::Lock,
+            ) -> Result<queryable_system::PollUnlock, Self::Error> {
                 use queryable_system::PollUnlock;
-                match future.poll(self.waker()) {
+                Ok(match future.poll(self.waker()) {
                     Poll::Pending => PollUnlock::Pending,
                     Poll::Ready(Ok(())) => PollUnlock::Ready(Ok(())),
                     Poll::Ready(Err(error)) => PollUnlock::Ready(Err(error.to_string())),
-                }
+                })
             }
 
-            fn read_key_bytes_new(&mut self, key: &[u8]) -> Self::ReadKeyBytes {
-                HostFuture::new(self.runtime().read_key_bytes(key.to_owned()))
+            fn read_key_bytes_new(
+                &mut self,
+                key: &[u8],
+            ) -> Result<Self::ReadKeyBytes, Self::Error> {
+                Ok(HostFuture::new(self.runtime().read_key_bytes(key.to_owned())))
             }
 
             fn read_key_bytes_poll(
                 &mut self,
                 future: &Self::ReadKeyBytes,
-            ) -> queryable_system::PollReadKeyBytes {
+            ) -> Result<queryable_system::PollReadKeyBytes, Self::Error> {
                 use queryable_system::PollReadKeyBytes;
-                match future.poll(self.waker()) {
+                Ok(match future.poll(self.waker()) {
                     Poll::Pending => PollReadKeyBytes::Pending,
                     Poll::Ready(Ok(opt_list)) => PollReadKeyBytes::Ready(Ok(opt_list)),
                     Poll::Ready(Err(error)) => PollReadKeyBytes::Ready(Err(error.to_string())),
-                }
+                })
             }
 
-            fn find_keys_new(&mut self, key_prefix: &[u8]) -> Self::FindKeys {
-                HostFuture::new(self.runtime().find_keys_by_prefix(key_prefix.to_owned()))
+            fn find_keys_new(&mut self, key_prefix: &[u8]) -> Result<Self::FindKeys, Self::Error> {
+                Ok(HostFuture::new(self.runtime().find_keys_by_prefix(key_prefix.to_owned())))
             }
 
-            fn find_keys_poll(&mut self, future: &Self::FindKeys) -> queryable_system::PollFindKeys {
+            fn find_keys_poll(
+                &mut self,
+                future: &Self::FindKeys,
+            ) -> Result<queryable_system::PollFindKeys, Self::Error> {
                 use queryable_system::PollFindKeys;
-                match future.poll(self.waker()) {
+                Ok(match future.poll(self.waker()) {
                     Poll::Pending => PollFindKeys::Pending,
                     Poll::Ready(Ok(keys)) => PollFindKeys::Ready(Ok(keys)),
                     Poll::Ready(Err(error)) => PollFindKeys::Ready(Err(error.to_string())),
-                }
+                })
             }
 
-            fn find_key_values_new(&mut self, key_prefix: &[u8]) -> Self::FindKeyValues {
-                HostFuture::new(
+            fn find_key_values_new(
+                &mut self,
+                key_prefix: &[u8],
+            ) -> Result<Self::FindKeyValues, Self::Error> {
+                Ok(HostFuture::new(
                     self.runtime()
                         .find_key_values_by_prefix(key_prefix.to_owned()),
-                )
+                ))
             }
 
             fn find_key_values_poll(
                 &mut self,
                 future: &Self::FindKeyValues,
-            ) -> queryable_system::PollFindKeyValues {
+            ) -> Result<queryable_system::PollFindKeyValues, Self::Error> {
                 use queryable_system::PollFindKeyValues;
-                match future.poll(self.waker()) {
+                Ok(match future.poll(self.waker()) {
                     Poll::Pending => PollFindKeyValues::Pending,
                     Poll::Ready(Ok(key_values)) => PollFindKeyValues::Ready(Ok(key_values)),
                     Poll::Ready(Err(error)) => PollFindKeyValues::Ready(Err(error.to_string())),
-                }
+                })
             }
 
             fn try_query_application_new(
                 &mut self,
                 application: queryable_system::ApplicationId,
                 argument: &[u8],
-            ) -> Self::TryQueryApplication {
+            ) -> Result<Self::TryQueryApplication, Self::Error> {
                 let runtime = self.runtime();
                 let argument = Vec::from(argument);
 
-                HostFuture::new(async move {
+                Ok(HostFuture::new(async move {
                     runtime
                         .try_query_application(application.into(), &argument)
                         .await
-                })
+                }))
             }
 
             fn try_query_application_poll(
                 &mut self,
                 future: &Self::TryQueryApplication,
-            ) -> queryable_system::PollLoad {
+            ) -> Result<queryable_system::PollLoad, Self::Error> {
                 use queryable_system::PollLoad;
-                match future.poll(self.waker()) {
+                Ok(match future.poll(self.waker()) {
                     Poll::Pending => PollLoad::Pending,
                     Poll::Ready(Ok(result)) => PollLoad::Ready(Ok(result)),
                     Poll::Ready(Err(error)) => PollLoad::Ready(Err(error.to_string())),
-                }
+                })
             }
 
-            fn log(&mut self, message: &str, level: queryable_system::LogLevel) {
+            fn log(
+                &mut self,
+                message: &str,
+                level: queryable_system::LogLevel,
+            ) -> Result<(), Self::Error> {
                 match level {
                     queryable_system::LogLevel::Trace => tracing::trace!("{message}"),
                     queryable_system::LogLevel::Debug => tracing::debug!("{message}"),
@@ -432,6 +464,7 @@ macro_rules! impl_queryable_system {
                     queryable_system::LogLevel::Warn => tracing::warn!("{message}"),
                     queryable_system::LogLevel::Error => tracing::error!("{message}"),
                 }
+                Ok(())
             }
         }
     };

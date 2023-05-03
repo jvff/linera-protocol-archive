@@ -10,7 +10,10 @@ wit_bindgen_host_wasmtime_rust::export!({
 });
 
 // Export the system interface used by a user service.
-wit_bindgen_host_wasmtime_rust::export!("queryable_system.wit");
+wit_bindgen_host_wasmtime_rust::export!({
+    custom_error: true,
+    paths: ["queryable_system.wit"],
+});
 
 // Import the interface implemented by a user contract.
 wit_bindgen_host_wasmtime_rust::import!("contract.wit");
