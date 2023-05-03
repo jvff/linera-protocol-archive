@@ -396,11 +396,11 @@ macro_rules! impl_queryable_system {
                 future: &Self::FindKeys,
             ) -> Result<queryable_system::PollFindKeys, Self::Error> {
                 use queryable_system::PollFindKeys;
-                Ok(match future.poll(self.waker()) {
-                    Poll::Pending => PollFindKeys::Pending,
-                    Poll::Ready(Ok(keys)) => PollFindKeys::Ready(Ok(keys)),
-                    Poll::Ready(Err(error)) => PollFindKeys::Ready(Err(error.to_string())),
-                })
+                match future.poll(self.waker()) {
+                    Poll::Pending => Ok(PollFindKeys::Pending),
+                    Poll::Ready(Ok(keys)) => Ok(PollFindKeys::Ready(keys)),
+                    Poll::Ready(Err(error)) => Err(error),
+                }
             }
 
             fn find_key_values_new(
