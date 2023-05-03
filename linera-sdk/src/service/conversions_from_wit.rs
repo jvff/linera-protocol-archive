@@ -113,10 +113,7 @@ impl From<PollFindKeys> for Poll<Result<Vec<Vec<u8>>, ViewError>> {
 impl From<PollFindKeyValues> for Poll<Result<Vec<(Vec<u8>, Vec<u8>)>, ViewError>> {
     fn from(poll_find_key_values: PollFindKeyValues) -> Self {
         match poll_find_key_values {
-            PollFindKeyValues::Ready(Ok(key_values)) => Poll::Ready(Ok(key_values)),
-            PollFindKeyValues::Ready(Err(error)) => {
-                Poll::Ready(Err(ViewError::WasmHostGuestError(error)))
-            }
+            PollFindKeyValues::Ready(key_values) => Poll::Ready(Ok(key_values)),
             PollFindKeyValues::Pending => Poll::Pending,
         }
     }

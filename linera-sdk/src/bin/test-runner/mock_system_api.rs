@@ -1114,7 +1114,7 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
         "queryable_system",
         "find-key-values::poll: func(self: handle<find-key-values>) -> variant { \
             pending(unit), \
-            ready(result<list<tuple<list<u8>, list<u8>>>, string>) \
+            ready(list<tuple<list<u8>, list<u8>>>) \
         }",
         move |mut caller: Caller<'_, Resources>, handle: i32, return_offset: i32| {
             Box::new(async move {
@@ -1143,8 +1143,7 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
                     .expect("Failed to call `mocked-find-key-values` function");
 
                 store_in_memory(&mut caller, return_offset, 1_i32);
-                store_in_memory(&mut caller, return_offset + 4, 0_i32);
-                copy_memory_slices(&mut caller, result_offset, return_offset + 8, 12);
+                copy_memory_slices(&mut caller, result_offset, return_offset + 4, 12);
             })
         },
     )?;
