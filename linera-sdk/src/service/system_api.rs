@@ -67,7 +67,7 @@ impl KeyValueStoreClient for ReadOnlyKeyValueStore {
 
     async fn read_key_bytes(&self, key: &[u8]) -> Result<Option<Vec<u8>>, ViewError> {
         let future = system::ReadKeyBytes::new(key);
-        future::poll_fn(|_context| future.poll().into()).await
+        Ok(future::poll_fn(|_context| future.poll().into()).await)
     }
 
     async fn read_multi_key_bytes(
