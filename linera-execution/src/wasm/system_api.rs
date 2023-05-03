@@ -380,11 +380,11 @@ macro_rules! impl_queryable_system {
                 future: &Self::ReadKeyBytes,
             ) -> Result<queryable_system::PollReadKeyBytes, Self::Error> {
                 use queryable_system::PollReadKeyBytes;
-                Ok(match future.poll(self.waker()) {
-                    Poll::Pending => PollReadKeyBytes::Pending,
-                    Poll::Ready(Ok(opt_list)) => PollReadKeyBytes::Ready(Ok(opt_list)),
-                    Poll::Ready(Err(error)) => PollReadKeyBytes::Ready(Err(error.to_string())),
-                })
+                match future.poll(self.waker()) {
+                    Poll::Pending => Ok(PollReadKeyBytes::Pending),
+                    Poll::Ready(Ok(opt_list)) => Ok(PollReadKeyBytes::Ready(opt_list)),
+                    Poll::Ready(Err(error)) => Err(error),
+                }
             }
 
             fn find_keys_new(&mut self, key_prefix: &[u8]) -> Result<Self::FindKeys, Self::Error> {

@@ -1018,7 +1018,7 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
         "queryable_system",
         "read-key-bytes::poll: func(self: handle<read-key-bytes>) -> variant { \
             pending(unit), \
-            ready(result<option<list<u8>>, string>) \
+            ready(option<list<u8>>) \
         }",
         move |mut caller: Caller<'_, Resources>, handle: i32, return_offset: i32| {
             Box::new(async move {
@@ -1046,8 +1046,7 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
                     .expect("Failed to call `mocked-read-key-bytes` function");
 
                 store_in_memory(&mut caller, return_offset, 1_i32);
-                store_in_memory(&mut caller, return_offset + 4, 0_i32);
-                copy_memory_slices(&mut caller, result_offset, return_offset + 8, 12);
+                copy_memory_slices(&mut caller, result_offset, return_offset + 4, 12);
             })
         },
     )?;

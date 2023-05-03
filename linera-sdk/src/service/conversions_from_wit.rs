@@ -95,10 +95,7 @@ impl From<PollLock> for Poll<Result<(), ViewError>> {
 impl From<PollReadKeyBytes> for Poll<Result<Option<Vec<u8>>, ViewError>> {
     fn from(poll_read_key_bytes: PollReadKeyBytes) -> Self {
         match poll_read_key_bytes {
-            PollReadKeyBytes::Ready(Ok(bytes)) => Poll::Ready(Ok(bytes)),
-            PollReadKeyBytes::Ready(Err(error)) => {
-                Poll::Ready(Err(ViewError::WasmHostGuestError(error)))
-            }
+            PollReadKeyBytes::Ready(bytes) => Poll::Ready(Ok(bytes)),
             PollReadKeyBytes::Pending => Poll::Pending,
         }
     }
