@@ -85,7 +85,7 @@ async fn query_account(
 
     Some(
         u64::try_from(balance)
-            .expect("Negative balance in account")
+            .expect("Account balance should be non-negative")
             .into(),
     )
 }
