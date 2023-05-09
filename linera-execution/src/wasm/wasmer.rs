@@ -349,7 +349,10 @@ pub struct SystemApi<S> {
     runtime: Arc<Mutex<Option<S>>>,
 }
 
-impl<Runtime> SystemApi<Runtime> {
+impl<Runtime> SystemApi<&'static Runtime>
+where
+    Runtime: ?Sized,
+{
     /// Creates a new [`SystemApi`] instance, ensuring that the lifetime of the borrowed `runtime`
     /// reference is respected.
     ///
@@ -364,9 +367,9 @@ impl<Runtime> SystemApi<Runtime> {
     /// expected to be alive and usable by the WASM application.
     pub fn new<'runtime>(
         waker: WakerForwarder,
-        runtime: impl RemoveLifetime<WithoutLifetime = Runtime> + 'runtime,
-    ) -> (Self, RuntimeGuard<'runtime, Runtime>) {
-        let runtime = Arc::new(Mutex::new(Some(unsafe { runtime.remove_lifetime() })));
+        runtime: &'runtime Runtime,
+    ) -> (Self, RuntimeGuard<'runtime, &'static Runtime>) {
+        let runtime = Arc::new(Mutex::new(Some(unsafe { mem::transmute(runtime) })));
 
         let guard = RuntimeGuard {
             runtime: runtime.clone(),
