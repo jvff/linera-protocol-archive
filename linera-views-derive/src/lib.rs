@@ -35,7 +35,10 @@ fn get_type_field(field: syn::Field) -> Option<syn::Ident> {
     }
 }
 
-fn context_and_constraints(template_vect: &[syn::Ident]) -> (TokenStream2, TokenStream2) {
+fn context_and_constraints(
+    template_vect: &[syn::Ident],
+    wasm: bool,
+) -> (TokenStream2, TokenStream2) {
     let context;
     let constraints;
 
@@ -52,12 +55,12 @@ fn context_and_constraints(template_vect: &[syn::Ident]) -> (TokenStream2, Token
     (context, constraints)
 }
 
-fn generate_view_code(input: ItemStruct, root: bool) -> TokenStream2 {
+fn generate_view_code(input: ItemStruct, root: bool, wasm: bool) -> TokenStream2 {
     let struct_name = input.ident;
     let generics = input.generics;
     let template_vect = get_seq_parameter(generics.clone());
 
-    let (context, context_constraints) = context_and_constraints(&template_vect);
+    let (context, context_constraints) = context_and_constraints(&template_vect, wasm);
 
     let mut name_quotes = Vec::new();
     let mut load_future_quotes = Vec::new();
@@ -147,12 +150,12 @@ fn generate_view_code(input: ItemStruct, root: bool) -> TokenStream2 {
     }
 }
 
-fn generate_save_delete_view_code(input: ItemStruct) -> TokenStream2 {
+fn generate_save_delete_view_code(input: ItemStruct, wasm: bool) -> TokenStream2 {
     let struct_name = input.ident;
     let generics = input.generics;
     let template_vect = get_seq_parameter(generics.clone());
 
-    let (context, context_constraints) = context_and_constraints(&template_vect);
+    let (context, context_constraints) = context_and_constraints(&template_vect, wasm);
 
     let mut flushes = Vec::new();
     let mut deletes = Vec::new();
@@ -302,7 +305,10 @@ fn generic_argument_from_type_path(type_path: &TypePath) -> Vec<&Type> {
         .collect()
 }
 
-fn generate_graphql_code_for_field(field: Field) -> (TokenStream2, Option<TokenStream2>) {
+fn generate_graphql_code_for_field(
+    field: Field,
+    wasm: bool,
+) -> (TokenStream2, Option<TokenStream2>) {
     let field_name = field
         .ident
         .clone()
@@ -496,18 +502,18 @@ fn generate_graphql_code_for_field(field: Field) -> (TokenStream2, Option<TokenS
     }
 }
 
-fn generate_graphql_code(input: ItemStruct) -> TokenStream2 {
+fn generate_graphql_code(input: ItemStruct, wasm: bool) -> TokenStream2 {
     let struct_name = input.ident;
     let generics = input.generics;
     let template_vect = get_seq_parameter(generics.clone());
 
-    let (_context, constraints) = context_and_constraints(&template_vect);
+    let (_context, constraints) = context_and_constraints(&template_vect, wasm);
 
     let mut impls = vec![];
     let mut structs = vec![];
 
     for field in input.fields {
-        let (r#impl, r#struct) = generate_graphql_code_for_field(field);
+        let (r#impl, r#struct) = generate_graphql_code_for_field(field, wasm);
         impls.push(r#impl);
         if let Some(r#struct) = r#struct {
             structs.push(r#struct);
@@ -533,13 +539,13 @@ fn generate_graphql_code(input: ItemStruct) -> TokenStream2 {
 #[proc_macro_derive(View)]
 pub fn derive_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    generate_view_code(input, false).into()
+    generate_view_code(input, false, false).into()
 }
 
 #[proc_macro_derive(HashableView)]
 pub fn derive_hash_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    let mut stream = generate_view_code(input.clone(), false);
+    let mut stream = generate_view_code(input.clone(), false, false);
     stream.extend(generate_hash_view_code(input));
     stream.into()
 }
@@ -547,15 +553,15 @@ pub fn derive_hash_view(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(RootView)]
 pub fn derive_root_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    let mut stream = generate_view_code(input.clone(), true);
-    stream.extend(generate_save_delete_view_code(input));
+    let mut stream = generate_view_code(input.clone(), true, false);
+    stream.extend(generate_save_delete_view_code(input, false));
     stream.into()
 }
 
 #[proc_macro_derive(CryptoHashView)]
 pub fn derive_crypto_hash_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    let mut stream = generate_view_code(input.clone(), false);
+    let mut stream = generate_view_code(input.clone(), false, false);
     stream.extend(generate_hash_view_code(input.clone()));
     stream.extend(generate_crypto_hash_code(input));
     stream.into()
@@ -564,8 +570,8 @@ pub fn derive_crypto_hash_view(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(CryptoHashRootView)]
 pub fn derive_crypto_hash_root_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    let mut stream = generate_view_code(input.clone(), true);
-    stream.extend(generate_save_delete_view_code(input.clone()));
+    let mut stream = generate_view_code(input.clone(), true, false);
+    stream.extend(generate_save_delete_view_code(input.clone(), false));
     stream.extend(generate_hash_view_code(input.clone()));
     stream.extend(generate_crypto_hash_code(input));
     stream.into()
@@ -575,8 +581,8 @@ pub fn derive_crypto_hash_root_view(input: TokenStream) -> TokenStream {
 #[cfg(test)]
 pub fn derive_hashable_root_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    let mut stream = generate_view_code(input.clone(), true);
-    stream.extend(generate_save_delete_view_code(input.clone()));
+    let mut stream = generate_view_code(input.clone(), true, false);
+    stream.extend(generate_save_delete_view_code(input.clone(), false));
     stream.extend(generate_hash_view_code(input));
     stream.into()
 }
@@ -584,7 +590,7 @@ pub fn derive_hashable_root_view(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(GraphQLView)]
 pub fn derive_graphql_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    generate_graphql_code(input).into()
+    generate_graphql_code(input, false).into()
 }
 
 #[cfg(test)]
@@ -613,7 +619,7 @@ pub mod tests {
                 collection: CollectionView<C, usize, RegisterView<C, usize>>,
             }
         );
-        let output = generate_view_code(input, true);
+        let output = generate_view_code(input, true, false);
 
         let expected = quote!(
             #[async_trait::async_trait]
@@ -735,7 +741,7 @@ pub mod tests {
                 collection: CollectionView<C, usize, RegisterView<C, usize>>,
             }
         );
-        let output = generate_save_delete_view_code(input);
+        let output = generate_save_delete_view_code(input, false);
 
         let expected = quote!(
             #[async_trait::async_trait]
@@ -834,7 +840,7 @@ pub mod tests {
             }
         );
 
-        let output = generate_graphql_code(input);
+        let output = generate_graphql_code(input, false);
 
         let expected = quote!(
             pub struct SomeOtherViewEntry<'a, C>
