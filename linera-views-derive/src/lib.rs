@@ -42,14 +42,19 @@ fn context_and_constraints(
     let context;
     let constraints;
 
-    context = template_vect
-        .get(0)
-        .expect("failed to find the first generic parameter")
-        .into_token_stream();
-    constraints = quote! {
-        where
-            #context: linera_views::common::Context + Send + Sync + Clone + 'static,
-            linera_views::views::ViewError: From<#context::Error>,
+    if wasm {
+        context = quote! { linera_sdk::views::ViewStorageContext };
+        constraints = quote! {};
+    } else {
+        context = template_vect
+            .get(0)
+            .expect("failed to find the first generic parameter")
+            .into_token_stream();
+        constraints = quote! {
+            where
+                #context: linera_views::common::Context + Send + Sync + Clone + 'static,
+                linera_views::views::ViewError: From<#context::Error>,
+        }
     }
 
     (context, constraints)
@@ -555,6 +560,14 @@ pub fn derive_root_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     let mut stream = generate_view_code(input.clone(), true, false);
     stream.extend(generate_save_delete_view_code(input, false));
+    stream.into()
+}
+
+#[proc_macro_derive(WasmRootView)]
+pub fn derive_wasm_root_view(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+    let mut stream = generate_view_code(input.clone(), true, true);
+    stream.extend(generate_save_delete_view_code(input, true));
     stream.into()
 }
 
