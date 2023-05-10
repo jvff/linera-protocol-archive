@@ -6,7 +6,8 @@ use crate::{batch::Batch, common::HasherOutput};
 use async_trait::async_trait;
 use linera_base::crypto::CryptoHash;
 pub use linera_views_derive::{
-    CryptoHashRootView, CryptoHashView, GraphQLView, HashableView, RootView, View, WasmRootView,
+    CryptoHashRootView, CryptoHashView, GraphQLView, HashableView, RootView, View, WasmGraphQLView,
+    WasmRootView,
 };
 use serde::Serialize;
 use std::{fmt::Debug, io::Write};

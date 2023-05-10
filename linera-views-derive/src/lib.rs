@@ -323,13 +323,14 @@ fn generate_graphql_code_for_field(
         Type::Path(type_path) => type_path,
         _ => panic!(),
     };
+    let generic_offset = if wasm { 0 } else { 1 };
 
     let view_name = view_type.to_string();
     match view_type.to_string().as_str() {
         "RegisterView" => {
             let generic_arguments = generic_argument_from_type_path(&type_path);
             let generic_ident = generic_arguments
-                .get(1)
+                .get(generic_offset)
                 .expect("no generic specified for 'RegisterView'");
             let r#impl = quote! {
                 async fn #field_name(&self) -> &#generic_ident {
@@ -341,10 +342,10 @@ fn generate_graphql_code_for_field(
         "CollectionView" | "CustomCollectionView" => {
             let generic_arguments = generic_argument_from_type_path(&type_path);
             let index_ident = generic_arguments
-                .get(1)
+                .get(generic_offset)
                 .unwrap_or_else(|| panic!("no index specified for '{}'", view_name));
             let generic_ident = generic_arguments
-                .get(2)
+                .get(generic_offset + 1)
                 .unwrap_or_else(|| panic!("no generic type specified for '{}'", view_name));
 
             let index_name = snakify(index_ident);
@@ -393,7 +394,7 @@ fn generate_graphql_code_for_field(
         "SetView" | "CustomSetView" => {
             let generic_arguments = generic_argument_from_type_path(&type_path);
             let generic_ident = generic_arguments
-                .get(1)
+                .get(generic_offset)
                 .unwrap_or_else(|| panic!("no generic type specified for '{}'", view_name));
 
             let r#impl = quote! {
@@ -406,7 +407,7 @@ fn generate_graphql_code_for_field(
         "LogView" => {
             let generic_arguments = generic_argument_from_type_path(&type_path);
             let generic_ident = generic_arguments
-                .get(1)
+                .get(generic_offset)
                 .expect("no generic type specified for 'LogView'");
 
             let r#impl = quote! {
@@ -426,7 +427,7 @@ fn generate_graphql_code_for_field(
         "WrappedHashableContainerView" => {
             let generic_arguments = generic_argument_from_type_path(&type_path);
             let generic_ident = generic_arguments
-                .get(1)
+                .get(generic_offset)
                 .expect("no generic specified for 'WrappedHashableContainerView'");
             let r#impl = quote! {
                 async fn #field_name(&self) -> &#generic_ident {
@@ -439,7 +440,7 @@ fn generate_graphql_code_for_field(
         "QueueView" => {
             let generic_arguments = generic_argument_from_type_path(&type_path);
             let generic_ident = generic_arguments
-                .get(1)
+                .get(generic_offset)
                 .expect("no generic type specified for 'QueueView'");
 
             let r#impl = quote! {
@@ -453,7 +454,7 @@ fn generate_graphql_code_for_field(
         "ByteMapView" => {
             let generic_arguments = generic_argument_from_type_path(&type_path);
             let generic_ident = generic_arguments
-                .get(1)
+                .get(generic_offset)
                 .expect("no generic type specified for 'ByteMapView'");
 
             let r#impl = quote! {
@@ -466,10 +467,10 @@ fn generate_graphql_code_for_field(
         "MapView" | "CustomMapView" => {
             let generic_arguments = generic_argument_from_type_path(&type_path);
             let index_ident = generic_arguments
-                .get(1)
+                .get(generic_offset)
                 .unwrap_or_else(|| panic!("no index specified for '{}'", view_name));
             let generic_ident = generic_arguments
-                .get(2)
+                .get(generic_offset + 1)
                 .unwrap_or_else(|| panic!("no generic type specified for '{}'", view_name));
 
             let index_name = snakify(index_ident);
@@ -604,6 +605,12 @@ pub fn derive_hashable_root_view(input: TokenStream) -> TokenStream {
 pub fn derive_graphql_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     generate_graphql_code(input, false).into()
+}
+
+#[proc_macro_derive(WasmGraphQLView)]
+pub fn derive_wasm_graphql_view(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+    generate_graphql_code(input, true).into()
 }
 
 #[cfg(test)]
