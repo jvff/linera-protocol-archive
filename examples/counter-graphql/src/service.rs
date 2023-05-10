@@ -10,13 +10,11 @@ use async_graphql::{EmptySubscription, Object, Schema};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use linera_sdk::{
-    service::system_api::ReadOnlyViewStorageContext, QueryContext, Service, ViewStateStorage,
-};
+use linera_sdk::{views::ViewStorageContext, QueryContext, Service, ViewStateStorage};
 use linera_views::{common::Context, views::ViewError};
 use thiserror::Error;
 
-linera_sdk::service!(Counter<ReadOnlyViewStorageContext>);
+linera_sdk::service!(Counter<ViewStorageContext>);
 
 #[async_trait]
 impl<C> Service for Counter<C>

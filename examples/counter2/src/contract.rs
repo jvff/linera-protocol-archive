@@ -8,9 +8,8 @@ mod state;
 use self::state::Counter;
 use async_trait::async_trait;
 use linera_sdk::{
-    base::SessionId, contract::system_api::ViewStorageContext, ApplicationCallResult,
-    CalleeContext, Contract, EffectContext, ExecutionResult, OperationContext, Session,
-    SessionCallResult, ViewStateStorage,
+    base::SessionId, views::ViewStorageContext, ApplicationCallResult, CalleeContext, Contract,
+    EffectContext, ExecutionResult, OperationContext, Session, SessionCallResult, ViewStateStorage,
 };
 use linera_views::{common::Context, views::ViewError};
 use thiserror::Error;
