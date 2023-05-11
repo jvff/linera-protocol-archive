@@ -426,7 +426,9 @@ impl<'runtime> ContractSystemApi<'runtime> {
     }
 
     /// Same as [`Self::runtime`].
-    fn contract_runtime(&self) -> Result<&'runtime dyn ContractRuntime, ExecutionError> {
+    fn runtime_with_writable_storage(
+        &self,
+    ) -> Result<&'runtime dyn ContractRuntime, ExecutionError> {
         Ok(self.runtime())
     }
 
@@ -471,7 +473,9 @@ impl<'runtime> ServiceSystemApi<'runtime> {
     }
 
     /// Returns an error due to an attempt to use a contract system API from a service.
-    fn contract_runtime(&self) -> Result<&'runtime dyn ContractRuntime, ExecutionError> {
+    fn runtime_with_writable_storage(
+        &self,
+    ) -> Result<&'runtime dyn ContractRuntime, ExecutionError> {
         Err(WasmExecutionError::WriteAttemptToReadOnlyStorage.into())
     }
 

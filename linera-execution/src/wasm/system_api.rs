@@ -390,7 +390,10 @@ macro_rules! impl_view_system {
                         }
                     }
                 }
-                Ok(self.new_host_future(self.contract_runtime()?.write_batch_and_unlock(batch)))
+                Ok(self.new_host_future(
+                    self.runtime_with_writable_storage()?
+                        .write_batch_and_unlock(batch),
+                ))
             }
 
             fn write_batch_poll(

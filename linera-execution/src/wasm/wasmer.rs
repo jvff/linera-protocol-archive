@@ -565,7 +565,9 @@ impl ViewSystemApi<&'static dyn ContractRuntime, QueuedHostFutureFactory<'static
     }
 
     /// Same as [`Self::runtime`].
-    fn contract_runtime(&self) -> Result<&'static dyn ContractRuntime, ExecutionError> {
+    fn runtime_with_writable_storage(
+        &self,
+    ) -> Result<&'static dyn ContractRuntime, ExecutionError> {
         Ok(self.runtime())
     }
 
@@ -612,8 +614,10 @@ impl ViewSystemApi<&'static dyn ServiceRuntime, ()> {
             .expect("Application called runtime after it should have stopped")
     }
 
-    /// Returns an error due to an attempt to use a contract system API from a service.
-    fn contract_runtime(&self) -> Result<&'static dyn ContractRuntime, ExecutionError> {
+    /// Returns an error due to an attempt to write to storage from a service.
+    fn runtime_with_writable_storage(
+        &self,
+    ) -> Result<&'static dyn ContractRuntime, ExecutionError> {
         Err(WasmExecutionError::WriteAttemptToReadOnlyStorage.into())
     }
 
