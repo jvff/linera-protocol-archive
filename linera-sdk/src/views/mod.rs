@@ -7,10 +7,7 @@ mod conversions_from_wit;
 mod system_api;
 
 pub use self::system_api::ViewStorageContext;
-use linera_views::{
-    collection_view, log_view, map_view, queue_view, reentrant_collection_view, register_view,
-    set_view,
-};
+use linera_views::{collection_view, log_view, map_view, queue_view, register_view, set_view};
 
 // Import the views system interface.
 wit_bindgen_guest_rust::import!("view_system.wit");
@@ -57,21 +54,6 @@ pub type ReadGuardedView<'a, W> = collection_view::ReadGuardedView<'a, W>;
 /// An alias to [`register_view::RegisterView`] that uses the WebAssembly specific
 /// [`ViewStorageContext`].
 pub type RegisterView<T> = register_view::RegisterView<ViewStorageContext, T>;
-
-/// An alias to [`reentrant_collection_view::ReentrantByteCollectionView`] that uses the
-/// WebAssembly specific [`ViewStorageContext`].
-pub type ReentrantByteCollectionView<V> =
-    reentrant_collection_view::ReentrantByteCollectionView<ViewStorageContext, V>;
-
-/// An alias to [`reentrant_collection_view::ReentrantCollectionView`] that uses the WebAssembly
-/// specific [`ViewStorageContext`].
-pub type ReentrantCollectionView<K, V> =
-    reentrant_collection_view::ReentrantCollectionView<ViewStorageContext, K, V>;
-
-/// An alias to [`reentrant_collection_view::ReentrantCustomCollectionView`] that uses the
-/// WebAssembly specific [`ViewStorageContext`].
-pub type ReentrantCustomCollectionView<K, V> =
-    reentrant_collection_view::ReentrantCustomCollectionView<ViewStorageContext, K, V>;
 
 /// An alias to [`set_view::SetView`] that uses the WebAssembly specific [`ViewStorageContext`].
 pub type SetView<W> = set_view::SetView<ViewStorageContext, W>;
