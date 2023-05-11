@@ -614,7 +614,7 @@ impl ViewSystemApi<&'static dyn ServiceRuntime, ()> {
 
     /// Returns an error due to an attempt to use a contract system API from a service.
     fn contract_runtime(&self) -> Result<&'static dyn ContractRuntime, ExecutionError> {
-        Err(WasmExecutionError::ContractApiCallFromService.into())
+        Err(WasmExecutionError::WriteAttemptToReadOnlyStorage.into())
     }
 
     /// Returns the [`WakerForwarder`] to be used for asynchronous system calls.
