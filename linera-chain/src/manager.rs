@@ -6,7 +6,7 @@ use crate::{
         Block, BlockAndRound, BlockProposal, Certificate, HashedValue, LiteVote, OutgoingEffect,
         ValueKind, Vote,
     },
-    ChainError,
+    ChainError, ChainErrorKind,
 };
 use linera_base::{
     crypto::{CryptoHash, KeyPair, PublicKey},
@@ -164,7 +164,7 @@ impl ChainManager {
     ) -> Result<Outcome, ChainError> {
         ensure!(
             new_block.height == next_block_height,
-            ChainError::UnexpectedBlockHeight {
+            ChainErrorKind::UnexpectedBlockHeight {
                 expected_block_height: next_block_height,
                 found_block_height: new_block.height
             }
@@ -172,20 +172,23 @@ impl ChainManager {
         // When a block is certified, incrementing its height must succeed.
         ensure!(
             new_block.height < BlockHeight::max(),
-            ChainError::InvalidBlockHeight
+            ChainErrorKind::InvalidBlockHeight
         );
         ensure!(
             new_block.previous_block_hash == block_hash,
-            ChainError::UnexpectedPreviousBlockHash
+            ChainErrorKind::UnexpectedPreviousBlockHash
         );
         match self {
             ChainManager::Single(manager) => {
                 ensure!(
                     new_round == RoundNumber::default(),
-                    ChainError::InvalidBlockProposal
+                    ChainErrorKind::InvalidBlockProposal
                 );
                 if let Some(vote) = &manager.pending {
-                    ensure!(vote.value.is_confirmed(), ChainError::InvalidBlockProposal);
+                    ensure!(
+                        vote.value.is_confirmed(),
+                        ChainErrorKind::InvalidBlockProposal
+                    );
                     if vote.value.block() == new_block {
                         return Ok(Outcome::Skip);
                     } else {
@@ -194,7 +197,7 @@ impl ChainManager {
                             vote.value.block(),
                             new_block
                         );
-                        return Err(ChainError::PreviousBlockMustBeConfirmedFirst);
+                        return Err(ChainErrorKind::PreviousBlockMustBeConfirmedFirst.into());
                     }
                 }
                 Ok(Outcome::Accept)
@@ -205,15 +208,17 @@ impl ChainManager {
                         return Ok(Outcome::Skip);
                     }
                     if new_round <= proposal.content.round {
-                        return Err(ChainError::InsufficientRound(proposal.content.round));
+                        return Err(
+                            ChainErrorKind::InsufficientRound(proposal.content.round).into()
+                        );
                     }
                 }
                 if let Some(Certificate { value, .. }) = &manager.locked {
                     if let ValueKind::ValidatedBlock { round } = value.kind() {
-                        ensure!(new_round > round, ChainError::InsufficientRound(round));
+                        ensure!(new_round > round, ChainErrorKind::InsufficientRound(round));
                         ensure!(
                             new_block == value.block(),
-                            ChainError::HasLockedBlock(value.block().height, round)
+                            ChainErrorKind::HasLockedBlock(value.block().height, round)
                         );
                     }
                 }
@@ -230,9 +235,10 @@ impl ChainManager {
         new_round: RoundNumber,
     ) -> Result<Outcome, ChainError> {
         if next_block_height < new_block.height {
-            return Err(ChainError::MissingEarlierBlocks {
+            return Err(ChainErrorKind::MissingEarlierBlocks {
                 current_block_height: next_block_height,
-            });
+            }
+            .into());
         }
         if next_block_height > new_block.height {
             // Block was already confirmed.
@@ -249,7 +255,7 @@ impl ChainManager {
                         }
                         ValueKind::ValidatedBlock { round } => ensure!(
                             new_round >= round,
-                            ChainError::InsufficientRound(round.try_sub_one().unwrap())
+                            ChainErrorKind::InsufficientRound(round.try_sub_one().unwrap())
                         ),
                     }
                 }
@@ -257,7 +263,7 @@ impl ChainManager {
                     if let ValueKind::ValidatedBlock { round } = value.kind() {
                         ensure!(
                             new_round >= round,
-                            ChainError::InsufficientRound(round.try_sub_one().unwrap())
+                            ChainErrorKind::InsufficientRound(round.try_sub_one().unwrap())
                         );
                     }
                 }

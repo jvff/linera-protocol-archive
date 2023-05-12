@@ -1,7 +1,7 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{data_types::Event, ChainError, Origin};
+use crate::{data_types::Event, ChainError, ChainErrorKind, Origin};
 use async_graphql::SimpleObject;
 use linera_base::{
     data_types::{ArithmeticError, BlockHeight},
@@ -101,23 +101,23 @@ impl Cursor {
     }
 }
 
-impl From<(ChainId, Origin, InboxError)> for ChainError {
+impl From<(ChainId, Origin, InboxError)> for ChainErrorKind {
     fn from(value: (ChainId, Origin, InboxError)) -> Self {
         let (chain_id, origin, error) = value;
         match error {
-            InboxError::ViewError(e) => ChainError::ViewError(e),
-            InboxError::ArithmeticError(e) => ChainError::ArithmeticError(e),
+            InboxError::ViewError(e) => ChainErrorKind::ViewError(e),
+            InboxError::ArithmeticError(e) => ChainErrorKind::ArithmeticError(e),
             InboxError::UnexpectedEvent {
                 event,
                 previous_event,
-            } => ChainError::UnexpectedMessage {
+            } => ChainErrorKind::UnexpectedMessage {
                 chain_id,
                 origin,
                 event,
                 previous_event,
             },
             InboxError::IncorrectOrder { event, next_cursor } => {
-                ChainError::IncorrectMessageOrder {
+                ChainErrorKind::IncorrectMessageOrder {
                     chain_id,
                     origin,
                     event,

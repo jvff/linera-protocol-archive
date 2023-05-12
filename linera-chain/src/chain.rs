@@ -7,7 +7,7 @@ use crate::{
     },
     inbox::{InboxError, InboxStateView},
     outbox::OutboxStateView,
-    ChainError, ChainManager,
+    ChainError, ChainErrorKind, ChainManager,
 };
 use async_graphql::SimpleObject;
 use linera_base::{
@@ -111,7 +111,7 @@ where
             .registry
             .describe_application(application_id)
             .await
-            .map_err(|err| ChainError::ExecutionError(err.into()))
+            .map_err(|err| ChainErrorKind::ExecutionError(err.into()).into())
     }
 
     pub async fn mark_messages_as_received(
@@ -169,7 +169,7 @@ where
         if self.is_active() {
             Ok(())
         } else {
-            Err(ChainError::InactiveChain(self.chain_id()))
+            Err(ChainErrorKind::InactiveChain(self.chain_id()).into())
         }
     }
 
@@ -182,7 +182,7 @@ where
             let event = inbox.removed_events.front().await?;
             ensure!(
                 event.is_none(),
-                ChainError::MissingCrossChainUpdate {
+                ChainErrorKind::MissingCrossChainUpdate {
                     chain_id,
                     origin,
                     height: event.unwrap().height,
@@ -225,7 +225,9 @@ where
         let chain_id = self.chain_id();
         ensure!(
             height >= self.next_block_height_to_receive(origin).await?,
-            ChainError::InternalError("Trying to receive blocks in the wrong order".to_string())
+            ChainErrorKind::InternalError(
+                "Trying to receive blocks in the wrong order".to_string()
+            )
         );
         tracing::trace!(
             "Processing new messages to {:?} from {:?} at height {}",
@@ -284,7 +286,7 @@ where
         // not routed correctly.
         ensure!(
             !events.is_empty(),
-            ChainError::InternalError(format!(
+            ChainErrorKind::InternalError(format!(
                 "The block received by {:?} from {:?} at height {:?} was entirely ignored. \
                 This should not happen",
                 chain_id, origin, height
@@ -294,8 +296,8 @@ where
         let inbox = self.inboxes.load_entry_mut(origin).await?;
         for event in events {
             inbox.add_event(event).await.map_err(|error| match error {
-                InboxError::ViewError(error) => ChainError::ViewError(error),
-                error => ChainError::InternalError(format!(
+                InboxError::ViewError(error) => ChainErrorKind::ViewError(error),
+                error => ChainErrorKind::InternalError(format!(
                     "while processing effects in certified block: {error}"
                 )),
             })?;
@@ -351,11 +353,12 @@ where
                 chain_id
             );
             if message.event.timestamp > block.timestamp {
-                return Err(ChainError::IncorrectEventTimestamp {
+                return Err(ChainErrorKind::IncorrectEventTimestamp {
                     chain_id,
                     message_timestamp: message.event.timestamp,
                     block_timestamp: block.timestamp,
-                });
+                }
+                .into());
             }
             // Mark the message as processed in the inbox.
             let inbox = self.inboxes.load_entry_mut(&message.origin).await?;
@@ -379,7 +382,7 @@ where
         let chain_id = self.chain_id();
         ensure!(
             *self.execution_state.system.timestamp.get() <= block.timestamp,
-            ChainError::InvalidBlockTimestamp
+            ChainErrorKind::InvalidBlockTimestamp
         );
         self.execution_state.system.timestamp.set(block.timestamp);
         self.execution_state.add_fuel(10_000_000);

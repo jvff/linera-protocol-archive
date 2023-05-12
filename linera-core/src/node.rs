@@ -18,7 +18,7 @@ use linera_chain::{
     data_types::{
         Block, BlockProposal, Certificate, HashedValue, LiteCertificate, Origin, OutgoingEffect,
     },
-    ChainError, ChainManagerInfo,
+    ChainError, ChainErrorKind, ChainManagerInfo,
 };
 use linera_execution::{
     committee::ValidatorName, BytecodeLocation, Query, Response, UserApplicationDescription,
@@ -196,8 +196,8 @@ impl From<CryptoError> for NodeError {
 
 impl From<ChainError> for NodeError {
     fn from(error: ChainError) -> Self {
-        match error {
-            ChainError::MissingCrossChainUpdate {
+        match error.into_kind() {
+            ChainErrorKind::MissingCrossChainUpdate {
                 chain_id,
                 origin,
                 height,
@@ -206,7 +206,7 @@ impl From<ChainError> for NodeError {
                 origin,
                 height,
             },
-            ChainError::InactiveChain(chain_id) => Self::InactiveChain(chain_id),
+            ChainErrorKind::InactiveChain(chain_id) => Self::InactiveChain(chain_id),
             error => Self::ChainError {
                 error: error.to_string(),
             },

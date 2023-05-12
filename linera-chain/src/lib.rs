@@ -19,10 +19,14 @@ use linera_base::{
 use linera_execution::ExecutionError;
 use linera_views::views::ViewError;
 pub use manager::{ChainManager, ChainManagerInfo, Outcome as ChainManagerOutcome};
+use std::{
+    error::Error,
+    fmt::{self, Debug, Display, Formatter},
+};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum ChainError {
+pub enum ChainErrorKind {
     #[error("Cryptographic error: {0}")]
     CryptoError(#[from] CryptoError),
     #[error("Arithmetic error: {0}")]
@@ -106,4 +110,43 @@ pub enum ChainError {
     CertificateSignatureVerificationFailed { error: String },
     #[error("Internal error {0}")]
     InternalError(String),
+}
+
+pub struct ChainError(Box<ChainErrorKind>);
+
+impl<T> From<T> for ChainError
+where
+    ChainErrorKind: From<T>,
+{
+    fn from(kind: T) -> Self {
+        ChainError(Box::new(kind.into()))
+    }
+}
+
+impl Debug for ChainError {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        Debug::fmt(&self.0, formatter)
+    }
+}
+
+impl Display for ChainError {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        Display::fmt(&self.0, formatter)
+    }
+}
+
+impl Error for ChainError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        self.0.source()
+    }
+}
+
+impl ChainError {
+    pub fn kind(&self) -> &ChainErrorKind {
+        &self.0
+    }
+
+    pub fn into_kind(self) -> ChainErrorKind {
+        *self.0
+    }
 }

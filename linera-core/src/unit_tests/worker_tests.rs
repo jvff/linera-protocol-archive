@@ -22,7 +22,7 @@ use linera_chain::{
         Block, BlockAndRound, BlockProposal, Certificate, ChainAndHeight, ChannelFullName, Event,
         HashedValue, LiteVote, Medium, Message, Origin, OutgoingEffect, SignatureAggregator,
     },
-    ChainError,
+    ChainErrorKind,
 };
 use linera_execution::{
     committee::{Committee, Epoch, ValidatorName},
@@ -1014,7 +1014,7 @@ where
         assert!(matches!(
             worker.handle_block_proposal(block_proposal).await,
             Err(WorkerError::ChainError(chain_error))
-                if matches!(*chain_error, ChainError::UnexpectedMessage { .. })
+                if matches!(chain_error.kind(), &ChainErrorKind::UnexpectedMessage { .. })
         ));
     }
     {
@@ -1073,7 +1073,7 @@ where
         assert!(matches!(
             worker.handle_block_proposal(block_proposal).await,
             Err(WorkerError::ChainError(chain_error))
-                if matches!(*chain_error, ChainError::IncorrectMessageOrder { .. })
+                if matches!(chain_error.kind(), &ChainErrorKind::IncorrectMessageOrder { .. })
         ));
     }
     {
@@ -1132,7 +1132,7 @@ where
         assert!(matches!(
             worker.handle_block_proposal(block_proposal).await,
             Err(WorkerError::ChainError(chain_error))
-                if matches!(*chain_error, ChainError::IncorrectMessageOrder { .. })
+                if matches!(chain_error.kind(), &ChainErrorKind::IncorrectMessageOrder { .. })
         ));
     }
     {

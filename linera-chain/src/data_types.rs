@@ -2,7 +2,7 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ChainError;
+use crate::{ChainError, ChainErrorKind};
 use async_graphql::SimpleObject;
 use linera_base::{
     crypto::{BcsHashable, BcsSignable, CryptoHash, KeyPair, Signature},
@@ -541,12 +541,12 @@ impl<'a> SignatureAggregator<'a> {
         // Check that each validator only appears once.
         ensure!(
             !self.used_validators.contains(&validator),
-            ChainError::CertificateValidatorReuse
+            ChainErrorKind::CertificateValidatorReuse
         );
         self.used_validators.insert(validator);
         // Update weight.
         let voting_rights = self.committee.weight(&validator);
-        ensure!(voting_rights > 0, ChainError::InvalidSigner);
+        ensure!(voting_rights > 0, ChainErrorKind::InvalidSigner);
         self.weight += voting_rights;
         // Update certificate.
         self.partial.signatures.push((validator, signature));
@@ -600,17 +600,17 @@ fn check_signatures(
         // Check that each validator only appears once.
         ensure!(
             !used_validators.contains(validator),
-            ChainError::CertificateValidatorReuse
+            ChainErrorKind::CertificateValidatorReuse
         );
         used_validators.insert(*validator);
         // Update weight.
         let voting_rights = committee.weight(validator);
-        ensure!(voting_rights > 0, ChainError::InvalidSigner);
+        ensure!(voting_rights > 0, ChainErrorKind::InvalidSigner);
         weight += voting_rights;
     }
     ensure!(
         weight >= committee.quorum_threshold(),
-        ChainError::CertificateRequiresQuorum
+        ChainErrorKind::CertificateRequiresQuorum
     );
     // All that is left is checking signatures!
     Signature::verify_batch(value, signatures.iter().map(|(v, s)| (&v.0, s)))?;
