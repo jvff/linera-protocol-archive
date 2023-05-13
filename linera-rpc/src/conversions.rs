@@ -314,7 +314,7 @@ impl TryFrom<CrossChainRequest> for grpc::CrossChainRequest {
     }
 }
 
-impl<'a> TryFrom<grpc::LiteCertificate> for LiteCertificate<'a> {
+impl TryFrom<grpc::LiteCertificate> for LiteCertificate<'_> {
     type Error = ProtoConversionError;
 
     fn try_from(certificate: grpc::LiteCertificate) -> Result<Self, Self::Error> {
@@ -338,10 +338,10 @@ impl<'a> TryFrom<grpc::LiteCertificate> for LiteCertificate<'a> {
     }
 }
 
-impl<'a> TryFrom<LiteCertificate<'a>> for grpc::LiteCertificate {
+impl TryFrom<LiteCertificate<'_>> for grpc::LiteCertificate {
     type Error = ProtoConversionError;
 
-    fn try_from(certificate: LiteCertificate<'a>) -> Result<Self, Self::Error> {
+    fn try_from(certificate: LiteCertificate<'_>) -> Result<Self, Self::Error> {
         let signatures = certificate
             .signatures
             .iter()
