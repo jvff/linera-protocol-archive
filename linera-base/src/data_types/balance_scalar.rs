@@ -8,16 +8,14 @@
 //!
 //! This is mostly adapted from the implementation of the `async_graphql::scalar!` macro.
 
-use std::{borrow::Cow, iter, sync::Arc};
-
+use super::Balance;
 use async_graphql::{
     parser::types::Field,
     registry::{MetaType, MetaTypeId, Registry},
     ContextSelectionSet, InputType, InputValueError, InputValueResult, Name, OutputType,
     Positioned, ScalarType, ServerResult, Value,
 };
-
-use super::Balance;
+use std::{borrow::Cow, iter, sync::Arc};
 
 const BALANCE_DESCRIPTION: &str = "The balance of a chain";
 const UPPER: &str = "upper";
