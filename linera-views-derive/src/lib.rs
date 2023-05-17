@@ -47,7 +47,7 @@ fn crate_path(attributes: &[Attribute]) -> TokenStream2 {
                 lit: Lit::Str(value),
                 ..
             })) => {
-                let path: Path = value.parse().expect("Invalid specific context");
+                let path: Path = value.parse().expect("Invalid context");
                 path.into_token_stream()
             }
             _ => panic!(
@@ -63,24 +63,23 @@ fn context_and_constraints(
     attributes: &[Attribute],
     template_vect: &[syn::Ident],
 ) -> (Type, Option<TokenStream2>) {
-    let maybe_specific_context = attributes
+    let maybe_context = attributes
         .iter()
-        .find(|attribute| attribute.path.is_ident("specific_context"));
+        .find(|attribute| attribute.path.is_ident("context"));
     let context;
     let constraints;
 
-    if let Some(specific_context) = maybe_specific_context {
-        match specific_context.parse_meta() {
+    if let Some(context) = maybe_context {
+        match context.parse_meta() {
             Ok(Meta::NameValue(MetaNameValue {
                 lit: Lit::Str(value),
                 ..
             })) => {
-                context = value.parse().expect("Invalid specific context");
+                context = value.parse().expect("Invalid context");
                 constraints = None;
             }
             _ => panic!(
-                r#"Invalid `specific_context` attribute syntax. \
-                Expected syntax: `#[specific_context = "Type"]`"#,
+                r#"Invalid `context` attribute syntax. Expected syntax: `#[context = "Type"]`"#,
             ),
         }
     } else {
@@ -629,13 +628,13 @@ fn generate_graphql_code(input: ItemStruct) -> TokenStream2 {
     }
 }
 
-#[proc_macro_derive(View, attributes(crate_path, specific_context))]
+#[proc_macro_derive(View, attributes(crate_path, context))]
 pub fn derive_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     generate_view_code(input, false).into()
 }
 
-#[proc_macro_derive(HashableView, attributes(crate_path, specific_context))]
+#[proc_macro_derive(HashableView, attributes(crate_path, context))]
 pub fn derive_hash_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     let mut stream = generate_view_code(input.clone(), false);
@@ -643,7 +642,7 @@ pub fn derive_hash_view(input: TokenStream) -> TokenStream {
     stream.into()
 }
 
-#[proc_macro_derive(RootView, attributes(crate_path, specific_context))]
+#[proc_macro_derive(RootView, attributes(crate_path, context))]
 pub fn derive_root_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     let mut stream = generate_view_code(input.clone(), true);
@@ -651,7 +650,7 @@ pub fn derive_root_view(input: TokenStream) -> TokenStream {
     stream.into()
 }
 
-#[proc_macro_derive(CryptoHashView, attributes(crate_path, specific_context))]
+#[proc_macro_derive(CryptoHashView, attributes(crate_path, context))]
 pub fn derive_crypto_hash_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     let mut stream = generate_view_code(input.clone(), false);
@@ -660,7 +659,7 @@ pub fn derive_crypto_hash_view(input: TokenStream) -> TokenStream {
     stream.into()
 }
 
-#[proc_macro_derive(CryptoHashRootView, attributes(crate_path, specific_context))]
+#[proc_macro_derive(CryptoHashRootView, attributes(crate_path, context))]
 pub fn derive_crypto_hash_root_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     let mut stream = generate_view_code(input.clone(), true);
@@ -670,7 +669,7 @@ pub fn derive_crypto_hash_root_view(input: TokenStream) -> TokenStream {
     stream.into()
 }
 
-#[proc_macro_derive(HashableRootView, attributes(crate_path, specific_context))]
+#[proc_macro_derive(HashableRootView, attributes(crate_path, context))]
 #[cfg(test)]
 pub fn derive_hashable_root_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
@@ -680,7 +679,7 @@ pub fn derive_hashable_root_view(input: TokenStream) -> TokenStream {
     stream.into()
 }
 
-#[proc_macro_derive(GraphQLView, attributes(crate_path, specific_context))]
+#[proc_macro_derive(GraphQLView, attributes(crate_path, context))]
 pub fn derive_graphql_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     generate_graphql_code(input).into()
@@ -705,8 +704,8 @@ pub mod tests {
 
     #[test]
     fn test_generate_view_code() {
-        for specific_context in SpecificContextInfo::test_cases() {
-            let input = specific_context.test_view_input();
+        for context in SpecificContextInfo::test_cases() {
+            let input = context.test_view_input();
             let output = generate_view_code(input, true);
 
             let SpecificContextInfo {
@@ -714,7 +713,7 @@ pub mod tests {
                 constraints,
                 generics,
                 ..
-            } = specific_context;
+            } = context;
 
             let expected = quote!(
                 #[async_trait::async_trait]
@@ -781,8 +780,8 @@ pub mod tests {
 
     #[test]
     fn test_generate_hash_view_code() {
-        for specific_context in SpecificContextInfo::test_cases() {
-            let input = specific_context.test_view_input();
+        for context in SpecificContextInfo::test_cases() {
+            let input = context.test_view_input();
             let output = generate_hash_view_code(input);
 
             let SpecificContextInfo {
@@ -790,7 +789,7 @@ pub mod tests {
                 constraints,
                 generics,
                 ..
-            } = specific_context;
+            } = context;
 
             let expected = quote!(
                 #[async_trait::async_trait]
@@ -831,8 +830,8 @@ pub mod tests {
 
     #[test]
     fn test_generate_save_delete_view_code() {
-        for specific_context in SpecificContextInfo::test_cases() {
-            let input = specific_context.test_view_input();
+        for context in SpecificContextInfo::test_cases() {
+            let input = context.test_view_input();
             let output = generate_save_delete_view_code(input);
 
             let SpecificContextInfo {
@@ -840,7 +839,7 @@ pub mod tests {
                 constraints,
                 generics,
                 ..
-            } = specific_context;
+            } = context;
 
             let expected = quote!(
                 #[async_trait::async_trait]
@@ -883,8 +882,8 @@ pub mod tests {
 
     #[test]
     fn test_generate_crypto_hash_code() {
-        for specific_context in SpecificContextInfo::test_cases() {
-            let input = specific_context.test_view_input();
+        for context in SpecificContextInfo::test_cases() {
+            let input = context.test_view_input();
             let output = generate_crypto_hash_code(input);
 
             let SpecificContextInfo {
@@ -892,7 +891,7 @@ pub mod tests {
                 constraints,
                 generics,
                 ..
-            } = specific_context;
+            } = context;
 
             let expected = quote!(
                 #[async_trait::async_trait]
@@ -926,14 +925,14 @@ pub mod tests {
 
     #[test]
     fn test_generate_graphql_code() {
-        for specific_context in SpecificContextInfo::test_cases() {
+        for context in SpecificContextInfo::test_cases() {
             let SpecificContextInfo {
                 attribute,
                 context,
                 constraints,
                 generics,
                 generics_with_lifetime,
-            } = specific_context;
+            } = context;
 
             let explicit_context_cases = if attribute.is_some() {
                 [true, false].iter()
@@ -1081,10 +1080,10 @@ pub mod tests {
             }
         }
 
-        pub fn new(specific_context: &str) -> Self {
+        pub fn new(context: &str) -> Self {
             SpecificContextInfo {
-                attribute: Some(quote! { #[specific_context = #specific_context] }),
-                context: syn::parse_str(specific_context).unwrap(),
+                attribute: Some(quote! { #[context = #context] }),
+                context: syn::parse_str(context).unwrap(),
                 generics: quote! {},
                 generics_with_lifetime: quote! { <'a> },
                 constraints: quote! {},
