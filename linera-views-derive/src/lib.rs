@@ -10,10 +10,10 @@ extern crate syn;
 use crate::util::{concat, create_entry_name, snakify};
 use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
-use quote::{format_ident, quote, ToTokens};
+use quote::{format_ident, quote};
 use syn::{
     parse_macro_input, Attribute, Field, GenericArgument, ItemStruct, Lit, LitStr, MetaNameValue,
-    Path, PathArguments, Type, TypePath,
+    PathArguments, Type, TypePath,
 };
 
 fn get_seq_parameter(generics: syn::Generics) -> Vec<syn::Ident> {
@@ -56,17 +56,7 @@ fn custom_attribute(attributes: &[Attribute], key: &str) -> Option<LitStr> {
         .next()
 }
 
-fn crate_path(attributes: &[Attribute]) -> TokenStream2 {
-    custom_attribute(attributes, "crate_path")
-        .map(|crate_path_literal| {
-            let path: Path = crate_path_literal.parse().expect("Invalid crate path");
-            path.into_token_stream()
-        })
-        .unwrap_or_else(|| quote! { linera_views })
-}
-
 fn context_and_constraints(
-    crate_path: &TokenStream2,
     attributes: &[Attribute],
     template_vect: &[syn::Ident],
 ) -> (Type, Option<TokenStream2>) {
@@ -87,8 +77,8 @@ fn context_and_constraints(
         });
         constraints = Some(quote! {
             where
-                #context: #crate_path::common::Context + Send + Sync + Clone + 'static,
-                #crate_path::views::ViewError: From<#context::Error>,
+                #context: linera_views::common::Context + Send + Sync + Clone + 'static,
+                linera_views::views::ViewError: From<#context::Error>,
         });
     }
 
@@ -99,10 +89,8 @@ fn generate_view_code(input: ItemStruct, root: bool) -> TokenStream2 {
     let struct_name = input.ident;
     let generics = input.generics;
     let template_vect = get_seq_parameter(generics.clone());
-    let crate_path = crate_path(&input.attrs);
 
-    let (context, context_constraints) =
-        context_and_constraints(&crate_path, &input.attrs, &template_vect);
+    let (context, context_constraints) = context_and_constraints(&input.attrs, &template_vect);
 
     let mut name_quotes = Vec::new();
     let mut load_future_quotes = Vec::new();
@@ -140,8 +128,8 @@ fn generate_view_code(input: ItemStruct, root: bool) -> TokenStream2 {
 
     let increment_counter = if root {
         quote! {
-            #crate_path::increment_counter(
-                #crate_path::LOAD_VIEW_COUNTER,
+            linera_views::increment_counter(
+                linera_views::LOAD_VIEW_COUNTER,
                 stringify!(#struct_name),
                 &context.base_key(),
             );
@@ -152,16 +140,16 @@ fn generate_view_code(input: ItemStruct, root: bool) -> TokenStream2 {
 
     quote! {
         #[async_trait::async_trait]
-        impl #generics #crate_path::views::View<#context> for #struct_name #generics
+        impl #generics linera_views::views::View<#context> for #struct_name #generics
         #context_constraints
         {
             fn context(&self) -> &#context {
-                use #crate_path::views::View;
+                use linera_views::views::View;
                 self.#first_name_quote.context()
             }
 
-            async fn load(context: #context) -> Result<Self, #crate_path::views::ViewError> {
-                use #crate_path::{futures::join, common::Context};
+            async fn load(context: #context) -> Result<Self, linera_views::views::ViewError> {
+                use linera_views::{futures::join, common::Context};
                 #increment_counter
                 #(#load_future_quotes)*
                 let result = join!(#(#load_ident_quotes),*);
@@ -174,14 +162,14 @@ fn generate_view_code(input: ItemStruct, root: bool) -> TokenStream2 {
                 #(#rollback_quotes)*
             }
 
-            fn flush(&mut self, batch: &mut #crate_path::batch::Batch) -> Result<(), #crate_path::views::ViewError> {
-                use #crate_path::views::View;
+            fn flush(&mut self, batch: &mut linera_views::batch::Batch) -> Result<(), linera_views::views::ViewError> {
+                use linera_views::views::View;
                 #(#flush_quotes)*
                 Ok(())
             }
 
-            fn delete(self, batch: &mut #crate_path::batch::Batch) {
-                use #crate_path::views::View;
+            fn delete(self, batch: &mut linera_views::batch::Batch) {
+                use linera_views::views::View;
                 #(#delete_quotes)*
             }
 
@@ -196,10 +184,8 @@ fn generate_save_delete_view_code(input: ItemStruct) -> TokenStream2 {
     let struct_name = input.ident;
     let generics = input.generics;
     let template_vect = get_seq_parameter(generics.clone());
-    let crate_path = crate_path(&input.attrs);
 
-    let (context, context_constraints) =
-        context_and_constraints(&crate_path, &input.attrs, &template_vect);
+    let (context, context_constraints) = context_and_constraints(&input.attrs, &template_vect);
 
     let mut flushes = Vec::new();
     let mut deletes = Vec::new();
@@ -211,13 +197,13 @@ fn generate_save_delete_view_code(input: ItemStruct) -> TokenStream2 {
 
     quote! {
         #[async_trait::async_trait]
-        impl #generics #crate_path::views::RootView<#context> for #struct_name #generics
+        impl #generics linera_views::views::RootView<#context> for #struct_name #generics
         #context_constraints
         {
-            async fn save(&mut self) -> Result<(), #crate_path::views::ViewError> {
-                use #crate_path::{common::Context, batch::Batch, views::View};
-                #crate_path::increment_counter(
-                    #crate_path::SAVE_VIEW_COUNTER,
+            async fn save(&mut self) -> Result<(), linera_views::views::ViewError> {
+                use linera_views::{common::Context, batch::Batch, views::View};
+                linera_views::increment_counter(
+                    linera_views::SAVE_VIEW_COUNTER,
                     stringify!(#struct_name),
                     &self.context().base_key(),
                 );
@@ -227,8 +213,8 @@ fn generate_save_delete_view_code(input: ItemStruct) -> TokenStream2 {
                 Ok(())
             }
 
-            async fn write_delete(self) -> Result<(), #crate_path::views::ViewError> {
-                use #crate_path::{common::Context, batch::Batch, views::View};
+            async fn write_delete(self) -> Result<(), linera_views::views::ViewError> {
+                use linera_views::{common::Context, batch::Batch, views::View};
                 let context = self.context().clone();
                 let batch = Batch::build(move |batch| {
                     Box::pin(async move {
@@ -247,10 +233,8 @@ fn generate_hash_view_code(input: ItemStruct) -> TokenStream2 {
     let struct_name = input.ident;
     let generics = input.generics;
     let template_vect = get_seq_parameter(generics.clone());
-    let crate_path = crate_path(&input.attrs);
 
-    let (context, context_constraints) =
-        context_and_constraints(&crate_path, &input.attrs, &template_vect);
+    let (context, context_constraints) = context_and_constraints(&input.attrs, &template_vect);
 
     let mut field_hashes_mut = Vec::new();
     let mut field_hashes = Vec::new();
@@ -262,21 +246,21 @@ fn generate_hash_view_code(input: ItemStruct) -> TokenStream2 {
 
     quote! {
         #[async_trait::async_trait]
-        impl #generics #crate_path::views::HashableView<#context> for #struct_name #generics
+        impl #generics linera_views::views::HashableView<#context> for #struct_name #generics
         #context_constraints
         {
-            type Hasher = #crate_path::sha3::Sha3_256;
+            type Hasher = linera_views::sha3::Sha3_256;
 
-            async fn hash_mut(&mut self) -> Result<<Self::Hasher as #crate_path::views::Hasher>::Output, #crate_path::views::ViewError> {
-                use #crate_path::views::{Hasher, HashableView};
+            async fn hash_mut(&mut self) -> Result<<Self::Hasher as linera_views::views::Hasher>::Output, linera_views::views::ViewError> {
+                use linera_views::views::{Hasher, HashableView};
                 use std::io::Write;
                 let mut hasher = Self::Hasher::default();
                 #(#field_hashes_mut)*
                 Ok(hasher.finalize())
             }
 
-            async fn hash(&self) -> Result<<Self::Hasher as #crate_path::views::Hasher>::Output, #crate_path::views::ViewError> {
-                use #crate_path::views::{Hasher, HashableView};
+            async fn hash(&self) -> Result<<Self::Hasher as linera_views::views::Hasher>::Output, linera_views::views::ViewError> {
+                use linera_views::views::{Hasher, HashableView};
                 use std::io::Write;
                 let mut hasher = Self::Hasher::default();
                 #(#field_hashes)*
@@ -290,20 +274,18 @@ fn generate_crypto_hash_code(input: ItemStruct) -> TokenStream2 {
     let struct_name = input.ident;
     let generics = input.generics;
     let template_vect = get_seq_parameter(generics.clone());
-    let crate_path = crate_path(&input.attrs);
 
-    let (context, context_constraints) =
-        context_and_constraints(&crate_path, &input.attrs, &template_vect);
+    let (context, context_constraints) = context_and_constraints(&input.attrs, &template_vect);
 
     let hash_type = syn::Ident::new(&format!("{}Hash", struct_name), Span::call_site());
     quote! {
         #[async_trait::async_trait]
-        impl #generics #crate_path::views::CryptoHashView<#context> for #struct_name #generics
+        impl #generics linera_views::views::CryptoHashView<#context> for #struct_name #generics
         #context_constraints
         {
-            async fn crypto_hash(&self) -> Result<linera_base::crypto::CryptoHash, #crate_path::views::ViewError> {
+            async fn crypto_hash(&self) -> Result<linera_base::crypto::CryptoHash, linera_views::views::ViewError> {
                 use linera_base::crypto::{BcsHashable, CryptoHash};
-                use #crate_path::{
+                use linera_views::{
                     batch::Batch,
                     generic_array::GenericArray,
                     sha3::{digest::OutputSizeUser, Sha3_256},
@@ -363,7 +345,6 @@ fn generic_offset(
 }
 
 fn generate_graphql_code_for_field(
-    crate_path: &TokenStream2,
     context: Type,
     context_constraints: Option<TokenStream2>,
     field: Field,
@@ -432,7 +413,7 @@ fn generate_graphql_code_for_field(
                 #context_constraints
                 {
                     #index_name: #index_ident,
-                    guard: #crate_path::collection_view::ReadGuardedView<'a, #generic_ident>,
+                    guard: linera_views::collection_view::ReadGuardedView<'a, #generic_ident>,
                 }
 
                 #[async_graphql::Object]
@@ -585,21 +566,15 @@ fn generate_graphql_code(input: ItemStruct) -> TokenStream2 {
     let struct_name = input.ident;
     let generics = input.generics;
     let template_vect = get_seq_parameter(generics.clone());
-    let crate_path = crate_path(&input.attrs);
 
-    let (context, context_constraints) =
-        context_and_constraints(&crate_path, &input.attrs, &template_vect);
+    let (context, context_constraints) = context_and_constraints(&input.attrs, &template_vect);
 
     let mut impls = vec![];
     let mut structs = vec![];
 
     for field in input.fields {
-        let (r#impl, r#struct) = generate_graphql_code_for_field(
-            &crate_path,
-            context.clone(),
-            context_constraints.clone(),
-            field,
-        );
+        let (r#impl, r#struct) =
+            generate_graphql_code_for_field(context.clone(), context_constraints.clone(), field);
         impls.push(r#impl);
         if let Some(r#struct) = r#struct {
             structs.push(r#struct);
