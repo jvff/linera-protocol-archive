@@ -12,7 +12,7 @@ use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote, ToTokens};
 use syn::{
-    parse_macro_input, Attribute, Field, GenericArgument, ItemStruct, Lit, Meta, MetaNameValue,
+    parse_macro_input, Attribute, Field, GenericArgument, ItemStruct, Lit, LitStr, MetaNameValue,
     Path, PathArguments, Type, TypePath,
 };
 
@@ -38,22 +38,29 @@ fn get_type_field(field: syn::Field) -> Option<syn::Ident> {
     }
 }
 
-fn crate_path(attributes: &[Attribute]) -> TokenStream2 {
+fn custom_attribute(attributes: &[Attribute], key: &str) -> Option<LitStr> {
     attributes
         .iter()
-        .find(|attribute| attribute.path.is_ident("crate_path"))
-        .map(|attribute| match attribute.parse_meta() {
-            Ok(Meta::NameValue(MetaNameValue {
+        .filter(|attribute| attribute.path.is_ident("view"))
+        .filter_map(|attribute| match attribute.parse_args() {
+            Ok(MetaNameValue {
+                path,
                 lit: Lit::Str(value),
                 ..
-            })) => {
-                let path: Path = value.parse().expect("Invalid context");
-                path.into_token_stream()
-            }
+            }) => path.is_ident(key).then_some(value),
             _ => panic!(
-                r#"Invalid `crate_path` attribute syntax. \
-                Expected syntax: `#[crate_path = "path::to::linera_views"]`"#,
+                r#"Invalid `view` attribute syntax. \
+                Expected syntax: `#[view(key = "value")]`"#,
             ),
+        })
+        .next()
+}
+
+fn crate_path(attributes: &[Attribute]) -> TokenStream2 {
+    custom_attribute(attributes, "crate_path")
+        .map(|crate_path_literal| {
+            let path: Path = crate_path_literal.parse().expect("Invalid crate path");
+            path.into_token_stream()
         })
         .unwrap_or_else(|| quote! { linera_views })
 }
@@ -63,25 +70,12 @@ fn context_and_constraints(
     attributes: &[Attribute],
     template_vect: &[syn::Ident],
 ) -> (Type, Option<TokenStream2>) {
-    let maybe_context = attributes
-        .iter()
-        .find(|attribute| attribute.path.is_ident("context"));
     let context;
     let constraints;
 
-    if let Some(context) = maybe_context {
-        match context.parse_meta() {
-            Ok(Meta::NameValue(MetaNameValue {
-                lit: Lit::Str(value),
-                ..
-            })) => {
-                context = value.parse().expect("Invalid context");
-                constraints = None;
-            }
-            _ => panic!(
-                r#"Invalid `context` attribute syntax. Expected syntax: `#[context = "Type"]`"#,
-            ),
-        }
+    if let Some(context_literal) = custom_attribute(attributes, "context") {
+        context = context_literal.parse().expect("Invalid context");
+        constraints = None;
     } else {
         context = Type::Path(TypePath {
             qself: None,
@@ -628,13 +622,13 @@ fn generate_graphql_code(input: ItemStruct) -> TokenStream2 {
     }
 }
 
-#[proc_macro_derive(View, attributes(crate_path, context))]
+#[proc_macro_derive(View, attributes(view))]
 pub fn derive_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     generate_view_code(input, false).into()
 }
 
-#[proc_macro_derive(HashableView, attributes(crate_path, context))]
+#[proc_macro_derive(HashableView, attributes(view))]
 pub fn derive_hash_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     let mut stream = generate_view_code(input.clone(), false);
@@ -642,7 +636,7 @@ pub fn derive_hash_view(input: TokenStream) -> TokenStream {
     stream.into()
 }
 
-#[proc_macro_derive(RootView, attributes(crate_path, context))]
+#[proc_macro_derive(RootView, attributes(view))]
 pub fn derive_root_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     let mut stream = generate_view_code(input.clone(), true);
@@ -650,7 +644,7 @@ pub fn derive_root_view(input: TokenStream) -> TokenStream {
     stream.into()
 }
 
-#[proc_macro_derive(CryptoHashView, attributes(crate_path, context))]
+#[proc_macro_derive(CryptoHashView, attributes(view))]
 pub fn derive_crypto_hash_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     let mut stream = generate_view_code(input.clone(), false);
@@ -659,7 +653,7 @@ pub fn derive_crypto_hash_view(input: TokenStream) -> TokenStream {
     stream.into()
 }
 
-#[proc_macro_derive(CryptoHashRootView, attributes(crate_path, context))]
+#[proc_macro_derive(CryptoHashRootView, attributes(view))]
 pub fn derive_crypto_hash_root_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     let mut stream = generate_view_code(input.clone(), true);
@@ -669,7 +663,7 @@ pub fn derive_crypto_hash_root_view(input: TokenStream) -> TokenStream {
     stream.into()
 }
 
-#[proc_macro_derive(HashableRootView, attributes(crate_path, context))]
+#[proc_macro_derive(HashableRootView, attributes(view))]
 #[cfg(test)]
 pub fn derive_hashable_root_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
@@ -679,7 +673,7 @@ pub fn derive_hashable_root_view(input: TokenStream) -> TokenStream {
     stream.into()
 }
 
-#[proc_macro_derive(GraphQLView, attributes(crate_path, context))]
+#[proc_macro_derive(GraphQLView, attributes(view))]
 pub fn derive_graphql_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     generate_graphql_code(input).into()
