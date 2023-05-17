@@ -7,7 +7,7 @@ use social::{Key, OwnPost};
 
 /// The application state.
 #[derive(RootView, GraphQLView)]
-#[specific_context = "ViewStorageContext"]
+#[view(context = "ViewStorageContext")]
 pub struct Social {
     /// Our posts.
     pub own_posts: LogView<OwnPost>,

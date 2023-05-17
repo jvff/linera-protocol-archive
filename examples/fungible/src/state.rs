@@ -11,7 +11,7 @@ use thiserror::Error;
 
 /// The application state.
 #[derive(RootView, GraphQLView)]
-#[specific_context = "ViewStorageContext"]
+#[view(context = "ViewStorageContext")]
 pub struct FungibleToken {
     accounts: MapView<AccountOwner, Amount>,
 }

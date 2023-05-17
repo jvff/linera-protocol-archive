@@ -6,7 +6,7 @@ use linera_views::views::RootView;
 
 /// The application state.
 #[derive(RootView)]
-#[specific_context = "ViewStorageContext"]
+#[view(context = "ViewStorageContext")]
 pub struct ReentrantCounter {
     pub value: RegisterView<u128>,
 }
