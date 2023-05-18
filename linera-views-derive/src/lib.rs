@@ -1069,7 +1069,7 @@ pub mod tests {
                 attribute: Some(quote! { #[view(context = #context)] }),
                 context: syn::parse_str(context).unwrap(),
                 generics: quote! {},
-                generics_with_lifetime: quote! { <'a> },
+                generics_with_lifetime: quote! { <'a,> },
                 constraints: quote! {},
             }
         }
