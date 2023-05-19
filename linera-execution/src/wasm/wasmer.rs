@@ -105,7 +105,7 @@ impl WasmApplication {
         contract_bytecode: Bytecode,
         service_bytecode: Bytecode,
     ) -> Result<Self, WasmExecutionError> {
-        let contract_engine = Self::create_wasmer_engine_for_contracts(0);
+        let contract_engine = Self::create_wasmer_engine_for_contracts();
         let contract_module = Module::new(&contract_engine, contract_bytecode)
             .map_err(wit_bindgen_host_wasmer_rust::anyhow::Error::from)?;
 
@@ -122,8 +122,8 @@ impl WasmApplication {
     }
 
     /// Creates an [`Engine`] instance configured to run application contracts.
-    fn create_wasmer_engine_for_contracts(fuel: u64) -> Engine {
-        let metering = Arc::new(Metering::new(fuel, Self::operation_cost));
+    fn create_wasmer_engine_for_contracts() -> Engine {
+        let metering = Arc::new(Metering::new(0, Self::operation_cost));
         let mut compiler_config = Singlepass::default();
         compiler_config.push_middleware(metering);
         compiler_config.canonicalize_nans(true);
