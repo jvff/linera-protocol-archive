@@ -50,6 +50,16 @@ use wasmer::{
 use wasmer_middlewares::metering::{self, Metering, MeteringPoints};
 use wit_bindgen_host_wasmer_rust::Le;
 
+/// An [`Engine`] instance configured to run application contracts.
+static CONTRACT_ENGINE: Lazy<Engine> = Lazy::new(|| {
+    let metering = Arc::new(Metering::new(0, WasmApplication::operation_cost));
+    let mut compiler_config = Singlepass::default();
+    compiler_config.push_middleware(metering);
+    compiler_config.canonicalize_nans(true);
+
+    EngineBuilder::new(compiler_config).into()
+});
+
 /// An [`Engine`] instance configured to run application services.
 static SERVICE_ENGINE: Lazy<Engine> = Lazy::new(|| {
     let compiler_config = Singlepass::default();
@@ -60,7 +70,7 @@ static SERVICE_ENGINE: Lazy<Engine> = Lazy::new(|| {
 ///
 /// Each [`Module`] needs to have a separate [`Engine`] instance, otherwise Wasmer complains that
 /// fuel metering is configured and used for different modules.
-static CONTRACT_CACHE: Lazy<Mutex<ModuleCache<(Engine, Module)>>> = Lazy::new(Mutex::default);
+static CONTRACT_CACHE: Lazy<Mutex<ModuleCache<Module>>> = Lazy::new(Mutex::default);
 
 /// A cache of compiled service modules.
 static SERVICE_CACHE: Lazy<Mutex<ModuleCache<Module>>> = Lazy::new(Mutex::default);
@@ -120,10 +130,8 @@ impl WasmApplication {
     ) -> Result<Self, WasmExecutionError> {
         let mut contract_cache = CONTRACT_CACHE.lock().await;
         let contract = contract_cache.get_or_insert_with(contract_bytecode, |bytecode| {
-            let engine = Self::create_wasmer_engine_for_a_contract();
-            let module = Module::new(&engine, bytecode)
-                .map_err(wit_bindgen_host_wasmer_rust::anyhow::Error::from)?;
-            Ok::<_, WasmExecutionError>((engine, module))
+            Module::new(&*CONTRACT_ENGINE, bytecode)
+                .map_err(wit_bindgen_host_wasmer_rust::anyhow::Error::from)
         })?;
 
         let mut service_cache = SERVICE_CACHE.lock().await;
@@ -135,21 +143,12 @@ impl WasmApplication {
         Ok(WasmApplication::Wasmer { contract, service })
     }
 
-    fn create_wasmer_engine_for_a_contract() -> Engine {
-        let metering = Arc::new(Metering::new(0, WasmApplication::operation_cost));
-        let mut compiler_config = Singlepass::default();
-        compiler_config.push_middleware(metering);
-        compiler_config.canonicalize_nans(true);
-
-        EngineBuilder::new(compiler_config).into()
-    }
-
     /// Prepares a runtime instance to call into the WASM contract.
     pub fn prepare_contract_runtime_with_wasmer<'runtime>(
-        (contract_engine, contract_module): &(Engine, Module),
+        contract_module: &Module,
         runtime: &'runtime dyn ContractRuntime,
     ) -> Result<WasmRuntimeContext<'static, Contract<'runtime>>, WasmExecutionError> {
-        let mut store = Store::new(contract_engine);
+        let mut store = Store::new(&*CONTRACT_ENGINE);
         let mut imports = imports! {};
         let waker_forwarder = WakerForwarder::default();
         let (future_queue, queued_future_factory) = HostFutureQueue::new();
