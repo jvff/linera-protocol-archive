@@ -56,7 +56,10 @@ static SERVICE_ENGINE: Lazy<Engine> = Lazy::new(|| {
     EngineBuilder::new(compiler_config).into()
 });
 
-/// A cache of compiled contract modules.
+/// A cache of compiled contract modules, with their respective [`Engine`] instances.
+///
+/// Each [`Module`] needs to have a separate [`Engine`] instance, otherwise Wasmer complains that
+/// fuel metering is configured and used for different modules.
 static CONTRACT_CACHE: Lazy<Mutex<ModuleCache<(Engine, Module)>>> = Lazy::new(Mutex::default);
 
 /// A cache of compiled service modules.
