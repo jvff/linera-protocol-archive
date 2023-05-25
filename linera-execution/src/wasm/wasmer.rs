@@ -58,8 +58,9 @@ static SERVICE_ENGINE: Lazy<Engine> = Lazy::new(|| {
 
 /// A cache of compiled contract modules, with their respective [`Engine`] instances.
 ///
-/// Each [`Module`] needs to have a separate [`Engine`] instance, otherwise Wasmer panics because
-/// fuel metering is configured and used across different modules.
+/// Each [`Module`] needs to have a separate [`Engine`] instance, otherwise Wasmer
+/// [panics](https://docs.rs/wasmer-middlewares/latest/wasmer_middlewares/metering/struct.Metering.html#panic)
+/// because fuel metering is configured and used across different modules.
 static CONTRACT_CACHE: Lazy<Mutex<ModuleCache<(Engine, Module)>>> = Lazy::new(Mutex::default);
 
 /// A cache of compiled service modules.
