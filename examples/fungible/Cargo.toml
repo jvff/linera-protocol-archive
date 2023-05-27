@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Linera <contact@linera.io>"]
 edition = "2021"
 
+[features]
+test = []
+
 [dependencies]
 async-graphql = { workspace = true }
 async-trait = { workspace = true }
