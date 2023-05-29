@@ -227,7 +227,7 @@ impl InitialStateBuilder {
 
 #[cfg(all(any(test, feature = "test"), not(target_arch = "wasm32")))]
 impl FungibleTokenAbi {
-    /// Query the balance of an account owned by `account_owner` on a specific `chain`.
+    /// Queries the balance of an account owned by `account_owner` on a specific `chain`.
     pub async fn query_account(
         application_id: ApplicationId<FungibleTokenAbi>,
         chain: &ActiveChain,
