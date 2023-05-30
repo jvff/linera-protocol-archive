@@ -208,7 +208,7 @@ async fn cancel_successful_campaign() {
         );
         assert_eq!(
             FungibleTokenAbi::query_account(token_id, &campaign_chain, backer_account).await,
-            Some(Amount::from(pledge_amount)),
+            Some(pledge_amount),
         );
     }
 }
