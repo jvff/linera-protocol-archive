@@ -129,7 +129,7 @@ impl BlockBuilder {
 
     /// Signs the prepared [`Block`] with the [`TestValidator`]'s keys and returns the resulting
     /// [`Certificate`].
-    pub(crate) async fn sign(mut self) -> Certificate {
+    pub(crate) async fn sign(mut self) -> (Certificate, Vec<EffectId>) {
         self.collect_incoming_messages().await;
 
         let (effects, info) = self
@@ -140,14 +140,23 @@ impl BlockBuilder {
             .await
             .expect("Failed to execute block");
         let state_hash = info.info.state_hash.expect("Missing execution state hash");
+        let effect_ids = (0..effects.len() as u32)
+            .map(|index| EffectId {
+                chain_id: self.block.chain_id,
+                height: self.block.height,
+                index,
+            })
+            .collect();
 
-        let value = HashedValue::new_confirmed(self.block, effects, state_hash);
+        let value = HashedValue::new_confirmed(self.block, dbg!(effects), state_hash);
         let vote = LiteVote::new(value.lite(), self.validator.key_pair());
         let mut builder = SignatureAggregator::new(value, self.validator.committee());
-        builder
+        let certificate = builder
             .append(vote.validator, vote.signature)
             .expect("Failed to sign block")
-            .expect("Committee has more than one test validator")
+            .expect("Committee has more than one test validator");
+
+        (certificate, effect_ids)
     }
 
     /// Collects and adds the previously requested messages to this block.
