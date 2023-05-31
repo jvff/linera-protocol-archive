@@ -313,19 +313,16 @@ impl FungibleTokenAbi {
         chain: &ActiveChain,
         account_owner: AccountOwner,
     ) -> Option<Amount> {
-        let query = format!(
-            "query {{ accounts(accountOwner: {} ) }}",
-            account_owner.to_value()
-        );
+        let query = format!("{{ accounts(accountOwner: {}) }}", account_owner.to_value());
 
-        let value: serde_json::Value = chain.query(application_id, query).await;
+        let value = chain
+            .query(application_id, Request::from(query))
+            .await
+            .data
+            .into_json()
+            .ok()?;
 
-        let balance = value
-            .as_object()?
-            .get("data")?
-            .as_object()?
-            .get("accounts")?
-            .as_str()?;
+        let balance = value.as_object()?.get("accounts")?.as_str()?;
 
         Some(
             balance
