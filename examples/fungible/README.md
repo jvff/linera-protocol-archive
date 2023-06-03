@@ -47,7 +47,7 @@ export LINERA_STORAGE="rocksdb:$(dirname "$LINERA_WALLET")/linera.db"
 export LINERA_WALLET_2="$(realpath target/debug/wallet_2.json)"
 export LINERA_STORAGE_2="rocksdb:$(dirname "$LINERA_WALLET_2")/linera_2.db"
 
-cd examples/fungible && cargo build --release && cd ..
+cd examples/fungible && cargo build --release && cd ../..
 linera --wallet "$LINERA_WALLET" --storage "$LINERA_STORAGE" publish-bytecode \
 examples/target/wasm32-unknown-unknown/release/fungible_{contract,service}.wasm
 ```
