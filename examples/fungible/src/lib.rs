@@ -3,16 +3,16 @@
 
 //! # Fungible Token Example Application
 //!
-//! This example application implements fungible tokens, which demonstrate cross-chain messages. This
-//! application can be built and have its bytecode published on a Linera chain. The published bytecode
-//! can then be used to create multiple application instances, where each instance represents a
-//! different fungible token.
+//! This example application implements fungible tokens, which demonstrate cross-chain messages.
+//! This application can be built and have its bytecode published on a Linera chain. The published
+//! bytecode can then be used to create multiple application instances, where each instance
+//! represents a different fungible token.
 //!
 //! # How It Works
 //!
-//! Individual chains have a set of accounts, where each account has an owner and a balance. The same
-//! owner can have accounts on multiple chains, with a different balance on each chain. This means that
-//! an account's balance is sharded across one or more chains.
+//! Individual chains have a set of accounts, where each account has an owner and a balance. The
+//! same owner can have accounts on multiple chains, with a different balance on each chain. This
+//! means that an account's balance is sharded across one or more chains.
 //!
 //! There are two operations: `Transfer` and `Claim`. `Transfer` sends tokens from an account on the
 //! chain where the operation is executed, while `Claim` sends a message from the current chain to
@@ -30,8 +30,8 @@
 //! ## Setting Up
 //!
 //! The WebAssembly binaries for the bytecode can be built and published using [steps from the
-//! book](https://linera-io.github.io/linera-documentation/getting_started/first_app.html), summarized
-//! below.
+//! book](https://linera-io.github.io/linera-documentation/getting_started/first_app.html),
+//! summarized below.
 //!
 //! First setup a local network with two wallets, and keep it running in a separate terminal:
 //!
@@ -66,19 +66,19 @@
 //! additional tokens can be minted and added to the application. The initial state is a JSON string
 //! that specifies the accounts that start with tokens.
 //!
-//! In order to select the accounts to have initial tokens, the command below can be used to list the
-//! chains created for the test:
+//! In order to select the accounts to have initial tokens, the command below can be used to list
+//! the chains created for the test:
 //!
 //! ```bash
 //! linera --storage "$LINERA_STORAGE" --wallet "$LINERA_WALLET" wallet show
 //! ```
 //!
 //! A table will be shown with the chains registered in the wallet and their meta-data. The default
-//! chain should be highlighted in green. Each chain has an `Owner` field, and that is what is used for
-//! the account.
+//! chain should be highlighted in green. Each chain has an `Owner` field, and that is what is used
+//! for the account.
 //!
-//! The example below creates a token application where two accounts start with the minted tokens, one
-//! with 100 of them and another with 200 of them:
+//! The example below creates a token application where two accounts start with the minted tokens,
+//! one with 100 of them and another with 200 of them:
 //!
 //! ```bash
 //! linera --storage "$LINERA_STORAGE" --wallet "$LINERA_WALLET" create-application $BYTECODE_ID \
@@ -96,11 +96,12 @@
 //!
 //! ## Using the Token Application
 //!
-//! Before using the token, a source and target address should be selected. The source address should
-//! ideally be on the default chain (used to create the token) and one of the accounts chosen for the
-//! initial state, because it will already have some initial tokens to send. The target address should
-//! be from a separate wallet due to current technical limitations (`linera service` can only handle one
-//! chain per wallet at the same time). To see the available chains in the secondary wallet, use:
+//! Before using the token, a source and target address should be selected. The source address
+//! should ideally be on the default chain (used to create the token) and one of the accounts chosen
+//! for the initial state, because it will already have some initial tokens to send. The target
+//! address should be from a separate wallet due to current technical limitations (`linera service`
+//! can only handle one chain per wallet at the same time). To see the available chains in the
+//! secondary wallet, use:
 //!
 //! ```bash
 //! linera --storage "$LINERA_STORAGE_2" --wallet "$LINERA_WALLET_2" wallet show
@@ -128,12 +129,13 @@
 //!
 //! - `$APPLICATION_ID` is the token application ID obtained when creating the token
 //! - `$SOURCE_ACCOUNT` is the owner of the chosen sender account
-//! - `$PORT` is the port the sender wallet service is listening to (`8080` for the sender wallet and
-//! `8081` for the receiver wallet as per the previous commands)
+//! - `$PORT` is the port the sender wallet service is listening to (`8080` for the sender wallet
+//!   and `8081` for the receiver wallet as per the previous commands)
 //!
-//! Two browser instances can be opened, one for the sender account and one for the receiver account. In
-//! the sender account browser, the target chain ID and account can be specified, as well as the amount
-//! to send. Once sent, the balance on the receiver account browser should automatically update.
+//! Two browser instances can be opened, one for the sender account and one for the receiver
+//! account. In the sender account browser, the target chain ID and account can be specified, as
+//! well as the amount to send. Once sent, the balance on the receiver account browser should
+//! automatically update.
 
 use async_graphql::{scalar, InputObject, Request, Response};
 use linera_sdk::base::{Amount, ApplicationId, ChainId, ContractAbi, Owner, ServiceAbi};
