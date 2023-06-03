@@ -99,8 +99,8 @@
 //! Before using the token, a source and target address should be selected. The source address should
 //! ideally be on the default chain (used to create the token) and one of the accounts chosen for the
 //! initial state, because it will already have some initial tokens to send. The target address should
-//! be from a separate wallet due to current technical limitations. To see the available chains in the
-//! secondary wallet, use:
+//! be from a separate wallet due to current technical limitations (`linera service` can only handle one
+//! chain per wallet at the same time). To see the available chains in the secondary wallet, use:
 //!
 //! ```bash
 //! linera --storage "$LINERA_STORAGE_2" --wallet "$LINERA_WALLET_2" wallet show
