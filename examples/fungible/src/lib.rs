@@ -23,7 +23,7 @@
 //! - other accounts on the same chain
 //! - the same account on another chain
 //! - other accounts on other chains
-//! - sessions so that other applications to use some tokens
+//! - sessions so that other applications can use some tokens
 //!
 //! # Usage
 //!
@@ -39,7 +39,7 @@
 //! ./scripts/run_local.sh
 //! ```
 //!
-//! Compile the `fungible` application WebAssemlby binaries, and publish them as an application
+//! Compile the `fungible` application WebAssembly binaries, and publish them as an application
 //! bytecode:
 //!
 //! ```bash
@@ -115,7 +115,7 @@
 //! linera --wallet "$LINERA_WALLET_2" --storage "$LINERA_STORAGE_2" service --port 8081 $TARGET_CHAIN_ID &
 //! ```
 //!
-//! Then the web frontend has be started
+//! Then the web frontend has to be started
 //!
 //! ```bash
 //! cd examples/fungible/web-frontend
@@ -124,11 +124,11 @@
 //! ```
 //!
 //! The web UI can then be opened by navigating to
-//! `http://localhost:3000/$APPLICATION_ID?owner=$SRC_ACCOUNT?port=$PORT`, where:
+//! `http://localhost:3000/$APPLICATION_ID?owner=$SOURCE_ACCOUNT?port=$PORT`, where:
 //!
 //! - `$APPLICATION_ID` is the token application ID obtained when creating the token
 //! - `$SOURCE_ACCOUNT` is the owner of the chosen sender account
-//! - `$PORT` is the port the sender wallet service is listening to (`8081` for the sender wallet and
+//! - `$PORT` is the port the sender wallet service is listening to (`8080` for the sender wallet and
 //! `8081` for the receiver wallet as per the previous commands)
 //!
 //! Two browser instances can be opened, one for the sender account and one for the receiver account. In
