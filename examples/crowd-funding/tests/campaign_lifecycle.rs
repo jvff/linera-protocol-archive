@@ -95,11 +95,7 @@ async fn collect_pledges() {
 
     assert_eq!(
         FungibleTokenAbi::query_account(token_id, &campaign_chain, campaign_account).await,
-        Some(
-            pledge_amount
-                .saturating_add(pledge_amount)
-                .saturating_add(pledge_amount)
-        ),
+        Some(pledge_amount.saturating_mul(backers.len() as u128)),
     );
 
     for (backer_chain, backer_account, initial_amount) in backers {
