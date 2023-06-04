@@ -20,9 +20,9 @@ use std::iter;
 /// collecting the pledges. The final balance of each backer and the campaign owner is checked.
 #[tokio::test]
 async fn collect_pledges() {
-    let initial_amount = Amount::from(100);
-    let target_amount = Amount::from(220);
-    let pledge_amount = Amount::from(75);
+    let initial_amount = Amount::from_tokens(100);
+    let target_amount = Amount::from_tokens(220);
+    let pledge_amount = Amount::from_tokens(75);
 
     let (validator, bytecode_id) = TestValidator::with_current_bytecode().await;
 
@@ -121,9 +121,9 @@ async fn collect_pledges() {
 /// collecting the pledges. The final balance of each backer and the campaign owner is checked.
 #[tokio::test]
 async fn cancel_successful_campaign() {
-    let initial_amount = Amount::from(100);
-    let target_amount = Amount::from(220);
-    let pledge_amount = Amount::from(75);
+    let initial_amount = Amount::from_tokens(100);
+    let target_amount = Amount::from_tokens(220);
+    let pledge_amount = Amount::from_tokens(75);
 
     let (validator, bytecode_id) = TestValidator::with_current_bytecode().await;
 
