@@ -48,9 +48,9 @@ async fn test_cross_chain_posting() {
     chain1.handle_received_effects().await;
 
     // Querying the own posts
-    let query_string = "{ ownPosts(start: 0, end:1) { timestamp, text } }";
+    let query = "{ ownPosts(start: 0, end:1) { timestamp, text } }";
     let response = chain2
-        .query(application_id, query_string.into())
+        .query(application_id, query.into())
         .await
         .data
         .into_json()
@@ -59,9 +59,9 @@ async fn test_cross_chain_posting() {
     assert_eq!(value, "Linera is the new Mastodon".to_string());
 
     // Now handling the received messages
-    let query_string = "{ receivedPostsKeys { timestamp, author, index } }";
+    let query = "{ receivedPostsKeys { timestamp, author, index } }";
     let response = chain1
-        .query(application_id, query_string.into())
+        .query(application_id, query.into())
         .await
         .data
         .into_json()
