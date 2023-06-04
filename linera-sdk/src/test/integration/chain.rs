@@ -159,8 +159,7 @@ impl ActiveChain {
         BytecodeId::new(publish_effects[0]).with_abi()
     }
 
-    /// Compiles the crate in the `repository` path or the crate calling this method if the path is
-    /// `None` to generate the WebAssembly binaries.
+    /// Compiles the crate in the `repository` path.
     async fn build_bytecodes_in(repository: &Path) {
         let output = std::process::Command::new("cargo")
             .args(["build", "--release", "--target", "wasm32-unknown-unknown"])
