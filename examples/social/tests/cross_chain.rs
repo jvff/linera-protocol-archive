@@ -48,7 +48,7 @@ async fn test_cross_chain_posting() {
     chain1.handle_received_effects().await;
 
     // Querying the own posts
-    let query = "{ ownPosts(start: 0, end:1) { timestamp, text } }";
+    let query = "{ ownPosts(start: 0, end: 1) { timestamp, text } }";
     let response = chain2
         .query(application_id, query.into())
         .await
