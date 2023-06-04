@@ -55,7 +55,7 @@ async fn collect_pledges() {
         )
         .await;
 
-    let mut pledges_and_transfers = Vec::with_capacity(2 * backers.len());
+    let mut pledges_and_transfers = Vec::new();
 
     for (backer_chain, backer_account, _balance) in &backers {
         backer_chain.register_application(campaign_id).await;
@@ -156,7 +156,7 @@ async fn cancel_successful_campaign() {
         )
         .await;
 
-    let mut pledges_and_transfers = Vec::with_capacity(2 * backers.len());
+    let mut pledges_and_transfers = Vec::new();
 
     for (backer_chain, backer_account, _balance) in &backers {
         backer_chain.register_application(campaign_id).await;
