@@ -29,7 +29,7 @@ async fn single_chain_test() {
         .await;
 
     let final_value = initial_state + increment;
-    let response = chain.graphql_query(application_id, "{ value }").await;
+    let response = chain.graphql_query(application_id, "query { value }").await;
     let state_value = response["value"].as_u64().expect("Failed to get the u64");
     assert_eq!(state_value, final_value);
 }
