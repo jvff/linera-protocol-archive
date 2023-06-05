@@ -422,7 +422,7 @@ impl ActiveChain {
 
     /// Executes a `query` on an `application`'s state on this microchain.
     ///
-    /// Returns the deserialized `Output` response from the `application`.
+    /// Returns the deserialized response from the `application`.
     pub async fn query<Abi>(
         &self,
         application_id: ApplicationId<Abi>,
