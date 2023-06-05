@@ -314,14 +314,7 @@ impl FungibleTokenAbi {
         account_owner: AccountOwner,
     ) -> Option<Amount> {
         let query = format!("{{ accounts(accountOwner: {}) }}", account_owner.to_value());
-
-        let value = chain
-            .query(application_id, Request::from(query))
-            .await
-            .data
-            .into_json()
-            .ok()?;
-
+        let value = chain.graphql_query(application_id, query).await;
         let balance = value.as_object()?.get("accounts")?.as_str()?;
 
         Some(
