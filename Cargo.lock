@@ -2585,6 +2585,7 @@ dependencies = [
  "async-lock",
  "async-trait",
  "bcs",
+ "bytes",
  "custom_debug_derive",
  "dashmap",
  "derive_more",
