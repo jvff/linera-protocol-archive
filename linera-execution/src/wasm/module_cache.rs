@@ -77,7 +77,7 @@ impl<Module> ModuleCache<Module> {
                 .modules
                 .pop_lru()
                 .expect("Empty cache should have a `total_size` of zero");
-            let bytecode_size: u64 = bytecode.as_ref().len() as u64;
+            let bytecode_size = bytecode.as_ref().len() as u64;
 
             self.total_size -= bytecode_size;
         }
