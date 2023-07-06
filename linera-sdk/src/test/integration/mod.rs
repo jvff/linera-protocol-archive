@@ -8,7 +8,17 @@
 //! executed targeting the host architecture, instead of targeting `wasm32-unknown-unknown` like
 //! done for unit tests.
 
-#![cfg(any(feature = "wasmer", feature = "wasmtime"))]
+#![cfg(any(feature = "test", feature = "wasmer", feature = "wasmtime"))]
+
+#[cfg(not(any(feature = "wasmer", feature = "wasmtime")))]
+compile_error!(
+    "Integration requests require either the `wasmer` or `wasmtime` feature to be enabled in \
+    `linera-sdk`.\n \
+    It is recommended to add the following lines to `Cargo.toml`:\n \
+    \n \
+    [target.'cfg(not(target_arch = \"wasm32\"))'.dev-dependencies]\n \
+    linera-sdk = { version = \"*\", features = [\"test\", \"wasmer\"] }"
+);
 
 mod block;
 mod chain;
