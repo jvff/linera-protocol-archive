@@ -10,19 +10,15 @@
 
 #![cfg(any(feature = "test", feature = "wasmer", feature = "wasmtime"))]
 
-#[cfg(not(any(feature = "wasmer", feature = "wasmtime")))]
-compile_error!(
-    "Integration requests require either the `wasmer` or `wasmtime` feature to be enabled in \
-    `linera-sdk`.\n \
-    It is recommended to add the following lines to `Cargo.toml`:\n \
-    \n \
-    [target.'cfg(not(target_arch = \"wasm32\"))'.dev-dependencies]\n \
-    linera-sdk = { version = \"*\", features = [\"test\", \"wasmer\"] }"
-);
-
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
 mod block;
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
 mod chain;
 mod mock_stubs;
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
 mod validator;
 
-pub use self::{block::BlockBuilder, chain::ActiveChain, mock_stubs::*, validator::TestValidator};
+#[cfg(feature = "test")]
+pub use self::mock_stubs::*;
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+pub use self::{block::BlockBuilder, chain::ActiveChain, validator::TestValidator};
