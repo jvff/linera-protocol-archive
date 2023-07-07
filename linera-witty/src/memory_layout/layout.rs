@@ -4,6 +4,7 @@
 //! Representation of the memory layout of complex types as a sequence of fundamental WIT types.
 
 use super::element::LayoutElement;
+use crate::util::Split;
 use frunk::{hlist::HList, HCons, HNil};
 
 /// Marker trait to prevent [`LayoutElement`] to be implemented for other types.
@@ -15,7 +16,7 @@ pub trait Layout: Sealed + Default + HList {
     const ALIGNMENT: u32;
 
     /// Result of appending some `Other` layout to this layout.
-    type Append<Other: Layout>: Layout;
+    type Append<Other: Layout>: Layout + Split<Self, Remainder = Other>;
 
     /// Appends some `other` layout with this layout, returning a new layout list.
     fn append<Other>(self, other: Other) -> Self::Append<Other>
