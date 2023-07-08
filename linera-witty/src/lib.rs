@@ -13,3 +13,6 @@
 
 mod memory_layout;
 mod primitive_types;
+mod type_traits;
+
+pub use self::type_traits::WitType;
