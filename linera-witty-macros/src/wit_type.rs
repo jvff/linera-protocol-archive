@@ -1,3 +1,8 @@
+// Copyright (c) Zefchain Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+//! Derivation of the `WitType` trait.
+
 use {
     proc_macro2::TokenStream,
     quote::quote,
