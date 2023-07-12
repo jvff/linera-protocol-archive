@@ -3,11 +3,9 @@
 
 //! Derivation of the `WitType` trait.
 
-use {
-    proc_macro2::TokenStream,
-    quote::quote,
-    syn::{Fields, Type},
-};
+use proc_macro2::TokenStream;
+use quote::quote;
+use syn::{Fields, Type};
 
 /// Returns the body of the `WitType` implementation for the Rust `struct` with the specified
 /// `fields`.
