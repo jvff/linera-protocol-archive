@@ -913,6 +913,16 @@ impl NodeService {
         }
     }
 
+    async fn make_amm_application(
+        &self,
+        chain_id: &ChainId,
+        application_id: &str,
+    ) -> AmmApplication {
+        AmmApplication {
+            application: self.make_application(chain_id, application_id).await,
+        }
+    }
+
     async fn make_application(&self, chain_id: &ChainId, application_id: &str) -> Application {
         for i in 0..10 {
             tokio::time::sleep(Duration::from_secs(i)).await;
@@ -1140,6 +1150,53 @@ impl MatchingEngineApplication {
         );
         let response_body = self.query_application(&query).await;
         serde_json::from_value(response_body["accountInfo"]["orders"].clone()).unwrap()
+    }
+}
+
+struct AmmApplication {
+    application: Application,
+}
+
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+impl AmmApplication {
+    async fn query_application(&self, query: &str) -> Value {
+        self.application.query_application(query).await
+    }
+
+    async fn get_pool_balance(&self, token_idx: u32) -> u64 {
+        let data = self
+            .query_application(&format!("query {{ balance{} }}", token_idx))
+            .await;
+        serde_json::from_value(data[format!("balance{}", token_idx)].clone()).unwrap_or_default()
+    }
+
+    async fn get_total_shares(&self) -> u64 {
+        let data = self.query_application("query { totalShares }").await;
+        serde_json::from_value(data["totalShares"].clone()).unwrap_or_default()
+    }
+
+    async fn add_liquidity(&self, token0_amount: u64, token1_amount: u64) {
+        let query = format!(
+            "mutation {{ addLiquidity(token0Amount: {}, token1Amount: {})}}",
+            token0_amount, token1_amount
+        );
+        self.query_application(&query).await;
+    }
+
+    async fn remove_liquidity(&self, shares_amount: u64) {
+        let query = format!(
+            "mutation {{ removeLiquidity(sharesAmount: {})}}",
+            shares_amount
+        );
+        self.query_application(&query).await;
+    }
+
+    async fn swap(&self, input_token_idx: u32, output_token_idx: u32, input_amount: u64) {
+        let query = format!(
+            "mutation {{ swap(inputTokenIdx: {}, outputTokenIdx: {}, inputAmount: {})}}",
+            input_token_idx, output_token_idx, input_amount
+        );
+        self.query_application(&query).await;
     }
 }
 
@@ -2409,4 +2466,176 @@ async fn test_project_publish() {
     let node_service = client.run_node_service(None).await;
 
     assert_eq!(node_service.try_get_applications_uri(&chain).await.len(), 1)
+}
+
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+#[test_log::test(tokio::test)]
+async fn test_end_to_end_amm() {
+    use amm::Parameters;
+    use fungible::{FungibleTokenAbi, InitialState};
+
+    let _guard = INTEGRATION_TEST_GUARD.lock().await;
+
+    let network = Network::Grpc;
+    let mut runner = TestRunner::new(network, 4);
+    let client_admin = runner.make_client(network);
+    let client0 = runner.make_client(network);
+    let client1 = runner.make_client(network);
+
+    runner.generate_initial_validator_config().await;
+    client_admin.create_genesis_config().await;
+    client0.wallet_init(&[]).await;
+    client1.wallet_init(&[]).await;
+
+    runner.run_local_net().await;
+    let (contract_fungible, service_fungible) = runner.build_example("fungible").await;
+    let (contract_amm, service_amm) = runner.build_example("amm").await;
+
+    let chain_admin = client_admin.get_wallet().default_chain().unwrap();
+    let chain0 = client_admin.open_and_assign(&client0).await;
+    let chain1 = client_admin.open_and_assign(&client1).await;
+
+    let owner_admin = client_admin.get_fungible_account_owner();
+    let owner0 = client0.get_fungible_account_owner();
+    let owner1 = client1.get_fungible_account_owner();
+
+    let accounts0 = BTreeMap::from([(owner0, Amount::from_tokens(10))]);
+    let state_fungible0 = InitialState {
+        accounts: accounts0,
+    };
+    let accounts1 = BTreeMap::from([(owner1, Amount::from_tokens(9))]);
+    let state_fungible1 = InitialState {
+        accounts: accounts1,
+    };
+
+    let application_id_fungible0 = client0
+        .publish_and_create::<FungibleTokenAbi>(
+            contract_fungible.clone(),
+            service_fungible.clone(),
+            &(),
+            &state_fungible0,
+            vec![],
+            None,
+        )
+        .await;
+    let application_id_fungible1 = client1
+        .publish_and_create::<FungibleTokenAbi>(
+            contract_fungible,
+            service_fungible,
+            &(),
+            &state_fungible1,
+            vec![],
+            None,
+        )
+        .await;
+
+    let mut node_service_admin = client_admin.run_node_service(8080).await;
+    let mut node_service0 = client0.run_node_service(8081).await;
+    let mut node_service1 = client1.run_node_service(8082).await;
+
+    let app_fungible0 = node_service0
+        .make_fungible_application(&application_id_fungible0)
+        .await;
+    let app_fungible1 = node_service1
+        .make_fungible_application(&application_id_fungible1)
+        .await;
+    app_fungible0
+        .assert_fungible_account_balances([
+            (owner0, Amount::from_tokens(10)),
+            (owner1, Amount::ZERO),
+            (owner_admin, Amount::ZERO),
+        ])
+        .await;
+    app_fungible1
+        .assert_fungible_account_balances([
+            (owner0, Amount::ZERO),
+            (owner1, Amount::from_tokens(9)),
+            (owner_admin, Amount::ZERO),
+        ])
+        .await;
+
+    node_service_admin
+        .request_application(&application_id_fungible0)
+        .await;
+    let app_fungible0_admin = node_service_admin
+        .make_fungible_application(&application_id_fungible0)
+        .await;
+    node_service_admin
+        .request_application(&application_id_fungible1)
+        .await;
+    let app_fungible1_admin = node_service_admin
+        .make_fungible_application(&application_id_fungible1)
+        .await;
+    app_fungible0_admin
+        .assert_fungible_account_balances([
+            (owner0, Amount::ZERO),
+            (owner1, Amount::ZERO),
+            (owner_admin, Amount::ZERO),
+        ])
+        .await;
+    app_fungible1_admin
+        .assert_fungible_account_balances([
+            (owner0, Amount::ZERO),
+            (owner1, Amount::ZERO),
+            (owner_admin, Amount::ZERO),
+        ])
+        .await;
+
+    let token0 = application_id_fungible0
+        .parse::<ApplicationId>()
+        .unwrap()
+        .with_abi();
+    let token1 = application_id_fungible1
+        .parse::<ApplicationId>()
+        .unwrap()
+        .with_abi();
+    let parameters = Parameters {
+        tokens: [token0, token1],
+    };
+    let bytecode_id = node_service_admin
+        .publish_bytecode(contract_amm, service_amm)
+        .await;
+    let parameter_str = serde_json::to_string(&parameters).unwrap();
+    let argument_str = serde_json::to_string(&()).unwrap();
+    let application_id_amm = node_service_admin
+        .create_application(
+            bytecode_id,
+            parameter_str,
+            argument_str,
+            vec![
+                application_id_fungible0.clone(),
+                application_id_fungible1.clone(),
+            ],
+        )
+        .await;
+
+    let app_amm_admin = node_service_admin
+        .make_amm_application(&application_id_amm)
+        .await;
+
+    // Initial balances for both tokens are 0
+    // Add liquidity for token0 and token1
+    app_amm_admin.add_liquidity(100, 100).await;
+    assert_eq!(app_amm_admin.get_pool_balance(0).await, 100);
+    assert_eq!(app_amm_admin.get_pool_balance(1).await, 100);
+    assert_eq!(app_amm_admin.get_total_shares().await, 100);
+
+    app_amm_admin.add_liquidity(100, 100).await;
+    assert_eq!(app_amm_admin.get_pool_balance(0).await, 200);
+    assert_eq!(app_amm_admin.get_pool_balance(1).await, 200);
+    assert_eq!(app_amm_admin.get_total_shares().await, 200);
+
+    app_amm_admin.swap(0, 1, 50).await;
+    assert_eq!(app_amm_admin.get_pool_balance(0).await, 150);
+    assert_eq!(app_amm_admin.get_pool_balance(1).await, 240);
+    assert_eq!(app_amm_admin.get_total_shares().await, 200);
+
+    app_amm_admin.remove_liquidity(50).await;
+    assert_eq!(app_amm_admin.get_pool_balance(0).await, 113);
+    assert_eq!(app_amm_admin.get_pool_balance(1).await, 180);
+    assert_eq!(app_amm_admin.get_total_shares().await, 150);
+
+    node_service_admin.assert_is_running();
+    node_service0.assert_is_running();
+    node_service1.assert_is_running();
 }
