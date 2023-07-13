@@ -8,6 +8,7 @@ members = [
         "matching-engine",
         "reentrant-counter",
         "social",
+        "amm",
 ]
 
 [workspace.dependencies]
@@ -29,6 +30,7 @@ webassembly-test = "0.1.0"
 counter = { path = "./counter" }
 crowd-funding = { path = "./crowd-funding" }
 fungible = { path = "./fungible" }
+amm = { path = "./amm" }
 
 [profile.release]
 debug = true
