@@ -77,6 +77,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "amm"
+version = "0.1.0"
+dependencies = [
+ "async-graphql",
+ "async-trait",
+ "bcs",
+ "linera-sdk",
+ "linera-views",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2876,6 +2890,7 @@ dependencies = [
 name = "linera-service"
 version = "0.2.0"
 dependencies = [
+ "amm",
  "anyhow",
  "async-graphql",
  "async-graphql-axum",
