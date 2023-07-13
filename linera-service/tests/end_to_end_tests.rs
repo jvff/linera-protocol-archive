@@ -1078,6 +1078,37 @@ impl Application {
         let query = format!("mutation {{ increment(value: {})}}", increment);
         self.query_application(&query).await;
     }
+
+    async fn get_pool_balance(&self, token: &String) -> u64 {
+        let data = self
+            .query_application(&format!("query {{ poolBalance(token: \"{}\") }}", token))
+            .await;
+        serde_json::from_value(data["pool_balance"].clone()).unwrap()
+    }
+
+    async fn add_liquidity(&self, token: &String, amount: u64) {
+        let query = format!(
+            "mutation {{ add_liquidity(token: {}, amount: {})}}",
+            token, amount
+        );
+        self.query_application(&query).await;
+    }
+
+    async fn remove_liquidity(&self, token: &String, amount: u64) {
+        let query = format!(
+            "mutation {{ remove_liquidity(token: {}, amount: {})}}",
+            token, amount
+        );
+        self.query_application(&query).await;
+    }
+
+    async fn swap(&self, input_token: &String, output_token: &String, amount: u64) {
+        let query = format!(
+            "mutation {{ swap(input_token: {}, output_token: {}, amount: {})}}",
+            input_token, output_token, amount
+        );
+        self.query_application(&query).await;
+    }
 }
 
 fn make_graphql_query(file: &str, operation_name: &str, variables: &[(String, String)]) -> String {
@@ -2237,4 +2268,84 @@ async fn test_project_publish() {
     let node_service = client.run_node_service(None, None).await;
 
     assert_eq!(node_service.try_get_applications_uri().await.len(), 1)
+}
+
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+#[test_log::test(tokio::test)]
+async fn test_end_to_end_amm() {
+    use amm::{calculate_output_amount, AMMAbi};
+
+    let _guard = INTEGRATION_TEST_GUARD.lock().await;
+
+    let network = Network::Grpc;
+    let mut runner = TestRunner::new(network, 4);
+    let client = runner.make_client(network);
+
+    runner.generate_initial_validator_config().await;
+    client.create_genesis_config().await;
+    runner.run_local_net().await;
+    let (contract, service) = runner.build_example("amm").await;
+
+    let application_id = client
+        .publish_and_create::<AMMAbi>(contract, service, &(), &(), vec![], None)
+        .await;
+    let mut node_service = client.run_node_service(None, None).await;
+
+    let application = node_service.make_application(&application_id).await;
+
+    let token_a = "TokenA".to_string();
+    let token_b = "TokenB".to_string();
+
+    // Initial pool balances
+    assert_eq!(application.get_pool_balance(&token_a).await, 0);
+    assert_eq!(application.get_pool_balance(&token_b).await, 0);
+
+    // Add liquidity for TokenA and TokenB
+    let liquidity_a = 100;
+    let liquidity_b = 200;
+    application.add_liquidity(&token_a, liquidity_a).await;
+    application.add_liquidity(&token_b, liquidity_b).await;
+
+    // Verify updated pool balances
+    assert_eq!(application.get_pool_balance(&token_a).await, liquidity_a);
+    assert_eq!(application.get_pool_balance(&token_b).await, liquidity_b);
+
+    // Swap TokenA for TokenB
+    let input_amount = 50;
+    let expected_output_amount =
+        calculate_output_amount(input_amount, liquidity_a, liquidity_b).unwrap();
+
+    application.swap(&token_a, &token_b, input_amount).await;
+
+    // Verify updated pool balances
+    assert_eq!(
+        application.get_pool_balance(&token_a).await,
+        liquidity_a + input_amount
+    );
+    assert_eq!(
+        application.get_pool_balance(&token_b).await,
+        liquidity_b - expected_output_amount
+    );
+
+    // Remove liquidity for TokenA and TokenB
+    let liquidity_to_remove_a = 50;
+    let liquidity_to_remove_b = 100;
+    application
+        .remove_liquidity(&token_a, liquidity_to_remove_a)
+        .await;
+    application
+        .remove_liquidity(&token_b, liquidity_to_remove_b)
+        .await;
+
+    // Verify updated pool balances
+    assert_eq!(
+        application.get_pool_balance(&token_a).await,
+        liquidity_a + input_amount - liquidity_to_remove_a
+    );
+    assert_eq!(
+        application.get_pool_balance(&token_b).await,
+        liquidity_b - expected_output_amount - liquidity_to_remove_b
+    );
+
+    node_service.assert_is_running();
 }
