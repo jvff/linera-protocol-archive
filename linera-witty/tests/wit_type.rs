@@ -1,3 +1,8 @@
+// Copyright (c) Zefchain Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+//! Tests for the `WitType` derive macro.
+
 use linera_witty::{HList, Layout, WitType};
 
 /// Check the memory size and layout derived for a wrapper type.
