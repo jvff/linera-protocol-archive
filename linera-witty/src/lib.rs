@@ -16,3 +16,4 @@ mod primitive_types;
 mod type_traits;
 
 pub use self::{memory_layout::Layout, type_traits::WitType};
+pub use frunk::{hlist::HList, HList, HNil};
