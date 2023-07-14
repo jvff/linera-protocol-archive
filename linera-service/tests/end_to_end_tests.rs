@@ -883,6 +883,36 @@ impl NodeService {
         self.query_node(&query).await;
     }
 
+    async fn make_fungible_application(
+        &self,
+        chain_id: &ChainId,
+        application_id: &str,
+    ) -> FungibleApplication {
+        FungibleApplication {
+            application: self.make_application(chain_id, application_id).await,
+        }
+    }
+
+    async fn make_counter_application(
+        &self,
+        chain_id: &ChainId,
+        application_id: &str,
+    ) -> CounterApplication {
+        CounterApplication {
+            application: self.make_application(chain_id, application_id).await,
+        }
+    }
+
+    async fn make_matching_engine_application(
+        &self,
+        chain_id: &ChainId,
+        application_id: &str,
+    ) -> MatchingEngineApplication {
+        MatchingEngineApplication {
+            application: self.make_application(chain_id, application_id).await,
+        }
+    }
+
     async fn make_application(&self, chain_id: &ChainId, application_id: &str) -> Application {
         for i in 0..10 {
             tokio::time::sleep(Duration::from_secs(i)).await;
@@ -1009,45 +1039,6 @@ struct Application {
 
 #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
 impl Application {
-    async fn get_fungible_account_owner_amount(
-        &self,
-        account_owner: &fungible::AccountOwner,
-    ) -> Amount {
-        let query = format!(
-            "query {{ accounts(accountOwner: {} ) }}",
-            account_owner.to_value()
-        );
-        let response_body = self.query_application(&query).await;
-        serde_json::from_value(response_body["accounts"].clone()).unwrap_or_default()
-    }
-
-    async fn get_matching_engine_account_info(
-        &self,
-        account_owner: &fungible::AccountOwner,
-    ) -> Vec<matching_engine::OrderId> {
-        let query = format!(
-            "query {{ accountInfo(accountOwner: {}) {{ orders }} }}",
-            account_owner.to_value()
-        );
-        let response_body = self.query_application(&query).await;
-        serde_json::from_value(response_body["accountInfo"]["orders"].clone()).unwrap()
-    }
-
-    async fn assert_fungible_account_balances(
-        &self,
-        accounts: impl IntoIterator<Item = (fungible::AccountOwner, Amount)>,
-    ) {
-        for (account_owner, amount) in accounts {
-            let value = self.get_fungible_account_owner_amount(&account_owner).await;
-            assert_eq!(value, amount);
-        }
-    }
-
-    async fn get_counter_value(&self) -> u64 {
-        let data = self.query_application("query { value }").await;
-        serde_json::from_value(data["value"].clone()).unwrap()
-    }
-
     async fn query_application(&self, query: &str) -> Value {
         let client = reqwest::Client::new();
         let response = client
@@ -1073,10 +1064,82 @@ impl Application {
         }
         value["data"].clone()
     }
+}
+
+struct FungibleApplication {
+    application: Application,
+}
+
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+impl FungibleApplication {
+    async fn query_application(&self, query: &str) -> Value {
+        self.application.query_application(query).await
+    }
+
+    async fn get_fungible_account_owner_amount(
+        &self,
+        account_owner: &fungible::AccountOwner,
+    ) -> Amount {
+        let query = format!(
+            "query {{ accounts(accountOwner: {} ) }}",
+            account_owner.to_value()
+        );
+        let response_body = self.query_application(&query).await;
+        serde_json::from_value(response_body["accounts"].clone()).unwrap_or_default()
+    }
+
+    async fn assert_fungible_account_balances(
+        &self,
+        accounts: impl IntoIterator<Item = (fungible::AccountOwner, Amount)>,
+    ) {
+        for (account_owner, amount) in accounts {
+            let value = self.get_fungible_account_owner_amount(&account_owner).await;
+            assert_eq!(value, amount);
+        }
+    }
+}
+
+struct CounterApplication {
+    application: Application,
+}
+
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+impl CounterApplication {
+    async fn query_application(&self, query: &str) -> Value {
+        self.application.query_application(query).await
+    }
+
+    async fn get_counter_value(&self) -> u64 {
+        let data = self.query_application("query { value }").await;
+        serde_json::from_value(data["value"].clone()).unwrap()
+    }
 
     async fn increment_counter_value(&self, increment: u64) {
         let query = format!("mutation {{ increment(value: {})}}", increment);
         self.query_application(&query).await;
+    }
+}
+
+struct MatchingEngineApplication {
+    application: Application,
+}
+
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+impl MatchingEngineApplication {
+    async fn query_application(&self, query: &str) -> Value {
+        self.application.query_application(query).await
+    }
+
+    async fn get_matching_engine_account_info(
+        &self,
+        account_owner: &fungible::AccountOwner,
+    ) -> Vec<matching_engine::OrderId> {
+        let query = format!(
+            "query {{ accountInfo(accountOwner: {}) {{ orders }} }}",
+            account_owner.to_value()
+        );
+        let response_body = self.query_application(&query).await;
+        serde_json::from_value(response_body["accountInfo"]["orders"].clone()).unwrap()
     }
 }
 
@@ -1282,7 +1345,9 @@ async fn test_end_to_end_counter() {
         .await;
     let mut node_service = client.run_node_service(None).await;
 
-    let application = node_service.make_application(&chain, &application_id).await;
+    let application = node_service
+        .make_counter_application(&chain, &application_id)
+        .await;
 
     let counter_value = application.get_counter_value().await;
     assert_eq!(counter_value, original_counter_value);
@@ -1321,7 +1386,9 @@ async fn test_end_to_end_counter_publish_create() {
         .await;
     let mut node_service = client.run_node_service(None).await;
 
-    let application = node_service.make_application(&chain, &application_id).await;
+    let application = node_service
+        .make_counter_application(&chain, &application_id)
+        .await;
 
     let counter_value = application.get_counter_value().await;
     assert_eq!(counter_value, original_counter_value);
@@ -1768,7 +1835,7 @@ async fn test_end_to_end_fungible() {
     let mut node_service2 = client2.run_node_service(8081).await;
 
     let app1 = node_service1
-        .make_application(&chain1, &application_id)
+        .make_fungible_application(&chain1, &application_id)
         .await;
     app1.assert_fungible_account_balances([
         (account_owner1, Amount::from_tokens(5)),
@@ -1799,7 +1866,7 @@ async fn test_end_to_end_fungible() {
 
     // Fungible didn't exist on chain2 initially but now it does and we can talk to it.
     let app2 = node_service2
-        .make_application(&chain2, &application_id)
+        .make_fungible_application(&chain2, &application_id)
         .await;
 
     app2.assert_fungible_account_balances(BTreeMap::from([
@@ -1889,7 +1956,7 @@ async fn test_end_to_end_same_wallet_fungible() {
     let mut node_service = client1.run_node_service(8080).await;
 
     let app1 = node_service
-        .make_application(&chain1, &application_id)
+        .make_fungible_application(&chain1, &application_id)
         .await;
     app1.assert_fungible_account_balances([
         (account_owner1, Amount::from_tokens(5)),
@@ -1918,8 +1985,10 @@ async fn test_end_to_end_same_wallet_fungible() {
     ])
     .await;
 
-    let app2 = node_service
-        .make_application(&chain2, &application_id)
+    let mut node_service2 = client1.run_node_service(8080).await;
+
+    let app2 = node_service2
+        .make_fungible_application(&chain2, &application_id)
         .await;
     app2.assert_fungible_account_balances([(account_owner2, Amount::ONE)])
         .await;
@@ -1999,11 +2068,11 @@ async fn test_end_to_end_crowd_funding() {
     let mut node_service2 = client2.run_node_service(8081).await;
 
     let app_fungible1 = node_service1
-        .make_application(&chain1, &application_id_fungible)
+        .make_fungible_application(&chain1, &application_id_fungible)
         .await;
 
     let app_crowd1 = node_service1
-        .make_application(&chain1, &application_id_crowd)
+        .make_fungible_application(&chain1, &application_id_crowd)
         .await;
 
     // Transferring tokens to user2 on chain2
@@ -2026,7 +2095,7 @@ async fn test_end_to_end_crowd_funding() {
         .await;
 
     let app_crowd2 = node_service2
-        .make_application(&chain2, &application_id_crowd)
+        .make_fungible_application(&chain2, &application_id_crowd)
         .await;
 
     // Transferring
@@ -2123,10 +2192,10 @@ async fn test_end_to_end_matching_engine() {
     let mut node_service_b = client_b.run_node_service(8082).await;
 
     let app_fungible0_a = node_service_a
-        .make_application(&chain_a, &application_id_fungible0)
+        .make_fungible_application(&chain_a, &application_id_fungible0)
         .await;
     let app_fungible1_b = node_service_b
-        .make_application(&chain_b, &application_id_fungible1)
+        .make_fungible_application(&chain_b, &application_id_fungible1)
         .await;
     app_fungible0_a
         .assert_fungible_account_balances([
@@ -2147,13 +2216,13 @@ async fn test_end_to_end_matching_engine() {
         .request_application(&chain_admin, &application_id_fungible0)
         .await;
     let app_fungible0_admin = node_service_admin
-        .make_application(&chain_admin, &application_id_fungible0)
+        .make_fungible_application(&chain_admin, &application_id_fungible0)
         .await;
     node_service_admin
         .request_application(&chain_admin, &application_id_fungible1)
         .await;
     let app_fungible1_admin = node_service_admin
-        .make_application(&chain_admin, &application_id_fungible1)
+        .make_fungible_application(&chain_admin, &application_id_fungible1)
         .await;
     app_fungible0_admin
         .assert_fungible_account_balances([
@@ -2200,19 +2269,19 @@ async fn test_end_to_end_matching_engine() {
         )
         .await;
     let app_matching_admin = node_service_admin
-        .make_application(&chain_admin, &application_id_matching)
+        .make_matching_engine_application(&chain_admin, &application_id_matching)
         .await;
     node_service_a
         .request_application(&chain_a, &application_id_matching)
         .await;
     let app_matching_a = node_service_a
-        .make_application(&chain_a, &application_id_matching)
+        .make_matching_engine_application(&chain_a, &application_id_matching)
         .await;
     node_service_b
         .request_application(&chain_b, &application_id_matching)
         .await;
     let app_matching_b = node_service_b
-        .make_application(&chain_b, &application_id_matching)
+        .make_matching_engine_application(&chain_b, &application_id_matching)
         .await;
 
     // Now creating orders
