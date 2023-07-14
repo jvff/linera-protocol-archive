@@ -59,7 +59,7 @@ struct QueryRoot;
 #[Object]
 impl QueryRoot {
     async fn pool_balance(&self, ctx: &Context<'_>, token: String) -> Result<u64, AMMError> {
-        let amm = ctx.data_unchecked::<Amm>();
+        let amm = ctx.data_unchecked::<Arc<Amm>>();
         get_pool_balance(&amm.token_pool, &token).await
     }
 }
