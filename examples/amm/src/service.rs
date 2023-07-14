@@ -25,9 +25,7 @@ impl Service for Amm {
         _context: &QueryContext,
         request: Request,
     ) -> Result<Response, AMMError> {
-        let schema = Schema::build(QueryRoot, MutationRoot, EmptySubscription)
-            .data(self)
-            .finish();
+        let schema = Schema::build(self.clone(), MutationRoot, EmptySubscription).finish();
         let response = schema.execute(request).await;
         Ok(response)
     }
@@ -51,15 +49,5 @@ impl MutationRoot {
             amount,
         })
         .unwrap()
-    }
-}
-
-struct QueryRoot;
-
-#[Object]
-impl QueryRoot {
-    async fn pool_balance(&self, ctx: &Context<'_>, token: String) -> Result<u64, AMMError> {
-        let amm = ctx.data_unchecked::<Amm>();
-        get_pool_balance(&amm.token_pool, &token).await
     }
 }

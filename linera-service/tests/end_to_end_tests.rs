@@ -1081,14 +1081,14 @@ impl Application {
 
     async fn get_pool_balance(&self, token: &String) -> u64 {
         let data = self
-            .query_application(&format!("query {{ poolBalance(token: \"{}\") }}", token))
+            .query_application(&format!("query {{ tokenPool(string: \"{}\") }}", token))
             .await;
-        serde_json::from_value(data["pool_balance"].clone()).unwrap()
+        serde_json::from_value(data["tokenPool"].clone()).unwrap_or_default()
     }
 
     async fn add_liquidity(&self, token: &String, amount: u64) {
         let query = format!(
-            "mutation {{ add_liquidity(token: {}, amount: {})}}",
+            "mutation {{ addLiquidity(token: \"{}\", amount: {})}}",
             token, amount
         );
         self.query_application(&query).await;
