@@ -50,6 +50,7 @@ fn tuple_struct_with_padding() {
 /// that requires padding before two fields.
 #[test]
 fn named_struct_with_double_padding() {
+    #[allow(dead_code)]
     #[derive(WitType)]
     struct RecordWithDoublePadding {
         first: u16,
@@ -70,6 +71,7 @@ fn named_struct_with_double_padding() {
 /// has `WitType` derived for it.
 #[test]
 fn nested_types() {
+    #[allow(dead_code)]
     #[derive(WitType)]
     struct Leaf {
         first: bool,
@@ -80,6 +82,7 @@ fn nested_types() {
     assert_eq!(<Leaf as WitType>::Layout::ALIGNMENT, 8);
     assert_eq!(<<Leaf as WitType>::Layout as Layout>::Flat::LEN, 3);
 
+    #[allow(dead_code)]
     #[derive(WitType)]
     struct Branch {
         tag: u16,
