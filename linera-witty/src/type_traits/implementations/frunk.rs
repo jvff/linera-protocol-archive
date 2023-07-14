@@ -3,7 +3,7 @@
 
 //! Implementations of the custom traits for types from the standard library.
 
-use crate::{memory_layout::Layout, WitType};
+use crate::{Layout, WitType};
 use frunk::{HCons, HNil};
 use std::ops::Add;
 
