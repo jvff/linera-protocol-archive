@@ -29,8 +29,8 @@ fn struct_size_calculation<'fields>(
     let field_size_calculations = field_types.map(|field_type| {
         quote! {
             let field_alignment =
-                <<#field_type as witty::WitType>::Layout as witty::Layout>::ALIGNMENT;
-            let field_size = <#field_type as witty::WitType>::SIZE;
+                <<#field_type as linera_witty::WitType>::Layout as linera_witty::Layout>::ALIGNMENT;
+            let field_size = <#field_type as linera_witty::WitType>::SIZE;
             let padding = (-(size as i32) & (field_alignment as i32 - 1)) as u32;
 
             size += padding;
@@ -47,7 +47,9 @@ fn struct_size_calculation<'fields>(
 
 /// Returns the layout type for the sequence of `field_types`.
 fn struct_layout_type<'fields>(field_types: impl Iterator<Item = &'fields Type>) -> TokenStream {
-    field_types.fold(quote! { witty::HNil }, |current, field_type| {
-        quote! { <#current as std::ops::Add<<#field_type as witty::WitType>::Layout>>::Output }
+    field_types.fold(quote! { linera_witty::HNil }, |current, field_type| {
+        quote! {
+            <#current as std::ops::Add<<#field_type as linera_witty::WitType>::Layout>>::Output
+        }
     })
 }

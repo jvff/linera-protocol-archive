@@ -3,7 +3,7 @@
 
 //! # Linera Witty Macros
 //!
-//! This crate contains the procedural macros used by the `witty` crate.
+//! This crate contains the procedural macros used by the `linera-witty` crate.
 
 #![deny(missing_docs)]
 
