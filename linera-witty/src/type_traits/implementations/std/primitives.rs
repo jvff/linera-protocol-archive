@@ -4,13 +4,7 @@
 //! Implementations of the custom traits for other standard primitive types.
 
 use crate::WitType;
-use frunk::{HList, HNil};
-
-impl WitType for () {
-    const SIZE: u32 = 0;
-
-    type Layout = HNil;
-}
+use frunk::HList;
 
 impl WitType for bool {
     const SIZE: u32 = 1;

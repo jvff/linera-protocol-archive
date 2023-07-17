@@ -22,7 +22,7 @@ macro_rules! impl_wit_traits {
 
 repeat_macro!(
     impl_wit_traits =>
-    a: A |
+    a: A,
     b: B,
     c: C,
     d: D,
