@@ -16,6 +16,12 @@ use std::borrow::Cow;
 pub struct GuestPointer(pub(crate) u32);
 
 impl GuestPointer {
+    #[cfg(any(test, feature = "test"))]
+    /// Creates a new [`GuestPointer`] using the specified `address`.
+    pub fn new(address: u32) -> Self {
+        GuestPointer(address)
+    }
+
     /// Returns a new address that's the current address advanced to add padding to ensure it's
     /// aligned to the `alignment` byte boundary.
     pub fn aligned_at(&self, alignment: u32) -> Self {
