@@ -3,13 +3,11 @@
 
 //! Implementations of the custom traits for types declared in this crate.
 
-use {
-    crate::{
-        GuestPointer, InstanceWithMemory, Layout, Memory, Runtime, RuntimeError, RuntimeMemory,
-        WitLoad, WitType,
-    },
-    frunk::{hlist_pat, HList},
+use crate::{
+    GuestPointer, InstanceWithMemory, Layout, Memory, Runtime, RuntimeError, RuntimeMemory,
+    WitLoad, WitType,
 };
+use frunk::{hlist_pat, HList};
 
 impl WitType for GuestPointer {
     const SIZE: u32 = u32::SIZE;
