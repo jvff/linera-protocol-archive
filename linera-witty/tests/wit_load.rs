@@ -9,10 +9,10 @@ mod types;
 use self::types::{
     Branch, Leaf, RecordWithDoublePadding, SimpleWrapper, TupleWithPadding, TupleWithoutPadding,
 };
-use linera_witty::{hlist, FakeInstance, HList, InstanceWithMemory, Layout, WitLoad, WitType};
+use linera_witty::{hlist, FakeInstance, InstanceWithMemory, Layout, WitLoad};
 use std::fmt::Debug;
 
-/// Check the memory size and layout derived for a wrapper type.
+/// Check that a wrapper type is properly loaded from memory and lifted from its flat layout.
 #[test]
 fn simple_bool_wrapper() {
     test_load_from_memory(&[1], SimpleWrapper(true));
@@ -22,8 +22,8 @@ fn simple_bool_wrapper() {
     test_lift_from_flat_layout(hlist![0], SimpleWrapper(false));
 }
 
-/// Check the memory size and layout derived for a type with multiple fields ordered in a way that
-/// doesn't require any padding.
+/// Check that a type with multiple fields ordered in a way that doesn't require any padding is
+/// properly loaded from memory and lifted from its flat layout.
 #[test]
 fn tuple_struct_without_padding() {
     let expected = TupleWithoutPadding(0x0807_0605_0403_0201_u64, 0x0c0b_0a09_i32, 0x0e0d_i16);
@@ -35,8 +35,8 @@ fn tuple_struct_without_padding() {
     );
 }
 
-/// Check the memory size and layout derived for a type with multiple fields ordered in a way that
-/// requires padding between all fields.
+/// Check that a type with multiple fields ordered in a way that requires padding between two of its
+/// fields is properly loaded from memory and lifted from its flat layout.
 #[test]
 fn tuple_struct_with_padding() {
     let expected = TupleWithPadding(0x0201_u16, 0x0807_0605_u32, 0x100f_0e0d_0c0b_0a09_i64);
@@ -51,8 +51,8 @@ fn tuple_struct_with_padding() {
     );
 }
 
-/// Check the memory size and layout derived for a type with multiple named fields ordered in a way
-/// that requires padding before two fields.
+/// Check that a type with multiple named fields ordered in a way that requires padding before two
+/// fields is properly loaded from memory and lifted from its flat layout.
 #[test]
 fn named_struct_with_double_padding() {
     let expected = RecordWithDoublePadding {
@@ -79,8 +79,8 @@ fn named_struct_with_double_padding() {
     );
 }
 
-/// Check the memory size and layout derived for a type that contains a field with a type that also
-/// has `WitType` derived for it.
+/// Check that a type that contains a field with a type that also has `WitStore` derived for it is
+/// properly loaded from memory and lifted from its flat layout.
 #[test]
 fn nested_types() {
     let expected = Branch {
@@ -115,13 +115,6 @@ fn nested_types() {
         ],
         expected,
     );
-    assert_eq!(Leaf::SIZE, 24);
-    assert_eq!(<Leaf as WitType>::Layout::ALIGNMENT, 8);
-    assert_eq!(<<Leaf as WitType>::Layout as Layout>::Flat::LEN, 3);
-
-    assert_eq!(Branch::SIZE, 56);
-    assert_eq!(<Branch as WitType>::Layout::ALIGNMENT, 8);
-    assert_eq!(<<Branch as WitType>::Layout as Layout>::Flat::LEN, 7);
 }
 
 /// Tests that the type `T` can be loaded from an `input` sequence of bytes in memory and that it
