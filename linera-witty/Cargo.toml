@@ -18,6 +18,7 @@ test = []
 [dependencies]
 either = { workspace = true }
 frunk = { workspace = true }
+int-conv = { workspace = true }
 linera-witty-macros = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
