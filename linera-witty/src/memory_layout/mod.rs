@@ -11,5 +11,9 @@ mod element;
 mod flat_layout;
 mod join_flat_layouts;
 mod layout;
+mod split_flat_layouts;
 
-pub use self::{flat_layout::FlatLayout, join_flat_layouts::JoinFlatLayouts, layout::Layout};
+pub use self::{
+    flat_layout::FlatLayout, join_flat_layouts::JoinFlatLayouts, layout::Layout,
+    split_flat_layouts::SplitFlatLayouts,
+};
