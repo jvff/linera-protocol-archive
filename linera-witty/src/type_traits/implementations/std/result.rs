@@ -3,8 +3,11 @@
 
 //! Implementations of the custom traits for the [`Result`] type.
 
-use crate::{Layout, Merge, WitType};
-use frunk::HCons;
+use crate::{
+    GuestPointer, InstanceWithMemory, Layout, Memory, Merge, Runtime, RuntimeError, RuntimeMemory,
+    SplitFlatLayouts, WitLoad, WitType,
+};
+use frunk::{hlist, hlist_pat, HCons};
 
 impl<T, E> WitType for Result<T, E>
 where
@@ -31,4 +34,52 @@ where
     };
 
     type Layout = HCons<i8, <T::Layout as Merge<E::Layout>>::Output>;
+}
+
+impl<T, E> WitLoad for Result<T, E>
+where
+    T: WitLoad,
+    E: WitLoad,
+    T::Layout: Merge<E::Layout>,
+    <T::Layout as Merge<E::Layout>>::Output: Layout,
+    <<T::Layout as Merge<E::Layout>>::Output as Layout>::Flat: SplitFlatLayouts<<T::Layout as Layout>::Flat>
+        + SplitFlatLayouts<<E::Layout as Layout>::Flat>,
+{
+    fn load<Instance>(
+        memory: &Memory<'_, Instance>,
+        location: GuestPointer,
+    ) -> Result<Self, RuntimeError>
+    where
+        Instance: InstanceWithMemory,
+        <Instance::Runtime as Runtime>::Memory: RuntimeMemory<Instance>,
+    {
+        let is_err = bool::load(memory, location)?;
+
+        match is_err {
+            true => Ok(Err(E::load(
+                memory,
+                location.after::<bool>().after_padding_for::<E>(),
+            )?)),
+            false => Ok(Ok(T::load(
+                memory,
+                location.after::<bool>().after_padding_for::<T>(),
+            )?)),
+        }
+    }
+
+    fn lift_from<Instance>(
+        hlist_pat![is_err, ...value_layout]: <Self::Layout as Layout>::Flat,
+        memory: &Memory<'_, Instance>,
+    ) -> Result<Self, RuntimeError>
+    where
+        Instance: InstanceWithMemory,
+        <Instance::Runtime as Runtime>::Memory: RuntimeMemory<Instance>,
+    {
+        let is_err = bool::lift_from(hlist![is_err], memory)?;
+
+        match is_err {
+            false => Ok(Ok(T::lift_from(value_layout.split(), memory)?)),
+            true => Ok(Err(E::lift_from(value_layout.split(), memory)?)),
+        }
+    }
 }
