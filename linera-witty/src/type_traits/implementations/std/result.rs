@@ -4,8 +4,8 @@
 //! Implementations of the custom traits for the [`Result`] type.
 
 use crate::{
-    GuestPointer, InstanceWithMemory, Layout, Memory, Merge, Runtime, RuntimeError, RuntimeMemory,
-    SplitFlatLayouts, WitLoad, WitType,
+    GuestPointer, InstanceWithMemory, JoinFlatLayouts, Layout, Memory, Merge, Runtime,
+    RuntimeError, RuntimeMemory, SplitFlatLayouts, WitLoad, WitStore, WitType,
 };
 use frunk::{hlist, hlist_pat, HCons};
 
@@ -80,6 +80,53 @@ where
         match is_err {
             false => Ok(Ok(T::lift_from(value_layout.split(), memory)?)),
             true => Ok(Err(E::lift_from(value_layout.split(), memory)?)),
+        }
+    }
+}
+
+impl<T, E> WitStore for Result<T, E>
+where
+    T: WitStore,
+    E: WitStore,
+    T::Layout: Merge<E::Layout>,
+    <T::Layout as Merge<E::Layout>>::Output: Layout,
+    <T::Layout as Layout>::Flat:
+        JoinFlatLayouts<<<T::Layout as Merge<E::Layout>>::Output as Layout>::Flat>,
+    <E::Layout as Layout>::Flat:
+        JoinFlatLayouts<<<T::Layout as Merge<E::Layout>>::Output as Layout>::Flat>,
+{
+    fn store<Instance>(
+        &self,
+        memory: &mut Memory<'_, Instance>,
+        location: GuestPointer,
+    ) -> Result<(), RuntimeError>
+    where
+        Instance: InstanceWithMemory,
+        <Instance::Runtime as Runtime>::Memory: RuntimeMemory<Instance>,
+    {
+        match self {
+            Ok(value) => {
+                false.store(memory, location)?;
+                value.store(memory, location.after::<bool>().after_padding_for::<T>())
+            }
+            Err(error) => {
+                true.store(memory, location)?;
+                error.store(memory, location.after::<bool>().after_padding_for::<E>())
+            }
+        }
+    }
+
+    fn lower<Instance>(
+        &self,
+        memory: &mut Memory<'_, Instance>,
+    ) -> Result<<Self::Layout as Layout>::Flat, RuntimeError>
+    where
+        Instance: InstanceWithMemory,
+        <Instance::Runtime as Runtime>::Memory: RuntimeMemory<Instance>,
+    {
+        match self {
+            Ok(value) => Ok(false.lower(memory)? + value.lower(memory)?.join()),
+            Err(error) => Ok(true.lower(memory)? + error.lower(memory)?.join()),
         }
     }
 }
