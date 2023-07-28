@@ -7,6 +7,9 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{Fields, Type};
 
+#[path = "unit_tests/wit_type.rs"]
+mod tests;
+
 /// Returns the body of the `WitType` implementation for the Rust `struct` with the specified
 /// `fields`.
 pub fn derive_for_struct(fields: &Fields) -> TokenStream {
