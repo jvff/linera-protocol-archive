@@ -4,8 +4,9 @@
 //! Derivation of the `WitType` trait.
 
 use proc_macro2::TokenStream;
+use proc_macro_error::abort;
 use quote::quote;
-use syn::{Fields, Type};
+use syn::{Fields, Ident, Type, Variant};
 
 #[path = "unit_tests/wit_type.rs"]
 mod tests;
@@ -21,6 +22,61 @@ pub fn derive_for_struct(fields: &Fields) -> TokenStream {
         const SIZE: u32 = #size;
 
         type Layout = #layout;
+    }
+}
+
+/// Returns the body of the `WitType` implementation for the Rust `enum` with the specified
+/// `variants`.
+pub fn derive_for_enum<'variants>(
+    name: &Ident,
+    variants: impl DoubleEndedIterator<Item = &'variants Variant> + Clone,
+) -> TokenStream {
+    let variant_count = variants.clone().count();
+    let variant_type_lists = variants.map(|variant| variant.fields.iter().map(|field| &field.ty));
+
+    let discriminant_type = if variant_count <= u8::MAX.into() {
+        quote! { u8 }
+    } else if variant_count <= u16::MAX.into() {
+        quote! { u16 }
+    } else if variant_count <= u32::MAX as usize {
+        quote! { u32 }
+    } else {
+        abort!(name, "Too many variants in `enum`");
+    };
+
+    let discriminant_size = quote! { std::mem::size_of::<#discriminant_type>() as u32 };
+
+    let variant_sizes = variant_type_lists
+        .clone()
+        .map(|field_types| struct_size_calculation(field_types, &discriminant_size))
+        .map(|size| {
+            quote! {
+                let variant_size = #size;
+
+                if variant_size > size {
+                    size = variant_size;
+                }
+            }
+        });
+
+    let variant_layouts =
+        variant_type_lists
+            .map(struct_layout_type)
+            .rev()
+            .reduce(|current, variant_layout| {
+                quote! {
+                    <#variant_layout as linera_witty::Merge<#current>>::Output
+                }
+            });
+
+    quote! {
+        const SIZE: u32 = {
+            let mut size = #discriminant_size;
+            #(#variant_sizes)*
+            size
+        };
+
+        type Layout = linera_witty::HCons<#discriminant_type, #variant_layouts>;
     }
 }
 
