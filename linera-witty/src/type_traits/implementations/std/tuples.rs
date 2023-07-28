@@ -22,18 +22,24 @@ use frunk::{hlist, hlist_pat, HList};
 /// only add the clause for the implementations that have elements.
 macro_rules! impl_wit_traits {
     () => {
-        impl_wit_traits!(@generate;);
+        impl_wit_traits_with_borrow_store_clause!(;);
     };
 
     ($( $names:ident : $types:ident ),*) => {
-        impl_wit_traits!(
-            @generate $( $names: $types ),* ;
+        impl_wit_traits_with_borrow_store_clause!(
+            $( $names: $types ),* ;
             for<'a> HList![$( &'a $types ),*]:
                 WitType<Layout = <HList![$( $types ),*] as WitType>::Layout> + WitStore,
         );
     };
+}
 
-    (@generate $( $names:ident : $types:ident ),* ; $( $borrow_store_clause:tt )*) => {
+/// Implement [`WitType`], [`WitLoad`] and [`WitStore`], using the optional extra where clause.
+///
+/// See [`impl_wit_traits`] above for why the extra clause is optional and can't be used with the
+/// implementation for the unit type.
+macro_rules! impl_wit_traits_with_borrow_store_clause {
+    ($( $names:ident : $types:ident ),* ; $( $borrow_store_clause:tt )*) => {
         impl<$( $types ),*> WitType for ($( $types, )*)
         where
             $( $types: WitType, )*
