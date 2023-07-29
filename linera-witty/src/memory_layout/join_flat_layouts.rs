@@ -5,8 +5,8 @@
 //!
 //! When flattening `variant` types, a single flat layout must be obtained for the type by joining
 //! the flat layout of each variant. This means finding a flat type for each layout element to
-//! represent the flat type of any of the variants. See [`crate::JoinFlatTypes`] for more
-//! information on how flat types are joined.
+//! represent the flat type of any of the variants. See [`crate::primitive_types::JoinFlatTypes`]
+//! for more information on how flat types are joined.
 
 use crate::primitive_types::JoinFlatTypes;
 use either::Either;
