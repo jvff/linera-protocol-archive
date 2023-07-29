@@ -7,6 +7,8 @@
 //! a `variant` type, it is necessary to find common flat types to represent individual elements of
 //! the flattened variants. This is called the `join` operator, and is basically finding the
 //! widest bit-representation for the two types.
+//!
+//! [flattening]: https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md#flattening
 
 use super::FlatType;
 use either::Either;
