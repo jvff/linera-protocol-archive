@@ -4,8 +4,9 @@
 //! Derivation of the `WitStore` trait.
 
 use proc_macro2::TokenStream;
+use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
-use syn::{Fields, Ident, Index, Type};
+use syn::{Fields, Ident, Index, LitInt, Type, Variant};
 
 #[path = "unit_tests/wit_store.rs"]
 mod tests;
@@ -65,6 +66,116 @@ pub fn derive_for_struct(fields: &Fields) -> TokenStream {
             #( #lower_fields )*
 
             Ok(flat_layout)
+        }
+    }
+}
+
+/// Returns the body of the `WitStore` implementation for the Rust `enum` with the specified
+/// `variants`.
+pub fn derive_for_enum<'variants>(
+    name: &Ident,
+    variants: impl DoubleEndedIterator<Item = &'variants Variant> + Clone,
+) -> TokenStream {
+    let variant_count = variants.clone().count();
+
+    let discriminant_type = if variant_count <= u8::MAX.into() {
+        quote! { u8 }
+    } else if variant_count <= u16::MAX.into() {
+        quote! { u16 }
+    } else if variant_count <= u32::MAX as usize {
+        quote! { u32 }
+    } else {
+        abort!(name, "Too many variants in `enum`");
+    };
+
+    let store_variants = variants.clone().enumerate().map(|(index, variant)| {
+        let variant_name = &variant.ident;
+        let discriminant =
+            LitInt::new(&format!("{index}_{discriminant_type}"), variant_name.span());
+
+        let field_bindings = field_bindings(&variant.fields);
+        let field_types = variant.fields.iter().map(|field| &field.ty);
+        let field_pairs = field_bindings.clone().zip(field_types);
+
+        let store_fields = field_pairs.map(store_field);
+
+        let pattern = match variant.fields {
+            Fields::Unit => quote! {},
+            Fields::Named(_) => quote! { { #( #field_bindings ),* } },
+            Fields::Unnamed(_) => quote! { ( #( #field_bindings ),* ) },
+        };
+
+        quote! {
+            #name::#variant_name #pattern => {
+                location = location.after_padding_for::<#discriminant_type>();
+                #discriminant.store(memory, location)?;
+                location = location.after::<#discriminant_type>();
+
+                #( #store_fields )*
+
+                Ok(())
+            }
+        }
+    });
+
+    let lower_variants = variants.enumerate().map(|(index, variant)| {
+        let variant_name = &variant.ident;
+        let discriminant =
+            LitInt::new(&format!("{index}_{discriminant_type}"), variant_name.span());
+
+        let field_bindings = field_bindings(&variant.fields);
+
+        let pattern = {
+            let field_bindings = field_bindings.clone();
+            match variant.fields {
+                Fields::Unit => quote! {},
+                Fields::Named(_) => quote! { { #( #field_bindings ),* } },
+                Fields::Unnamed(_) => quote! { ( #( #field_bindings ),* ) },
+            }
+        };
+
+        quote! {
+            #name::#variant_name #pattern => {
+                let variant_flat_layout = linera_witty::hlist![#(#field_bindings),*].lower(memory)?;
+
+                let flat_layout: <Self::Layout as linera_witty::Layout>::Flat =
+                    linera_witty::JoinFlatLayouts::join(
+                        #discriminant.lower(memory)? + variant_flat_layout,
+                    );
+
+                Ok(flat_layout)
+            }
+        }
+    });
+
+    quote! {
+        fn store<Instance>(
+            &self,
+            memory: &mut linera_witty::Memory<'_, Instance>,
+            mut location: linera_witty::GuestPointer,
+        ) -> Result<(), linera_witty::RuntimeError>
+        where
+            Instance: linera_witty::InstanceWithMemory,
+            <Instance::Runtime as linera_witty::Runtime>::Memory:
+                linera_witty::RuntimeMemory<Instance>,
+        {
+            match self {
+                #( #store_variants )*
+            }
+        }
+
+        fn lower<Instance>(
+            &self,
+            memory: &mut linera_witty::Memory<'_, Instance>,
+        ) -> Result<<Self::Layout as linera_witty::Layout>::Flat, linera_witty::RuntimeError>
+        where
+            Instance: linera_witty::InstanceWithMemory,
+            <Instance::Runtime as linera_witty::Runtime>::Memory:
+                linera_witty::RuntimeMemory<Instance>,
+        {
+            match self {
+                #( #lower_variants )*
+            }
         }
     }
 }
