@@ -7,8 +7,9 @@
 mod tests;
 
 use proc_macro2::TokenStream;
+use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
-use syn::{Fields, Ident};
+use syn::{Fields, Ident, LitInt, Variant};
 
 /// Returns the body of the `WitLoad` implementation for the Rust `struct` with the specified
 /// `fields`.
@@ -52,6 +53,107 @@ pub fn derive_for_struct(fields: &Fields) -> TokenStream {
             #( #lift_fields )*
 
             Ok(Self #construction)
+        }
+    }
+}
+
+/// Returns the body of the `WitLoad` implementation for the Rust `enum` with the specified
+/// `variants`.
+pub fn derive_for_enum<'variants>(
+    name: &Ident,
+    variants: impl DoubleEndedIterator<Item = &'variants Variant> + Clone,
+) -> TokenStream {
+    let variant_count = variants.clone().count();
+    let variants = variants.enumerate();
+
+    let discriminant_type = if variant_count <= u8::MAX.into() {
+        quote! { u8 }
+    } else if variant_count <= u16::MAX.into() {
+        quote! { u16 }
+    } else if variant_count <= u32::MAX as usize {
+        quote! { u32 }
+    } else {
+        abort!(name, "Too many variants in `enum`");
+    };
+
+    let load_variants = variants.clone().map(|(index, variant)| {
+        let variant_name = &variant.ident;
+        let index = LitInt::new(&index.to_string(), variant_name.span());
+        let field_pairs = field_names_and_types(&variant.fields);
+        let load_fields = loads_for_fields(field_pairs.clone());
+        let construction = construction_for_fields(field_pairs, &variant.fields);
+
+        quote! {
+            #index => {
+                #( #load_fields )*
+                Ok(#name::#variant_name #construction)
+            }
+        }
+    });
+
+    let lift_variants = variants.map(|(index, variant)| {
+        let variant_name = &variant.ident;
+        let index = LitInt::new(&index.to_string(), variant_name.span());
+        let field_pairs = field_names_and_types(&variant.fields);
+        let field_names = field_pairs.clone().map(|(name, _)| name);
+        let field_types = field_pairs.clone().map(|(_, field_type)| field_type);
+        let construction = construction_for_fields(field_pairs, &variant.fields);
+
+        quote! {
+            #index => {
+                let linera_witty::hlist_pat![#( #field_names, )*] =
+                    <linera_witty::HList![#( #field_types ),*] as WitLoad>::lift_from(
+                        linera_witty::SplitFlatLayouts::split(flat_layout),
+                        memory,
+                    )?;
+
+                Ok(#name::#variant_name #construction)
+            }
+        }
+    });
+
+    quote! {
+        fn load<Instance>(
+            memory: &linera_witty::Memory<'_, Instance>,
+            mut location: linera_witty::GuestPointer,
+        ) -> Result<Self, linera_witty::RuntimeError>
+        where
+            Instance: linera_witty::InstanceWithMemory,
+            <Instance::Runtime as linera_witty::Runtime>::Memory:
+                linera_witty::RuntimeMemory<Instance>,
+        {
+            location = location.after_padding_for::<#discriminant_type>();
+            let discriminant = <#discriminant_type as linera_witty::WitLoad>::load(
+                memory,
+                location,
+            )?;
+            location = location.after::<#discriminant_type>();
+
+            match discriminant {
+                #( #load_variants )*
+                _ => Err(linera_witty::RuntimeError::InvalidVariant),
+            }
+        }
+
+        fn lift_from<Instance>(
+            linera_witty::hlist_pat![discriminant_flat_type, ...flat_layout]:
+                <Self::Layout as linera_witty::Layout>::Flat,
+            memory: &linera_witty::Memory<'_, Instance>,
+        ) -> Result<Self, linera_witty::RuntimeError>
+        where
+            Instance: linera_witty::InstanceWithMemory,
+            <Instance::Runtime as linera_witty::Runtime>::Memory:
+                linera_witty::RuntimeMemory<Instance>,
+        {
+            let discriminant = <#discriminant_type as linera_witty::WitLoad>::lift_from(
+                linera_witty::hlist![discriminant_flat_type],
+                memory,
+            )?;
+
+            match discriminant {
+                #( #lift_variants )*
+                _ => Err(linera_witty::RuntimeError::InvalidVariant),
+            }
         }
     }
 }
