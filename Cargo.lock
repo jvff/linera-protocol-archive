@@ -2491,15 +2491,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "int-conv"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0249b28817672371aa3a25e0420548646663592c0442d71ac67c9cb4fe1f94c"
-dependencies = [
- "static_assertions",
-]
-
-[[package]]
 name = "io-lifetimes"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3148,7 +3139,6 @@ version = "0.3.0"
 dependencies = [
  "either",
  "frunk",
- "int-conv",
  "linera-witty",
  "linera-witty-macros",
  "thiserror",
