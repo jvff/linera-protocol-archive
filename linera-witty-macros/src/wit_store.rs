@@ -139,7 +139,7 @@ pub fn derive_for_enum<'variants>(
                 let variant_flat_layout = linera_witty::hlist![#(#field_bindings),*].lower(memory)?;
 
                 let flat_layout: <Self::Layout as linera_witty::Layout>::Flat =
-                    linera_witty::JoinFlatLayouts::join(
+                    linera_witty::JoinFlatLayouts::into_joined(
                         #discriminant.lower(memory)? + variant_flat_layout,
                     );
 

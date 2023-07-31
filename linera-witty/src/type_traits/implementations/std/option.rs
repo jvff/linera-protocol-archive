@@ -104,7 +104,7 @@ where
         <Instance::Runtime as Runtime>::Memory: RuntimeMemory<Instance>,
     {
         match self {
-            Some(value) => Ok(true.lower(memory)? + value.lower(memory)?.join()),
+            Some(value) => Ok(true.lower(memory)? + value.lower(memory)?.into_joined()),
             None => Ok(false.lower(memory)? + Default::default()),
         }
     }

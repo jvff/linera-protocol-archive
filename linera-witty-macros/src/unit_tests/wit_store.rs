@@ -249,7 +249,7 @@ fn enum_type() {
                 Enum::Empty => {
                     let variant_flat_layout = linera_witty::hlist![].lower(memory)?;
                     let flat_layout: <Self::Layout as linera_witty::Layout>::Flat =
-                        linera_witty::JoinFlatLayouts::join(
+                        linera_witty::JoinFlatLayouts::into_joined(
                             0_u8.lower(memory)? + variant_flat_layout,
                         );
 
@@ -258,7 +258,7 @@ fn enum_type() {
                 Enum::Tuple(field0, field1) => {
                     let variant_flat_layout = linera_witty::hlist![field0, field1].lower(memory)?;
                     let flat_layout: <Self::Layout as linera_witty::Layout>::Flat =
-                        linera_witty::JoinFlatLayouts::join(
+                        linera_witty::JoinFlatLayouts::into_joined(
                             1_u8.lower(memory)? + variant_flat_layout,
                         );
 
@@ -267,7 +267,7 @@ fn enum_type() {
                 Enum::Struct { first, second } => {
                     let variant_flat_layout = linera_witty::hlist![first, second].lower(memory)?;
                     let flat_layout: <Self::Layout as linera_witty::Layout>::Flat =
-                        linera_witty::JoinFlatLayouts::join(
+                        linera_witty::JoinFlatLayouts::into_joined(
                             2_u8.lower(memory)? + variant_flat_layout,
                         );
 

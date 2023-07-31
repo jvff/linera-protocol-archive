@@ -15,12 +15,12 @@ use frunk::{HCons, HNil};
 /// Converts the current flat layout into the join `Target` flat layout, which may be longer or have
 /// some elements wider than the current elements.
 pub trait JoinFlatLayouts<Target> {
-    /// Converts the current flat layout into a the join `Target` flat layout.
-    fn join(self) -> Target;
+    /// Converts the current flat layout into a the joined `Target` flat layout.
+    fn into_joined(self) -> Target;
 }
 
 impl JoinFlatLayouts<HNil> for HNil {
-    fn join(self) -> HNil {
+    fn into_joined(self) -> HNil {
         HNil
     }
 }
@@ -30,10 +30,10 @@ where
     TargetHead: Default,
     HNil: JoinFlatLayouts<TargetTail>,
 {
-    fn join(self) -> HCons<TargetHead, TargetTail> {
+    fn into_joined(self) -> HCons<TargetHead, TargetTail> {
         HCons {
             head: TargetHead::default(),
-            tail: HNil.join(),
+            tail: HNil.into_joined(),
         }
     }
 }
@@ -44,10 +44,10 @@ where
     Either<SourceHead, TargetHead>: JoinFlatTypes<Flat = TargetHead>,
     SourceTail: JoinFlatLayouts<TargetTail>,
 {
-    fn join(self) -> HCons<TargetHead, TargetTail> {
+    fn into_joined(self) -> HCons<TargetHead, TargetTail> {
         HCons {
             head: Either::Left(self.head).join(),
-            tail: self.tail.join(),
+            tail: self.tail.into_joined(),
         }
     }
 }

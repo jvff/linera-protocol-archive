@@ -125,8 +125,8 @@ where
         <Instance::Runtime as Runtime>::Memory: RuntimeMemory<Instance>,
     {
         match self {
-            Ok(value) => Ok(false.lower(memory)? + value.lower(memory)?.join()),
-            Err(error) => Ok(true.lower(memory)? + error.lower(memory)?.join()),
+            Ok(value) => Ok(false.lower(memory)? + value.lower(memory)?.into_joined()),
+            Err(error) => Ok(true.lower(memory)? + error.lower(memory)?.into_joined()),
         }
     }
 }
