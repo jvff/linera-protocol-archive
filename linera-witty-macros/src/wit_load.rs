@@ -103,7 +103,7 @@ pub fn derive_for_enum<'variants>(
             #index => {
                 let linera_witty::hlist_pat![#( #field_names, )*] =
                     <linera_witty::HList![#( #field_types ),*] as WitLoad>::lift_from(
-                        linera_witty::SplitFlatLayouts::split(flat_layout),
+                        linera_witty::JoinFlatLayouts::from_joined(flat_layout),
                         memory,
                     )?;
 

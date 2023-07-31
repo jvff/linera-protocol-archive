@@ -23,7 +23,7 @@ mod util;
 #[cfg(any(test, feature = "test"))]
 pub use self::runtime::{FakeInstance, FakeRuntime};
 pub use self::{
-    memory_layout::{JoinFlatLayouts, Layout, SplitFlatLayouts},
+    memory_layout::{JoinFlatLayouts, Layout},
     runtime::{GuestPointer, InstanceWithMemory, Memory, Runtime, RuntimeError, RuntimeMemory},
     type_traits::{WitLoad, WitStore, WitType},
     util::{Merge, Split},

@@ -233,7 +233,7 @@ fn enum_type() {
             match discriminant {
                 0 => {
                     let linera_witty::hlist_pat![] = <linera_witty::HList![] as WitLoad>::lift_from(
-                        linera_witty::SplitFlatLayouts::split(flat_layout),
+                        linera_witty::JoinFlatLayouts::from_joined(flat_layout),
                         memory,
                     )?;
 
@@ -242,7 +242,7 @@ fn enum_type() {
                 1 => {
                     let linera_witty::hlist_pat![field0, field1,] =
                         <linera_witty::HList![i8, CustomType] as WitLoad>::lift_from(
-                            linera_witty::SplitFlatLayouts::split(flat_layout),
+                            linera_witty::JoinFlatLayouts::from_joined(flat_layout),
                             memory,
                         )?;
 
@@ -251,7 +251,7 @@ fn enum_type() {
                 2 => {
                     let linera_witty::hlist_pat![first, second,] =
                         <linera_witty::HList![(), String] as WitLoad>::lift_from(
-                            linera_witty::SplitFlatLayouts::split(flat_layout),
+                            linera_witty::JoinFlatLayouts::from_joined(flat_layout),
                             memory,
                         )?;
 

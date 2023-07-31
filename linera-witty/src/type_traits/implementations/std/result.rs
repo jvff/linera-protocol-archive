@@ -5,7 +5,7 @@
 
 use crate::{
     GuestPointer, InstanceWithMemory, JoinFlatLayouts, Layout, Memory, Merge, Runtime,
-    RuntimeError, RuntimeMemory, SplitFlatLayouts, WitLoad, WitStore, WitType,
+    RuntimeError, RuntimeMemory, WitLoad, WitStore, WitType,
 };
 use frunk::{hlist, hlist_pat, HCons};
 
@@ -42,8 +42,10 @@ where
     E: WitLoad,
     T::Layout: Merge<E::Layout>,
     <T::Layout as Merge<E::Layout>>::Output: Layout,
-    <<T::Layout as Merge<E::Layout>>::Output as Layout>::Flat: SplitFlatLayouts<<T::Layout as Layout>::Flat>
-        + SplitFlatLayouts<<E::Layout as Layout>::Flat>,
+    <T::Layout as Layout>::Flat:
+        JoinFlatLayouts<<<T::Layout as Merge<E::Layout>>::Output as Layout>::Flat>,
+    <E::Layout as Layout>::Flat:
+        JoinFlatLayouts<<<T::Layout as Merge<E::Layout>>::Output as Layout>::Flat>,
 {
     fn load<Instance>(
         memory: &Memory<'_, Instance>,
@@ -78,8 +80,14 @@ where
         let is_err = bool::lift_from(hlist![is_err], memory)?;
 
         match is_err {
-            false => Ok(Ok(T::lift_from(value_layout.split(), memory)?)),
-            true => Ok(Err(E::lift_from(value_layout.split(), memory)?)),
+            false => Ok(Ok(T::lift_from(
+                JoinFlatLayouts::from_joined(value_layout),
+                memory,
+            )?)),
+            true => Ok(Err(E::lift_from(
+                JoinFlatLayouts::from_joined(value_layout),
+                memory,
+            )?)),
         }
     }
 }
