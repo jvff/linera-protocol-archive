@@ -1,12 +1,13 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use rand::Rng;
 use crate::{
     batch::{Batch, DeletePrefixExpander, SimpleUnorderedBatch},
     common::{ContextFromDb, KeyIterable, KeyValueIterable, KeyValueStoreClient, MIN_VIEW_TAG},
     localstack,
     lru_caching::LruCachingKeyValueClient,
-    value_splitting::DatabaseConsistencyError,
+    value_splitting::{DatabaseConsistencyError, ValueSplittingKeyValueStoreClient},
 };
 use async_trait::async_trait;
 use aws_sdk_dynamodb::{
@@ -18,8 +19,10 @@ use aws_sdk_dynamodb::{
     types::{Blob, SdkError},
     Client,
 };
-use futures::future::join_all;
+use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
+use async_lock::{RwLock, Semaphore};
+use std::sync::Arc;
 use std::{collections::HashMap, mem, str::FromStr};
 use thiserror::Error;
 
@@ -174,17 +177,31 @@ fn extract_key_value_owned(
 #[derive(Default)]
 struct TransactionBuilder {
     transacts: Vec<TransactWriteItem>,
+    set_keys: BTreeSet<Vec<u8>>,
+    index: i32,
 }
 
 impl TransactionBuilder {
-    fn insert_delete_request(
+    fn new() -> Self {
+        let mut rng = rand::thread_rng();
+        // Generate a random integer within a specified range
+        let index = rng.gen::<i32>();
+        let transacts = Vec::new();
+        let set_keys = BTreeSet::new();
+        TransactionBuilder { transacts, set_keys, index }
+    }
+
+    async fn insert_delete_request(
         &mut self,
         key: Vec<u8>,
         db: &DynamoDbClientInternal,
     ) -> Result<(), DynamoDbContextError> {
+        let _guard = db.count.acquire().await;
+        println!("OPER: insert_delete_request, index={} key={:?}", self.index, key);
         if key.is_empty() {
             return Err(DynamoDbContextError::ZeroLengthKey);
         }
+        self.set_keys.insert(key.clone());
         let request = Delete::builder()
             .table_name(&db.table.0)
             .set_key(Some(build_key(key)))
@@ -194,18 +211,21 @@ impl TransactionBuilder {
         Ok(())
     }
 
-    fn insert_put_request(
+    async fn insert_put_request(
         &mut self,
         key: Vec<u8>,
         value: Vec<u8>,
         db: &DynamoDbClientInternal,
     ) -> Result<(), DynamoDbContextError> {
+        let _guard = db.count.acquire().await;
+        println!("OPER: insert_put_request, index={} key={:?} value={:?}", self.index, key, value);
         if key.is_empty() {
             return Err(DynamoDbContextError::ZeroLengthKey);
         }
         if value.len() > MAX_VALUE_BYTES {
             return Err(DynamoDbContextError::ValueLengthTooLarge);
         }
+        self.set_keys.insert(key.clone());
         let request = Put::builder()
             .table_name(&db.table.0)
             .set_item(Some(build_key_value(key, value)))
@@ -216,15 +236,24 @@ impl TransactionBuilder {
     }
 
     async fn submit(self, db: &DynamoDbClientInternal) -> Result<(), DynamoDbContextError> {
+        let _guard = db.count.acquire().await;
+        println!("OPER: submit index={}", self.index);
         if self.transacts.len() > MAX_TRANSACT_WRITE_ITEM_SIZE {
             return Err(DynamoDbContextError::TransactUpperLimitSize);
         }
         if !self.transacts.is_empty() {
-            db.client
+            println!("submit: Before write position={}", db.position.0);
+            let client = db.client.write().await;
+            println!("submit: Before transact_write_items position={}", db.position.0);
+            if self.set_keys.len() != self.transacts.len() {
+                panic!("ERROR in the length");
+            }
+            client
                 .transact_write_items()
                 .set_transact_items(Some(self.transacts))
                 .send()
                 .await?;
+            println!("After submit position={}", db.position.0);
         }
         // Drop the output of type TransactWriteItemsOutput
         Ok(())
@@ -269,17 +298,21 @@ impl JournalHeader {
             let key = get_journaling_key(base_key, KeyTag::Entry as u8, self.block_count - 1)?;
             let value = db.read_key::<DynamoDbBatch>(&key).await?;
             if let Some(value) = value {
-                let mut tb = TransactionBuilder::default();
-                tb.insert_delete_request(key, db)?; // Delete the preceding journal entry
+                let mut tb = TransactionBuilder::new();
+//                println!("insert_delete_request, position={} key={:?}", db.position.0, key);
+                tb.insert_delete_request(key, db).await?; // Delete the preceding journal entry
                 for delete in value.0.deletions {
-                    tb.insert_delete_request(delete, db)?;
+//                    println!("insert_delete_request, position={} delete={:?}", db.position.0, delete);
+                    tb.insert_delete_request(delete, db).await?;
                 }
                 for key_value in value.0.insertions {
-                    tb.insert_put_request(key_value.0, key_value.1, db)?;
+//                    println!("insert_put_request, position={} key_value={:?}", db.position.0, key_value);
+                    tb.insert_put_request(key_value.0, key_value.1, db).await?;
                 }
                 self.block_count -= 1;
-                DynamoDbBatch::add_journal_header_operations(&mut tb, &self, db, base_key)?;
+                DynamoDbBatch::add_journal_header_operations(&mut tb, &self, db, base_key).await?;
                 tb.submit(db).await?;
+//                println!("After the submit entry position={}", db.position.0);
             } else {
                 return Err(DynamoDbContextError::DatabaseRecoveryFailed);
             }
@@ -302,7 +335,7 @@ impl DynamoDbBatch {
         self.len() <= MAX_TRANSACT_WRITE_ITEM_SIZE
     }
 
-    fn add_journal_header_operations(
+    async fn add_journal_header_operations(
         transact_builder: &mut TransactionBuilder,
         header: &JournalHeader,
         db: &DynamoDbClientInternal,
@@ -311,9 +344,9 @@ impl DynamoDbBatch {
         let key = get_journaling_key(base_key, KeyTag::Journal as u8, 0)?;
         if header.block_count > 0 {
             let value = bcs::to_bytes(header)?;
-            transact_builder.insert_put_request(key, value, db)?;
+            transact_builder.insert_put_request(key, value, db).await?;
         } else {
-            transact_builder.insert_delete_request(key, db)?;
+            transact_builder.insert_delete_request(key, db).await?;
         }
         Ok(())
     }
@@ -382,13 +415,16 @@ impl DynamoDbBatch {
         self,
         db: &DynamoDbClientInternal,
     ) -> Result<(), DynamoDbContextError> {
-        let mut tb = TransactionBuilder::default();
+        let mut tb = TransactionBuilder::new();
         for key in self.0.deletions {
-            tb.insert_delete_request(key, db)?;
+//            println!("OPER: write_fastpath_failsafe, insert_delete_request, position={} key={:?}", db.position.0, key);
+            tb.insert_delete_request(key, db).await?;
         }
         for key_value in self.0.insertions {
-            tb.insert_put_request(key_value.0, key_value.1, db)?;
+//            println!("OPER: write_fastpath_failsafe, insert_put_request, position={} key_value={:?}", db.position.0, key_value);
+            tb.insert_put_request(key_value.0, key_value.1, db).await?;
         }
+//        println!("OPER: submit db");
         tb.submit(db).await
     }
 
@@ -504,10 +540,19 @@ impl KeyValueIterable<DynamoDbContextError> for DynamoDbKeyValues {
 }
 
 /// A DynamoDB client.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct DynamoDbClientInternal {
-    client: Client,
+    client: Arc<RwLock<Client>>,
     table: TableName,
+    count: Arc<Semaphore>,
+    position: (u32, u32, u32, u32), // (clone, read, find_key, transact)
+}
+
+impl Clone for DynamoDbClientInternal {
+    fn clone(&self) -> DynamoDbClientInternal {
+        let pos = self.position.0 + 1;
+        DynamoDbClientInternal { client: self.client.clone(), table: self.table.clone(), count: self.count.clone(), position: (pos, 0, 0, 0)  }
+    }
 }
 
 #[async_trait]
@@ -528,13 +573,13 @@ impl DynamoDbClientInternal {
         config: impl Into<Config>,
         table: TableName,
     ) -> Result<(Self, TableStatus), DynamoDbContextError> {
-        let db = DynamoDbClientInternal {
-            client: Client::from_conf(config.into()),
-            table,
-        };
-
+        println!("DynamoDbClientInternal : from_config");
+        let client = Client::from_conf(config.into());
+        let client = Arc::new(RwLock::new(client));
+        let count = Arc::new(Semaphore::new(1));
+        let position = (0, 0, 0, 0);
+        let db = DynamoDbClientInternal { client, table, count, position };
         let table_status = db.create_table_if_needed().await?;
-
         Ok((db, table_status))
     }
 
@@ -543,8 +588,9 @@ impl DynamoDbClientInternal {
         attribute_str: &str,
         key_prefix: &[u8],
     ) -> Result<QueryOutput, DynamoDbContextError> {
-        let response = self
-            .client
+        let _guard = self.count.acquire().await;
+        let client = self.client.write().await;
+        let response = client
             .query()
             .table_name(self.table.as_ref())
             .projection_expression(attribute_str)
@@ -565,13 +611,20 @@ impl DynamoDbClientInternal {
         &self,
         key_db: HashMap<String, AttributeValue>,
     ) -> Result<Option<Vec<u8>>, DynamoDbContextError> {
-        let response = self
-            .client
+        let _guard = self.count.acquire().await;
+        println!("read_key_bytes_general: Before write position={}", self.position.0);
+        let client = self.client.write().await;
+        println!("read_key_bytes_general: Before get_item position={}", self.position.0);
+        let response = client
             .get_item()
             .table_name(self.table.as_ref())
             .set_key(Some(key_db))
             .send()
-            .await?;
+            .await;
+        println!("read_key_bytes_general: After get_item position={}", self.position.0);
+        let Ok(response) = response else {
+            panic!("The ERROR case");
+        };
 
         match response.item {
             Some(mut item) => {
@@ -588,16 +641,19 @@ impl DynamoDbClientInternal {
         value: Vec<u8>,
     ) -> Result<(), DynamoDbContextError> {
         let mut tb = TransactionBuilder::default();
-        tb.insert_put_request(key, value, self)?;
-        tb.submit(self).await
+//        println!("write_single_key_value, key={:?} value={:?}", key, value);
+        tb.insert_put_request(key, value, self).await?;
+        tb.submit(self).await?;
+//        println!("After submit");
+        Ok(())
     }
 
     /// Creates the storage table if it doesn't exist.
     ///
     /// Attempts to create the table and ignores errors that indicate that it already exists.
     async fn create_table_if_needed(&self) -> Result<TableStatus, DynamoDbContextError> {
-        let result = self
-            .client
+        let client = self.client.write().await;
+        let result = client
             .create_table()
             .table_name(self.table.as_ref())
             .attribute_definitions(
@@ -651,21 +707,23 @@ impl KeyValueStoreClient for DynamoDbClientInternal {
 
     async fn read_key_bytes(&self, key: &[u8]) -> Result<Option<Vec<u8>>, DynamoDbContextError> {
         let key_db = build_key(key.to_vec());
-        self.read_key_bytes_general(key_db).await
+        println!("OPER: read_key_bytes position={} key={:?}", self.position.0, key);
+        let result = self.read_key_bytes_general(key_db).await?;
+        println!("After read_key_bytes position={}", self.position.0);
+        Ok(result)
     }
 
     async fn read_multi_key_bytes(
         &self,
         keys: Vec<Vec<u8>>,
     ) -> Result<Vec<Option<Vec<u8>>>, DynamoDbContextError> {
-        let mut handles = Vec::new();
+        let mut values = Vec::new();
+        println!("|keys|={}", keys.len());
         for key in keys {
-            let key_db = build_key(key);
-            let handle = self.read_key_bytes_general(key_db);
-            handles.push(handle);
+            let value = self.read_key_bytes(&key).await?;
+            values.push(value);
         }
-        let result = join_all(handles).await;
-        Ok(result.into_iter().collect::<Result<_, _>>()?)
+        Ok(values)
     }
 
     // TODO(#201): Large responses may be truncated.
@@ -676,11 +734,14 @@ impl KeyValueStoreClient for DynamoDbClientInternal {
         if key_prefix.is_empty() {
             return Err(DynamoDbContextError::ZeroLengthKeyPrefix);
         }
+        println!("OPER: find_keys_by_prefix, position={} key_prefix={:?}", self.position.0, key_prefix);
         let response = Box::new(self.get_query_output(KEY_ATTRIBUTE, key_prefix).await?);
-        Ok(DynamoDbKeys {
+        let result = Ok(DynamoDbKeys {
             prefix_len: key_prefix.len(),
             response,
-        })
+        });
+        println!("After result position={}", self.position.0);
+        result
     }
 
     // TODO(#201): Large responses may be truncated.
@@ -691,14 +752,17 @@ impl KeyValueStoreClient for DynamoDbClientInternal {
         if key_prefix.is_empty() {
             return Err(DynamoDbContextError::ZeroLengthKeyPrefix);
         }
+        println!("OPER: find_key_values_by_prefix, position={}  key_prefix={:?}", self.position.0, key_prefix);
         let response = Box::new(
             self.get_query_output(KEY_VALUE_ATTRIBUTE, key_prefix)
                 .await?,
         );
-        Ok(DynamoDbKeyValues {
+        let result = Ok(DynamoDbKeyValues {
             prefix_len: key_prefix.len(),
             response,
-        })
+        });
+        println!("After result position={}", self.position.0);
+        result
     }
 
     async fn write_batch(&self, batch: Batch, base_key: &[u8]) -> Result<(), DynamoDbContextError> {
@@ -724,7 +788,7 @@ impl KeyValueStoreClient for DynamoDbClientInternal {
 /// A shared DB client for DynamoDb implementing LruCaching
 #[derive(Clone)]
 pub struct DynamoDbClient {
-    client: LruCachingKeyValueClient<DynamoDbClientInternal>,
+    client: LruCachingKeyValueClient<ValueSplittingKeyValueStoreClient<DynamoDbClientInternal>>,
 }
 
 #[async_trait]
@@ -732,8 +796,8 @@ impl KeyValueStoreClient for DynamoDbClient {
     const MAX_CONNECTIONS: usize = MAX_CONNECTIONS;
     const MAX_VALUE_SIZE: usize = MAX_VALUE_SIZE;
     type Error = DynamoDbContextError;
-    type Keys = DynamoDbKeys;
-    type KeyValues = DynamoDbKeyValues;
+    type Keys = Vec<Vec<u8>>;
+    type KeyValues = Vec<(Vec<u8>, Vec<u8>)>;
 
     async fn read_key_bytes(&self, key: &[u8]) -> Result<Option<Vec<u8>>, DynamoDbContextError> {
         self.client.read_key_bytes(key).await
@@ -776,7 +840,9 @@ impl DynamoDbClient {
         table: TableName,
         cache_size: usize,
     ) -> Result<(Self, TableStatus), DynamoDbContextError> {
+        println!("DynamoDbClient : from_config");
         let (client, table_name) = DynamoDbClientInternal::from_config(config, table).await?;
+        let client = ValueSplittingKeyValueStoreClient::new(client);
         Ok((
             Self {
                 client: LruCachingKeyValueClient::new(client, cache_size),
@@ -793,6 +859,7 @@ impl DynamoDbClient {
         cache_size: usize,
     ) -> Result<(Self, TableStatus), DynamoDbContextError> {
         let config = aws_config::load_from_env().await;
+        println!("DynamoDbClient : new");
         DynamoDbClient::from_config(&config, table, cache_size).await
     }
 
@@ -809,6 +876,7 @@ impl DynamoDbClient {
         let config = aws_sdk_dynamodb::config::Builder::from(&base_config)
             .endpoint_resolver(localstack::get_endpoint()?)
             .build();
+        println!("DynamoDbClient : with_localstack");
         DynamoDbClient::from_config(config, table, cache_size).await
     }
 }
@@ -854,6 +922,7 @@ where
         base_key: Vec<u8>,
         extra: E,
     ) -> Result<(Self, TableStatus), DynamoDbContextError> {
+        println!("DynamoDbContext : from_config");
         let db_tablestatus = DynamoDbClient::from_config(config, table, cache_size).await?;
         Ok(Self::create_context(db_tablestatus, base_key, extra))
     }

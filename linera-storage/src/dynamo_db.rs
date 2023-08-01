@@ -33,6 +33,7 @@ impl DynamoDbStoreClient {
         cache_size: usize,
         wasm_runtime: Option<WasmRuntime>,
     ) -> Result<(Self, TableStatus), DynamoDbContextError> {
+        println!("DynamoDbStoreClient : from_config");
         Self::with_store(DynamoDbStore::from_config(
             config.into(),
             table,
@@ -81,6 +82,7 @@ impl DynamoDbStore {
         cache_size: usize,
         wasm_runtime: Option<WasmRuntime>,
     ) -> Result<(Self, TableStatus), DynamoDbContextError> {
+        println!("DynamoDbStore : from_config");
         Self::with_client(
             || DynamoDbClient::from_config(config, table, cache_size),
             wasm_runtime,

@@ -22,6 +22,7 @@ rocksdb = ["linera-views/rocksdb", "linera-storage/rocksdb"]
 aws = ["linera-views/aws", "linera-storage/aws"]
 
 [dependencies]
+ntest = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 async-graphql = { workspace = true }
@@ -44,6 +45,7 @@ test-strategy = { workspace = true, optional = true }
 test-log = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+console-subscriber = { workspace = true }
 tokio-stream = { workspace = true }
 
 [dev-dependencies]

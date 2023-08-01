@@ -48,6 +48,7 @@ impl LocalStackTestContext {
     /// This also locks the `LOCALSTACK_GUARD` to enforce that only one test has access to the
     /// LocalStack instance.
     pub async fn new() -> Result<LocalStackTestContext, Error> {
+        println!("LocalStackTestContext :: new");
         let base_config = aws_config::load_from_env().await;
         let endpoint = Self::load_endpoint()?;
         let _guard = LOCALSTACK_GUARD.lock().await;
@@ -66,6 +67,7 @@ impl LocalStackTestContext {
     /// Creates an [`Endpoint`] using the configuration in the [`LOCALSTACK_ENDPOINT`] environment
     /// variable.
     fn load_endpoint() -> Result<Endpoint, Error> {
+        println!("LocalStackTestContext :: load_endpoint");
         let endpoint_address = env::var(LOCALSTACK_ENDPOINT)
             .with_context(|| {
                 format!(
@@ -140,6 +142,7 @@ impl LocalStackTestContext {
 /// Creates a basic client that can be used for tests.
 #[cfg(feature = "aws")]
 pub async fn create_dynamodb_test_client() -> DynamoDbClient {
+    println!("create_dynamodb_test_client function");
     let localstack = LocalStackTestContext::new().await.unwrap();
     let (key_value_operation, _) = DynamoDbClient::from_config(
         localstack.dynamo_db_config(),
