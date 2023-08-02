@@ -70,7 +70,7 @@ where
     Head::Layout: Add<Tail::Layout>,
     <Head::Layout as Add<Tail::Layout>>::Output: Layout,
 {
-    const SIZE: u32 = Self::SIZE_STARTING_AT_8_BYTE_BOUNDARY;
+    const SIZE: u32 = Self::SIZE_STARTING_AT_BYTE_BOUNDARIES[0];
 
     type Layout = <Head::Layout as Add<Tail::Layout>>::Output;
 }
@@ -171,37 +171,9 @@ where
 /// Assumes the maximum alignment necessary for any type is 8 bytes, which is the alignment for the
 /// largest flat types (`i64` and `f64`).
 trait SizeCalculation {
-    /// The size of the list considering the current size calculation starts at the 8-byte
-    /// boundary.
-    const SIZE_STARTING_AT_8_BYTE_BOUNDARY: u32;
-
-    /// The size of the list considering the current size calculation starts at the 7-byte
-    /// boundary.
-    const SIZE_STARTING_AT_7_BYTE_BOUNDARY: u32;
-
-    /// The size of the list considering the current size calculation starts at the 6-byte
-    /// boundary.
-    const SIZE_STARTING_AT_6_BYTE_BOUNDARY: u32;
-
-    /// The size of the list considering the current size calculation starts at the 5-byte
-    /// boundary.
-    const SIZE_STARTING_AT_5_BYTE_BOUNDARY: u32;
-
-    /// The size of the list considering the current size calculation starts at the 4-byte
-    /// boundary.
-    const SIZE_STARTING_AT_4_BYTE_BOUNDARY: u32;
-
-    /// The size of the list considering the current size calculation starts at the 3-byte
-    /// boundary.
-    const SIZE_STARTING_AT_3_BYTE_BOUNDARY: u32;
-
-    /// The size of the list considering the current size calculation starts at the 2-byte
-    /// boundary.
-    const SIZE_STARTING_AT_2_BYTE_BOUNDARY: u32;
-
-    /// The size of the list considering the current size calculation starts at the 1-byte
-    /// boundary.
-    const SIZE_STARTING_AT_1_BYTE_BOUNDARY: u32;
+    /// The size of the list considering the current size calculation starts at different offsets
+    /// inside an 8-byte window.
+    const SIZE_STARTING_AT_BYTE_BOUNDARIES: [u32; 8];
 
     /// The type of the first element of the list, used to determine the current necessary
     /// alignment.
@@ -209,38 +181,19 @@ trait SizeCalculation {
 }
 
 impl SizeCalculation for HNil {
-    const SIZE_STARTING_AT_8_BYTE_BOUNDARY: u32 = 0;
-    const SIZE_STARTING_AT_7_BYTE_BOUNDARY: u32 = 0;
-    const SIZE_STARTING_AT_6_BYTE_BOUNDARY: u32 = 0;
-    const SIZE_STARTING_AT_5_BYTE_BOUNDARY: u32 = 0;
-    const SIZE_STARTING_AT_4_BYTE_BOUNDARY: u32 = 0;
-    const SIZE_STARTING_AT_3_BYTE_BOUNDARY: u32 = 0;
-    const SIZE_STARTING_AT_2_BYTE_BOUNDARY: u32 = 0;
-    const SIZE_STARTING_AT_1_BYTE_BOUNDARY: u32 = 0;
+    const SIZE_STARTING_AT_BYTE_BOUNDARIES: [u32; 8] = [0; 8];
 
     type FirstElement = ();
 }
 
-macro_rules! calculate_size {
-    ($boundary_offset:expr) => {{
-        let alignment = <<Self::FirstElement as WitType>::Layout as Layout>::ALIGNMENT;
-        let padding = (-($boundary_offset as i32) & (alignment as i32 - 1)) as u32;
-        let size_after_head = padding + Head::SIZE;
-
-        let tail_size = match ($boundary_offset + size_after_head) % 8 {
-            0 => Tail::SIZE_STARTING_AT_8_BYTE_BOUNDARY,
-            1 => Tail::SIZE_STARTING_AT_1_BYTE_BOUNDARY,
-            2 => Tail::SIZE_STARTING_AT_2_BYTE_BOUNDARY,
-            3 => Tail::SIZE_STARTING_AT_3_BYTE_BOUNDARY,
-            4 => Tail::SIZE_STARTING_AT_4_BYTE_BOUNDARY,
-            5 => Tail::SIZE_STARTING_AT_5_BYTE_BOUNDARY,
-            6 => Tail::SIZE_STARTING_AT_6_BYTE_BOUNDARY,
-            7 => Tail::SIZE_STARTING_AT_7_BYTE_BOUNDARY,
-            _ => unreachable!(),
-        };
-
-        size_after_head + tail_size
-    }};
+/// Unrolls a `for`-like loop so that it runs in a `const` context.
+macro_rules! unroll_for {
+    ($binding:ident in [ $($elements:expr),* $(,)? ] $body:tt) => {
+        $(
+            let $binding = $elements;
+            $body
+        )*
+    };
 }
 
 impl<Head, Tail> SizeCalculation for HCons<Head, Tail>
@@ -248,14 +201,22 @@ where
     Head: WitType,
     Tail: SizeCalculation,
 {
-    const SIZE_STARTING_AT_8_BYTE_BOUNDARY: u32 = calculate_size!(8);
-    const SIZE_STARTING_AT_7_BYTE_BOUNDARY: u32 = calculate_size!(7);
-    const SIZE_STARTING_AT_6_BYTE_BOUNDARY: u32 = calculate_size!(6);
-    const SIZE_STARTING_AT_5_BYTE_BOUNDARY: u32 = calculate_size!(5);
-    const SIZE_STARTING_AT_4_BYTE_BOUNDARY: u32 = calculate_size!(4);
-    const SIZE_STARTING_AT_3_BYTE_BOUNDARY: u32 = calculate_size!(3);
-    const SIZE_STARTING_AT_2_BYTE_BOUNDARY: u32 = calculate_size!(2);
-    const SIZE_STARTING_AT_1_BYTE_BOUNDARY: u32 = calculate_size!(1);
+    const SIZE_STARTING_AT_BYTE_BOUNDARIES: [u32; 8] = {
+        let alignment = <<Self::FirstElement as WitType>::Layout as Layout>::ALIGNMENT;
+        let mut size_at_boundaries = [0; 8];
+
+        unroll_for!(boundary_offset in [0, 1, 2, 3, 4, 5, 6, 7] {
+            let padding = (-(boundary_offset as i32) & (alignment as i32 - 1)) as u32;
+            let size_after_head = padding + Head::SIZE;
+
+            let tail_size = Tail::SIZE_STARTING_AT_BYTE_BOUNDARIES
+                [(boundary_offset + size_after_head as usize) % 8];
+
+            size_at_boundaries[boundary_offset] = size_after_head + tail_size;
+        });
+
+        size_at_boundaries
+    };
 
     type FirstElement = Head;
 }
