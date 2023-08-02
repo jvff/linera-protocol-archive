@@ -56,16 +56,14 @@ where
         <Instance::Runtime as Runtime>::Memory: RuntimeMemory<Instance>,
     {
         let is_err = bool::load(memory, location)?;
+        let location = location
+            .after::<bool>()
+            .after_padding_for::<T>()
+            .after_padding_for::<E>();
 
         match is_err {
-            true => Ok(Err(E::load(
-                memory,
-                location.after::<bool>().after_padding_for::<E>(),
-            )?)),
-            false => Ok(Ok(T::load(
-                memory,
-                location.after::<bool>().after_padding_for::<T>(),
-            )?)),
+            true => Ok(Err(E::load(memory, location)?)),
+            false => Ok(Ok(T::load(memory, location)?)),
         }
     }
 
@@ -112,14 +110,19 @@ where
         Instance: InstanceWithMemory,
         <Instance::Runtime as Runtime>::Memory: RuntimeMemory<Instance>,
     {
+        let location = location
+            .after::<bool>()
+            .after_padding_for::<T>()
+            .after_padding_for::<E>();
+
         match self {
             Ok(value) => {
                 false.store(memory, location)?;
-                value.store(memory, location.after::<bool>().after_padding_for::<T>())
+                value.store(memory, location)
             }
             Err(error) => {
                 true.store(memory, location)?;
-                error.store(memory, location.after::<bool>().after_padding_for::<E>())
+                error.store(memory, location)
             }
         }
     }
