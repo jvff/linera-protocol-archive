@@ -25,6 +25,9 @@ fn zero_sized_type() {
             <Instance::Runtime as linera_witty::Runtime>::Memory:
                 linera_witty::RuntimeMemory<Instance>,
         {
+            let linera_witty::hlist_pat![] =
+                <linera_witty::HList![] as linera_witty::WitLoad>::load(memory, location)?;
+
             Ok(Self)
         }
 
@@ -37,6 +40,9 @@ fn zero_sized_type() {
             <Instance::Runtime as linera_witty::Runtime>::Memory:
                 linera_witty::RuntimeMemory<Instance>,
         {
+            let linera_witty::hlist_pat![] =
+                <linera_witty::HList![] as linera_witty::WitLoad>::lift_from(flat_layout, memory)?;
+
             Ok(Self)
         }
     };
@@ -65,13 +71,11 @@ fn named_struct() {
             <Instance::Runtime as linera_witty::Runtime>::Memory:
                 linera_witty::RuntimeMemory<Instance>,
         {
-            location = location.after_padding_for::<u8>();
-            let first = <u8 as linera_witty::WitLoad>::load(memory, location)?;
-            location = location.after::<u8>();
-
-            location = location.after_padding_for::<CustomType>();
-            let second = <CustomType as linera_witty::WitLoad>::load(memory, location)?;
-            location = location.after::<CustomType>();
+            let linera_witty::hlist_pat![first, second] =
+                <linera_witty::HList![u8, CustomType] as linera_witty::WitLoad>::load(
+                    memory,
+                    location
+                )?;
 
             Ok(Self { first, second })
         }
@@ -85,11 +89,11 @@ fn named_struct() {
             <Instance::Runtime as linera_witty::Runtime>::Memory:
                 linera_witty::RuntimeMemory<Instance>,
         {
-            let (field_layout, flat_layout) = linera_witty::Split::split(flat_layout);
-            let first = <u8 as WitLoad>::lift_from(field_layout, memory)?;
-
-            let (field_layout, flat_layout) = linera_witty::Split::split(flat_layout);
-            let second = <CustomType as WitLoad>::lift_from(field_layout, memory)?;
+            let linera_witty::hlist_pat![first, second] =
+                <linera_witty::HList![u8, CustomType] as linera_witty::WitLoad>::lift_from(
+                    flat_layout,
+                    memory
+                )?;
 
             Ok(Self { first, second })
         }
@@ -116,17 +120,11 @@ fn tuple_struct() {
             <Instance::Runtime as linera_witty::Runtime>::Memory:
                 linera_witty::RuntimeMemory<Instance>,
         {
-            location = location.after_padding_for::<String>();
-            let field0 = <String as linera_witty::WitLoad>::load(memory, location)?;
-            location = location.after::<String>();
-
-            location = location.after_padding_for::<Vec<CustomType> >();
-            let field1 = <Vec<CustomType> as linera_witty::WitLoad>::load(memory, location)?;
-            location = location.after::<Vec<CustomType> >();
-
-            location = location.after_padding_for::<i64>();
-            let field2 = <i64 as linera_witty::WitLoad>::load(memory, location)?;
-            location = location.after::<i64>();
+            let linera_witty::hlist_pat![field0, field1, field2] = <linera_witty::HList![
+                String,
+                Vec<CustomType>,
+                i64
+            ] as linera_witty::WitLoad>::load(memory, location)?;
 
             Ok(Self(field0, field1, field2))
         }
@@ -140,14 +138,11 @@ fn tuple_struct() {
             <Instance::Runtime as linera_witty::Runtime>::Memory:
                 linera_witty::RuntimeMemory<Instance>,
         {
-            let (field_layout, flat_layout) = linera_witty::Split::split(flat_layout);
-            let field0 = <String as WitLoad>::lift_from(field_layout, memory)?;
-
-            let (field_layout, flat_layout) = linera_witty::Split::split(flat_layout);
-            let field1 = <Vec<CustomType> as WitLoad>::lift_from(field_layout, memory)?;
-
-            let (field_layout, flat_layout) = linera_witty::Split::split(flat_layout);
-            let field2 = <i64 as WitLoad>::lift_from(field_layout, memory)?;
+            let linera_witty::hlist_pat![field0, field1, field2] = <linera_witty::HList![
+                String,
+                Vec<CustomType>,
+                i64
+            ] as linera_witty::WitLoad>::lift_from(flat_layout, memory)?;
 
             Ok(Self(field0, field1, field2))
         }
@@ -181,33 +176,35 @@ fn enum_type() {
             <Instance::Runtime as linera_witty::Runtime>::Memory:
                 linera_witty::RuntimeMemory<Instance>,
         {
-            location = location.after_padding_for::<u8>();
             let discriminant = <u8 as linera_witty::WitLoad>::load(memory, location,)?;
-            location = location.after::<u8>();
+            location = location
+                .after::<u8>()
+                .after_padding_for::<linera_witty::HList![]>()
+                .after_padding_for::<linera_witty::HList![i8, CustomType]>()
+                .after_padding_for::<linera_witty::HList![(), String]>();
 
             match discriminant {
                 0 => {
+                    let linera_witty::hlist_pat![] =
+                        <linera_witty::HList![] as linera_witty::WitLoad>::load(memory, location)?;
+
                     Ok(Enum::Empty)
                 }
                 1 => {
-                    location = location.after_padding_for::<i8>();
-                    let field0 = <i8 as linera_witty::WitLoad>::load(memory, location)?;
-                    location = location.after::<i8>();
-
-                    location = location.after_padding_for::<CustomType>();
-                    let field1 = <CustomType as linera_witty::WitLoad>::load(memory, location)?;
-                    location = location.after::<CustomType>();
+                    let linera_witty::hlist_pat![field0, field1] =
+                        <linera_witty::HList![i8, CustomType] as linera_witty::WitLoad>::load(
+                            memory,
+                            location
+                        )?;
 
                     Ok(Enum::Tuple(field0, field1))
                 }
                 2 => {
-                    location = location.after_padding_for::<()>();
-                    let first = <() as linera_witty::WitLoad>::load(memory, location)?;
-                    location = location.after::<()>();
-
-                    location = location.after_padding_for::<String>();
-                    let second = <String as linera_witty::WitLoad>::load(memory, location)?;
-                    location = location.after::<String>();
+                    let linera_witty::hlist_pat![first, second] =
+                        <linera_witty::HList![(), String] as linera_witty::WitLoad>::load(
+                            memory,
+                            location
+                        )?;
 
                     Ok(Enum::Struct { first, second })
                 }
@@ -232,16 +229,17 @@ fn enum_type() {
 
             match discriminant {
                 0 => {
-                    let linera_witty::hlist_pat![] = <linera_witty::HList![] as WitLoad>::lift_from(
-                        linera_witty::JoinFlatLayouts::from_joined(flat_layout),
-                        memory,
-                    )?;
+                    let linera_witty::hlist_pat![] =
+                        <linera_witty::HList![] as linera_witty::WitLoad>::lift_from(
+                            linera_witty::JoinFlatLayouts::from_joined(flat_layout),
+                            memory,
+                        )?;
 
                     Ok(Enum::Empty)
                 }
                 1 => {
-                    let linera_witty::hlist_pat![field0, field1,] =
-                        <linera_witty::HList![i8, CustomType] as WitLoad>::lift_from(
+                    let linera_witty::hlist_pat![field0, field1] =
+                        <linera_witty::HList![i8, CustomType] as linera_witty::WitLoad>::lift_from(
                             linera_witty::JoinFlatLayouts::from_joined(flat_layout),
                             memory,
                         )?;
@@ -249,8 +247,8 @@ fn enum_type() {
                     Ok(Enum::Tuple(field0, field1))
                 }
                 2 => {
-                    let linera_witty::hlist_pat![first, second,] =
-                        <linera_witty::HList![(), String] as WitLoad>::lift_from(
+                    let linera_witty::hlist_pat![first, second] =
+                        <linera_witty::HList![(), String] as linera_witty::WitLoad>::lift_from(
                             linera_witty::JoinFlatLayouts::from_joined(flat_layout),
                             memory,
                         )?;
