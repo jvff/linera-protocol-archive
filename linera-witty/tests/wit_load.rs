@@ -125,7 +125,7 @@ fn enum_type() {
     let expected = Enum::Empty;
 
     test_load_from_memory(
-        &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+        &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
         expected,
     );
     test_lift_from_flat_layout(
@@ -133,14 +133,14 @@ fn enum_type() {
         expected,
     );
 
-    let expected = Enum::LargeVariantWithLooseAlignment(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+    let expected = Enum::LargeVariantWithLooseAlignment(7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
 
     test_load_from_memory(
-        &[1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+        &[1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
         expected,
     );
     test_lift_from_flat_layout(
-        hlist![1_i32, 0_i64, 1_i32, 2_i32, 3_i32, 4_i32, 5_i32, 6_i32, 7_i32, 8_i32, 9_i32],
+        hlist![1_i32, 7_i64, 8_i32, 9_i32, 10_i32, 11_i32, 12_i32, 13_i32, 14_i32, 15_i32, 16_i32],
         expected,
     );
 
@@ -149,7 +149,7 @@ fn enum_type() {
     };
 
     test_load_from_memory(
-        &[2, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+        &[2, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
         expected,
     );
     test_lift_from_flat_layout(
