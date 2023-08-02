@@ -72,7 +72,7 @@ fn nested_types() {
 /// Check the memory size and layout derived for an `enum` type.
 #[test]
 fn enum_type() {
-    assert_eq!(Enum::SIZE, 16);
+    assert_eq!(Enum::SIZE, 18);
     assert_eq!(<Enum as WitType>::Layout::ALIGNMENT, 8);
     assert_eq!(<<Enum as WitType>::Layout as Layout>::Flat::LEN, 11);
 }
