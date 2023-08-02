@@ -16,12 +16,9 @@ fn zero_sized_type() {
     let output = derive_for_struct(&input);
 
     let expected = quote! {
-        const SIZE: u32 = {
-            let mut size = 0;
-            size
-        };
+        const SIZE: u32 = <linera_witty::HList![] as linera_witty::WitType>::SIZE;
 
-        type Layout = linera_witty::HNil;
+        type Layout = <linera_witty::HList![] as linera_witty::WitType>::Layout;
     };
 
     assert_eq!(output.to_string(), expected.to_string());
@@ -39,30 +36,9 @@ fn named_struct() {
     let output = derive_for_struct(&input.fields);
 
     let expected = quote! {
-        const SIZE: u32 = {
-            let mut size = 0;
+        const SIZE: u32 = <linera_witty::HList![u8, CustomType] as linera_witty::WitType>::SIZE;
 
-            let field_alignment =
-                <<u8 as linera_witty::WitType>::Layout as linera_witty::Layout>::ALIGNMENT;
-            let field_size = <u8 as linera_witty::WitType>::SIZE;
-            let padding = (-(size as i32) & (field_alignment as i32 - 1)) as u32;
-            size += padding;
-            size += field_size;
-
-            let field_alignment =
-                <<CustomType as linera_witty::WitType>::Layout as linera_witty::Layout>::ALIGNMENT;
-            let field_size = <CustomType as linera_witty::WitType>::SIZE;
-            let padding = (-(size as i32) & (field_alignment as i32 - 1)) as u32;
-            size += padding;
-            size += field_size;
-
-            size
-        };
-
-        type Layout = <
-            <linera_witty::HNil
-            as std::ops::Add<<u8 as linera_witty::WitType>::Layout>>::Output
-            as std::ops::Add<<CustomType as linera_witty::WitType>::Layout>>::Output;
+        type Layout = <linera_witty::HList![u8, CustomType] as linera_witty::WitType>::Layout;
     };
 
     assert_eq!(output.to_string(), expected.to_string());
@@ -77,39 +53,11 @@ fn tuple_struct() {
     let output = derive_for_struct(&input.fields);
 
     let expected = quote! {
-        const SIZE: u32 = {
-            let mut size = 0;
+        const SIZE: u32 =
+            <linera_witty::HList![String, Vec<CustomType>, i64] as linera_witty::WitType>::SIZE;
 
-            let field_alignment =
-                <<String as linera_witty::WitType>::Layout as linera_witty::Layout>::ALIGNMENT;
-            let field_size = <String as linera_witty::WitType>::SIZE;
-            let padding = (-(size as i32) & (field_alignment as i32 - 1)) as u32;
-            size += padding;
-            size += field_size;
-
-            let field_alignment =
-                <<Vec<CustomType> as linera_witty::WitType>::Layout
-                    as linera_witty::Layout>::ALIGNMENT;
-            let field_size = <Vec<CustomType> as linera_witty::WitType>::SIZE;
-            let padding = (-(size as i32) & (field_alignment as i32 - 1)) as u32;
-            size += padding;
-            size += field_size;
-
-            let field_alignment =
-                <<i64 as linera_witty::WitType>::Layout as linera_witty::Layout>::ALIGNMENT;
-            let field_size = <i64 as linera_witty::WitType>::SIZE;
-            let padding = (-(size as i32) & (field_alignment as i32 - 1)) as u32;
-            size += padding;
-            size += field_size;
-
-            size
-        };
-
-        type Layout = < <
-            <linera_witty::HNil
-            as std::ops::Add<<String as linera_witty::WitType>::Layout>>::Output
-            as std::ops::Add<<Vec<CustomType> as linera_witty::WitType>::Layout>>::Output
-            as std::ops::Add<<i64 as linera_witty::WitType>::Layout>>::Output;
+        type Layout =
+            <linera_witty::HList![String, Vec<CustomType>, i64] as linera_witty::WitType>::Layout;
     };
 
     assert_eq!(output.to_string(), expected.to_string());
@@ -132,60 +80,37 @@ fn enum_type() {
 
     let expected = quote! {
         const SIZE: u32 = {
-            let mut size = std::mem::size_of::<u8>() as u32;
+            let discriminant_size = std::mem::size_of::<u8>() as u32;
+            let mut size = discriminant_size;
+            let mut variants_alignment = <
+                < <linera_witty::HList![] as linera_witty::WitType>::Layout as linera_witty::Merge<
+                    < <linera_witty::HList![i8, CustomType] as linera_witty::WitType>::Layout
+                    as linera_witty::Merge<
+                        <linera_witty::HList![(), String] as linera_witty::WitType>::Layout
+                    >>::Output
+                >>::Output
+            as linera_witty::Layout>::ALIGNMENT;
+            let padding = (-(size as i32) & (variants_alignment as i32 - 1)) as u32;
 
-            let variant_size = {
-                let mut size = std::mem::size_of::<u8>() as u32;
-                size
-            };
-
-            if variant_size > size {
-                size = variant_size;
-            }
-
-            let variant_size = {
-                let mut size = std::mem::size_of::<u8>() as u32;
-
-                let field_alignment =
-                    <<i8 as linera_witty::WitType>::Layout as linera_witty::Layout>::ALIGNMENT;
-                let field_size = <i8 as linera_witty::WitType>::SIZE;
-                let padding = (-(size as i32) & (field_alignment as i32 - 1)) as u32;
-                size += padding;
-                size += field_size;
-
-                let field_alignment = <<CustomType as linera_witty::WitType>::Layout
-                        as linera_witty::Layout>::ALIGNMENT;
-                let field_size = <CustomType as linera_witty::WitType>::SIZE;
-                let padding = (-(size as i32) & (field_alignment as i32 - 1)) as u32;
-                size += padding;
-                size += field_size;
-
-                size
-            };
+            let variant_size = discriminant_size
+                + padding
+                + <linera_witty::HList![] as linera_witty::WitType>::SIZE;
 
             if variant_size > size {
                 size = variant_size;
             }
 
-            let variant_size = {
-                let mut size = std::mem::size_of::<u8>() as u32;
+            let variant_size = discriminant_size
+                + padding
+                + <linera_witty::HList![i8, CustomType] as linera_witty::WitType>::SIZE;
 
-                let field_alignment =
-                    <<() as linera_witty::WitType>::Layout as linera_witty::Layout>::ALIGNMENT;
-                let field_size = <() as linera_witty::WitType>::SIZE;
-                let padding = (-(size as i32) & (field_alignment as i32 - 1)) as u32;
-                size += padding;
-                size += field_size;
+            if variant_size > size {
+                size = variant_size;
+            }
 
-                let field_alignment =
-                    <<String as linera_witty::WitType>::Layout as linera_witty::Layout>::ALIGNMENT;
-                let field_size = <String as linera_witty::WitType>::SIZE;
-                let padding = (-(size as i32) & (field_alignment as i32 - 1)) as u32;
-                size += padding;
-                size += field_size;
-
-                size
-            };
+            let variant_size = discriminant_size
+                + padding
+                + <linera_witty::HList![(), String] as linera_witty::WitType>::SIZE;
 
             if variant_size > size {
                 size = variant_size;
@@ -195,16 +120,12 @@ fn enum_type() {
         };
 
         type Layout = linera_witty::HCons<u8,
-            <linera_witty::HNil
-            as linera_witty::Merge<
-                < < <linera_witty::HNil
-                as std::ops::Add<<i8 as linera_witty::WitType>::Layout>>::Output
-                as std::ops::Add<<CustomType as linera_witty::WitType>::Layout>>::Output
-            as linera_witty::Merge<
-                < <linera_witty::HNil
-                as std::ops::Add<<() as linera_witty::WitType>::Layout>>::Output
-                as std::ops::Add<<String as linera_witty::WitType>::Layout>>::Output
-            >>::Output>>::Output>;
+            < <linera_witty::HList![] as linera_witty::WitType>::Layout as linera_witty::Merge<
+                < <linera_witty::HList![i8, CustomType] as linera_witty::WitType>::Layout
+                as linera_witty::Merge<
+                    <linera_witty::HList![(), String] as linera_witty::WitType>::Layout
+                >>::Output
+            >>::Output>;
     };
 
     assert_eq!(output.to_string(), expected.to_string());
