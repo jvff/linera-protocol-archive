@@ -79,6 +79,8 @@ where
     let mut memory = instance.memory().unwrap();
     let length = memory_data.len() as u32;
 
+    assert_eq!(length, T::SIZE);
+
     let address = memory.allocate(length).unwrap();
 
     input.store(&mut memory, address).unwrap();
