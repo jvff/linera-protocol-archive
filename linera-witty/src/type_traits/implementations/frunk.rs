@@ -202,17 +202,17 @@ where
     Tail: SizeCalculation,
 {
     const SIZE_STARTING_AT_BYTE_BOUNDARIES: [u32; 8] = {
-        let alignment = <<Self::FirstElement as WitType>::Layout as Layout>::ALIGNMENT;
         let mut size_at_boundaries = [0; 8];
 
         unroll_for!(boundary_offset in [0, 1, 2, 3, 4, 5, 6, 7] {
-            let padding = (-(boundary_offset as i32) & (alignment as i32 - 1)) as u32;
-            let size_after_head = padding + Head::SIZE;
+            let memory_location = GuestPointer(boundary_offset)
+                .after_padding_for::<Head>()
+                .after::<Head>();
 
-            let tail_size = Tail::SIZE_STARTING_AT_BYTE_BOUNDARIES
-                [(boundary_offset + size_after_head as usize) % 8];
+            let tail_size = Tail::SIZE_STARTING_AT_BYTE_BOUNDARIES[memory_location.0 as usize % 8];
 
-            size_at_boundaries[boundary_offset] = size_after_head + tail_size;
+            size_at_boundaries[boundary_offset as usize] =
+                memory_location.0 - boundary_offset + tail_size;
         });
 
         size_at_boundaries
