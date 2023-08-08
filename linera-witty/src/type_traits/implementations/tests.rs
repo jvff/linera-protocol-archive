@@ -90,7 +90,7 @@ fn some_byte() {
 /// Test roundtrip of `Ok::<i16, u128>`.
 #[test]
 fn ok_two_bytes_but_large_err() {
-    let input = Ok::<_, u128>(0x1234_i16);
+    let input = Ok::<_, u128>(0xfffe_u16 as i16);
 
     assert_eq!(
         <<Result<i16, u128> as crate::WitType>::Layout as Layout>::ALIGNMENT,
@@ -99,7 +99,7 @@ fn ok_two_bytes_but_large_err() {
     test_memory_roundtrip(
         input,
         &[
-            0x00, 0, 0, 0, 0, 0, 0, 0, 0x34, 0x12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0x00, 0, 0, 0, 0, 0, 0, 0, 0xfe, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ],
     );
 }
