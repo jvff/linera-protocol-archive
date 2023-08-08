@@ -84,7 +84,7 @@ fn some_byte() {
     let input = Some(-100_i8);
 
     test_memory_roundtrip(input, &[0x01, 0x9c]);
-    test_flattening_roundtrip(input, hlist![1_i32, -100_i32]);
+    test_flattening_roundtrip(input, hlist![1_i32, -100_i8 as u8 as i32]);
 }
 
 /// Test roundtrip of `Ok::<i16, u128>`.
