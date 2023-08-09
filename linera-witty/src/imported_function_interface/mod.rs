@@ -36,7 +36,7 @@ pub trait ImportedFunctionInterface {
     /// The flat layout representing the guest-side results.
     type GuestResults: FlatLayout;
 
-    /// Converts the the host-side parameters into the guest-side parameters.
+    /// Converts the host-side parameters into the guest-side parameters.
     fn lower_parameters<Instance>(
         parameters: Self::HostParameters,
         memory: &mut Memory<'_, Instance>,
