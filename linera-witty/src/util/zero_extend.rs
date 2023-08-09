@@ -9,8 +9,24 @@ pub trait ZeroExtend<Target> {
     fn zero_extend(self) -> Target;
 }
 
-impl ZeroExtend<i64> for i32 {
-    fn zero_extend(self) -> i64 {
-        self as u32 as u64 as i64
-    }
+/// Macro to implement `ZeroExtend` from a `source` type to a `target` type using the provided
+/// cast `conversions`.
+macro_rules! impl_zero_extend {
+    ($source:ident -> $target:ident => $( $conversions:tt )*) => {
+        impl ZeroExtend<$target> for $source {
+            fn zero_extend(self) -> $target {
+                self $( $conversions )*
+            }
+        }
+    };
 }
+
+impl_zero_extend!(u8 -> i32 => as i32);
+impl_zero_extend!(i8 -> i32 => as u8 as i32);
+impl_zero_extend!(u16 -> i32 => as i32);
+impl_zero_extend!(i16 -> i32 => as u16 as i32);
+impl_zero_extend!(u32 -> i32 => as i32);
+impl_zero_extend!(i32 -> i32 =>);
+impl_zero_extend!(i32 -> i64 => as u32 as i64);
+impl_zero_extend!(u64 -> i64 => as i64);
+impl_zero_extend!(i64 -> i64 =>);
