@@ -4,8 +4,8 @@
 //! Implementations of the custom traits for integer primitives.
 
 use crate::{
-    GuestPointer, InstanceWithMemory, Layout, Memory, Runtime, RuntimeError, RuntimeMemory,
-    WitLoad, WitStore, WitType,
+    util::ZeroExtend, GuestPointer, InstanceWithMemory, Layout, Memory, Runtime, RuntimeError,
+    RuntimeMemory, WitLoad, WitStore, WitType,
 };
 use frunk::{hlist, hlist_pat, HList};
 
@@ -63,7 +63,7 @@ macro_rules! impl_wit_traits {
                 Instance: InstanceWithMemory,
                 <Instance::Runtime as Runtime>::Memory: RuntimeMemory<Instance>,
             {
-                Ok(hlist![*self as i32])
+                Ok(hlist![self.zero_extend()])
             }
         }
     };
@@ -74,7 +74,7 @@ macro_rules! impl_wit_traits {
             $size,
             ($integer),
             ($flat_type),
-            self -> hlist![*self as $flat_type],
+            self -> hlist![self.zero_extend()],
             hlist_pat![value] => value as Self
         );
     };
