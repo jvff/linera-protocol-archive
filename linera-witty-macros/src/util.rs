@@ -82,8 +82,9 @@ impl AttributeParameters {
             .iter()
             .find(|pair| pair.path.is_ident(name))
             .map(|pair| {
-                let Lit::Str(lit_str) = &pair.lit
-                    else { abort!(&pair.lit, "Expected a string literal"); };
+                let Lit::Str(lit_str) = &pair.lit else {
+                    abort!(&pair.lit, "Expected a string literal");
+                };
 
                 lit_str.value()
             })
