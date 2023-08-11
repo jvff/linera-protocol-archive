@@ -1,7 +1,10 @@
+use std::convert::Infallible;
+
 use async_graphql::{scalar, Request, Response};
-use fungible::FungibleTokenAbi;
-use linera_sdk::base::{ApplicationId, ContractAbi, ServiceAbi};
+use fungible::AccountOwner;
+use linera_sdk::base::{Amount, ArithmeticError, ContractAbi, ServiceAbi};
 use linera_views::views::ViewError;
+use matching_engine::Parameters;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -11,8 +14,8 @@ impl ContractAbi for AmmAbi {
     type InitializationArgument = ();
     type Parameters = Parameters;
     type Operation = Operation;
-    type ApplicationCall = ();
-    type Message = ();
+    type ApplicationCall = ApplicationCall;
+    type Message = Message;
     type SessionCall = ();
     type Response = ();
     type SessionState = ();
@@ -24,47 +27,62 @@ impl ServiceAbi for AmmAbi {
     type Parameters = Parameters;
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-pub struct Parameters {
-    /// The token0 and token1 used for the amm
-    pub tokens: [ApplicationId<FungibleTokenAbi>; 2],
-}
-
-scalar!(Parameters);
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum Operation {
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum OperationType {
     Swap {
+        owner: AccountOwner,
         input_token_idx: u32,
         output_token_idx: u32,
-        input_amount: u64,
+        input_amount: Amount,
     },
     AddLiquidity {
-        token0_amount: u64,
-        token1_amount: u64,
+        owner: AccountOwner,
+        token0_amount: Amount,
+        token1_amount: Amount,
     },
     RemoveLiquidity {
-        shares_amount: u64,
+        owner: AccountOwner,
+        shares_amount: Amount,
     },
+}
+
+scalar!(OperationType);
+
+/// Operations that can be sent to the application.
+#[derive(Debug, Serialize, Deserialize)]
+pub enum Operation {
+    ExecuteOperation { operation: OperationType },
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub enum Message {
+    ExecuteOperation { operation: OperationType },
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub enum ApplicationCall {
+    ExecuteOperation { operation: OperationType },
 }
 
 pub fn calculate_output_amount(
-    input_amount: u64,
-    input_pool_balance: u64,
-    output_pool_balance: u64,
-) -> Result<u64, AmmError> {
-    if input_pool_balance == 0 || output_pool_balance == 0 {
+    input_amount: Amount,
+    input_pool_balance: Amount,
+    output_pool_balance: Amount,
+) -> Result<Amount, AmmError> {
+    if input_pool_balance == Amount::ZERO || output_pool_balance == Amount::ZERO {
         return Err(AmmError::InvalidPoolBalanceError);
     }
 
-    let input_pool_balance_float = input_pool_balance as f64;
-    let output_pool_balance_float = output_pool_balance as f64;
+    let numerator = input_amount.try_mul(output_pool_balance.into())?;
+    let denominator = input_pool_balance.try_add(input_amount)?;
 
-    let input_amount_float = input_amount as f64;
-    let output_amount_float = (input_amount_float * output_pool_balance_float)
-        / (input_pool_balance_float + input_amount_float);
+    if denominator == Amount::ZERO {
+        return Err(AmmError::DivisionByZero);
+    }
 
-    Ok(output_amount_float as u64)
+    let output_amount = numerator.saturating_div(denominator);
+
+    Ok(output_amount.into())
 }
 
 #[derive(Debug, Error)]
@@ -97,6 +115,12 @@ pub enum AmmError {
     #[error("AMM application doesn't support any application calls")]
     ApplicationCallsNotSupported,
 
+    #[error("Cannot divide by zero")]
+    DivisionByZero,
+
+    #[error("Action can only be executed on the chain that created the AMM")]
+    AmmChainOnly,
+
     /// Invalid query.
     #[error("Invalid query")]
     InvalidQuery(#[from] serde_json::Error),
@@ -106,4 +130,10 @@ pub enum AmmError {
 
     #[error(transparent)]
     ViewError(#[from] ViewError),
+
+    #[error(transparent)]
+    ArithmeticError(#[from] ArithmeticError),
+
+    #[error(transparent)]
+    Infallible(#[from] Infallible),
 }

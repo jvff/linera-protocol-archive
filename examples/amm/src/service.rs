@@ -3,7 +3,7 @@
 mod state;
 
 use self::state::Amm;
-use amm::{AmmError, Operation};
+use amm::{AmmError, Operation, OperationType};
 use async_graphql::{EmptySubscription, Object, Request, Response, Schema};
 use async_trait::async_trait;
 use linera_sdk::{base::WithServiceAbi, QueryContext, Service, ViewStateStorage};
@@ -30,33 +30,12 @@ impl Service for Amm {
         Ok(response)
     }
 }
+
 struct MutationRoot;
 
 #[Object]
 impl MutationRoot {
-    async fn add_liquidity(&self, token0_amount: u64, token1_amount: u64) -> Vec<u8> {
-        bcs::to_bytes(&Operation::AddLiquidity {
-            token0_amount,
-            token1_amount,
-        })
-        .unwrap()
-    }
-
-    async fn remove_liquidity(&self, shares_amount: u64) -> Vec<u8> {
-        bcs::to_bytes(&Operation::RemoveLiquidity { shares_amount }).unwrap()
-    }
-
-    async fn swap(
-        &self,
-        input_token_idx: u32,
-        output_token_idx: u32,
-        input_amount: u64,
-    ) -> Vec<u8> {
-        bcs::to_bytes(&Operation::Swap {
-            input_token_idx,
-            output_token_idx,
-            input_amount,
-        })
-        .unwrap()
+    async fn operation(&self, operation: OperationType) -> Vec<u8> {
+        bcs::to_bytes(&Operation::ExecuteOperation { operation }).unwrap()
     }
 }
