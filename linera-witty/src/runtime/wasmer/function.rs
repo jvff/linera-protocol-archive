@@ -3,7 +3,9 @@
 
 //! Implementations of [`InstanceWithFunction`] for Wasmer instances.
 
-use super::{parameters::WasmerParameters, results::WasmerResults, EntrypointInstance};
+use super::{
+    parameters::WasmerParameters, results::WasmerResults, EntrypointInstance, ReentrantInstance,
+};
 use crate::{
     memory_layout::FlatLayout, primitive_types::FlatType, InstanceWithFunction, Runtime,
     RuntimeError,
@@ -14,8 +16,13 @@ use wasmer::{AsStoreRef, Extern, FromToNativeWasmType, TypedFunction};
 /// Implements [`InstanceWithFunction`] for functions with the provided amount of parameters.
 macro_rules! impl_instance_with_function {
     ($( $names:ident : $types:ident ),*) => {
+        impl_instance_with_function!(@generate(EntrypointInstance) $( $names: $types ),*);
+        impl_instance_with_function!(@generate(ReentrantInstance<'_>) $( $names: $types ),*);
+    };
+
+    (@generate($instance:ty) $( $names:ident : $types:ident ),*) => {
         impl<$( $types, )* Results> InstanceWithFunction<HList![$( $types ),*], Results>
-            for EntrypointInstance
+            for $instance
         where
             $( $types: FlatType + FromToNativeWasmType, )*
             Results: FlatLayout + WasmerResults,
