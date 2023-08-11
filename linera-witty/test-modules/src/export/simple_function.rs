@@ -3,7 +3,7 @@
 
 //! Helper Wasm module with a minimal function without parameters or return values.
 
-#![no_main]
+#![cfg_attr(target_arch = "wasm32", no_main)]
 
 wit_bindgen::generate!("export-simple-function");
 
@@ -16,3 +16,6 @@ struct Implementation;
 impl SimpleFunction for Implementation {
     fn simple() {}
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+fn main() {}

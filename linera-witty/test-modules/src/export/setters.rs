@@ -3,7 +3,7 @@
 
 //! Helper Wasm module with some functions that have one parameter and no return values.
 
-#![no_main]
+#![cfg_attr(target_arch = "wasm32", no_main)]
 
 wit_bindgen::generate!("export-setters");
 
@@ -36,3 +36,6 @@ impl Setters for Implementation {
 
     fn set_float64(_value: f64) {}
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+fn main() {}

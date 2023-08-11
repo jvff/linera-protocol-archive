@@ -3,7 +3,7 @@
 
 //! Helper Wasm module with some functions that have no parameters but return values.
 
-#![no_main]
+#![cfg_attr(target_arch = "wasm32", no_main)]
 
 wit_bindgen::generate!("export-getters");
 
@@ -62,3 +62,6 @@ impl Getters for Implementation {
         128.25
     }
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+fn main() {}

@@ -3,7 +3,7 @@
 
 //! Helper Wasm module with some functions that have two parameters and one return value.
 
-#![no_main]
+#![cfg_attr(target_arch = "wasm32", no_main)]
 
 wit_bindgen::generate!("export-operations");
 
@@ -58,3 +58,6 @@ impl Operations for Implementation {
         first + second
     }
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+fn main() {}
