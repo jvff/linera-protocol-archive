@@ -2511,16 +2511,25 @@ async fn test_end_to_end_amm() {
     client1.wallet_init(&[]).await;
 
     runner.run_local_net().await;
+    tracing::info!("HERE10");
     let (contract_fungible, service_fungible) = runner.build_example("fungible").await;
+    tracing::info!("HERE11");
     let (contract_amm, service_amm) = runner.build_example("amm").await;
+    tracing::info!("HERE12");
 
     let chain_admin = client_admin.get_wallet().default_chain().unwrap();
+    tracing::info!("HERE13");
     let chain0 = client_admin.open_and_assign(&client0).await;
+    tracing::info!("HERE14");
     let chain1 = client_admin.open_and_assign(&client1).await;
+    tracing::info!("HERE15");
 
     let owner_admin = client_admin.get_fungible_account_owner();
+    tracing::info!("HERE16");
     let owner0 = client0.get_fungible_account_owner();
+    tracing::info!("HERE17");
     let owner1 = client1.get_fungible_account_owner();
+    tracing::info!("HERE18");
 
     let accounts0 = BTreeMap::from([(owner0, Amount::from_tokens(10))]);
     let state_fungible0 = InitialState {
@@ -2556,12 +2565,15 @@ async fn test_end_to_end_amm() {
     let mut node_service0 = client0.run_node_service(8081).await;
     let mut node_service1 = client1.run_node_service(8082).await;
 
+    tracing::info!("HERE1");
     let app_fungible0 = node_service0
         .make_fungible_application(&chain0, &application_id_fungible0)
         .await;
+    tracing::info!("HERE2");
     let app_fungible1 = node_service1
         .make_fungible_application(&chain1, &application_id_fungible1)
         .await;
+    tracing::info!("HERE3");
     app_fungible0
         .assert_fungible_account_balances([
             (owner0, Amount::from_tokens(10)),
@@ -2569,6 +2581,7 @@ async fn test_end_to_end_amm() {
             (owner_admin, Amount::ZERO),
         ])
         .await;
+    tracing::info!("HERE4");
     app_fungible1
         .assert_fungible_account_balances([
             (owner0, Amount::ZERO),
@@ -2576,6 +2589,7 @@ async fn test_end_to_end_amm() {
             (owner_admin, Amount::ZERO),
         ])
         .await;
+    tracing::info!("HERE5");
 
     node_service_admin
         .request_application(&chain_admin, &application_id_fungible0)

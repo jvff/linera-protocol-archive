@@ -86,11 +86,11 @@ dependencies = [
  "fungible",
  "linera-sdk",
  "linera-views",
+ "log",
  "matching-engine",
  "serde",
  "serde_json",
  "thiserror",
- "tracing",
 ]
 
 [[package]]

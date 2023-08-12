@@ -134,14 +134,14 @@ impl Amm {
                 token0_amount,
                 token1_amount,
             } => {
-                tracing::info!("AddLiquidity");
+                log::info!("AddLiquidity");
                 let balance0 = self.get_pool_balance(0).await?;
-                tracing::info!("1");
+                log::info!("1");
                 let balance1 = self.get_pool_balance(1).await?;
-                tracing::info!("2");
+                log::info!("2");
 
                 let total_shares = self.total_shares.get();
-                tracing::info!("3");
+                log::info!("3");
 
                 if *total_shares > Amount::ZERO
                     && balance0.saturating_div(balance1)
@@ -149,7 +149,7 @@ impl Amm {
                 {
                     return Err(AmmError::BalanceRatioAlteredError);
                 }
-                tracing::info!("4");
+                log::info!("4");
 
                 if *total_shares > Amount::ZERO
                     && Amount::try_from(token0_amount.saturating_div(balance0))?
@@ -159,7 +159,7 @@ impl Amm {
                 {
                     return Err(AmmError::TotalSharesRatioAlteredError);
                 }
-                tracing::info!("5");
+                log::info!("5");
 
                 let new_shares = if *total_shares == Amount::ZERO {
                     Amount::try_from(
@@ -171,12 +171,12 @@ impl Amm {
                     Amount::try_from(token0_amount.saturating_div(balance0))?
                         .try_mul((*total_shares).into())?
                 };
-                tracing::info!("6");
+                log::info!("6");
 
                 self.receive_from_account(&owner, 0, &token0_amount).await?;
-                tracing::info!("7");
+                log::info!("7");
                 self.receive_from_account(&owner, 1, &token1_amount).await?;
-                tracing::info!("8");
+                log::info!("8");
 
                 Ok((*self.total_shares.get_mut()).try_add_assign(new_shares)?)
             }
