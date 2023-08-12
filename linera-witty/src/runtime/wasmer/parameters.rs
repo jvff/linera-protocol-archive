@@ -3,12 +3,12 @@
 
 //! Representation of Wasmer function parameter types.
 
-use crate::primitive_types::FlatType;
+use crate::{memory_layout::FlatLayout, primitive_types::FlatType};
 use frunk::{hlist, hlist_pat, HList};
 use wasmer::FromToNativeWasmType;
 
 /// Conversions between flat layouts and Wasmer parameter types.
-pub trait WasmerParameters {
+pub trait WasmerParameters: FlatLayout {
     /// The type Wasmer uses to represent the parameters in a function imported from a guest.
     type ImportParameters;
 
