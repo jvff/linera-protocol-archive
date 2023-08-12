@@ -22,27 +22,27 @@ macro_rules! impl_memory_traits {
         impl RuntimeMemory<$instance> for Memory {
             fn read<'instance>(
                 &self,
-                runtime: &'instance $instance,
+                instance: &'instance $instance,
                 location: GuestPointer,
                 length: u32,
             ) -> Result<Cow<'instance, [u8]>, RuntimeError> {
                 let mut buffer = vec![0u8; length as usize];
                 let start = location.0 as u64;
 
-                self.view(runtime).read(start, &mut buffer)?;
+                self.view(instance).read(start, &mut buffer)?;
 
                 Ok(Cow::Owned(buffer))
             }
 
             fn write(
                 &mut self,
-                runtime: &mut $instance,
+                instance: &mut $instance,
                 location: GuestPointer,
                 bytes: &[u8],
             ) -> Result<(), RuntimeError> {
                 let start = location.0 as u64;
 
-                self.view(&*runtime).write(start, bytes)?;
+                self.view(&*instance).write(start, bytes)?;
 
                 Ok(())
             }
