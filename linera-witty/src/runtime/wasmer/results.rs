@@ -13,7 +13,7 @@ pub trait WasmerResults: FlatLayout {
     type Results: WasmTypeList;
 
     /// Converts from Wasmer's representation into a flat layout.
-    fn from_wasmer(results: Self::Results) -> Self::Flat;
+    fn from_wasmer(results: Self::Results) -> Self;
 
     /// Converts from this flat layout into Wasmer's representation.
     fn into_wasmer(self) -> Self::Results;
