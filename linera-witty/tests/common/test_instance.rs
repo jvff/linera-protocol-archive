@@ -16,7 +16,7 @@ pub trait TestInstanceFactory {
     fn load_test_module(&mut self, module_name: &str) -> Self::Instance;
 }
 
-/// A factory of [`wasmer::EndpointInstance`] instances.
+/// A factory of [`wasmer::EndpointInstance`]s.
 #[cfg(feature = "wasmer")]
 pub struct WasmerInstanceFactory;
 
