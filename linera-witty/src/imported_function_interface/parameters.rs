@@ -3,11 +3,11 @@
 
 //! Representation of the parameters of an imported function.
 //!
-/// The maximum number of parameters that can be used in a WIT function is defined by the
-/// [canonical ABI][flattening] as the `MAX_FLAT_PARAMS` constant (16). There is no equivalent
-/// constant defined in Witty. Instead, any attempt to use more than the limit should lead to a
-/// compiler error.
-///
+//! The maximum number of parameters that can be used in a WIT function is defined by the
+//! [canonical ABI][flattening] as the `MAX_FLAT_PARAMS` constant (16). There is no equivalent
+//! constant defined in Witty. Instead, any attempt to use more than the limit should lead to a
+//! compiler error.
+//!
 //! The host parameters type is flattened and if it's made up of `MAX_FLAT_PARAMS` or less flat
 //! types, they are sent directly as the guest's function parameters. If there are more than
 //! `MAX_FLAT_PARAMS` flat types, then the host type is instead stored in a heap allocated region
