@@ -13,14 +13,19 @@ use crate::{
 use frunk::{hlist_pat, HList};
 use wasmer::{AsStoreRef, Extern, FromToNativeWasmType, TypedFunction};
 
-/// Implements [`InstanceWithFunction`] for functions with the provided amount of parameters.
+/// Implements [`InstanceWithFunction`] for functions with the provided amount of parameters for
+/// the [`EntrypointInstance`] and [`ReentrantInstance`] types.
 macro_rules! impl_instance_with_function {
     ($( $names:ident : $types:ident ),*) => {
-        impl_instance_with_function!(@generate(EntrypointInstance) $( $names: $types ),*);
-        impl_instance_with_function!(@generate(ReentrantInstance<'_>) $( $names: $types ),*);
+        impl_instance_with_function_for!(EntrypointInstance, $( $names: $types ),*);
+        impl_instance_with_function_for!(ReentrantInstance<'_>, $( $names: $types ),*);
     };
+}
 
-    (@generate($instance:ty) $( $names:ident : $types:ident ),*) => {
+/// Implements [`InstanceWithFunction`] for functions with the provided amount of parameters for
+/// the provided `instance` type.
+macro_rules! impl_instance_with_function_for {
+    ($instance:ty, $( $names:ident : $types:ident ),*) => {
         impl<$( $types, )* Results> InstanceWithFunction<HList![$( $types ),*], Results>
             for $instance
         where
