@@ -30,24 +30,6 @@ pub trait WasmtimeParameters {
 /// [`FlatHostParameters`][`crate::imported_function_interface::FlatHostParameters`].
 macro_rules! parameters {
     ($( $names:ident : $types:ident ),*) => {
-        parameters!(| $( $names: $types ),*);
-    };
-
-    ($( $names:ident : $types:ident ),* |) => {
-        parameters!(@generate $( $names: $types ),*);
-    };
-
-    (
-        $( $names_to_generate:ident : $types_to_generate:ident ),* |
-        $next_name:ident : $next_type:ident $( , $queued_names:ident : $queued_types:ident )*
-    ) => {
-        parameters!(@generate $( $names_to_generate: $types_to_generate ),*);
-        parameters!(
-            $( $names_to_generate: $types_to_generate, )*
-            $next_name: $next_type | $( $queued_names: $queued_types ),*);
-    };
-
-    (@generate $( $names:ident : $types:ident ),*) => {
         impl<$( $types ),*> WasmtimeParameters for HList![$( $types ),*]
         where
             $( $types: FlatType + WasmTy, )*
@@ -68,7 +50,7 @@ macro_rules! parameters {
     };
 }
 
-parameters!(
+repeat_macro!(parameters =>
     a: A,
     b: B,
     c: C,
