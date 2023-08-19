@@ -3,14 +3,18 @@
 
 //! Support for the [Wasmtime](https://wasmtime.dev) runtime.
 
+mod export_function;
 mod function;
 mod memory;
 mod parameters;
 mod results;
 
 use super::traits::{Instance, Runtime};
-use wasmtime::{
-    AsContext, AsContextMut, Caller, Extern, Memory, Store, StoreContext, StoreContextMut,
+use wasmtime::{AsContext, AsContextMut, Extern, Memory, Store, StoreContext, StoreContextMut};
+pub use {
+    self::{parameters::WasmtimeParameters, results::WasmtimeResults},
+    anyhow,
+    wasmtime::{Caller, Linker},
 };
 
 /// Representation of the [Wasmtime](https://wasmtime.dev) runtime.

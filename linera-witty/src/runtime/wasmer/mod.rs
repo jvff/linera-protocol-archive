@@ -3,6 +3,7 @@
 
 //! Support for the [Wasmer](https://wasmer.io) runtime.
 
+mod export_function;
 mod function;
 mod memory;
 mod parameters;
@@ -11,10 +12,14 @@ mod results;
 use super::traits::{Instance, Runtime};
 use std::sync::{Arc, Mutex};
 use wasmer::{
-    AsStoreMut, AsStoreRef, Engine, Extern, FunctionEnv, FunctionEnvMut, Imports,
-    InstantiationError, Memory, Module, Store, StoreMut, StoreRef,
+    AsStoreMut, AsStoreRef, Engine, Extern, FunctionEnv, Imports, InstantiationError, Memory,
+    Module, Store, StoreMut, StoreRef,
 };
 use wasmer_vm::StoreObjects;
+pub use {
+    self::{parameters::WasmerParameters, results::WasmerResults},
+    wasmer::FunctionEnvMut,
+};
 
 /// Representation of the [Wasmer](https://wasmer.io) runtime.
 pub struct Wasmer;
@@ -76,6 +81,22 @@ impl InstanceBuilder {
             store: self.store,
             instance: self.environment,
         })
+    }
+}
+
+impl AsStoreRef for InstanceBuilder {
+    fn as_store_ref(&self) -> StoreRef<'_> {
+        self.store.as_store_ref()
+    }
+}
+
+impl AsStoreMut for InstanceBuilder {
+    fn as_store_mut(&mut self) -> StoreMut<'_> {
+        self.store.as_store_mut()
+    }
+
+    fn objects_mut(&mut self) -> &mut StoreObjects {
+        self.store.objects_mut()
     }
 }
 
