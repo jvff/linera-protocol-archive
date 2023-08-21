@@ -12,10 +12,14 @@ mod results;
 use super::traits::{Instance, Runtime};
 use std::sync::{Arc, Mutex};
 use wasmer::{
-    AsStoreMut, AsStoreRef, Engine, Extern, FunctionEnv, FunctionEnvMut, Imports,
-    InstantiationError, Memory, Module, Store, StoreMut, StoreRef,
+    AsStoreMut, AsStoreRef, Engine, Extern, FunctionEnv, Imports, InstantiationError, Memory,
+    Module, Store, StoreMut, StoreRef,
 };
 use wasmer_vm::StoreObjects;
+pub use {
+    self::{parameters::WasmerParameters, results::WasmerResults},
+    wasmer::FunctionEnvMut,
+};
 
 /// Representation of the [Wasmer](https://wasmer.io) runtime.
 pub struct Wasmer;
