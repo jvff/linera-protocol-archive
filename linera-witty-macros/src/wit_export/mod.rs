@@ -53,10 +53,12 @@ impl<'input> WitExportGenerator<'input> {
     pub fn generate(mut self) -> TokenStream {
         let implementation = self.implementation;
         let wasmer = self.generate_for_wasmer();
+        let wasmtime = self.generate_for_wasmtime();
 
         quote! {
             #implementation
             #wasmer
+            #wasmtime
         }
     }
 
@@ -73,6 +75,24 @@ impl<'input> WitExportGenerator<'input> {
             Some(self.generate_for(export_target, exported_functions))
         }
         #[cfg(not(feature = "wasmer"))]
+        {
+            None
+        }
+    }
+
+    /// Generates the code to export functions using the Wasmtime runtime.
+    fn generate_for_wasmtime(&mut self) -> Option<TokenStream> {
+        #[cfg(feature = "wasmtime")]
+        {
+            let export_target = quote! { linera_witty::wasmtime::Linker<()> };
+            let exported_functions = self
+                .functions
+                .iter()
+                .map(|function| function.generate_for_wasmtime(self.namespace));
+
+            Some(self.generate_for(export_target, exported_functions))
+        }
+        #[cfg(not(feature = "wasmtime"))]
         {
             None
         }
