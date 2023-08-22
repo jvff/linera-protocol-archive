@@ -40,7 +40,7 @@ pub trait GuestInterface {
     type FlatHostParameters: FlatLayout;
 
     /// The flat types the guest Wasm instances use as parameters for the host function.
-    type GuestParameters: FlatLayout;
+    type FlatGuestParameters: FlatLayout;
 
     /// How the host function's results type is sent back to the guest Wasm instance.
     type ResultStorage: ResultStorage;
@@ -55,7 +55,7 @@ pub trait GuestInterface {
     /// return value, or a [`GuestPointer`] with the address of where the results should be stored
     /// in memory.
     fn lift_parameters<Instance, HostParameters>(
-        guest_parameters: Self::GuestParameters,
+        guest_parameters: Self::FlatGuestParameters,
         memory: &Memory<'_, Instance>,
     ) -> Result<(HostParameters, Self::ResultStorage), RuntimeError>
     where
@@ -86,11 +86,11 @@ macro_rules! direct_interface_with_result {
             $( $flat_result: FlatType, )*
         {
             type FlatHostParameters = HList![$( $types, )*];
-            type GuestParameters = HList![$( $types, )*];
+            type FlatGuestParameters = HList![$( $types, )*];
             type ResultStorage = ();
 
             fn lift_parameters<Instance, HostParameters>(
-                guest_parameters: Self::GuestParameters,
+                guest_parameters: Self::FlatGuestParameters,
                 memory: &Memory<'_, Instance>,
             ) -> Result<(HostParameters, Self::ResultStorage), RuntimeError>
             where
@@ -121,11 +121,11 @@ macro_rules! indirect_results {
                 FlatLayout + Split<HList![$( $types, )*], Remainder = HList![i32]>,
         {
             type FlatHostParameters = HList![$( $types, )*];
-            type GuestParameters = <Self::FlatHostParameters as Add<HList![i32]>>::Output;
+            type FlatGuestParameters = <Self::FlatHostParameters as Add<HList![i32]>>::Output;
             type ResultStorage = GuestPointer;
 
             fn lift_parameters<Instance, Parameters>(
-                guest_parameters: Self::GuestParameters,
+                guest_parameters: Self::FlatGuestParameters,
                 memory: &Memory<'_, Instance>,
             ) -> Result<(Parameters, Self::ResultStorage), RuntimeError>
             where
@@ -162,11 +162,11 @@ macro_rules! indirect_parameters {
         {
             type FlatHostParameters =
                 HList![A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, ...Tail];
-            type GuestParameters = HList![i32];
+            type FlatGuestParameters = HList![i32];
             type ResultStorage = ();
 
             fn lift_parameters<Instance, Parameters>(
-                guest_parameters: Self::GuestParameters,
+                guest_parameters: Self::FlatGuestParameters,
                 memory: &Memory<'_, Instance>,
             ) -> Result<(Parameters, Self::ResultStorage), RuntimeError>
             where
@@ -201,11 +201,11 @@ where
 {
     type FlatHostParameters =
         HList![A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, ...OtherParameters];
-    type GuestParameters = HList![i32, i32];
+    type FlatGuestParameters = HList![i32, i32];
     type ResultStorage = GuestPointer;
 
     fn lift_parameters<Instance, Parameters>(
-        guest_parameters: Self::GuestParameters,
+        guest_parameters: Self::FlatGuestParameters,
         memory: &Memory<'_, Instance>,
     ) -> Result<(Parameters, Self::ResultStorage), RuntimeError>
     where

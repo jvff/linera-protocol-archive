@@ -98,7 +98,7 @@ where
         <Parameters::Layout as Layout>::Flat,
         <Results::Layout as Layout>::Flat,
     );
-    type GuestParameters = <Self::GuestInterface as GuestInterface>::GuestParameters;
+    type GuestParameters = <Self::GuestInterface as GuestInterface>::FlatGuestParameters;
     type GuestResults =
         <<Self::GuestInterface as GuestInterface>::ResultStorage as ResultStorage>::OutputFor<
             Self::HostResults,
