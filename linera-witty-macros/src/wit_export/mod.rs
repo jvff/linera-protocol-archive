@@ -3,7 +3,7 @@
 
 //! Generation of code to export host functions to a Wasm guest instance.
 
-#![cfg(any(feature = "wasmer", feature = "wasmtime"))]
+#![cfg(any(feature = "mock-instance", feature = "wasmer", feature = "wasmtime"))]
 
 mod function_information;
 
