@@ -3,6 +3,8 @@
 
 //! Generation of code to export host functions to a Wasm guest instance.
 
+#![cfg(feature = "wasmer")]
+
 mod function_information;
 
 use self::function_information::FunctionInformation;
