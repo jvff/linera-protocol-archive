@@ -1,3 +1,8 @@
+// Copyright (c) Zefchain Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+//! Helper Wasm module that calls some functions that have two parameters and one return value.
+
 #![no_main]
 
 wit_bindgen::generate!("import-operations");

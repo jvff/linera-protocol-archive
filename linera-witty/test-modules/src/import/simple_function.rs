@@ -1,3 +1,8 @@
+// Copyright (c) Zefchain Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+//! Helper Wasm module that calls a minimal function without parameters or return values.
+
 #![no_main]
 
 wit_bindgen::generate!("import-simple-function");

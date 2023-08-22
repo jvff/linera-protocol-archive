@@ -1,3 +1,8 @@
+// Copyright (c) Zefchain Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+//! Helper Wasm module that calls some functions that have no parameters but return values.
+
 #![no_main]
 
 wit_bindgen::generate!("import-getters");
