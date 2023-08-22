@@ -21,3 +21,6 @@ impl Entrypoint for Implementation {
         simple();
     }
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+fn main() {}

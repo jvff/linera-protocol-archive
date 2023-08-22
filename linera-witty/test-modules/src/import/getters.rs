@@ -31,3 +31,6 @@ impl Entrypoint for Implementation {
         assert_eq!(get_float64(), 128.25);
     }
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+fn main() {}

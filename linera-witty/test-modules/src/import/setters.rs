@@ -29,3 +29,6 @@ impl Entrypoint for Implementation {
         set_float64(-0.000_08);
     }
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+fn main() {}
