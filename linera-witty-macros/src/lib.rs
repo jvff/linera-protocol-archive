@@ -19,7 +19,7 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro_error::{abort, proc_macro_error};
 use quote::{quote, ToTokens};
-#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
+#[cfg(any(feature = "mock-instance", feature = "wasmer", feature = "wasmtime"))]
 use syn::ItemImpl;
 use syn::{parse_macro_input, Data, DeriveInput, Ident, ItemTrait};
 
