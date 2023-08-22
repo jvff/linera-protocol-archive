@@ -19,7 +19,7 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro_error::{abort, proc_macro_error};
 use quote::{quote, ToTokens};
-#[cfg(feature = "wasmer")]
+#[cfg(any(feature = "wasmer", feature = "wasmtime"))]
 use syn::ItemImpl;
 use syn::{parse_macro_input, Data, DeriveInput, Ident, ItemTrait};
 
