@@ -144,7 +144,11 @@ impl<'input> WitExportGenerator<'input> {
 
 /// Returns the type name of the type the `impl` block is for.
 pub fn type_name(implementation: &ItemImpl) -> &Ident {
-    let Type::Path(TypePath { qself: None, path: path_name }) = &*implementation.self_ty else {
+    let Type::Path(TypePath {
+        qself: None,
+        path: path_name,
+    }) = &*implementation.self_ty
+    else {
         abort!(
             implementation.self_ty,
             "`#[wit_export]` must be used on `impl` blocks of non-generic types",
