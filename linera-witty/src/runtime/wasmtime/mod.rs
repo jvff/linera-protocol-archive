@@ -9,13 +9,11 @@ mod memory;
 mod parameters;
 mod results;
 
+pub use self::{parameters::WasmtimeParameters, results::WasmtimeResults};
 use super::traits::{Instance, Runtime};
+pub use anyhow;
 use wasmtime::{AsContext, AsContextMut, Extern, Memory, Store, StoreContext, StoreContextMut};
-pub use {
-    self::{parameters::WasmtimeParameters, results::WasmtimeResults},
-    anyhow,
-    wasmtime::{Caller, Linker},
-};
+pub use wasmtime::{Caller, Linker};
 
 /// Representation of the [Wasmtime](https://wasmtime.dev) runtime.
 pub struct Wasmtime;
