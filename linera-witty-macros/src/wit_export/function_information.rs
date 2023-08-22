@@ -217,8 +217,8 @@ impl<'input> FunctionInformation<'input> {
 /// The type is only considered if it's a [`Result`] type with `RuntimeError` as its error variant.
 fn ok_type_inside_result(maybe_result_type: &Type) -> Option<&Type> {
     let Type::Path(TypePath { qself: None, path }) = maybe_result_type else {
-            return None;
-        };
+        return None;
+    };
 
     let (ok_type, error_type) = result_type_arguments(path)?;
 
@@ -239,10 +239,10 @@ fn result_type_arguments(result_path: &Path) -> Option<(&Type, &Type)> {
         return None;
     }
 
-    let PathArguments::AngleBracketed(type_arguments) =
-            &result_path.segments.last()?.arguments else {
-                return None;
-            };
+    let PathArguments::AngleBracketed(type_arguments) = &result_path.segments.last()?.arguments
+    else {
+        return None;
+    };
 
     if type_arguments.args.len() != 2 {
         return None;
@@ -251,12 +251,12 @@ fn result_type_arguments(result_path: &Path) -> Option<(&Type, &Type)> {
     let mut arguments = type_arguments.args.iter();
 
     let GenericArgument::Type(ok_type) = arguments.next()? else {
-            return None;
-        };
+        return None;
+    };
 
     let GenericArgument::Type(error_type) = arguments.next()? else {
-            return None;
-        };
+        return None;
+    };
 
     Some((ok_type, error_type))
 }
