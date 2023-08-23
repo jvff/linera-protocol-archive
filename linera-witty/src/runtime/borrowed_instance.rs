@@ -13,31 +13,30 @@ use super::{
 use crate::{memory_layout::FlatLayout, GuestPointer};
 use std::borrow::Cow;
 
-impl<AnyInstance> Instance for &mut AnyInstance
+impl<I> Instance for &mut I
 where
-    AnyInstance: Instance,
+    I: Instance,
 {
-    type Runtime = AnyInstance::Runtime;
+    type Runtime = I::Runtime;
 
     fn load_export(&mut self, name: &str) -> Option<<Self::Runtime as Runtime>::Export> {
-        AnyInstance::load_export(*self, name)
+        I::load_export(*self, name)
     }
 }
 
-impl<Parameters, Results, AnyInstance> InstanceWithFunction<Parameters, Results>
-    for &mut AnyInstance
+impl<Parameters, Results, I> InstanceWithFunction<Parameters, Results> for &mut I
 where
-    AnyInstance: InstanceWithFunction<Parameters, Results>,
+    I: InstanceWithFunction<Parameters, Results>,
     Parameters: FlatLayout,
     Results: FlatLayout,
 {
-    type Function = AnyInstance::Function;
+    type Function = I::Function;
 
     fn function_from_export(
         &mut self,
         export: <Self::Runtime as Runtime>::Export,
     ) -> Result<Option<Self::Function>, RuntimeError> {
-        AnyInstance::function_from_export(*self, export)
+        I::function_from_export(*self, export)
     }
 
     fn call(
@@ -45,32 +44,31 @@ where
         function: &Self::Function,
         parameters: Parameters,
     ) -> Result<Results, RuntimeError> {
-        AnyInstance::call(*self, function, parameters)
+        I::call(*self, function, parameters)
     }
 }
 
-impl<'a, AnyInstance> InstanceWithMemory for &'a mut AnyInstance
+impl<'a, I> InstanceWithMemory for &'a mut I
 where
-    AnyInstance: InstanceWithMemory,
-    &'a mut AnyInstance:
-        Instance<Runtime = AnyInstance::Runtime> + CabiReallocAlias + CabiFreeAlias,
+    I: InstanceWithMemory,
+    &'a mut I: Instance<Runtime = I::Runtime> + CabiReallocAlias + CabiFreeAlias,
 {
     fn memory_from_export(
         &self,
         export: <Self::Runtime as Runtime>::Export,
     ) -> Result<Option<<Self::Runtime as Runtime>::Memory>, RuntimeError> {
-        AnyInstance::memory_from_export(&**self, export)
+        I::memory_from_export(&**self, export)
     }
 }
 
-impl<AnyRuntimeMemory, Instance> RuntimeMemory<&mut Instance> for AnyRuntimeMemory
+impl<M, I> RuntimeMemory<&mut I> for M
 where
-    AnyRuntimeMemory: RuntimeMemory<Instance>,
+    M: RuntimeMemory<I>,
 {
     /// Reads `length` bytes from memory from the provided `location`.
     fn read<'instance>(
         &self,
-        instance: &'instance &mut Instance,
+        instance: &'instance &mut I,
         location: GuestPointer,
         length: u32,
     ) -> Result<Cow<'instance, [u8]>, RuntimeError> {
@@ -80,7 +78,7 @@ where
     /// Writes the `bytes` to memory at the provided `location`.
     fn write(
         &mut self,
-        instance: &mut &mut Instance,
+        instance: &mut &mut I,
         location: GuestPointer,
         bytes: &[u8],
     ) -> Result<(), RuntimeError> {
