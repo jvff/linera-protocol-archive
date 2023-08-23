@@ -38,9 +38,9 @@ impl ExportedSimpleFunction {
         Caller: InstanceForImportedSimpleFunction,
         <Caller::Runtime as Runtime>::Memory: RuntimeMemory<Caller>,
     {
-        println!("Before reentrant call");
+        tracing::debug!("Before reentrant call");
         ImportedSimpleFunction::new(caller).simple()?;
-        println!("After reentrant call");
+        tracing::debug!("After reentrant call");
         Ok(())
     }
 }
