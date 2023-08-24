@@ -8,9 +8,9 @@ use proc_macro2::{Span, TokenStream};
 use proc_macro_error::abort;
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
-    spanned::Spanned, FnArg, GenericArgument, GenericParam, ImplItem, ImplItemMethod, LitStr,
-    PatType, Path, PathArguments, PathSegment, ReturnType, Signature, Token, Type, TypePath,
-    TypeReference,
+    spanned::Spanned, FnArg, GenericArgument, GenericParam, Ident, ImplItem, ImplItemMethod,
+    LitStr, PatType, Path, PathArguments, PathSegment, ReturnType, Signature, Token, Type,
+    TypePath, TypeReference,
 };
 
 /// Pieces of information extracted from a function's definition.
@@ -140,7 +140,7 @@ impl<'input> FunctionInformation<'input> {
 
     /// Generates the code to export a host function using the Wasmer runtime.
     #[cfg(feature = "wasmer")]
-    pub fn generate_for_wasmer(&self, namespace: &LitStr) -> TokenStream {
+    pub fn generate_for_wasmer(&self, namespace: &LitStr, type_name: &Ident) -> TokenStream {
         let caller = quote! {
             linera_witty::wasmer::FunctionEnvMut<'_, linera_witty::wasmer::InstanceSlot>
         };
@@ -154,6 +154,7 @@ impl<'input> FunctionInformation<'input> {
 
         self.generate(
             namespace,
+            type_name,
             caller,
             input_to_guest_parameters,
             guest_results_to_output,
@@ -163,7 +164,7 @@ impl<'input> FunctionInformation<'input> {
 
     /// Generates the code to export a host function using the Wasmtime runtime.
     #[cfg(feature = "wasmtime")]
-    pub fn generate_for_wasmtime(&self, namespace: &LitStr) -> TokenStream {
+    pub fn generate_for_wasmtime(&self, namespace: &LitStr, type_name: &Ident) -> TokenStream {
         let caller = quote! { linera_witty::wasmtime::Caller<'_, ()> };
         let input_to_guest_parameters = quote! {
             linera_witty::wasmtime::WasmtimeParameters::from_wasmtime(input)
@@ -175,6 +176,7 @@ impl<'input> FunctionInformation<'input> {
 
         self.generate(
             namespace,
+            type_name,
             caller,
             input_to_guest_parameters,
             guest_results_to_output,
@@ -184,7 +186,7 @@ impl<'input> FunctionInformation<'input> {
 
     /// Generates the code to export a host function using a mock Wasm instance for testing.
     #[cfg(feature = "mock-instance")]
-    pub fn generate_for_mock_instance(&self, namespace: &LitStr) -> TokenStream {
+    pub fn generate_for_mock_instance(&self, namespace: &LitStr, type_name: &Ident) -> TokenStream {
         let caller = quote! { linera_witty::MockInstance };
         let input_to_guest_parameters = quote! { input };
         let guest_results_to_output = quote! { guest_results };
@@ -192,6 +194,7 @@ impl<'input> FunctionInformation<'input> {
 
         self.generate(
             namespace,
+            type_name,
             caller,
             input_to_guest_parameters,
             guest_results_to_output,
@@ -203,6 +206,7 @@ impl<'input> FunctionInformation<'input> {
     fn generate(
         &self,
         namespace: &LitStr,
+        type_name: &Ident,
         caller: TokenStream,
         input_to_guest_parameters: TokenStream,
         guest_results_to_output: TokenStream,
@@ -240,7 +244,7 @@ impl<'input> FunctionInformation<'input> {
                         )?;
 
                     #[allow(clippy::let_unit_value)]
-                    let host_results = Self::#function_name(
+                    let host_results = #type_name::#function_name(
                         #caller_parameter
                         #host_parameters
                     ) #call_early_return;
