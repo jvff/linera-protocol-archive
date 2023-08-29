@@ -61,7 +61,7 @@ async fn test_dynamo_db_create_application(wasm_runtime: WasmRuntime) -> Result<
 #[cfg(feature = "scylladb")]
 #[cfg_attr(feature = "wasmer", test_case(WasmRuntime::Wasmer ; "wasmer"))]
 #[cfg_attr(feature = "wasmtime", test_case(WasmRuntime::Wasmtime ; "wasmtime"))]
-#[test_log::test(tokio::test)]
+#[test_log::test(tokio::test(flavor = "multi_thread"))]
 async fn test_scylla_db_create_application(wasm_runtime: WasmRuntime) -> Result<(), anyhow::Error> {
     run_test_create_application(MakeScyllaDbStoreClient::with_wasm_runtime(wasm_runtime)).await
 }
@@ -179,7 +179,7 @@ async fn test_dynamo_db_run_application_with_dependency(
 #[cfg(feature = "scylladb")]
 #[cfg_attr(feature = "wasmer", test_case(WasmRuntime::Wasmer ; "wasmer"))]
 #[cfg_attr(feature = "wasmtime", test_case(WasmRuntime::Wasmtime ; "wasmtime"))]
-#[test_log::test(tokio::test)]
+#[test_log::test(tokio::test(flavor = "multi_thread"))]
 async fn test_scylla_db_run_application_with_dependency(
     wasm_runtime: WasmRuntime,
 ) -> Result<(), anyhow::Error> {
@@ -322,7 +322,7 @@ async fn test_dynamo_db_run_reentrant_application(
 #[cfg(feature = "scylladb")]
 #[cfg_attr(feature = "wasmer", test_case(WasmRuntime::Wasmer ; "wasmer"))]
 #[cfg_attr(feature = "wasmtime", test_case(WasmRuntime::Wasmtime ; "wasmtime"))]
-#[test_log::test(tokio::test)]
+#[test_log::test(tokio::test(flavor = "multi_thread"))]
 async fn test_scylla_db_run_reentrant_application(
     wasm_runtime: WasmRuntime,
 ) -> Result<(), anyhow::Error> {
