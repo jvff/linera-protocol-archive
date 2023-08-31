@@ -289,18 +289,19 @@ macro_rules! impl_service_system_api {
     };
 }
 
-/// Generates an implementation of `ViewSystem` for the provided `view_system_api` type.
+/// Generates an implementation of `ViewSystem` for the provided `view_system_api` type for
+/// application services.
 ///
 /// Generates the common code for view system API types for all Wasm runtimes.
-macro_rules! impl_view_system_api {
+macro_rules! impl_view_system_api_for_service {
     ($view_system_api:ident<$runtime:lifetime>) => {
-        impl_view_system_api!(
+        impl_view_system_api_for_service!(
             @generate $view_system_api<$runtime>, wasmtime::Trap, $runtime, <$runtime>
         );
     };
 
     ($view_system_api:ty) => {
-        impl_view_system_api!(@generate $view_system_api, wasmer::RuntimeError, 'static);
+        impl_view_system_api_for_service!(@generate $view_system_api, wasmer::RuntimeError, 'static);
     };
 
     (@generate $view_system_api:ty, $trap:ty, $runtime:lifetime $(, <$param:lifetime> )?) => {
@@ -311,7 +312,7 @@ macro_rules! impl_view_system_api {
             type FindKeys = HostFuture<$runtime, Result<Vec<Vec<u8>>, ExecutionError>>;
             type FindKeyValues =
                 HostFuture<$runtime, Result<Vec<(Vec<u8>, Vec<u8>)>, ExecutionError>>;
-            type WriteBatch = HostFuture<$runtime, Result<(), ExecutionError>>;
+            type WriteBatch = ();
 
             fn error_to_trap(&mut self, error: Self::Error) -> $trap {
                 error.into()
@@ -321,7 +322,7 @@ macro_rules! impl_view_system_api {
                 &mut self,
                 key: &[u8],
             ) -> Result<Self::ReadKeyBytes, Self::Error> {
-                Ok(self.new_host_future(self.runtime().read_key_bytes(key.to_owned())))
+                Ok(HostFuture::new(self.runtime().read_key_bytes(key.to_owned())))
             }
 
             fn read_key_bytes_poll(
@@ -337,7 +338,7 @@ macro_rules! impl_view_system_api {
             }
 
             fn find_keys_new(&mut self, key_prefix: &[u8]) -> Result<Self::FindKeys, Self::Error> {
-                Ok(self.new_host_future(self.runtime().find_keys_by_prefix(key_prefix.to_owned())))
+                Ok(HostFuture::new(self.runtime().find_keys_by_prefix(key_prefix.to_owned())))
             }
 
             fn find_keys_poll(
@@ -376,6 +377,113 @@ macro_rules! impl_view_system_api {
 
             fn write_batch_new(
                 &mut self,
+                _list_oper: Vec<view_system_api::WriteOperation>,
+            ) -> Result<Self::WriteBatch, Self::Error> {
+                Err(WasmExecutionError::WriteAttemptToReadOnlyStorage.into())
+            }
+
+            fn write_batch_poll(
+                &mut self,
+                _future: &Self::WriteBatch,
+            ) -> Result<view_system_api::PollUnit, Self::Error> {
+                Err(WasmExecutionError::WriteAttemptToReadOnlyStorage.into())
+            }
+        }
+    };
+}
+
+/// Generates an implementation of `ViewSystem` for the provided `view_system_api` type for
+/// application contracts.
+///
+/// Generates the common code for view system API types for all WASM runtimes.
+macro_rules! impl_view_system_api_for_contract {
+    ($view_system_api:ident<$runtime:lifetime>) => {
+        impl_view_system_api_for_contract!(
+            @generate $view_system_api<$runtime>, wasmtime::Trap, $runtime, <$runtime>
+        );
+    };
+
+    ($view_system_api:ty) => {
+        impl_view_system_api_for_contract!(
+            @generate $view_system_api, wasmer::RuntimeError, 'static
+        );
+    };
+
+    (@generate $view_system_api:ty, $trap:ty, $runtime:lifetime $(, <$param:lifetime> )?) => {
+        impl$(<$param>)? view_system_api::ViewSystemApi for $view_system_api {
+            type Error = ExecutionError;
+
+            type ReadKeyBytes = HostFuture<$runtime, Result<Option<Vec<u8>>, ExecutionError>>;
+            type FindKeys = HostFuture<$runtime, Result<Vec<Vec<u8>>, ExecutionError>>;
+            type FindKeyValues =
+                HostFuture<$runtime, Result<Vec<(Vec<u8>, Vec<u8>)>, ExecutionError>>;
+            type WriteBatch = HostFuture<$runtime, Result<(), ExecutionError>>;
+
+            fn error_to_trap(&mut self, error: Self::Error) -> $trap {
+                error.into()
+            }
+
+            fn read_key_bytes_new(
+                &mut self,
+                key: &[u8],
+            ) -> Result<Self::ReadKeyBytes, Self::Error> {
+                Ok(self
+                    .queued_future_factory
+                    .enqueue(self.runtime().read_key_bytes(key.to_owned())))
+            }
+
+            fn read_key_bytes_poll(
+                &mut self,
+                future: &Self::ReadKeyBytes,
+            ) -> Result<view_system_api::PollReadKeyBytes, Self::Error> {
+                use view_system_api::PollReadKeyBytes;
+                match future.poll(&mut self.waker()) {
+                    Poll::Pending => Ok(PollReadKeyBytes::Pending),
+                    Poll::Ready(Ok(opt_list)) => Ok(PollReadKeyBytes::Ready(opt_list)),
+                    Poll::Ready(Err(error)) => Err(error),
+                }
+            }
+
+            fn find_keys_new(&mut self, key_prefix: &[u8]) -> Result<Self::FindKeys, Self::Error> {
+                Ok(self.queued_future_factory.enqueue(
+                        self.runtime().find_keys_by_prefix(key_prefix.to_owned())))
+            }
+
+            fn find_keys_poll(
+                &mut self,
+                future: &Self::FindKeys,
+            ) -> Result<view_system_api::PollFindKeys, Self::Error> {
+                use view_system_api::PollFindKeys;
+                match future.poll(&mut self.waker()) {
+                    Poll::Pending => Ok(PollFindKeys::Pending),
+                    Poll::Ready(Ok(keys)) => Ok(PollFindKeys::Ready(keys)),
+                    Poll::Ready(Err(error)) => Err(error),
+                }
+            }
+
+            fn find_key_values_new(
+                &mut self,
+                key_prefix: &[u8],
+            ) -> Result<Self::FindKeyValues, Self::Error> {
+                Ok(self
+                    .queued_future_factory
+                    .enqueue(self.runtime().find_key_values_by_prefix(key_prefix.to_owned())))
+            }
+
+            fn find_key_values_poll(
+                &mut self,
+                future: &Self::FindKeyValues,
+            ) -> Result<view_system_api::PollFindKeyValues, Self::Error> {
+                use view_system_api::PollFindKeyValues;
+                match future.poll(&mut self.waker()) {
+                    Poll::Pending => Ok(PollFindKeyValues::Pending),
+                    Poll::Ready(Ok(key_values)) => Ok(PollFindKeyValues::Ready(key_values)),
+                    Poll::Ready(Err(error)) => Err(error),
+                }
+            }
+
+            fn write_batch_new(
+                &mut self,
                 list_oper: Vec<view_system_api::WriteOperation>,
             ) -> Result<Self::WriteBatch, Self::Error> {
                 let mut batch = Batch::new();
@@ -392,10 +500,9 @@ macro_rules! impl_view_system_api {
                         }
                     }
                 }
-                Ok(self.new_host_future(
-                    self.runtime_with_writable_storage()?
-                        .write_batch_and_unlock(batch),
-                ))
+                Ok(self
+                    .queued_future_factory
+                    .enqueue(self.runtime().write_batch_and_unlock(batch)))
             }
 
             fn write_batch_poll(
