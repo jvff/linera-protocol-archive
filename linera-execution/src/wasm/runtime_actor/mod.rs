@@ -4,4 +4,7 @@
 //! An actor implementation to handle a user application runtime.
 
 mod handlers;
+mod requests;
 mod responses;
+
+pub use self::requests::BaseRequest;
