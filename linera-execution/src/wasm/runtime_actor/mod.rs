@@ -7,4 +7,4 @@ mod handlers;
 mod requests;
 mod responses;
 
-pub use self::requests::BaseRequest;
+pub use self::requests::{BaseRequest, ContractRequest};
