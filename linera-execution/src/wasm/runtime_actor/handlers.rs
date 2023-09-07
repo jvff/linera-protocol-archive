@@ -3,9 +3,10 @@
 
 //! Implementations of how requests should be handled inside a [`RuntimeActor`].
 
-use super::requests::BaseRequest;
-use crate::{BaseRuntime, ExecutionError};
+use super::requests::{BaseRequest, ContractRequest};
+use crate::{BaseRuntime, ContractRuntime, ExecutionError};
 use async_trait::async_trait;
+use linera_views::views::ViewError;
 
 /// A type that is able to handle incoming `Request`s.
 #[async_trait]
@@ -59,6 +60,62 @@ where
             } => {
                 let _ = response.send(self.find_key_values_by_prefix(key_prefix).await?);
             }
+        }
+
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl<Runtime> RequestHandler<ContractRequest> for &Runtime
+where
+    Runtime: ContractRuntime + ?Sized,
+{
+    async fn handle_request(&self, request: ContractRequest) -> Result<(), ExecutionError> {
+        // Use unit arguments in `Response::send` in order to have compile errors if the return
+        // value of the called function changes.
+        #[allow(clippy::unit_arg)]
+        match request {
+            ContractRequest::Base(base_request) => (*self).handle_request(base_request).await?,
+            ContractRequest::RemainingFuel { response } => response.send(self.remaining_fuel()),
+            ContractRequest::SetRemainingFuel {
+                remaining_fuel,
+                response,
+            } => response.send(self.set_remaining_fuel(remaining_fuel)),
+            ContractRequest::TryReadAndLockMyState { response } => {
+                response.send(match self.try_read_and_lock_my_state().await {
+                    Ok(bytes) => Some(bytes),
+                    Err(ExecutionError::ViewError(ViewError::NotFound(_))) => None,
+                    Err(error) => return Err(error),
+                })
+            }
+            ContractRequest::SaveAndUnlockMyState { state, response } => {
+                response.send(self.save_and_unlock_my_state(state).is_ok())
+            }
+            ContractRequest::UnlockMyState { response } => response.send(self.unlock_my_state()),
+            ContractRequest::WriteBatchAndUnlock { batch, response } => {
+                let _ = response.send(self.write_batch_and_unlock(batch).await?);
+            }
+            ContractRequest::TryCallApplication {
+                authenticated,
+                callee_id,
+                argument,
+                forwarded_sessions,
+                response,
+            } => response.send(
+                self.try_call_application(authenticated, callee_id, &argument, forwarded_sessions)
+                    .await?,
+            ),
+            ContractRequest::TryCallSession {
+                authenticated,
+                session_id,
+                argument,
+                forwarded_sessions,
+                response,
+            } => response.send(
+                self.try_call_session(authenticated, session_id, &argument, forwarded_sessions)
+                    .await?,
+            ),
         }
 
         Ok(())
