@@ -26,50 +26,84 @@ macro_rules! impl_contract_system_api {
             }
 
             fn chain_id(&mut self) -> Result<contract_system_api::ChainId, Self::Error> {
-                Ok(self.runtime().chain_id().into())
+                Ok(self
+                    .runtime
+                    .sync_request(|response| {
+                        ContractRequest::Base(BaseRequest::ChainId { response })
+                    })
+                    .into())
             }
 
-            fn application_id(&mut self) -> Result<contract_system_api::ApplicationId, Self::Error> {
-                Ok(self.runtime().application_id().into())
+            fn application_id(
+                &mut self,
+            ) -> Result<contract_system_api::ApplicationId, Self::Error> {
+                Ok(self
+                    .runtime
+                    .sync_request(|response| {
+                        ContractRequest::Base(BaseRequest::ApplicationId { response })
+                    })
+                    .into())
             }
 
             fn application_parameters(&mut self) -> Result<Vec<u8>, Self::Error> {
-                Ok(self.runtime().application_parameters())
+                Ok(self.runtime.sync_request(|response| {
+                    ContractRequest::Base(BaseRequest::ApplicationParameters { response })
+                }))
             }
 
             fn read_system_balance(
                 &mut self,
             ) -> Result<contract_system_api::Amount, Self::Error> {
-                Ok(self.runtime().read_system_balance().into())
+                Ok(self
+                    .runtime
+                    .sync_request(|response| {
+                        ContractRequest::Base(BaseRequest::ReadSystemBalance { response })
+                    })
+                    .into())
             }
 
-            fn read_system_timestamp(&mut self) -> Result<contract_system_api::Timestamp, Self::Error> {
-                Ok(self.runtime().read_system_timestamp().micros())
+            fn read_system_timestamp(
+                &mut self,
+            ) -> Result<contract_system_api::Timestamp, Self::Error> {
+                Ok(self
+                    .runtime
+                    .sync_request(|response| {
+                        ContractRequest::Base(BaseRequest::ReadSystemTimestamp { response })
+                    })
+                    .micros())
             }
 
             fn load(&mut self) -> Result<Vec<u8>, Self::Error> {
-                Self::block_on(self.runtime().try_read_my_state())
+                Ok(self.runtime.sync_request(|response| {
+                    ContractRequest::Base(BaseRequest::TryReadMyState { response })
+                }))
             }
 
             fn load_and_lock(&mut self) -> Result<Option<Vec<u8>>, Self::Error> {
-                match Self::block_on(self.runtime().try_read_and_lock_my_state()) {
-                    Ok(bytes) => Ok(Some(bytes)),
-                    Err(ExecutionError::ViewError(ViewError::NotFound(_))) => Ok(None),
-                    Err(error) => Err(error),
-                }
+                Ok(self
+                    .runtime
+                    .sync_request(|response| ContractRequest::TryReadAndLockMyState { response }))
             }
 
             fn store_and_unlock(&mut self, state: &[u8]) -> Result<bool, Self::Error> {
                 Ok(self
-                    .runtime()
-                    .save_and_unlock_my_state(state.to_owned())
-                    .is_ok())
+                    .runtime
+                    .sync_request(|response| ContractRequest::SaveAndUnlockMyState {
+                        state: state.to_owned(),
+                        response,
+                    }))
             }
 
             fn lock_new(&mut self) -> Result<Self::Lock, Self::Error> {
-                Ok(Mutex::new(self
-                    .queued_future_factory
-                    .enqueue(self.runtime().lock_view_user_state())))
+                Ok(Mutex::new(
+                    self.queued_future_factory.enqueue(
+                        self.runtime
+                            .async_request(|response| {
+                                ContractRequest::Base(BaseRequest::LockViewUserState { response })
+                            })
+                            .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into()),
+                    ),
+                ))
             }
 
             fn lock_poll(
@@ -105,15 +139,17 @@ macro_rules! impl_contract_system_api {
                     .map(Le::get)
                     .map(SessionId::from)
                     .collect();
-                let argument = Vec::from(argument);
 
-                Self::block_on(self.runtime().try_call_application(
-                    authenticated,
-                    application.into(),
-                    &argument,
-                    forwarded_sessions,
-                ))
-                .map(contract_system_api::CallResult::from)
+                Ok(self
+                    .runtime
+                    .sync_request(|response| ContractRequest::TryCallApplication {
+                        authenticated,
+                        callee_id: application.into(),
+                        argument: argument.to_owned(),
+                        forwarded_sessions,
+                        response,
+                    })
+                    .into())
             }
 
             fn try_call_session(
@@ -128,15 +164,17 @@ macro_rules! impl_contract_system_api {
                     .map(Le::get)
                     .map(SessionId::from)
                     .collect();
-                let argument = Vec::from(argument);
 
-                Self::block_on(self.runtime().try_call_session(
-                    authenticated,
-                    session.into(),
-                    &argument,
-                    forwarded_sessions,
-                ))
-                .map(contract_system_api::CallResult::from)
+                Ok(self
+                    .runtime
+                    .sync_request(|response| ContractRequest::TryCallSession {
+                        authenticated,
+                        session_id: session.into(),
+                        argument: argument.to_owned(),
+                        forwarded_sessions,
+                        response,
+                    })
+                    .into())
             }
 
             fn log(
@@ -152,26 +190,6 @@ macro_rules! impl_contract_system_api {
                     contract_system_api::LogLevel::Error => tracing::error!("{message}"),
                 }
                 Ok(())
-            }
-        }
-
-        impl$(<$param>)? $contract_system_api {
-            /// Calls a `future` in a blocking manner.
-            fn block_on<F>(future: F) -> F::Output
-            where
-                F: std::future::Future + Send,
-                F::Output: Send,
-            {
-                let runtime = tokio::runtime::Handle::current();
-
-                std::thread::scope(|scope| {
-                    tokio::task::block_in_place(|| {
-                        scope
-                            .spawn(|| runtime.block_on(future))
-                            .join()
-                            .expect("Panic when running a future in a blocking manner")
-                    })
-                })
             }
         }
     };
@@ -433,9 +451,17 @@ macro_rules! impl_view_system_api_for_contract {
                 &mut self,
                 key: &[u8],
             ) -> Result<Self::ReadKeyBytes, Self::Error> {
-                Ok(Mutex::new(self
-                    .queued_future_factory
-                    .enqueue(self.runtime().read_key_bytes(key.to_owned()))))
+                Ok(Mutex::new(
+                    self.queued_future_factory.enqueue(
+                        self.runtime.async_request(|response| {
+                            ContractRequest::Base(BaseRequest::ReadKeyBytes {
+                                key: key.to_owned(),
+                                response,
+                            })
+                        })
+                        .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into()),
+                    ),
+                ))
             }
 
             fn read_key_bytes_poll(
@@ -457,8 +483,17 @@ macro_rules! impl_view_system_api_for_contract {
             }
 
             fn find_keys_new(&mut self, key_prefix: &[u8]) -> Result<Self::FindKeys, Self::Error> {
-                Ok(Mutex::new(self.queued_future_factory.enqueue(
-                        self.runtime().find_keys_by_prefix(key_prefix.to_owned()))))
+                Ok(Mutex::new(
+                    self.queued_future_factory.enqueue(
+                        self.runtime.async_request(|response| {
+                            ContractRequest::Base(BaseRequest::FindKeysByPrefix {
+                                key_prefix: key_prefix.to_owned(),
+                                response,
+                            })
+                        })
+                        .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into()),
+                    ),
+                ))
             }
 
             fn find_keys_poll(
@@ -483,9 +518,17 @@ macro_rules! impl_view_system_api_for_contract {
                 &mut self,
                 key_prefix: &[u8],
             ) -> Result<Self::FindKeyValues, Self::Error> {
-                Ok(Mutex::new(self
-                    .queued_future_factory
-                    .enqueue(self.runtime().find_key_values_by_prefix(key_prefix.to_owned()))))
+                Ok(Mutex::new(
+                    self.queued_future_factory.enqueue(
+                        self.runtime.async_request(|response| {
+                            ContractRequest::Base(BaseRequest::FindKeyValuesByPrefix {
+                                key_prefix: key_prefix.to_owned(),
+                                response,
+                            })
+                        })
+                        .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into()),
+                    ),
+                ))
             }
 
             fn find_key_values_poll(
@@ -524,9 +567,14 @@ macro_rules! impl_view_system_api_for_contract {
                         }
                     }
                 }
-                Ok(Mutex::new(self
-                    .queued_future_factory
-                    .enqueue(self.runtime().write_batch_and_unlock(batch))))
+                Ok(Mutex::new(
+                    self.queued_future_factory.enqueue(
+                        self.runtime.async_request(|response| {
+                            ContractRequest::WriteBatchAndUnlock { batch, response }
+                        })
+                        .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into()),
+                    ),
+                ))
             }
 
             fn write_batch_poll(
