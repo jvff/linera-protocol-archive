@@ -5,15 +5,17 @@
 //! modules.
 
 use super::{
+    async_determinism::HostFutureQueue,
     common::{ApplicationRuntimeContext, WasmRuntimeContext},
-    ExecutionError,
+    ExecutionError, WasmExecutionError,
 };
-use futures::{future::BoxFuture, ready, stream::StreamExt};
+use futures::{channel::oneshot, future::BoxFuture, ready, stream::StreamExt, FutureExt};
 use std::{
     any::type_name,
     fmt::{self, Debug, Formatter},
     future::Future,
     marker::PhantomData,
+    mem,
     pin::Pin,
     sync::Arc,
     task::{Context, Poll, Waker},
@@ -131,6 +133,141 @@ where
 
                 let _context_guard = context.waker_forwarder.forward(task_context);
                 future.poll(&context.application, &mut context.store)
+            }
+        }
+    }
+}
+
+pub struct GuestFutureActor<Future, Application>
+where
+    Application: ApplicationRuntimeContext,
+    Future: GuestFutureInterface<Application>,
+{
+    future: Option<Future>,
+    context: WasmRuntimeContext<'static, Application>,
+    poll_requests: std::sync::mpsc::Receiver<()>,
+    poll_completion: tokio::sync::mpsc::UnboundedSender<()>,
+    result_sender: oneshot::Sender<Result<Future::Output, ExecutionError>>,
+}
+
+impl<Future, Application> GuestFutureActor<Future, Application>
+where
+    Application: ApplicationRuntimeContext,
+    Future: GuestFutureInterface<Application>,
+{
+    pub fn new(
+        creation_result: Result<Future, Application::Error>,
+        mut context: WasmRuntimeContext<'static, Application>,
+    ) -> (Self, PollSender<Future::Output>) {
+        let (dummy_future_queue, _) = HostFutureQueue::new();
+        let host_future_queue = mem::replace(&mut context.future_queue, dummy_future_queue);
+
+        let (poll_start_sender, poll_start_receiver) = std::sync::mpsc::channel();
+        let (poll_completed_sender, poll_completed_receiver) =
+            tokio::sync::mpsc::unbounded_channel();
+        let (result_sender, result_receiver) = oneshot::channel();
+
+        let poll_sender = PollSender::new(
+            host_future_queue,
+            poll_start_sender,
+            poll_completed_receiver,
+            result_receiver,
+        );
+
+        let future = match creation_result {
+            Ok(future) => Some(future),
+            Err(error) => {
+                result_sender.send(Err(error.into())).unwrap_or_else(|_| {
+                    panic!(
+                        "`result_receiver` unexpectedly dropped instead of being \
+                        returned to caller",
+                    )
+                });
+                None
+            }
+        };
+
+        let actor = GuestFutureActor {
+            future,
+            context,
+            poll_requests: poll_start_receiver,
+            poll_completion: poll_completed_sender,
+            result_sender,
+        };
+
+        (actor, poll_sender)
+    }
+}
+
+pub struct PollSender<Output> {
+    host_future_queue: HostFutureQueue<'static>,
+    poll_requester: std::sync::mpsc::Sender<()>,
+    poll_completed: tokio::sync::mpsc::UnboundedReceiver<()>,
+    result_receiver: oneshot::Receiver<Result<Output, ExecutionError>>,
+    state: PollSenderState,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PollSenderState {
+    Queued,
+    Polling,
+    AwaitingResult,
+    Finished,
+}
+
+impl<Output> PollSender<Output> {
+    pub fn new(
+        host_future_queue: HostFutureQueue<'static>,
+        poll_start_sender: std::sync::mpsc::Sender<()>,
+        poll_completed_receiver: tokio::sync::mpsc::UnboundedReceiver<()>,
+        result_receiver: oneshot::Receiver<Result<Output, ExecutionError>>,
+    ) -> Self {
+        PollSender {
+            host_future_queue,
+            poll_requester: poll_start_sender,
+            poll_completed: poll_completed_receiver,
+            result_receiver,
+            state: PollSenderState::Queued,
+        }
+    }
+
+    fn poll_start(&mut self, context: &mut Context) -> Poll<()> {
+        self.state = match ready!(self.host_future_queue.poll_next_unpin(context)) {
+            Some(()) => {
+                let _ = self.poll_requester.send(());
+                PollSenderState::Polling
+            }
+            None => PollSenderState::AwaitingResult,
+        };
+
+        Poll::Ready(())
+    }
+
+    fn poll_response(&mut self, context: &mut Context) -> Poll<()> {
+        ready!(self.poll_completed.poll_recv(context));
+        self.state = PollSenderState::Queued;
+
+        Poll::Ready(())
+    }
+}
+
+impl<Output> Future for PollSender<Output> {
+    type Output = Result<Output, ExecutionError>;
+
+    fn poll(mut self: Pin<&mut Self>, context: &mut Context) -> Poll<Self::Output> {
+        let mut this = self.as_mut();
+
+        loop {
+            if let Poll::Ready(result) = this.result_receiver.poll_unpin(context) {
+                this.state = PollSenderState::Finished;
+                break Poll::Ready(result.unwrap_or(Err(WasmExecutionError::Aborted.into())));
+            }
+
+            match this.state {
+                PollSenderState::Queued => ready!(this.poll_start(context)),
+                PollSenderState::Polling => ready!(this.poll_response(context)),
+                PollSenderState::AwaitingResult => (),
+                PollSenderState::Finished => panic!("Future polled after it has finished"),
             }
         }
     }
