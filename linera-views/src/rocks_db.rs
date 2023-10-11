@@ -103,7 +103,9 @@ impl KeyValueStoreClient for RocksDbClientInternal {
         let client = self.clone();
         let prefix = key_prefix.to_vec();
         let len = prefix.len();
+        tracing::warn!("find_key_values_by_prefix");
         let key_values = tokio::task::spawn_blocking(move || {
+            tracing::warn!("find_key_values_by_prefix thread");
             let mut iter = client.db.raw_iterator();
             let mut key_values = Vec::new();
             iter.seek(&prefix);
@@ -119,9 +121,11 @@ impl KeyValueStoreClient for RocksDbClientInternal {
                 iter.next();
                 next_key = iter.key();
             }
+            tracing::warn!("find_key_values_by_prefix thread done");
             key_values
         })
         .await?;
+        tracing::warn!("find_key_values_by_prefix done");
         Ok(key_values)
     }
 

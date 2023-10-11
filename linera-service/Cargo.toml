@@ -31,9 +31,13 @@ cargo_toml = "0.15.3"
 chrono = { workspace = true }
 colored = { workspace = true }
 comfy-table = { workspace = true }
+credit = { path = "../../res-peer/credit" }
 current_platform = "0.2.0"
 dirs = { workspace = true }
+
+feed = { path = "../../res-peer/feed" }
 file-lock = "2.1.9"
+foundation = { path = "../../res-peer/foundation" }
 futures = { workspace = true }
 hex = { workspace = true }
 linera-base = { workspace = true }
@@ -43,11 +47,13 @@ linera-execution = { workspace = true }
 linera-rpc = { workspace = true }
 linera-storage = { workspace = true }
 linera-views = { workspace = true }
+market = { path = "../../res-peer/market" }
 once_cell = { workspace = true }
 parse_duration = { workspace = true }
 prometheus = { workspace = true }
 rand07 = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
+review = { path = "../../res-peer/review" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 structopt = { workspace = true }

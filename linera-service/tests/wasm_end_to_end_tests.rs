@@ -1297,3 +1297,165 @@ async fn run_wasm_end_to_end_amm(database: Database) {
     node_service0.assert_is_running();
     node_service1.assert_is_running();
 }
+
+#[cfg(feature = "rocksdb")]
+#[test_log::test(tokio::test)]
+async fn test_rocks_db_wasm_end_to_end_review() {
+    run_wasm_end_to_end_review(Database::RocksDb).await
+}
+
+#[cfg(feature = "aws")]
+#[test_log::test(tokio::test)]
+async fn test_dynamo_db_wasm_end_to_end_review() {
+    run_wasm_end_to_end_review(Database::DynamoDb).await
+}
+
+#[cfg(feature = "scylladb")]
+#[test_log::test(tokio::test)]
+async fn test_scylla_db_wasm_end_to_end_review() {
+    run_wasm_end_to_end_review(Database::ScyllaDb).await
+}
+
+async fn run_wasm_end_to_end_review(database: Database) {
+    let wasm_path = std::env::current_dir()
+        .unwrap()
+        .join("../../res-peer/target/wasm32-unknown-unknown/release/");
+    let _guard = INTEGRATION_TEST_GUARD.lock().await;
+
+    let network = Network::Grpc;
+    let mut local_net = LocalNetwork::new_for_testing(database, network).unwrap();
+    let client_admin = local_net.make_client(network);
+    let client0 = local_net.make_client(network);
+
+    local_net.generate_initial_validator_config().await.unwrap();
+    client_admin.create_genesis_config().await.unwrap();
+    client0.wallet_init(&[]).await.unwrap();
+    local_net.run().await.unwrap();
+
+    let chain_admin = client_admin.get_wallet().default_chain().unwrap();
+    let chain0 = client_admin.open_and_assign(&client0).await.unwrap();
+
+    // Create credit application on Admin chain
+    let credit_app_id = client_admin
+        .publish_and_create::<credit::CreditAbi>(
+            wasm_path.join("credit_contract.wasm"),
+            wasm_path.join("credit_service.wasm"),
+            &(),
+            &credit::InitialState {
+                initial_supply: Amount::from_tokens(100000),
+                amount_alive_ms: 70,
+            },
+            &[],
+            chain_admin,
+        )
+        .await
+        .unwrap();
+
+    // Create foundation application on Admin chain
+    let foundation_app_id = client_admin
+        .publish_and_create::<foundation::FoundationAbi>(
+            wasm_path.join("foundation_contract.wasm"),
+            wasm_path.join("foundation_service.wasm"),
+            &(),
+            &foundation::InitialState {
+                review_reward_percent: 10,
+                review_reward_factor: 2,
+                author_reward_percent: 10,
+                author_reward_factor: 2,
+                activity_reward_percent: 10,
+            },
+            &[],
+            chain_admin,
+        )
+        .await
+        .unwrap();
+
+    // Create feed application on Admin chain
+    let feed_app_id = client_admin
+        .publish_and_create::<feed::FeedAbi>(
+            wasm_path.join("feed_contract.wasm"),
+            wasm_path.join("feed_service.wasm"),
+            &feed::FeedParameters {
+                credit_app_id,
+                foundation_app_id,
+            },
+            &feed::InitialState {
+                react_interval_ms: 600000,
+            },
+            &[credit_app_id.forget_abi(), foundation_app_id.forget_abi()],
+            chain_admin,
+        )
+        .await
+        .unwrap();
+
+    // Create market application on Admin chain
+    let market_app_id = client_admin
+        .publish_and_create::<market::MarketAbi>(
+            wasm_path.join("market_contract.wasm"),
+            wasm_path.join("market_service.wasm"),
+            &market::MarketParameters {
+                credit_app_id,
+                foundation_app_id,
+            },
+            &market::InitialState {
+                credits_per_linera: Amount::from_milli(13),
+                max_credits_percent: 30,
+                trade_fee_percent: 3,
+            },
+            &[credit_app_id.forget_abi(), foundation_app_id.forget_abi()],
+            chain_admin,
+        )
+        .await
+        .unwrap();
+
+    // Create res-peer application on Admin chain
+    let review_app_id = client_admin
+        .publish_and_create::<review::ReviewAbi>(
+            wasm_path.join("review_contract.wasm"),
+            wasm_path.join("review_service.wasm"),
+            &review::ReviewParameters {
+                feed_app_id,
+                credit_app_id,
+                foundation_app_id,
+                market_app_id,
+            },
+            &review::InitialState {
+                content_approved_threshold: 60,
+                content_rejected_threshold: 30,
+                asset_approved_threshold: 60,
+                asset_rejected_threshold: 30,
+                reviewer_approved_threshold: 60,
+                reviewer_rejected_threshold: 30,
+            },
+            &[
+                feed_app_id.forget_abi(),
+                credit_app_id.forget_abi(),
+                foundation_app_id.forget_abi(),
+                market_app_id.forget_abi(),
+            ],
+            chain_admin,
+        )
+        .await
+        .unwrap();
+
+    let mut node_service_admin = client_admin.run_node_service(8080).await.unwrap();
+    let mut node_service0 = client0.run_node_service(8081).await.unwrap();
+
+    let app_review_admin = node_service_admin
+        .make_application(&chain_admin, &review_app_id)
+        .await;
+    node_service0
+        .request_application(&chain0, &review_app_id)
+        .await;
+    let app_review0 = node_service0
+        .make_application(&chain0, &review_app_id)
+        .await;
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    app_review0.mutate("requestSubscribe").await;
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    app_review_admin.mutate("requestSubscribe").await;
+
+    node_service_admin.assert_is_running();
+    node_service0.assert_is_running();
+}
