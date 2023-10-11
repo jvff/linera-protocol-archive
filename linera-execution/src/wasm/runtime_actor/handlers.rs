@@ -3,8 +3,8 @@
 
 //! Implementations of how requests should be handled inside a [`RuntimeActor`].
 
-use super::requests::{BaseRequest, ContractRequest};
-use crate::{BaseRuntime, ContractRuntime, ExecutionError};
+use super::requests::{BaseRequest, ContractRequest, ServiceRequest};
+use crate::{BaseRuntime, ContractRuntime, ExecutionError, ServiceRuntime};
 use async_trait::async_trait;
 use linera_views::views::ViewError;
 
@@ -116,6 +116,30 @@ where
                 self.try_call_session(authenticated, session_id, &argument, forwarded_sessions)
                     .await?,
             ),
+        }
+
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl<Runtime> RequestHandler<ServiceRequest> for &Runtime
+where
+    Runtime: ServiceRuntime + ?Sized,
+{
+    async fn handle_request(&self, request: ServiceRequest) -> Result<(), ExecutionError> {
+        // Use unit arguments in `Response::send` in order to have compile errors if the return
+        // value of the called function changes.
+        #[allow(clippy::unit_arg)]
+        match request {
+            ServiceRequest::Base(base_request) => (*self).handle_request(base_request).await?,
+            ServiceRequest::TryQueryApplication {
+                queried_id,
+                argument,
+                response,
+            } => {
+                let _ = response.send(self.try_query_application(queried_id, &argument).await?);
+            }
         }
 
         Ok(())
