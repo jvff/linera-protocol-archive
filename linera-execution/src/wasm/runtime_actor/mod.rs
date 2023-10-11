@@ -12,7 +12,7 @@ use self::{
     responses::{SyncResponse, SyncResponseSender},
 };
 pub use self::{
-    requests::{BaseRequest, ContractRequest},
+    requests::{BaseRequest, ContractRequest, ServiceRequest},
     responses::CanceledError,
 };
 use crate::ExecutionError;
