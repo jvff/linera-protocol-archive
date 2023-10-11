@@ -7,7 +7,7 @@ mod handlers;
 mod requests;
 mod responses;
 
-pub use self::requests::{BaseRequest, ContractRequest};
+pub use self::requests::{BaseRequest, ContractRequest, ServiceRequest};
 use self::{handlers::RequestHandler, responses::SyncResponse};
 use crate::ExecutionError;
 use futures::{
