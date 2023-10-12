@@ -211,67 +211,121 @@ macro_rules! impl_service_system_api {
 
     (@generate $service_system_api:ty, $runtime:lifetime $(, <$param:lifetime> )?) => {
         impl$(<$param>)? service_system_api::ServiceSystemApi for $service_system_api {
-            type Load = HostFuture<$runtime, Result<Vec<u8>, ExecutionError>>;
-            type Lock = HostFuture<$runtime, Result<(), ExecutionError>>;
-            type Unlock = HostFuture<$runtime, Result<(), ExecutionError>>;
-            type TryQueryApplication = HostFuture<$runtime, Result<Vec<u8>, ExecutionError>>;
+            type Load = Mutex<oneshot::Receiver<Vec<u8>>>;
+            type Lock = Mutex<oneshot::Receiver<()>>;
+            type Unlock = Mutex<oneshot::Receiver<()>>;
+            type TryQueryApplication = Mutex<oneshot::Receiver<Vec<u8>>>;
 
             fn chain_id(&mut self) -> service_system_api::ChainId {
-                self.runtime().chain_id().into()
+                self
+                    .runtime
+                    .sync_request(|response| {
+                        ServiceRequest::Base(BaseRequest::ChainId { response })
+                    })
+                    .into()
             }
 
             fn application_id(&mut self) -> service_system_api::ApplicationId {
-                self.runtime().application_id().into()
+                self
+                    .runtime
+                    .sync_request(|response| {
+                        ServiceRequest::Base(BaseRequest::ApplicationId { response })
+                    })
+                    .into()
             }
 
             fn application_parameters(&mut self) -> Vec<u8> {
-                self.runtime().application_parameters()
+                self.runtime.sync_request(|response| {
+                    ServiceRequest::Base(BaseRequest::ApplicationParameters { response })
+                })
             }
 
             fn read_system_balance(&mut self) -> service_system_api::Amount {
-                self.runtime().read_system_balance().into()
+                self
+                    .runtime
+                    .sync_request(|response| {
+                        ServiceRequest::Base(BaseRequest::ReadSystemBalance { response })
+                    })
+                    .into()
             }
 
             fn read_system_timestamp(&mut self) -> service_system_api::Timestamp {
-                self.runtime().read_system_timestamp().micros()
+                self
+                    .runtime
+                    .sync_request(|response| {
+                        ServiceRequest::Base(BaseRequest::ReadSystemTimestamp { response })
+                    })
+                    .micros()
             }
 
             fn load_new(&mut self) -> Self::Load {
-                HostFuture::new(self.runtime().try_read_my_state())
+                Mutex::new(
+                    self.runtime
+                        .async_request(|response| {
+                            ServiceRequest::Base(BaseRequest::TryReadMyState {
+                                response: response.into(),
+                            })
+                        }),
+                )
             }
 
             fn load_poll(&mut self, future: &Self::Load) -> service_system_api::PollLoad {
                 use service_system_api::PollLoad;
-                match future.poll(&mut *self.waker()) {
+                let mut receiver = future
+                    .try_lock()
+                    .expect("Unexpected reentrant locking of `oneshot::Receiver`");
+                match self.waker().with_context(|context| receiver.poll_unpin(context)) {
                     Poll::Pending => PollLoad::Pending,
                     Poll::Ready(Ok(bytes)) => PollLoad::Ready(Ok(bytes)),
-                    Poll::Ready(Err(error)) => PollLoad::Ready(Err(error.to_string())),
+                    Poll::Ready(Err(_)) => panic!(
+                        "`RuntimeActor` dropped while guest Wasm instance is still executing",
+                    ),
                 }
             }
 
             fn lock_new(&mut self) -> Self::Lock {
-                HostFuture::new(self.runtime().lock_view_user_state())
+                Mutex::new(
+                    self.runtime
+                        .async_request(|response| {
+                            ServiceRequest::Base(BaseRequest::LockViewUserState { response })
+                        })
+                )
             }
 
             fn lock_poll(&mut self, future: &Self::Lock) -> service_system_api::PollLock {
                 use service_system_api::PollLock;
-                match future.poll(&mut *self.waker()) {
+                let mut receiver = future
+                    .try_lock()
+                    .expect("Unexpected reentrant locking of `oneshot::Receiver`");
+                match self.waker().with_context(|context| receiver.poll_unpin(context)) {
                     Poll::Pending => PollLock::Pending,
                     Poll::Ready(Ok(())) => PollLock::Ready(Ok(())),
-                    Poll::Ready(Err(error)) => PollLock::Ready(Err(error.to_string())),
+                    Poll::Ready(Err(_)) => panic!(
+                        "`RuntimeActor` dropped while guest Wasm instance is still executing",
+                    ),
                 }
             }
 
             fn unlock_new(&mut self) -> Self::Unlock {
-                HostFuture::new(self.runtime().unlock_view_user_state())
+                Mutex::new(
+                    self.runtime
+                        .async_request(|response| {
+                            ServiceRequest::Base(BaseRequest::UnlockViewUserState { response })
+                        })
+                )
             }
 
             fn unlock_poll(&mut self, future: &Self::Lock) -> service_system_api::PollUnlock {
                 use service_system_api::PollUnlock;
-                match future.poll(&mut *self.waker()) {
+                let mut receiver = future
+                    .try_lock()
+                    .expect("Unexpected reentrant locking of `oneshot::Receiver`");
+                match self.waker().with_context(|context| receiver.poll_unpin(context)) {
                     Poll::Pending => PollUnlock::Pending,
                     Poll::Ready(Ok(())) => PollUnlock::Ready(Ok(())),
-                    Poll::Ready(Err(error)) => PollUnlock::Ready(Err(error.to_string())),
+                    Poll::Ready(Err(_)) => panic!(
+                        "`RuntimeActor` dropped while guest Wasm instance is still executing",
+                    ),
                 }
             }
 
@@ -280,14 +334,18 @@ macro_rules! impl_service_system_api {
                 application: service_system_api::ApplicationId,
                 argument: &[u8],
             ) -> Self::TryQueryApplication {
-                let runtime = self.runtime();
                 let argument = Vec::from(argument);
 
-                HostFuture::new(async move {
-                    runtime
-                        .try_query_application(application.into(), &argument)
-                        .await
-                })
+                Mutex::new(
+                    self.runtime
+                        .async_request(|response| {
+                            ServiceRequest::TryQueryApplication {
+                                queried_id: application.into(),
+                                argument: argument.to_owned(),
+                                response,
+                            }
+                        })
+                )
             }
 
             fn try_query_application_poll(
@@ -295,10 +353,15 @@ macro_rules! impl_service_system_api {
                 future: &Self::TryQueryApplication,
             ) -> service_system_api::PollLoad {
                 use service_system_api::PollLoad;
-                match future.poll(&mut *self.waker()) {
+                let mut receiver = future
+                    .try_lock()
+                    .expect("Unexpected reentrant locking of `oneshot::Receiver`");
+                match self.waker().with_context(|context| receiver.poll_unpin(context)) {
                     Poll::Pending => PollLoad::Pending,
                     Poll::Ready(Ok(result)) => PollLoad::Ready(Ok(result)),
-                    Poll::Ready(Err(error)) => PollLoad::Ready(Err(error.to_string())),
+                    Poll::Ready(Err(_)) => panic!(
+                        "`RuntimeActor` dropped while guest Wasm instance is still executing",
+                    ),
                 }
             }
 
@@ -326,6 +389,12 @@ macro_rules! impl_view_system_api_for_service {
         );
     };
 
+    ($view_system_api:ty, $trap:ty) => {
+        impl_view_system_api_for_service!(
+            @generate $view_system_api, $trap, 'static
+        );
+    };
+
     ($view_system_api:ty) => {
         impl_view_system_api_for_service!(@generate $view_system_api, wasmer::RuntimeError, 'static);
     };
@@ -334,10 +403,9 @@ macro_rules! impl_view_system_api_for_service {
         impl$(<$param>)? view_system_api::ViewSystemApi for $view_system_api {
             type Error = ExecutionError;
 
-            type ReadKeyBytes = HostFuture<$runtime, Result<Option<Vec<u8>>, ExecutionError>>;
-            type FindKeys = HostFuture<$runtime, Result<Vec<Vec<u8>>, ExecutionError>>;
-            type FindKeyValues =
-                HostFuture<$runtime, Result<Vec<(Vec<u8>, Vec<u8>)>, ExecutionError>>;
+            type ReadKeyBytes = Mutex<oneshot::Receiver<Option<Vec<u8>>>>;
+            type FindKeys = Mutex<oneshot::Receiver<Vec<Vec<u8>>>>;
+            type FindKeyValues = Mutex<oneshot::Receiver<Vec<(Vec<u8>, Vec<u8>)>>>;
             type WriteBatch = ();
 
             fn error_to_trap(&mut self, error: Self::Error) -> $trap {
@@ -348,7 +416,14 @@ macro_rules! impl_view_system_api_for_service {
                 &mut self,
                 key: &[u8],
             ) -> Result<Self::ReadKeyBytes, Self::Error> {
-                Ok(HostFuture::new(self.runtime().read_key_bytes(key.to_owned())))
+                Ok(Mutex::new(
+                    self.runtime.async_request(|response| {
+                        ServiceRequest::Base(BaseRequest::ReadKeyBytes {
+                            key: key.to_owned(),
+                            response,
+                        })
+                    }),
+                ))
             }
 
             fn read_key_bytes_poll(
@@ -356,15 +431,27 @@ macro_rules! impl_view_system_api_for_service {
                 future: &Self::ReadKeyBytes,
             ) -> Result<view_system_api::PollReadKeyBytes, Self::Error> {
                 use view_system_api::PollReadKeyBytes;
-                match future.poll(&mut *self.waker()) {
+                let mut receiver = future
+                    .try_lock()
+                    .expect("Unexpected reentrant locking of `oneshot::Receiver`");
+                match self.waker().with_context(|context| receiver.poll_unpin(context)) {
                     Poll::Pending => Ok(PollReadKeyBytes::Pending),
                     Poll::Ready(Ok(opt_list)) => Ok(PollReadKeyBytes::Ready(opt_list)),
-                    Poll::Ready(Err(error)) => Err(error),
+                    Poll::Ready(Err(_)) => panic!(
+                        "`RuntimeActor` dropped while guest Wasm instance is still executing",
+                    ),
                 }
             }
 
             fn find_keys_new(&mut self, key_prefix: &[u8]) -> Result<Self::FindKeys, Self::Error> {
-                Ok(HostFuture::new(self.runtime().find_keys_by_prefix(key_prefix.to_owned())))
+                Ok(Mutex::new(
+                    self.runtime.async_request(|response| {
+                        ServiceRequest::Base(BaseRequest::FindKeysByPrefix {
+                            key_prefix: key_prefix.to_owned(),
+                            response,
+                        })
+                    }),
+                ))
             }
 
             fn find_keys_poll(
@@ -372,10 +459,15 @@ macro_rules! impl_view_system_api_for_service {
                 future: &Self::FindKeys,
             ) -> Result<view_system_api::PollFindKeys, Self::Error> {
                 use view_system_api::PollFindKeys;
-                match future.poll(&mut *self.waker()) {
+                let mut receiver = future
+                    .try_lock()
+                    .expect("Unexpected reentrant locking of `oneshot::Receiver`");
+                match self.waker().with_context(|context| receiver.poll_unpin(context)) {
                     Poll::Pending => Ok(PollFindKeys::Pending),
                     Poll::Ready(Ok(keys)) => Ok(PollFindKeys::Ready(keys)),
-                    Poll::Ready(Err(error)) => Err(error),
+                    Poll::Ready(Err(_)) => panic!(
+                        "`RuntimeActor` dropped while guest Wasm instance is still executing",
+                    ),
                 }
             }
 
@@ -383,9 +475,13 @@ macro_rules! impl_view_system_api_for_service {
                 &mut self,
                 key_prefix: &[u8],
             ) -> Result<Self::FindKeyValues, Self::Error> {
-                Ok(HostFuture::new(
-                    self.runtime()
-                        .find_key_values_by_prefix(key_prefix.to_owned()),
+                Ok(Mutex::new(
+                    self.runtime.async_request(|response| {
+                        ServiceRequest::Base(BaseRequest::FindKeyValuesByPrefix {
+                            key_prefix: key_prefix.to_owned(),
+                            response,
+                        })
+                    }),
                 ))
             }
 
@@ -394,10 +490,15 @@ macro_rules! impl_view_system_api_for_service {
                 future: &Self::FindKeyValues,
             ) -> Result<view_system_api::PollFindKeyValues, Self::Error> {
                 use view_system_api::PollFindKeyValues;
-                match future.poll(&mut *self.waker()) {
+                let mut receiver = future
+                    .try_lock()
+                    .expect("Unexpected reentrant locking of `oneshot::Receiver`");
+                match self.waker().with_context(|context| receiver.poll_unpin(context)) {
                     Poll::Pending => Ok(PollFindKeyValues::Pending),
                     Poll::Ready(Ok(key_values)) => Ok(PollFindKeyValues::Ready(key_values)),
-                    Poll::Ready(Err(error)) => Err(error),
+                    Poll::Ready(Err(_)) => panic!(
+                        "`RuntimeActor` dropped while guest Wasm instance is still executing",
+                    ),
                 }
             }
 
