@@ -3,9 +3,10 @@
 
 //! Types related to sending responses from an actor after handling requests.
 
+use futures::channel::oneshot;
 use std::{
     mem,
-    sync::{Condvar, Mutex},
+    sync::{Arc, Condvar, Mutex},
 };
 
 /// A synchronous channel for sending a response `T`.
@@ -110,6 +111,39 @@ impl<T> ResponseSlot<T> {
                 None
             }
             ResponseSlot::Finished => panic!("Attempt to take two responses for a request"),
+        }
+    }
+}
+
+/// A channel to send a response either synchronously or asynchronously.
+pub enum SyncOrAsyncResponse<T> {
+    Synchronous(Arc<SyncResponse<T>>),
+    Asynchronous(oneshot::Sender<T>),
+}
+
+impl<T> From<Arc<SyncResponse<T>>> for SyncOrAsyncResponse<T> {
+    fn from(sync_response: Arc<SyncResponse<T>>) -> Self {
+        SyncOrAsyncResponse::Synchronous(sync_response)
+    }
+}
+
+impl<T> From<oneshot::Sender<T>> for SyncOrAsyncResponse<T> {
+    fn from(async_response: oneshot::Sender<T>) -> Self {
+        SyncOrAsyncResponse::Asynchronous(async_response)
+    }
+}
+
+impl<T> SyncOrAsyncResponse<T>
+where
+    T: Send,
+{
+    /// Sends a response `value` through this channel.
+    pub fn send(self, value: T) {
+        match self {
+            SyncOrAsyncResponse::Synchronous(sender) => sender.send(value),
+            SyncOrAsyncResponse::Asynchronous(sender) => {
+                let _ = sender.send(value);
+            }
         }
     }
 }
