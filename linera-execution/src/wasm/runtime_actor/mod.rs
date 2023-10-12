@@ -116,7 +116,7 @@ where
             panic!("Failed to send request because receiver has stopped listening: {error}")
         });
 
-        response_receiver.wait()
+        tokio::task::block_in_place(|| response_receiver.wait())
     }
 
     fn async_request<Response>(
