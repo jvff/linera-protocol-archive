@@ -36,14 +36,14 @@ use self::{
     service_system_api::ServiceSystemApiTables, view_system_api::ViewSystemApiTables,
 };
 use super::{
-    async_boundary::{HostFuture, WakerForwarder},
+    async_boundary::WakerForwarder,
     async_determinism::{HostFutureQueue, QueuedHostFutureFactory},
     common::{self, ApplicationRuntimeContext, WasmRuntimeContext},
     module_cache::ModuleCache,
     runtime_actor::{BaseRequest, ContractRequest, SendRequestExt, ServiceRequest},
     WasmApplication, WasmExecutionError,
 };
-use crate::{Bytecode, ExecutionError, ServiceRuntime, SessionId};
+use crate::{Bytecode, ExecutionError, SessionId};
 use futures::{
     channel::{mpsc, oneshot},
     FutureExt, TryFutureExt,
@@ -449,13 +449,6 @@ impl common::Service for Service {
     ) -> Result<service::PollQuery, Trap> {
         service::Service::query_application_poll(&self.service, store, future)
     }
-}
-
-/// Helper type with common functionality across the contract and service system API
-/// implementations.
-struct SystemApi<S> {
-    waker: WakerForwarder,
-    runtime: S,
 }
 
 /// Implementation to forward contract system calls from the guest Wasm module to the host
