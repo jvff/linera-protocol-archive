@@ -127,6 +127,10 @@ impl UserApplication for WasmApplication {
         runtime: &dyn ContractRuntime,
         argument: &[u8],
     ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
+        use tracing::Instrument;
+        let span = tracing::info_span!("WasmApplication::initialize");
+        let _guard = span.enter();
+        tracing::info!("Starting");
         let (runtime_actor, runtime_requests) = RuntimeActor::new(runtime);
         let context = *context;
         let argument = argument.to_owned();
@@ -134,24 +138,45 @@ impl UserApplication for WasmApplication {
         let wasm_task = match self {
             #[cfg(feature = "wasmtime")]
             WasmApplication::Wasmtime { contract, .. } => {
+                tracing::info!("Preparing contract runtime with wasmtime");
                 let instance =
                     Self::prepare_contract_runtime_with_wasmtime(contract, runtime_requests)?;
+                let subspan = tracing::info_span!("WasmExecutionContext::initialize");
 
-                tokio::spawn(async move { instance.initialize(&context, &argument).await })
+                tokio::spawn(async move {
+                    instance
+                        .initialize(&context, &argument)
+                        .instrument(subspan)
+                        .await
+                })
             }
             #[cfg(feature = "wasmer")]
             WasmApplication::Wasmer { contract, .. } => {
+                tracing::info!("Preparing contract runtime with wasmer");
                 let instance =
                     Self::prepare_contract_runtime_with_wasmer(contract, runtime_requests)?;
+                let subspan = tracing::info_span!("WasmExecutionContext::initialize");
 
-                tokio::spawn(async move { instance.initialize(&context, &argument).await })
+                tokio::spawn(async move {
+                    instance
+                        .initialize(&context, &argument)
+                        .instrument(subspan)
+                        .await
+                })
             }
         };
+        tracing::info!("Running actor");
 
-        runtime_actor.run().await?;
-        wasm_task
+        runtime_actor
+            .run()
+            .instrument(tracing::info_span!("RuntimeActor"))
+            .await?;
+        tracing::info!("Waiting for Wasm task");
+        let ret = wasm_task
             .await
-            .expect("Panic while running Wasm guest instance")
+            .expect("Panic while running Wasm guest instance");
+        tracing::info!("Finished");
+        ret
     }
 
     async fn execute_operation(
