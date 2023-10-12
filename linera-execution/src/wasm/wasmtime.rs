@@ -43,7 +43,7 @@ use super::{
     async_determinism::{HostFutureQueue, QueuedHostFutureFactory},
     common::{self, ApplicationRuntimeContext, WasmRuntimeContext},
     module_cache::ModuleCache,
-    runtime_actor::{BaseRequest, CanceledError, ContractRequest, SendRequestExt},
+    runtime_actor::{BaseRequest, CanceledError, ContractRequest, SendRequestExt, ServiceRequest},
     WasmApplication, WasmExecutionError,
 };
 use crate::{Bytecode, ExecutionError, ServiceRuntime, SessionId};
@@ -106,12 +106,12 @@ impl<'runtime> ApplicationRuntimeContext for Contract<'runtime> {
 }
 
 /// Type representing the [Wasmtime](https://wasmtime.dev/) runtime for services.
-pub struct Service<'runtime> {
-    service: service::Service<ServiceState<'runtime>>,
+pub struct Service {
+    service: service::Service<ServiceState>,
 }
 
-impl<'runtime> ApplicationRuntimeContext for Service<'runtime> {
-    type Store = Store<ServiceState<'runtime>>;
+impl ApplicationRuntimeContext for Service {
+    type Store = Store<ServiceState>;
     type Error = Trap;
     type Extra = ();
 }
@@ -153,11 +153,7 @@ impl WasmApplication {
 
         let waker_forwarder = WakerForwarder::default();
         let (future_queue, queued_future_factory) = HostFutureQueue::new();
-        let state = ContractState::new(
-            runtime.clone(),
-            waker_forwarder.clone(),
-            queued_future_factory,
-        );
+        let state = ContractState::new(runtime, waker_forwarder.clone(), queued_future_factory);
         let mut store = Store::new(&CONTRACT_ENGINE, state);
         let (contract, _instance) = contract::Contract::instantiate(
             &mut store,
@@ -180,8 +176,8 @@ impl WasmApplication {
     /// Prepares a runtime instance to call into the Wasm service.
     pub fn prepare_service_runtime_with_wasmtime<'runtime>(
         service_module: &Module,
-        runtime: &'runtime dyn ServiceRuntime,
-    ) -> Result<WasmRuntimeContext<'runtime, Service<'runtime>>, WasmExecutionError> {
+        runtime: mpsc::UnboundedSender<ServiceRequest>,
+    ) -> Result<WasmRuntimeContext<'runtime, Service>, WasmExecutionError> {
         let mut linker = Linker::new(&SERVICE_ENGINE);
 
         service_system_api::add_to_linker(&mut linker, ServiceState::system_api)
@@ -221,11 +217,11 @@ pub struct ContractState<'runtime> {
 }
 
 /// Data stored by the runtime that's necessary for handling queries to and from the Wasm module.
-pub struct ServiceState<'runtime> {
+pub struct ServiceState {
     data: ServiceData,
-    system_api: ServiceSystemApi<'runtime>,
-    system_tables: ServiceSystemApiTables<ServiceSystemApi<'runtime>>,
-    views_tables: ViewSystemApiTables<ServiceSystemApi<'runtime>>,
+    system_api: ServiceSystemApi,
+    system_tables: ServiceSystemApiTables<ServiceSystemApi>,
+    views_tables: ViewSystemApiTables<ServiceSystemApi>,
 }
 
 impl<'runtime> ContractState<'runtime> {
@@ -272,12 +268,12 @@ impl<'runtime> ContractState<'runtime> {
     }
 }
 
-impl<'runtime> ServiceState<'runtime> {
+impl ServiceState {
     /// Creates a new instance of [`ServiceState`].
     ///
     /// Uses `runtime` to export the system API, and the `waker` to be able to correctly handle
     /// asynchronous calls from the guest Wasm module.
-    pub fn new(runtime: &'runtime dyn ServiceRuntime, waker: WakerForwarder) -> Self {
+    pub fn new(runtime: mpsc::UnboundedSender<ServiceRequest>, waker: WakerForwarder) -> Self {
         Self {
             data: ServiceData::default(),
             system_api: ServiceSystemApi::new(waker, runtime),
@@ -295,8 +291,8 @@ impl<'runtime> ServiceState<'runtime> {
     pub fn system_api(
         &mut self,
     ) -> (
-        &mut ServiceSystemApi<'runtime>,
-        &mut ServiceSystemApiTables<ServiceSystemApi<'runtime>>,
+        &mut ServiceSystemApi,
+        &mut ServiceSystemApiTables<ServiceSystemApi>,
     ) {
         (&mut self.system_api, &mut self.system_tables)
     }
@@ -305,8 +301,8 @@ impl<'runtime> ServiceState<'runtime> {
     pub fn views_api(
         &mut self,
     ) -> (
-        &mut ServiceSystemApi<'runtime>,
-        &mut ViewSystemApiTables<ServiceSystemApi<'runtime>>,
+        &mut ServiceSystemApi,
+        &mut ViewSystemApiTables<ServiceSystemApi>,
     ) {
         (&mut self.system_api, &mut self.views_tables)
     }
@@ -440,14 +436,14 @@ impl<'runtime> common::Contract for Contract<'runtime> {
     }
 }
 
-impl<'runtime> common::Service for Service<'runtime> {
+impl common::Service for Service {
     type HandleQuery = service::HandleQuery;
     type QueryContext = service::QueryContext;
     type PollApplicationQueryResult = service::PollApplicationQueryResult;
 
     fn handle_query_new(
         &self,
-        store: &mut Store<ServiceState<'runtime>>,
+        store: &mut Store<ServiceState>,
         context: service::QueryContext,
         argument: &[u8],
     ) -> Result<service::HandleQuery, Trap> {
@@ -456,7 +452,7 @@ impl<'runtime> common::Service for Service<'runtime> {
 
     fn handle_query_poll(
         &self,
-        store: &mut Store<ServiceState<'runtime>>,
+        store: &mut Store<ServiceState>,
         future: &service::HandleQuery,
     ) -> Result<service::PollApplicationQueryResult, Trap> {
         service::Service::handle_query_poll(&self.service, store, future)
@@ -504,32 +500,26 @@ impl_view_system_api_for_contract!(ContractSystemApi<'runtime>);
 
 /// Implementation to forward service system calls from the guest Wasm module to the host
 /// implementation.
-pub struct ServiceSystemApi<'runtime> {
-    shared: SystemApi<&'runtime dyn ServiceRuntime>,
+pub struct ServiceSystemApi {
+    runtime: mpsc::UnboundedSender<ServiceRequest>,
+    waker: WakerForwarder,
 }
 
-impl<'runtime> ServiceSystemApi<'runtime> {
+impl ServiceSystemApi {
     /// Creates a new [`ServiceSystemApi`] instance using the provided asynchronous `waker` and
     /// exporting the API from `runtime`.
-    pub fn new(waker: WakerForwarder, runtime: &'runtime dyn ServiceRuntime) -> Self {
-        ServiceSystemApi {
-            shared: SystemApi { waker, runtime },
-        }
-    }
-
-    /// Returns the [`ServiceRuntime`] trait object instance to handle a system call.
-    fn runtime(&self) -> &'runtime dyn ServiceRuntime {
-        self.shared.runtime
+    pub fn new(waker: WakerForwarder, runtime: mpsc::UnboundedSender<ServiceRequest>) -> Self {
+        ServiceSystemApi { runtime, waker }
     }
 
     /// Returns the [`WakerForwarder`] to be used for asynchronous system calls.
     fn waker(&mut self) -> &mut WakerForwarder {
-        &mut self.shared.waker
+        &mut self.waker
     }
 }
 
-impl_service_system_api!(ServiceSystemApi<'runtime>);
-impl_view_system_api_for_service!(ServiceSystemApi<'runtime>);
+impl_service_system_api!(ServiceSystemApi, wasmtime::Trap);
+impl_view_system_api_for_service!(ServiceSystemApi, wasmtime::Trap);
 
 impl From<ExecutionError> for wasmtime::Trap {
     fn from(error: ExecutionError) -> Self {
