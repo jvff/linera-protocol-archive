@@ -51,9 +51,9 @@ where
 
         loop {
             select! {
-                result = active_requests.next() => result.expect(
-                    "`active_requests` dropped unexpectedly while `RuntimeActor` was still running",
-                )?,
+                maybe_result = active_requests.next() => if let Some(result) = maybe_result {
+                    result?;
+                },
                 maybe_request = self.requests.next() => match maybe_request {
                     Some(request) => active_requests.push(self.runtime.handle_request(request)),
                     None => break,

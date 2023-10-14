@@ -106,14 +106,14 @@ macro_rules! impl_contract_system_api {
                 let mut receiver = future
                     .try_lock()
                     .expect("Unexpected reentrant locking of `oneshot::Receiver`");
-                match self.waker().with_context(|context| receiver.poll_unpin(context)) {
-                    Poll::Pending => Ok(PollLock::Pending),
-                    Poll::Ready(Ok(Ok(()))) => Ok(PollLock::ReadyLocked),
-                    Poll::Ready(Ok(Err(ExecutionError::ViewError(ViewError::TryLockError(_))))) => {
+                match receiver.try_recv() {
+                    Ok(None) => Ok(PollLock::Pending),
+                    Ok(Some(Ok(()))) => Ok(PollLock::ReadyLocked),
+                    Ok(Some(Err(ExecutionError::ViewError(ViewError::TryLockError(_))))) => {
                         Ok(PollLock::ReadyNotLocked)
                     }
-                    Poll::Ready(Ok(Err(error))) => Err(error),
-                    Poll::Ready(Err(_)) => panic!(
+                    Ok(Some(Err(error))) => Err(error),
+                    Err(oneshot::Canceled) => panic!(
                         "`HostFutureQueue` dropped while guest Wasm instance is still executing",
                     ),
                 }
@@ -249,13 +249,10 @@ macro_rules! impl_service_system_api {
                 let mut receiver = future
                     .try_lock()
                     .expect("Unexpected reentrant locking of `oneshot::Receiver`");
-                match self
-                    .waker()
-                    .with_context(|context| receiver.poll_unpin(context))
-                {
-                    Poll::Pending => PollLoad::Pending,
-                    Poll::Ready(Ok(bytes)) => PollLoad::Ready(Ok(bytes)),
-                    Poll::Ready(Err(_)) => panic!(
+                match receiver.try_recv() {
+                    Ok(None) => PollLoad::Pending,
+                    Ok(Some(bytes)) => PollLoad::Ready(Ok(bytes)),
+                    Err(oneshot::Canceled) => panic!(
                         "`RuntimeActor` dropped while guest Wasm instance is still executing",
                     ),
                 }
@@ -272,13 +269,10 @@ macro_rules! impl_service_system_api {
                 let mut receiver = future
                     .try_lock()
                     .expect("Unexpected reentrant locking of `oneshot::Receiver`");
-                match self
-                    .waker()
-                    .with_context(|context| receiver.poll_unpin(context))
-                {
-                    Poll::Pending => PollLock::Pending,
-                    Poll::Ready(Ok(())) => PollLock::Ready(Ok(())),
-                    Poll::Ready(Err(_)) => panic!(
+                match receiver.try_recv() {
+                    Ok(None) => PollLock::Pending,
+                    Ok(Some(())) => PollLock::Ready(Ok(())),
+                    Err(oneshot::Canceled) => panic!(
                         "`RuntimeActor` dropped while guest Wasm instance is still executing",
                     ),
                 }
@@ -295,13 +289,10 @@ macro_rules! impl_service_system_api {
                 let mut receiver = future
                     .try_lock()
                     .expect("Unexpected reentrant locking of `oneshot::Receiver`");
-                match self
-                    .waker()
-                    .with_context(|context| receiver.poll_unpin(context))
-                {
-                    Poll::Pending => PollUnlock::Pending,
-                    Poll::Ready(Ok(())) => PollUnlock::Ready(Ok(())),
-                    Poll::Ready(Err(_)) => panic!(
+                match receiver.try_recv() {
+                    Ok(None) => PollUnlock::Pending,
+                    Ok(Some(())) => PollUnlock::Ready(Ok(())),
+                    Err(oneshot::Canceled) => panic!(
                         "`RuntimeActor` dropped while guest Wasm instance is still executing",
                     ),
                 }
@@ -331,13 +322,10 @@ macro_rules! impl_service_system_api {
                 let mut receiver = future
                     .try_lock()
                     .expect("Unexpected reentrant locking of `oneshot::Receiver`");
-                match self
-                    .waker()
-                    .with_context(|context| receiver.poll_unpin(context))
-                {
-                    Poll::Pending => PollLoad::Pending,
-                    Poll::Ready(Ok(result)) => PollLoad::Ready(Ok(result)),
-                    Poll::Ready(Err(_)) => panic!(
+                match receiver.try_recv() {
+                    Ok(None) => PollLoad::Pending,
+                    Ok(Some(result)) => PollLoad::Ready(Ok(result)),
+                    Err(oneshot::Canceled) => panic!(
                         "`RuntimeActor` dropped while guest Wasm instance is still executing",
                     ),
                 }
@@ -394,13 +382,10 @@ macro_rules! impl_view_system_api_for_service {
                 let mut receiver = future
                     .try_lock()
                     .expect("Unexpected reentrant locking of `oneshot::Receiver`");
-                match self
-                    .waker()
-                    .with_context(|context| receiver.poll_unpin(context))
-                {
-                    Poll::Pending => Ok(PollReadKeyBytes::Pending),
-                    Poll::Ready(Ok(opt_list)) => Ok(PollReadKeyBytes::Ready(opt_list)),
-                    Poll::Ready(Err(_)) => panic!(
+                match receiver.try_recv() {
+                    Ok(None) => Ok(PollReadKeyBytes::Pending),
+                    Ok(Some(opt_list)) => Ok(PollReadKeyBytes::Ready(opt_list)),
+                    Err(oneshot::Canceled) => panic!(
                         "`RuntimeActor` dropped while guest Wasm instance is still executing",
                     ),
                 }
@@ -423,13 +408,10 @@ macro_rules! impl_view_system_api_for_service {
                 let mut receiver = future
                     .try_lock()
                     .expect("Unexpected reentrant locking of `oneshot::Receiver`");
-                match self
-                    .waker()
-                    .with_context(|context| receiver.poll_unpin(context))
-                {
-                    Poll::Pending => Ok(PollFindKeys::Pending),
-                    Poll::Ready(Ok(keys)) => Ok(PollFindKeys::Ready(keys)),
-                    Poll::Ready(Err(_)) => panic!(
+                match receiver.try_recv() {
+                    Ok(None) => Ok(PollFindKeys::Pending),
+                    Ok(Some(keys)) => Ok(PollFindKeys::Ready(keys)),
+                    Err(oneshot::Canceled) => panic!(
                         "`RuntimeActor` dropped while guest Wasm instance is still executing",
                     ),
                 }
@@ -455,13 +437,10 @@ macro_rules! impl_view_system_api_for_service {
                 let mut receiver = future
                     .try_lock()
                     .expect("Unexpected reentrant locking of `oneshot::Receiver`");
-                match self
-                    .waker()
-                    .with_context(|context| receiver.poll_unpin(context))
-                {
-                    Poll::Pending => Ok(PollFindKeyValues::Pending),
-                    Poll::Ready(Ok(key_values)) => Ok(PollFindKeyValues::Ready(key_values)),
-                    Poll::Ready(Err(_)) => panic!(
+                match receiver.try_recv() {
+                    Ok(None) => Ok(PollFindKeyValues::Pending),
+                    Ok(Some(key_values)) => Ok(PollFindKeyValues::Ready(key_values)),
+                    Err(oneshot::Canceled) => panic!(
                         "`RuntimeActor` dropped while guest Wasm instance is still executing",
                     ),
                 }
@@ -528,11 +507,11 @@ macro_rules! impl_view_system_api_for_contract {
                 let mut receiver = future
                     .try_lock()
                     .expect("Unexpected reentrant locking of `oneshot::Receiver`");
-                match self.waker().with_context(|context| receiver.poll_unpin(context)) {
-                    Poll::Pending => Ok(PollReadKeyBytes::Pending),
-                    Poll::Ready(Ok(Ok(opt_list))) => Ok(PollReadKeyBytes::Ready(opt_list)),
-                    Poll::Ready(Ok(Err(error))) => Err(error),
-                    Poll::Ready(Err(_)) => panic!(
+                match receiver.try_recv() {
+                    Ok(None) => Ok(PollReadKeyBytes::Pending),
+                    Ok(Some(Ok(opt_list))) => Ok(PollReadKeyBytes::Ready(opt_list)),
+                    Ok(Some(Err(error))) => Err(error),
+                    Err(oneshot::Canceled) => panic!(
                         "`HostFutureQueue` dropped while guest Wasm instance is still executing",
                     ),
                 }
@@ -560,11 +539,11 @@ macro_rules! impl_view_system_api_for_contract {
                 let mut receiver = future
                     .try_lock()
                     .expect("Unexpected reentrant locking of `oneshot::Receiver`");
-                match self.waker().with_context(|context| receiver.poll_unpin(context)) {
-                    Poll::Pending => Ok(PollFindKeys::Pending),
-                    Poll::Ready(Ok(Ok(keys))) => Ok(PollFindKeys::Ready(keys)),
-                    Poll::Ready(Ok(Err(error))) => Err(error),
-                    Poll::Ready(Err(_)) => panic!(
+                match receiver.try_recv() {
+                    Ok(None) => Ok(PollFindKeys::Pending),
+                    Ok(Some(Ok(keys))) => Ok(PollFindKeys::Ready(keys)),
+                    Ok(Some(Err(error))) => Err(error),
+                    Err(oneshot::Canceled) => panic!(
                         "`HostFutureQueue` dropped while guest Wasm instance is still executing",
                     ),
                 }
@@ -595,11 +574,11 @@ macro_rules! impl_view_system_api_for_contract {
                 let mut receiver = future
                     .try_lock()
                     .expect("Unexpected reentrant locking of `oneshot::Receiver`");
-                match self.waker().with_context(|context| receiver.poll_unpin(context)) {
-                    Poll::Pending => Ok(PollFindKeyValues::Pending),
-                    Poll::Ready(Ok(Ok(key_values))) => Ok(PollFindKeyValues::Ready(key_values)),
-                    Poll::Ready(Ok(Err(error))) => Err(error),
-                    Poll::Ready(Err(_)) => panic!(
+                match receiver.try_recv() {
+                    Ok(None) => Ok(PollFindKeyValues::Pending),
+                    Ok(Some(Ok(key_values))) => Ok(PollFindKeyValues::Ready(key_values)),
+                    Ok(Some(Err(error))) => Err(error),
+                    Err(oneshot::Canceled) => panic!(
                         "`HostFutureQueue` dropped while guest Wasm instance is still executing",
                     ),
                 }
@@ -641,11 +620,11 @@ macro_rules! impl_view_system_api_for_contract {
                 let mut receiver = future
                     .try_lock()
                     .expect("Unexpected reentrant locking of `oneshot::Receiver`");
-                match self.waker().with_context(|context| receiver.poll_unpin(context)) {
-                    Poll::Pending => Ok(PollUnit::Pending),
-                    Poll::Ready(Ok(Ok(()))) => Ok(PollUnit::Ready),
-                    Poll::Ready(Ok(Err(error))) => Err(error),
-                    Poll::Ready(Err(_)) => panic!(
+                match receiver.try_recv() {
+                    Ok(None) => Ok(PollUnit::Pending),
+                    Ok(Some(Ok(()))) => Ok(PollUnit::Ready),
+                    Ok(Some(Err(error))) => Err(error),
+                    Err(oneshot::Canceled) => panic!(
                         "`HostFutureQueue` dropped while guest Wasm instance is still executing",
                     ),
                 }
