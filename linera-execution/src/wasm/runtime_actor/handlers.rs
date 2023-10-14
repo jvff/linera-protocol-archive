@@ -72,6 +72,7 @@ where
     Runtime: ContractRuntime + ?Sized,
 {
     async fn handle_request(&self, request: ContractRequest) -> Result<(), ExecutionError> {
+        tracing::info!("Received request {request:?}");
         // Use unit arguments in `Response::send` in order to have compile errors if the return
         // value of the called function changes.
         #[allow(clippy::unit_arg)]

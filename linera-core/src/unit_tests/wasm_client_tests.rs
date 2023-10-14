@@ -110,23 +110,27 @@ where
     assert!(balance_after_messaging < Amount::ONE);
 
     let initial_value = 10_u64;
+    tracing::error!("Creating application");
     let (application_id, _) = creator
         .create_application(bytecode_id, &(), &initial_value, vec![])
         .await
         .unwrap();
 
     let increment = 5_u64;
+    tracing::error!("Executing operation");
     creator
         .execute_operation(Operation::user(application_id, &increment)?)
         .await
         .unwrap();
 
     let query = Request::new("{ value }");
+    tracing::error!("Querying");
     let response = creator
         .query_user_application(application_id, &query)
         .await
         .unwrap();
 
+    tracing::error!("Checking");
     let expected = async_graphql::Response::new(
         async_graphql::Value::from_json(json!({"value": 15})).unwrap(),
     );

@@ -50,23 +50,31 @@ where
         let mut active_requests = FuturesUnordered::new();
 
         loop {
+            tracing::info!("Waiting for event");
             select! {
                 maybe_result = active_requests.next() => if let Some(result) = maybe_result {
+                    tracing::info!("Active request finished");
                     result?;
                 },
-                maybe_request = self.requests.next() => match maybe_request {
-                    Some(request) => active_requests.push(self.runtime.handle_request(request)),
-                    None => break,
+                maybe_request = self.requests.next() => {
+                    tracing::info!("New request received");
+                    match maybe_request {
+                        Some(request) => active_requests.push(self.runtime.handle_request(request)),
+                        None => break,
+                    }
                 },
             }
         }
 
         while !active_requests.is_empty() {
+            tracing::info!("Waiting for active requests to finish");
             if let Some(result) = active_requests.next().await {
+                tracing::info!("Active request finished");
                 result?;
             }
         }
 
+        tracing::info!("Runtime actor finished");
         Ok(())
     }
 }
@@ -107,6 +115,7 @@ where
         let response = Arc::new(SyncResponse::default());
         let request = builder(response.clone());
 
+        tracing::info!("Sending sync request");
         self.unbounded_send(request).unwrap_or_else(|error| {
             panic!("Failed to send request because receiver has stopped listening: {error}")
         });
@@ -124,6 +133,7 @@ where
         let (response_sender, response_receiver) = oneshot::channel();
         let request = builder(response_sender);
 
+        tracing::info!("Sending async request");
         self.unbounded_send(request).unwrap_or_else(|error| {
             panic!("Failed to send request because receiver has stopped listening: {error}")
         });
