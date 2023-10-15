@@ -362,45 +362,69 @@ where
     }
 
     async fn read_key_bytes(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, ExecutionError> {
+        use tracing::Instrument;
         // read a key from the KV store
-        match self
-            .active_view_user_states_mut()
-            .await
-            .get(&self.application_id())
-        {
-            Some(view) => Ok(view.get(&key).await?),
-            None => Err(ExecutionError::ApplicationStateNotLocked),
+        async move {
+            tracing::error!("Start");
+            let r = match self
+                .active_view_user_states_mut()
+                .await
+                .get(&self.application_id())
+            {
+                Some(view) => Ok(view.get(&key).await?),
+                None => Err(ExecutionError::ApplicationStateNotLocked),
+            };
+            tracing::error!("End");
+            r
         }
+        .instrument(tracing::error_span!("read_key_bytes"))
+        .await
     }
 
     async fn find_keys_by_prefix(
         &self,
         key_prefix: Vec<u8>,
     ) -> Result<Vec<Vec<u8>>, ExecutionError> {
+        use tracing::Instrument;
         // Read keys matching a prefix. We have to collect since iterators do not pass the wit barrier
-        match self
-            .active_view_user_states_mut()
-            .await
-            .get(&self.application_id())
-        {
-            Some(view) => Ok(view.find_keys_by_prefix(&key_prefix).await?),
-            None => Err(ExecutionError::ApplicationStateNotLocked),
+        async move {
+            tracing::error!("Start");
+            let r = match self
+                .active_view_user_states_mut()
+                .await
+                .get(&self.application_id())
+            {
+                Some(view) => Ok(view.find_keys_by_prefix(&key_prefix).await?),
+                None => Err(ExecutionError::ApplicationStateNotLocked),
+            };
+            tracing::error!("End");
+            r
         }
+        .instrument(tracing::error_span!("find_keys_by_prefix"))
+        .await
     }
 
     async fn find_key_values_by_prefix(
         &self,
         key_prefix: Vec<u8>,
     ) -> Result<Vec<(Vec<u8>, Vec<u8>)>, ExecutionError> {
+        use tracing::Instrument;
         // Read key/values matching a prefix. We have to collect since iterators do not pass the wit barrier
-        match self
-            .active_view_user_states_mut()
-            .await
-            .get(&self.application_id())
-        {
-            Some(view) => Ok(view.find_key_values_by_prefix(&key_prefix).await?),
-            None => Err(ExecutionError::ApplicationStateNotLocked),
+        async move {
+            tracing::error!("Start");
+            let r = match self
+                .active_view_user_states_mut()
+                .await
+                .get(&self.application_id())
+            {
+                Some(view) => Ok(view.find_key_values_by_prefix(&key_prefix).await?),
+                None => Err(ExecutionError::ApplicationStateNotLocked),
+            };
+            tracing::error!("End");
+            r
         }
+        .instrument(tracing::error_span!("find_key_values_by_prefix"))
+        .await
     }
 }
 

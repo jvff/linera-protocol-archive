@@ -1299,7 +1299,7 @@ async fn run_wasm_end_to_end_amm(database: Database) {
 }
 
 #[cfg(feature = "rocksdb")]
-#[test_log::test(tokio::test)]
+#[tokio::test]
 async fn test_rocks_db_wasm_end_to_end_review() {
     run_wasm_end_to_end_review(Database::RocksDb).await
 }
@@ -1317,6 +1317,7 @@ async fn test_scylla_db_wasm_end_to_end_review() {
 }
 
 async fn run_wasm_end_to_end_review(database: Database) {
+    console_subscriber::init();
     let wasm_path = std::env::current_dir()
         .unwrap()
         .join("../../res-peer/target/wasm32-unknown-unknown/release/");

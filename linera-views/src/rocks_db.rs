@@ -104,27 +104,38 @@ impl KeyValueStoreClient for RocksDbClientInternal {
         let prefix = key_prefix.to_vec();
         let len = prefix.len();
         tracing::warn!("find_key_values_by_prefix");
-        let key_values = tokio::task::spawn_blocking(move || {
+        let (tx, rx) = futures::channel::oneshot::channel();
+        // let key_values = tokio::task::spawn_blocking(move || {
+        std::thread::spawn(move || {
             tracing::warn!("find_key_values_by_prefix thread");
-            let mut iter = client.db.raw_iterator();
-            let mut key_values = Vec::new();
-            iter.seek(&prefix);
-            let mut next_key = iter.key();
-            while let Some(key) = next_key {
-                if !key.starts_with(&prefix) {
-                    break;
+            let ret = {
+                let mut iter = client.db.raw_iterator();
+                let mut key_values = Vec::new();
+                iter.seek(&prefix);
+                let mut next_key = iter.key();
+                while let Some(key) = next_key {
+                    if !key.starts_with(&prefix) {
+                        break;
+                    }
+                    if let Some(value) = iter.value() {
+                        let key_value = (key[len..].to_vec(), value.to_vec());
+                        key_values.push(key_value);
+                    }
+                    iter.next();
+                    next_key = iter.key();
                 }
-                if let Some(value) = iter.value() {
-                    let key_value = (key[len..].to_vec(), value.to_vec());
-                    key_values.push(key_value);
-                }
-                iter.next();
-                next_key = iter.key();
-            }
+                key_values
+            };
+            tracing::warn!("find_key_values_by_prefix thread almost done");
+            std::mem::drop(len);
+            std::mem::drop(prefix);
+            std::mem::drop(client);
             tracing::warn!("find_key_values_by_prefix thread done");
-            key_values
-        })
-        .await?;
+            tx.send(ret);
+            tracing::warn!("find_key_values_by_prefix thread really done");
+        });
+        // .await?;
+        let key_values = rx.await.unwrap();
         tracing::warn!("find_key_values_by_prefix done");
         Ok(key_values)
     }

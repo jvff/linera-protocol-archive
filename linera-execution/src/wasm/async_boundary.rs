@@ -138,7 +138,9 @@ where
                 Poll::Ready(Err(error.into()))
             }
             GuestFuture::Active { future, context } => {
+                tracing::error!("GuestFuture::poll");
                 ready!(context.future_queue.poll_next_unpin(task_context));
+                tracing::error!("Future Queue is ready");
 
                 let _context_guard = context.waker_forwarder.forward(task_context);
                 future.poll(&context.application, &mut context.store)

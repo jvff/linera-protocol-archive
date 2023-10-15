@@ -158,13 +158,17 @@ macro_rules! impl_contract_system_api {
             {
                 let runtime = tokio::runtime::Handle::current();
 
+                tracing::error!("::block_on");
                 std::thread::scope(|scope| {
-                    tokio::task::block_in_place(|| {
+                    tracing::error!("Started blocking");
+                    let ret = tokio::task::block_in_place(|| {
                         scope
                             .spawn(|| runtime.block_on(future))
                             .join()
                             .expect("Panic when running a future in a blocking manner")
-                    })
+                    });
+                    tracing::error!("Finished blocking");
+                    ret
                 })
             }
         }
@@ -367,11 +371,16 @@ macro_rules! impl_view_system_api {
                 future: &Self::FindKeyValues,
             ) -> Result<view_system_api::PollFindKeyValues, Self::Error> {
                 use view_system_api::PollFindKeyValues;
-                match future.poll(&mut *self.waker()) {
+                let _span = tracing::info_span!("find_key_values_poll").entered();
+                tracing::error!("Start");
+                let poll = future.poll(&mut *self.waker());
+                tracing::error!(is_pending = poll.is_pending(), "Polled");
+                let ret = match poll {
                     Poll::Pending => Ok(PollFindKeyValues::Pending),
                     Poll::Ready(Ok(key_values)) => Ok(PollFindKeyValues::Ready(key_values)),
                     Poll::Ready(Err(error)) => Err(error),
-                }
+                };
+                ret
             }
 
             fn write_batch_new(
