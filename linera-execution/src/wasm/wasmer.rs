@@ -46,11 +46,11 @@ use crate::{Bytecode, ContractRuntime, ExecutionError, ServiceRuntime, SessionId
 use bytes::Bytes;
 use futures::{
     channel::{mpsc, oneshot},
-    FutureExt, TryFutureExt,
+    TryFutureExt,
 };
 use linera_views::{batch::Batch, views::ViewError};
 use once_cell::sync::Lazy;
-use std::{marker::PhantomData, mem, sync::Arc, task::Poll};
+use std::{marker::PhantomData, mem, sync::Arc};
 use tokio::sync::Mutex;
 use wasmer::{
     imports, wasmparser::Operator, CompilerConfig, Engine, EngineBuilder, Instance, Module,

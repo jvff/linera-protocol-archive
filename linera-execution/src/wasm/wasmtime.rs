@@ -49,11 +49,11 @@ use super::{
 use crate::{Bytecode, ExecutionError, SessionId};
 use futures::{
     channel::{mpsc, oneshot},
-    FutureExt, TryFutureExt,
+    TryFutureExt,
 };
 use linera_views::{batch::Batch, views::ViewError};
 use once_cell::sync::Lazy;
-use std::{error::Error, task::Poll};
+use std::error::Error;
 use tokio::sync::Mutex;
 use wasmtime::{Config, Engine, Linker, Module, Store, Trap};
 use wit_bindgen_host_wasmtime_rust::Le;
