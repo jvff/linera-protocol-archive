@@ -27,7 +27,14 @@ use std::task::Poll;
 /// a `poll_type` that must be convertible into the `output` type wrapped in a
 /// `Poll<Result<_, _>>`.
 macro_rules! impl_guest_future_interface {
-    ( $( $future:ident : $poll_func:ident -> $poll_type:ident -> $trait:ident => $output:ty ),* $(,)* ) => {
+    (
+        $( $future:ident : {
+            application_trait = $trait:ident,
+            poll_function = $poll_func:ident,
+            poll_type = $poll_type:ident,
+            output_type = $output:ty $(,)*
+        } ),* $(,)*
+    ) => {
         $(
             impl<'storage, A> GuestFutureInterface<A> for $future
             where
@@ -57,10 +64,45 @@ macro_rules! impl_guest_future_interface {
 }
 
 impl_guest_future_interface! {
-    Initialize: initialize_poll -> PollExecutionResult -> Contract => RawExecutionResult<Vec<u8>>,
-    ExecuteOperation: execute_operation_poll -> PollExecutionResult -> Contract => RawExecutionResult<Vec<u8>>,
-    ExecuteMessage: execute_message_poll -> PollExecutionResult -> Contract => RawExecutionResult<Vec<u8>>,
-    HandleApplicationCall: handle_application_call_poll -> PollCallApplication -> Contract => ApplicationCallResult,
-    HandleSessionCall: handle_session_call_poll -> PollCallSession -> Contract => (SessionCallResult, Vec<u8>),
-    QueryApplication: query_application_poll -> PollQuery -> Service => Vec<u8>,
+    Initialize: {
+        application_trait = Contract,
+        poll_function = initialize_poll,
+        poll_type = PollExecutionResult,
+        output_type = RawExecutionResult<Vec<u8>>,
+    },
+
+    ExecuteOperation: {
+        application_trait = Contract,
+        poll_function = execute_operation_poll,
+        poll_type = PollExecutionResult,
+        output_type = RawExecutionResult<Vec<u8>>,
+    },
+
+    ExecuteMessage: {
+        application_trait = Contract,
+        poll_function = execute_message_poll,
+        poll_type = PollExecutionResult,
+        output_type = RawExecutionResult<Vec<u8>>,
+    },
+
+    HandleApplicationCall: {
+        application_trait = Contract,
+        poll_function = handle_application_call_poll,
+        poll_type = PollCallApplication,
+        output_type = ApplicationCallResult,
+    },
+
+    HandleSessionCall: {
+        application_trait = Contract,
+        poll_function = handle_session_call_poll,
+        poll_type = PollCallSession,
+        output_type = (SessionCallResult, Vec<u8>),
+    },
+
+    QueryApplication: {
+        application_trait = Service,
+        poll_function = query_application_poll,
+        poll_type = PollQuery,
+        output_type = Vec<u8>,
+    },
 }
