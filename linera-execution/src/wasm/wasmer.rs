@@ -35,7 +35,6 @@ mod conversions_to_wit;
 mod guest_futures;
 
 use super::{
-    async_boundary::WakerForwarder,
     async_determinism::{HostFutureQueue, QueuedHostFutureFactory},
     common::{self, ApplicationRuntimeContext, WasmRuntimeContext},
     module_cache::ModuleCache,
@@ -140,18 +139,10 @@ impl WasmApplication {
     ) -> Result<WasmRuntimeContext<Contract>, WasmExecutionError> {
         let mut store = Store::new(contract_engine);
         let mut imports = imports! {};
-        let waker_forwarder = WakerForwarder::default();
         let (future_queue, queued_future_factory) = HostFutureQueue::new();
-        let contract_system_api = ContractSystemApi::new(
-            runtime.clone(),
-            waker_forwarder.clone(),
-            queued_future_factory.clone(),
-        );
-        let view_system_api = ContractViewSystemApi::new(
-            runtime.clone(),
-            waker_forwarder.clone(),
-            queued_future_factory,
-        );
+        let contract_system_api =
+            ContractSystemApi::new(runtime.clone(), queued_future_factory.clone());
+        let view_system_api = ContractViewSystemApi::new(runtime.clone(), queued_future_factory);
         let system_api_setup =
             contract_system_api::add_to_imports(&mut store, &mut imports, contract_system_api);
         let views_api_setup =
@@ -165,7 +156,6 @@ impl WasmApplication {
         views_api_setup(&instance, &store).map_err(WasmExecutionError::LoadContractModule)?;
 
         Ok(WasmRuntimeContext {
-            waker_forwarder,
             application,
             future_queue,
             store,
@@ -180,10 +170,9 @@ impl WasmApplication {
     ) -> Result<WasmRuntimeContext<Service>, WasmExecutionError> {
         let mut store = Store::new(&*SERVICE_ENGINE);
         let mut imports = imports! {};
-        let waker_forwarder = WakerForwarder::default();
         let (future_queue, _queued_future_factory) = HostFutureQueue::new();
-        let service_system_api = ServiceSystemApi::new(runtime.clone(), waker_forwarder.clone());
-        let view_system_api = ServiceViewSystemApi::new(runtime, waker_forwarder.clone());
+        let service_system_api = ServiceSystemApi::new(runtime.clone());
+        let view_system_api = ServiceViewSystemApi::new(runtime);
         let system_api_setup =
             service_system_api::add_to_imports(&mut store, &mut imports, service_system_api);
         let views_api_setup =
@@ -197,7 +186,6 @@ impl WasmApplication {
         views_api_setup(&instance, &store).map_err(WasmExecutionError::LoadServiceModule)?;
 
         Ok(WasmRuntimeContext {
-            waker_forwarder,
             application,
             future_queue,
             store,
@@ -414,7 +402,6 @@ unsafe impl<'runtime> RemoveLifetime for &'runtime dyn ServiceRuntime {
 /// implementation.
 pub struct ContractSystemApi {
     runtime: mpsc::UnboundedSender<ContractRequest>,
-    waker: WakerForwarder,
     queued_future_factory: QueuedHostFutureFactory<'static>,
 }
 
@@ -422,19 +409,12 @@ impl ContractSystemApi {
     /// Creates a new [`ContractSystemApi`] instance.
     pub fn new(
         runtime: mpsc::UnboundedSender<ContractRequest>,
-        waker: WakerForwarder,
         queued_future_factory: QueuedHostFutureFactory<'static>,
     ) -> Self {
         ContractSystemApi {
             runtime,
-            waker,
             queued_future_factory,
         }
-    }
-
-    /// Returns the [`WakerForwarder`] to be used for asynchronous system calls.
-    fn waker(&mut self) -> &mut WakerForwarder {
-        &mut self.waker
     }
 }
 
@@ -444,18 +424,12 @@ impl_contract_system_api!(ContractSystemApi, wasmer::RuntimeError);
 /// implementation.
 pub struct ServiceSystemApi {
     runtime: mpsc::UnboundedSender<ServiceRequest>,
-    waker: WakerForwarder,
 }
 
 impl ServiceSystemApi {
     /// Creates a new [`ServiceSystemApi`] instance.
-    pub fn new(runtime: mpsc::UnboundedSender<ServiceRequest>, waker: WakerForwarder) -> Self {
-        ServiceSystemApi { runtime, waker }
-    }
-
-    /// Returns the [`WakerForwarder`] to be used for asynchronous system calls.
-    fn waker(&mut self) -> &mut WakerForwarder {
-        &mut self.waker
+    pub fn new(runtime: mpsc::UnboundedSender<ServiceRequest>) -> Self {
+        ServiceSystemApi { runtime }
     }
 }
 
@@ -465,7 +439,6 @@ impl_service_system_api!(ServiceSystemApi, wasmer::RuntimeError);
 /// implementation.
 pub struct ContractViewSystemApi {
     runtime: mpsc::UnboundedSender<ContractRequest>,
-    waker: WakerForwarder,
     queued_future_factory: QueuedHostFutureFactory<'static>,
 }
 
@@ -473,19 +446,12 @@ impl ContractViewSystemApi {
     /// Creates a new [`ContractViewSystemApi`] instance.
     pub fn new(
         runtime: mpsc::UnboundedSender<ContractRequest>,
-        waker: WakerForwarder,
         queued_future_factory: QueuedHostFutureFactory<'static>,
     ) -> Self {
         ContractViewSystemApi {
             runtime,
-            waker,
             queued_future_factory,
         }
-    }
-
-    /// Returns the [`WakerForwarder`] to be used for asynchronous system calls.
-    fn waker(&mut self) -> &mut WakerForwarder {
-        &mut self.waker
     }
 }
 
@@ -493,18 +459,12 @@ impl ContractViewSystemApi {
 /// implementation.
 pub struct ServiceViewSystemApi {
     runtime: mpsc::UnboundedSender<ServiceRequest>,
-    waker: WakerForwarder,
 }
 
 impl ServiceViewSystemApi {
     /// Creates a new [`ServiceViewSystemApi`] instance.
-    pub fn new(runtime: mpsc::UnboundedSender<ServiceRequest>, waker: WakerForwarder) -> Self {
-        ServiceViewSystemApi { runtime, waker }
-    }
-
-    /// Returns the [`WakerForwarder`] to be used for asynchronous system calls.
-    fn waker(&mut self) -> &mut WakerForwarder {
-        &mut self.waker
+    pub fn new(runtime: mpsc::UnboundedSender<ServiceRequest>) -> Self {
+        ServiceViewSystemApi { runtime }
     }
 }
 
