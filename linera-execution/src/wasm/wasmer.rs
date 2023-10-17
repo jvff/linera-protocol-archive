@@ -243,9 +243,9 @@ impl common::Contract for Contract {
         &self,
         store: &mut Store,
         context: contract::OperationContext,
-        argument: &[u8],
+        argument: Vec<u8>,
     ) -> Result<contract::Initialize, RuntimeError> {
-        contract::Contract::initialize_new(&self.contract, store, context, argument)
+        contract::Contract::initialize_new(&self.contract, store, context, &argument)
     }
 
     fn initialize_poll(
@@ -260,9 +260,9 @@ impl common::Contract for Contract {
         &self,
         store: &mut Store,
         context: contract::OperationContext,
-        operation: &[u8],
+        operation: Vec<u8>,
     ) -> Result<contract::ExecuteOperation, RuntimeError> {
-        contract::Contract::execute_operation_new(&self.contract, store, context, operation)
+        contract::Contract::execute_operation_new(&self.contract, store, context, &operation)
     }
 
     fn execute_operation_poll(
@@ -277,9 +277,9 @@ impl common::Contract for Contract {
         &self,
         store: &mut Store,
         context: contract::MessageContext,
-        message: &[u8],
+        message: Vec<u8>,
     ) -> Result<contract::ExecuteMessage, RuntimeError> {
-        contract::Contract::execute_message_new(&self.contract, store, context, message)
+        contract::Contract::execute_message_new(&self.contract, store, context, &message)
     }
 
     fn execute_message_poll(
@@ -294,15 +294,15 @@ impl common::Contract for Contract {
         &self,
         store: &mut Store,
         context: contract::CalleeContext,
-        argument: &[u8],
-        forwarded_sessions: &[contract::SessionId],
+        argument: Vec<u8>,
+        forwarded_sessions: Vec<contract::SessionId>,
     ) -> Result<contract::HandleApplicationCall, RuntimeError> {
         contract::Contract::handle_application_call_new(
             &self.contract,
             store,
             context,
-            argument,
-            forwarded_sessions,
+            &argument,
+            &forwarded_sessions,
         )
     }
 
@@ -318,17 +318,17 @@ impl common::Contract for Contract {
         &self,
         store: &mut Store,
         context: contract::CalleeContext,
-        session: &[u8],
-        argument: &[u8],
-        forwarded_sessions: &[contract::SessionId],
+        session: Vec<u8>,
+        argument: Vec<u8>,
+        forwarded_sessions: Vec<contract::SessionId>,
     ) -> Result<contract::HandleSessionCall, RuntimeError> {
         contract::Contract::handle_session_call_new(
             &self.contract,
             store,
             context,
-            session,
-            argument,
-            forwarded_sessions,
+            &session,
+            &argument,
+            &forwarded_sessions,
         )
     }
 
@@ -350,9 +350,9 @@ impl common::Service for Service {
         &self,
         store: &mut Store,
         context: service::QueryContext,
-        argument: &[u8],
+        argument: Vec<u8>,
     ) -> Result<service::HandleQuery, RuntimeError> {
-        service::Service::handle_query_new(&self.service, store, context, argument)
+        service::Service::handle_query_new(&self.service, store, context, &argument)
     }
 
     fn handle_query_poll(
