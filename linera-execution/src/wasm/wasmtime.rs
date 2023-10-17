@@ -225,7 +225,7 @@ impl ContractState {
     /// Uses `runtime` to export the system API.
     pub fn new(
         runtime: mpsc::UnboundedSender<ContractRequest>,
-        queued_future_factory: QueuedHostFutureFactory<'static>,
+        queued_future_factory: QueuedHostFutureFactory,
     ) -> Self {
         Self {
             data: ContractData::default(),
@@ -455,14 +455,14 @@ impl common::Service for Service {
 /// implementation.
 pub struct ContractSystemApi {
     runtime: mpsc::UnboundedSender<ContractRequest>,
-    queued_future_factory: QueuedHostFutureFactory<'static>,
+    queued_future_factory: QueuedHostFutureFactory,
 }
 
 impl ContractSystemApi {
     /// Creates a new [`ContractSystemApi`] instance exporting the API from `runtime`.
     pub fn new(
         runtime: mpsc::UnboundedSender<ContractRequest>,
-        queued_future_factory: QueuedHostFutureFactory<'static>,
+        queued_future_factory: QueuedHostFutureFactory,
     ) -> Self {
         ContractSystemApi {
             runtime,
