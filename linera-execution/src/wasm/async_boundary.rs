@@ -12,6 +12,7 @@ use super::{
 use futures::{channel::oneshot, ready, stream::StreamExt, FutureExt};
 use std::{
     future::Future,
+    marker::PhantomData,
     mem,
     pin::Pin,
     task::{Context, Poll},
@@ -27,9 +28,9 @@ where
     Application: ApplicationRuntimeContext,
     Future: GuestFutureInterface<Application>,
 {
-    future: Future,
     context: WasmRuntimeContext<Application>,
     poll_requests: std::sync::mpsc::Receiver<oneshot::Sender<PollResponse<Future::Output>>>,
+    _future_type: PhantomData<Future>,
 }
 
 impl<Future, Application> GuestFutureActor<Future, Application>
@@ -43,41 +44,49 @@ where
     /// Returns the [`PollSender`] which can be used in an asynchronous context to `await` the
     /// result.
     pub fn spawn(
-        future: Future,
+        parameters: Future::Parameters,
         context: WasmRuntimeContext<Application>,
     ) -> PollSender<Future::Output> {
-        let (actor, poll_sender) = Self::new(future, context);
+        let (actor, poll_sender) = Self::new(context);
 
-        thread::spawn(|| actor.run());
+        thread::spawn(|| actor.run(parameters));
 
         poll_sender
     }
 
     /// Creates a new [`GuestFutureActor`] to run `future` using a Wasm runtime `context`.
-    pub fn new(
-        future: Future,
-        mut context: WasmRuntimeContext<Application>,
-    ) -> (Self, PollSender<Future::Output>) {
+    pub fn new(mut context: WasmRuntimeContext<Application>) -> (Self, PollSender<Future::Output>) {
         let (dummy_future_queue, _) = HostFutureQueue::new();
         let host_future_queue = mem::replace(&mut context.future_queue, dummy_future_queue);
 
         let (poll_sender, poll_requests) = PollSender::new(host_future_queue);
 
         let actor = GuestFutureActor {
-            future,
             context,
             poll_requests,
+            _future_type: PhantomData,
         };
 
         (actor, poll_sender)
     }
 
-    /// Executes the future, polling it as requested by the [`PollSender`] until it completes.
-    pub fn run(mut self) {
+    /// Creates and executes the `Future` instance, polling it as requested by the [`PollSender`]
+    /// until it completes.
+    pub fn run(mut self, parameters: Future::Parameters) {
+        match Future::new(
+            parameters,
+            &self.context.application,
+            &mut self.context.store,
+        ) {
+            Ok(future) => self.run_poll_loop(future),
+            Err(error) => self.notify_creation_error(error),
+        }
+    }
+
+    /// Executes the `future`, polling it as requested by the [`PollSender`] until it completes.
+    fn run_poll_loop(mut self, future: Future) {
         while let Ok(response_sender) = self.poll_requests.recv() {
-            let response = self
-                .future
-                .poll(&self.context.application, &mut self.context.store);
+            let response = future.poll(&self.context.application, &mut self.context.store);
             let finished = response.is_ready();
 
             let _ = response_sender.send(PollResponse(response));
@@ -85,6 +94,14 @@ where
             if finished {
                 break;
             }
+        }
+    }
+
+    /// Waits for the first poll request sent by the [`PollSender`], and immediately responds with
+    /// the error obtained when attempting to create the `Future` instance.
+    fn notify_creation_error(self, error: ExecutionError) {
+        if let Ok(response_sender) = self.poll_requests.recv() {
+            let _ = response_sender.send(PollResponse(Poll::Ready(Err(error))));
         }
     }
 }
@@ -210,7 +227,7 @@ where
     Application: ApplicationRuntimeContext,
 {
     /// The parameters necessary to initialize the future.
-    type Parameters;
+    type Parameters: Send;
 
     /// The output of the guest future.
     type Output;
