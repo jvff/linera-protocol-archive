@@ -92,6 +92,18 @@ impl ApplicationRuntimeContext for Contract {
     type Error = Trap;
     type Extra = ();
 
+    fn initialize(context: &mut WasmRuntimeContext<Self>) {
+        let runtime = &context.store.data().system_api.runtime;
+        let fuel = runtime
+            .sync_request(|response| ContractRequest::RemainingFuel { response })
+            .unwrap_or(0);
+
+        context
+            .store
+            .add_fuel(fuel)
+            .expect("Fuel consumption wasn't properly enabled");
+    }
+
     fn finalize(context: &mut WasmRuntimeContext<Self>) {
         let runtime = &context.store.data().system_api.runtime;
         let initial_fuel = runtime
@@ -312,18 +324,6 @@ impl common::Contract for Contract {
     type PollExecutionResult = contract::PollExecutionResult;
     type PollApplicationCallResult = contract::PollApplicationCallResult;
     type PollSessionCallResult = contract::PollSessionCallResult;
-
-    fn configure_fuel(context: &mut WasmRuntimeContext<Self>) {
-        let runtime = &context.store.data().system_api.runtime;
-        let fuel = runtime
-            .sync_request(|response| ContractRequest::RemainingFuel { response })
-            .unwrap_or(0);
-
-        context
-            .store
-            .add_fuel(fuel)
-            .expect("Fuel consumption wasn't properly enabled");
-    }
 
     fn initialize_new(
         &self,
