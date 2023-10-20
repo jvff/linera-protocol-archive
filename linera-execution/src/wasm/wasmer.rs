@@ -84,7 +84,7 @@ impl ApplicationRuntimeContext for Contract {
     type Error = RuntimeError;
     type Extra = WasmerContractExtra;
 
-    fn initialize_context(context: &mut WasmRuntimeContext<Self>) {
+    fn configure_initial_fuel(context: &mut WasmRuntimeContext<Self>) {
         let remaining_points = context
             .extra
             .runtime
@@ -98,7 +98,7 @@ impl ApplicationRuntimeContext for Contract {
         );
     }
 
-    fn finalize_context(context: &mut WasmRuntimeContext<Self>) {
+    fn persist_remaining_fuel(context: &mut WasmRuntimeContext<Self>) {
         let remaining_fuel =
             match metering::get_remaining_points(&mut context.store, &context.extra.instance) {
                 MeteringPoints::Exhausted => 0,
@@ -124,10 +124,6 @@ impl ApplicationRuntimeContext for Service {
     type Store = Store;
     type Error = RuntimeError;
     type Extra = ();
-
-    fn initialize_context(_context: &mut WasmRuntimeContext<Self>) {}
-
-    fn finalize_context(_context: &mut WasmRuntimeContext<Self>) {}
 }
 
 impl WasmApplication {
