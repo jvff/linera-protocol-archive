@@ -92,7 +92,7 @@ impl ApplicationRuntimeContext for Contract {
     type Error = Trap;
     type Extra = ();
 
-    fn initialize_context(context: &mut WasmRuntimeContext<Self>) {
+    fn configure_initial_fuel(context: &mut WasmRuntimeContext<Self>) {
         let runtime = &context.store.data().system_api.runtime;
         let fuel = runtime
             .sync_request(|response| ContractRequest::RemainingFuel { response })
@@ -104,7 +104,7 @@ impl ApplicationRuntimeContext for Contract {
             .expect("Fuel consumption wasn't properly enabled");
     }
 
-    fn finalize_context(context: &mut WasmRuntimeContext<Self>) {
+    fn persist_remaining_fuel(context: &mut WasmRuntimeContext<Self>) {
         let runtime = &context.store.data().system_api.runtime;
         let initial_fuel = runtime
             .sync_request(|response| ContractRequest::RemainingFuel { response })
@@ -129,9 +129,9 @@ impl ApplicationRuntimeContext for Service {
     type Error = Trap;
     type Extra = ();
 
-    fn initialize_context(_context: &mut WasmRuntimeContext<Self>) {}
+    fn configure_initial_fuel(_context: &mut WasmRuntimeContext<Self>) {}
 
-    fn finalize_context(_context: &mut WasmRuntimeContext<Self>) {}
+    fn persist_remaining_fuel(_context: &mut WasmRuntimeContext<Self>) {}
 }
 
 impl WasmApplication {
