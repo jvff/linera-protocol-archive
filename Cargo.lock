@@ -2737,6 +2737,7 @@ dependencies = [
  "chrono",
  "custom_debug_derive",
  "ed25519-dalek",
+ "futures",
  "generic-array",
  "hex",
  "linera-base",
@@ -2748,6 +2749,7 @@ dependencies = [
  "sha3",
  "test-strategy",
  "thiserror",
+ "tracing",
 ]
 
 [[package]]
@@ -2968,6 +2970,7 @@ version = "0.4.1"
 dependencies = [
  "anyhow",
  "async-trait",
+ "axum",
  "bincode",
  "bytes",
  "dashmap",
@@ -2997,6 +3000,7 @@ dependencies = [
  "tonic",
  "tonic-build",
  "tonic-health",
+ "tower-http",
  "tracing",
 ]
 
@@ -5551,6 +5555,7 @@ dependencies = [
  "signal-hook-registry",
  "socket2 0.5.3",
  "tokio-macros",
+ "tracing",
  "windows-sys 0.48.0",
 ]
 
@@ -5799,6 +5804,7 @@ dependencies = [
  "pin-project-lite",
  "tower-layer",
  "tower-service",
+ "tracing",
 ]
 
 [[package]]

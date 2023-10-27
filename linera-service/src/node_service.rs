@@ -17,11 +17,12 @@ use axum::{
     response::IntoResponse,
     Extension, Router, Server,
 };
-use futures::lock::{Mutex, MutexGuard, OwnedMutexGuard};
+use futures::FutureExt;
 use linera_base::{
     crypto::{CryptoError, CryptoHash, PublicKey},
     data_types::{Amount, RoundNumber},
     identifiers::{ApplicationId, BytecodeId, ChainId, Owner},
+    traced_mutex::{TracedMutex, TracedMutexGuard},
     BcsHexParseError,
 };
 use linera_chain::{data_types::HashedValue, ChainStateView};
@@ -42,7 +43,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{collections::BTreeMap, iter, net::SocketAddr, num::NonZeroU16, sync::Arc};
 use thiserror::Error as ThisError;
-use tower_http::cors::CorsLayer;
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::{debug, error, info};
 
 #[derive(SimpleObject, Serialize, Deserialize, Clone)]
@@ -51,8 +52,8 @@ pub struct Chains {
     pub default: Option<ChainId>,
 }
 
-pub type ClientMapInner<P, S> = BTreeMap<ChainId, Arc<Mutex<ChainClient<P, S>>>>;
-pub(crate) struct ChainClients<P, S>(Arc<Mutex<ClientMapInner<P, S>>>);
+pub type ClientMapInner<P, S> = BTreeMap<ChainId, TracedMutex<ChainClient<P, S>>>;
+pub(crate) struct ChainClients<P, S>(TracedMutex<ClientMapInner<P, S>>);
 
 impl<P, S> Clone for ChainClients<P, S> {
     fn clone(&self) -> Self {
@@ -62,33 +63,46 @@ impl<P, S> Clone for ChainClients<P, S> {
 
 impl<P, S> Default for ChainClients<P, S> {
     fn default() -> Self {
-        Self(Arc::new(Mutex::new(BTreeMap::new())))
+        Self(TracedMutex::new("ChainClients", BTreeMap::new()))
     }
 }
 
 impl<P, S> ChainClients<P, S> {
-    async fn client(&self, chain_id: &ChainId) -> Option<Arc<Mutex<ChainClient<P, S>>>> {
-        Some(self.0.lock().await.get(chain_id)?.clone())
+    async fn client(&self, chain_id: &ChainId) -> Option<TracedMutex<ChainClient<P, S>>> {
+        tracing::trace!("ChainClients::client({chain_id}) Start");
+        let ret = Some(self.0.lock().await.get(chain_id)?.clone());
+        tracing::trace!("ChainClients::client({chain_id}) End");
+        ret
     }
 
     pub(crate) async fn client_lock(
         &self,
         chain_id: &ChainId,
-    ) -> Option<OwnedMutexGuard<ChainClient<P, S>>> {
-        Some(self.client(chain_id).await?.lock_owned().await)
+    ) -> Option<TracedMutexGuard<ChainClient<P, S>>> {
+        tracing::trace!("ChainClients::client_lock({chain_id}) Start");
+        let ret = Some(self.client(chain_id).await?.lock().await);
+        tracing::trace!("ChainClients::client_lock({chain_id}) End");
+        ret
     }
 
     pub(crate) async fn try_client_lock(
         &self,
         chain_id: &ChainId,
-    ) -> Result<OwnedMutexGuard<ChainClient<P, S>>, Error> {
-        self.client_lock(chain_id)
+    ) -> Result<TracedMutexGuard<ChainClient<P, S>>, Error> {
+        tracing::trace!("ChainClients::try_client_lock({chain_id}) Start");
+        let ret = self
+            .client_lock(chain_id)
             .await
-            .ok_or_else(|| Error::new("Unknown chain ID"))
+            .ok_or_else(|| Error::new("Unknown chain ID"));
+        tracing::trace!("ChainClients::try_client_lock({chain_id}) End");
+        ret
     }
 
-    pub(crate) async fn map_lock(&self) -> MutexGuard<ClientMapInner<P, S>> {
-        self.0.lock().await
+    pub(crate) async fn map_lock(&self) -> TracedMutexGuard<ClientMapInner<P, S>> {
+        tracing::trace!("ChainClients::map_lock() Start");
+        let ret = self.0.lock().await;
+        tracing::trace!("ChainClients::map_lock() End");
+        ret
     }
 }
 
@@ -228,12 +242,18 @@ where
     ViewError: From<S::ContextError>,
 {
     /// Processes the inbox and returns the lists of certificate hashes that were created, if any.
+    #[tracing::instrument(skip_all, fields(chain_id))]
     async fn process_inbox(&self, chain_id: ChainId) -> Result<Vec<CryptoHash>, Error> {
+        tracing::trace!("Waiting to lock client");
         let mut client = self.clients.try_client_lock(&chain_id).await?;
+        tracing::trace!("Synchronizing from validators");
         client.synchronize_from_validators().await?;
+        tracing::trace!("Processing inboxes");
         let certificates = client.process_inbox().await?;
+        tracing::trace!(?certificates, "Dropping client");
         drop(client);
         let hashes = certificates.into_iter().map(|cert| cert.hash()).collect();
+        tracing::trace!("Done");
         Ok(hashes)
     }
 
@@ -727,6 +747,13 @@ where
             )
             .route("/ready", axum::routing::get(|| async { "ready!" }))
             .route_service("/ws", GraphQLSubscription::new(self.schema()))
+            .layer(TraceLayer::new_for_grpc().make_span_with(
+                move |request: &axum::http::Request<axum::body::Body>| {
+                    let span = tracing::error_span!("NodeService request", port, ?request);
+                    span.in_scope(|| tracing::trace!("Got request"));
+                    span
+                },
+            ))
             .layer(Extension(self.clone()))
             // TODO(#551): Provide application authentication.
             .layer(CorsLayer::permissive());
@@ -748,6 +775,7 @@ where
         request: &Request,
         chain_id: ChainId,
     ) -> Result<async_graphql::Response, NodeServiceError> {
+        tracing::trace!("user_application_query({application_id}, {request:?}, {chain_id})");
         let bytes = serde_json::to_vec(&request)?;
         let query = Query::User {
             application_id,
@@ -771,6 +799,7 @@ where
         request: &Request,
         chain_id: ChainId,
     ) -> Result<async_graphql::Response, NodeServiceError> {
+        tracing::trace!("user_application_mutation({application_id}, {request:?}, {chain_id})");
         debug!("Request: {:?}", &request);
         let graphql_response = self
             .user_application_query(application_id, request, chain_id)
@@ -805,10 +834,17 @@ where
 
     /// Executes a GraphQL query and generates a response for our `Schema`.
     async fn index_handler(service: Extension<Self>, request: GraphQLRequest) -> GraphQLResponse {
+        use tracing::Instrument;
+
+        let request = request.into_inner();
+        let dbg_query = request.query.clone();
+
         service
             .0
             .schema()
-            .execute(request.into_inner())
+            .execute(request)
+            .inspect(|response| tracing::trace!(?response))
+            .instrument(tracing::error_span!("index_handler", dbg_query))
             .await
             .into()
     }
@@ -821,30 +857,39 @@ where
         service: Extension<Self>,
         request: GraphQLRequest,
     ) -> Result<GraphQLResponse, NodeServiceError> {
+        use tracing::Instrument;
+
         let mut request = request.into_inner();
+        let dbg_query = request.query.clone();
 
-        let parsed_query = request.parsed_query()?;
-        let operation_type = operation_type(parsed_query)?;
+        async move {
+            tracing::trace!("Handling application GraphQL query");
+            let parsed_query = request.parsed_query()?;
+            let operation_type = operation_type(parsed_query)?;
 
-        let chain_id: ChainId = chain_id.parse().map_err(NodeServiceError::InvalidChainId)?;
-        let application_id: UserApplicationId = application_id.parse()?;
+            let chain_id: ChainId = chain_id.parse().map_err(NodeServiceError::InvalidChainId)?;
+            let application_id: UserApplicationId = application_id.parse()?;
 
-        let response = match operation_type {
-            OperationType::Query => {
-                service
-                    .0
-                    .user_application_query(application_id, &request, chain_id)
-                    .await?
-            }
-            OperationType::Mutation => {
-                service
-                    .0
-                    .user_application_mutation(application_id, &request, chain_id)
-                    .await?
-            }
-            OperationType::Subscription => return Err(NodeServiceError::UnsupportedQueryType),
-        };
+            let response = match operation_type {
+                OperationType::Query => {
+                    service
+                        .0
+                        .user_application_query(application_id, &request, chain_id)
+                        .await?
+                }
+                OperationType::Mutation => {
+                    service
+                        .0
+                        .user_application_mutation(application_id, &request, chain_id)
+                        .await?
+                }
+                OperationType::Subscription => return Err(NodeServiceError::UnsupportedQueryType),
+            };
 
-        Ok(response.into())
+            tracing::trace!(?response);
+            Ok(response.into())
+        }
+        .instrument(tracing::error_span!("application_handler", dbg_query))
+        .await
     }
 }

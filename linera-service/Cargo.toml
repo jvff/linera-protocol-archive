@@ -36,7 +36,7 @@ dirs = { workspace = true }
 file-lock = "2.1.9"
 futures = { workspace = true }
 hex = { workspace = true }
-linera-base = { workspace = true }
+linera-base = { workspace = true, features = ["traced_mutex"] }
 linera-chain = { workspace = true }
 linera-core = { workspace = true }
 linera-execution = { workspace = true }

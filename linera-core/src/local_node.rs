@@ -8,10 +8,11 @@ use crate::{
     notifier::Notifier,
     worker::{Notification, ValidatorWorker, WorkerError, WorkerState},
 };
-use futures::{future, lock::Mutex};
+use futures::future;
 use linera_base::{
     data_types::{ArithmeticError, BlockHeight},
     identifiers::{ChainId, MessageId},
+    traced_mutex::TracedMutex,
 };
 use linera_chain::{
     data_types::{Block, BlockProposal, Certificate, ExecutedBlock, HashedValue, LiteCertificate},
@@ -24,7 +25,7 @@ use linera_execution::{
 use linera_storage::Store;
 use linera_views::views::ViewError;
 use rand::prelude::SliceRandom;
-use std::{borrow::Cow, sync::Arc};
+use std::borrow::Cow;
 use thiserror::Error;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
@@ -37,7 +38,7 @@ pub struct LocalNode<S> {
 /// A client to a local node.
 #[derive(Clone)]
 pub struct LocalNodeClient<S> {
-    node: Arc<Mutex<LocalNode<S>>>,
+    node: TracedMutex<LocalNode<S>>,
 }
 
 /// Error type for the operations on a local node.
@@ -125,7 +126,9 @@ where
         &mut self,
         query: ChainInfoQuery,
     ) -> Result<ChainInfoResponse, LocalNodeError> {
+        tracing::trace!("Locking local node client");
         let node = self.node.lock().await;
+        tracing::trace!("Locked");
         // In local nodes, we can trust fully_handle_certificate to carry all actions eventually.
         let (response, _actions) = node.state.handle_chain_info_query(query).await?;
         Ok(response)
@@ -145,7 +148,7 @@ impl<S> LocalNodeClient<S> {
     pub fn new(state: WorkerState<S>, notifier: Notifier<Notification>) -> Self {
         let node = LocalNode { state, notifier };
         Self {
-            node: Arc::new(Mutex::new(node)),
+            node: TracedMutex::new("LocalNode", node),
         }
     }
 }
@@ -174,6 +177,7 @@ where
         Ok((executed_block, info))
     }
 
+    #[tracing::instrument(skip_all, fields(%name, %chain_id, ?certificates))]
     async fn try_process_certificates<A>(
         &mut self,
         name: ValidatorName,
@@ -192,11 +196,13 @@ where
                 tracing::warn!("Failed to process network certificate {}", hash);
                 return info;
             }
+            tracing::trace!(?certificate, "Handling certificate");
             let mut result = self.handle_certificate(certificate.clone(), vec![]).await;
             if let Err(LocalNodeError::WorkerError(WorkerError::ApplicationBytecodesNotFound(
                 locations,
             ))) = &result
             {
+                tracing::debug!("Application bytecodes not found");
                 let chain_id = certificate.value().chain_id();
                 let mut blobs = Vec::new();
                 let maybe_blobs = future::join_all(locations.iter().map(|location| {
@@ -215,6 +221,7 @@ where
                         return info;
                     }
                 }
+                tracing::trace!(?certificate, "Re-handling certificate");
                 result = self.handle_certificate(certificate.clone(), blobs).await;
             }
             match result {
@@ -439,6 +446,7 @@ where
         Ok(info)
     }
 
+    #[tracing::instrument(skip_all, fields(%name, %chain_id))]
     pub async fn try_synchronize_chain_state_from<A>(
         &mut self,
         name: ValidatorName,

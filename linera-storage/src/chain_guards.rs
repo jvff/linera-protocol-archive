@@ -49,12 +49,17 @@ impl ChainGuards {
     /// reference can only be upgraded if there's another attempt waiting to create a guard for
     /// the same chain.
     pub async fn guard(&self, chain_id: ChainId) -> ChainGuard {
+        struct NoClone;
+        let _no_clone = NoClone;
+        tracing::trace!(%chain_id, "Guarding");
         let guard = self.get_or_create_lock(chain_id);
-        ChainGuard {
+        let ret = ChainGuard {
             chain_id,
             guards: self.guards.clone(),
             guard: Some(guard.lock_owned().await),
-        }
+        };
+        tracing::trace!(%chain_id, "Locked");
+        ret
     }
 
     /// Obtains the lock used for guarding a chain.
@@ -131,6 +136,7 @@ impl Drop for ChainGuard {
     /// 3. The mutex is only locked in [`ChainGuards::guard`], which does not hold any locks to the
     ///    map.
     fn drop(&mut self) {
+        tracing::trace!(chain_id = %self.chain_id, "Unlocking");
         self.guards.remove_if(&self.chain_id, |_, _| {
             let mutex = Arc::downgrade(OwnedMutexGuard::mutex(
                 &self
@@ -140,6 +146,7 @@ impl Drop for ChainGuard {
             ));
             mutex.upgrade().is_none()
         });
+        tracing::trace!(chain_id = %self.chain_id, "Unlocked");
     }
 }
 

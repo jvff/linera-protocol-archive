@@ -486,6 +486,7 @@ where
     }
 
     /// Processes a confirmed block (aka a commit).
+    #[tracing::instrument(skip(self, notify_when_messages_are_delivered))]
     async fn process_confirmed_block(
         &mut self,
         certificate: Certificate,
@@ -501,8 +502,10 @@ where
             message_counts,
             state_hash,
         } = executed_block;
+        tracing::trace!(chain_id = %block.chain_id, "Loading active chain");
         let mut chain = self.storage.load_active_chain(block.chain_id).await?;
         // Check that the chain is active and ready for this confirmation.
+        tracing::trace!("Check that the chain is active and ready for this confirmation.");
         let tip = chain.tip_state.get();
         if tip.next_block_height < block.height {
             return Err(WorkerError::MissingEarlierBlocks {
@@ -511,8 +514,11 @@ where
         }
         if tip.next_block_height > block.height {
             // Block was already confirmed.
+            tracing::trace!("Block was already confirmed.");
             let info = ChainInfoResponse::new(&chain, self.key_pair());
+            tracing::trace!("Creating network actions");
             let actions = self.create_network_actions(&mut chain).await?;
+            tracing::trace!("Registering delivery notifier");
             self.register_delivery_notifier(
                 block.chain_id,
                 block.height,
@@ -520,9 +526,11 @@ where
                 notify_when_messages_are_delivered,
             )
             .await;
+            tracing::trace!("Returning");
             return Ok((info, actions));
         }
         // Verify the certificate.
+        tracing::trace!("Verify the certificate.");
         let (epoch, committee) = chain
             .execution_state
             .system
@@ -537,13 +545,16 @@ where
         );
         certificate.check(committee)?;
         // This should always be true for valid certificates.
+        tracing::trace!("This should always be true for valid certificates.");
         ensure!(
             tip.block_hash == block.previous_block_hash,
             WorkerError::InvalidBlockChaining
         );
         // Verify that all required bytecode blobs are available, and no unrelated ones provided.
+        tracing::trace!("Verify that all required bytecode blobs are available, and no unrelated ones provided.");
         self.check_no_missing_bytecode(block, blobs).await?;
         // Persist certificate and blobs.
+        tracing::trace!("Persist certificate and blobs.");
         for value in blobs {
             self.cache_recent_value(Cow::Borrowed(value)).await;
         }
@@ -554,8 +565,10 @@ where
         result_blob?;
         result_certificate?;
         // Execute the block and update inboxes.
+        tracing::trace!("Execute the block and update inboxes.");
         chain.remove_events_from_inboxes(block).await?;
         // We should always agree on the messages and state hash.
+        tracing::trace!("We should always agree on the messages and state hash.");
         let now = self.storage.current_time();
         let verified_outcome = chain.execute_block(block, now).await?;
         ensure!(
@@ -571,6 +584,7 @@ where
             WorkerError::IncorrectStateHash
         );
         // Advance to next block height.
+        tracing::trace!("Advance to next block height.");
         let tip = chain.tip_state.get_mut();
         tip.block_hash = Some(certificate.hash());
         tip.next_block_height.try_add_assign_one()?;
@@ -585,8 +599,10 @@ where
             },
         });
         // Persist chain.
+        tracing::trace!("Persist chain.");
         chain.save().await?;
         // Notify the caller when cross-chain messages are delivered.
+        tracing::trace!("Notify the caller when cross-chain messages are delivered.");
         self.register_delivery_notifier(
             block.chain_id,
             block.height,
@@ -651,6 +667,7 @@ where
     }
 
     /// Processes a validated block issued from a multi-owner chain.
+    #[tracing::instrument(skip(self))]
     async fn process_validated_block(
         &mut self,
         certificate: Certificate,
@@ -710,6 +727,7 @@ where
     }
 
     /// Processes a leader timeout issued from a multi-owner chain.
+    #[tracing::instrument(skip(self))]
     async fn process_leader_timeout(
         &mut self,
         certificate: Certificate,
@@ -759,22 +777,29 @@ where
         Ok((info, actions))
     }
 
+    #[tracing::instrument(skip_all, fields(%recipient, ?origin))]
     async fn process_cross_chain_update(
         &mut self,
         origin: &Origin,
         recipient: ChainId,
         certificates: Vec<Certificate>,
     ) -> Result<Option<BlockHeight>, WorkerError> {
+        tracing::trace!("Loading chain");
         let mut chain = self.storage.load_chain(recipient).await?;
+        tracing::trace!("Loaded");
         // Only process certificates with relevant heights and epochs.
+        tracing::trace!("next_height_to_receive");
         let next_height_to_receive = chain.next_block_height_to_receive(origin).await?;
+        tracing::trace!("last_anticipated_block_height");
         let last_anticipated_block_height = chain.last_anticipated_block_height(origin).await?;
+        tracing::trace!("helper");
         let helper = CrossChainUpdateHelper {
             nickname: &self.nickname,
             allow_messages_from_deprecated_epochs: self.allow_messages_from_deprecated_epochs,
             current_epoch: *chain.execution_state.system.epoch.get(),
             committees: chain.execution_state.system.committees.get(),
         };
+        tracing::trace!("select_certificates");
         let certificates = helper.select_certificates(
             origin,
             recipient,
@@ -784,10 +809,13 @@ where
         )?;
         let Some(last_updated_height) = certificates.last().map(|cert| cert.value().height())
         else {
+            tracing::trace!("No certificates");
             return Ok(None);
         };
         // Process the received messages in certificates.
+        tracing::trace!("Write certificates");
         self.storage.write_certificates(&certificates).await?;
+        tracing::trace!("Wrote");
         for certificate in certificates {
             let hash = certificate.hash();
             match certificate.value.into_inner() {
@@ -822,7 +850,9 @@ where
             return Ok(None);
         }
         // Save the chain.
+        tracing::trace!("Saving the chain");
         chain.save().await?;
+        tracing::trace!("Done");
         Ok(Some(last_updated_height))
     }
 
@@ -940,7 +970,6 @@ where
     ViewError: From<StorageClient::ContextError>,
 {
     #[instrument(skip_all, fields(
-        nick = self.nickname,
         chain_id = format!("{:.8}", proposal.content.block.chain_id),
         height = %proposal.content.block.height,
     ))]
@@ -1043,7 +1072,6 @@ where
 
     /// Processes a certificate.
     #[instrument(skip_all, fields(
-        nick = self.nickname,
         chain_id = format!("{:.8}", certificate.value().chain_id()),
         height = %certificate.value().height(),
     ))]
@@ -1053,6 +1081,7 @@ where
         blobs: Vec<HashedValue>,
         notify_when_messages_are_delivered: Option<oneshot::Sender<()>>,
     ) -> Result<(ChainInfoResponse, NetworkActions), WorkerError> {
+        error!("{} <-- {:?}", self.nickname, certificate);
         trace!("{} <-- {:?}", self.nickname, certificate);
         ensure!(
             certificate.value().is_confirmed() || blobs.is_empty(),
@@ -1079,11 +1108,11 @@ where
                 self.process_leader_timeout(certificate).await?
             }
         };
+        error!("Finished");
         Ok((info, actions))
     }
 
     #[instrument(skip_all, fields(
-        nick = self.nickname,
         chain_id = format!("{:.8}", query.chain_id)
     ))]
     async fn handle_chain_info_query(
@@ -1164,7 +1193,6 @@ where
     }
 
     #[instrument(skip_all, fields(
-        nick = self.nickname,
         chain_id = format!("{:.8}", request.target_chain_id())
     ))]
     async fn handle_cross_chain_request(
@@ -1187,14 +1215,17 @@ where
                         .filter(|cert| heights.binary_search(&cert.value().height()).is_ok())
                         .cloned()
                         .collect();
+                    tracing::trace!("Processing cross-chain update");
                     if let Some(height) = self
                         .process_cross_chain_update(&origin, recipient, app_certificates)
                         .await?
                     {
                         height_by_origin.push((origin, height));
                     }
+                    tracing::trace!("Done");
                 }
                 if height_by_origin.is_empty() {
+                    tracing::trace!("height_by_origin is_empty");
                     return Ok(NetworkActions::default());
                 }
                 let mut notifications = Vec::new();
@@ -1211,6 +1242,7 @@ where
                     recipient,
                     latest_heights,
                 }];
+                tracing::trace!(?cross_chain_requests, ?notifications, "Finished");
                 Ok(NetworkActions {
                     cross_chain_requests,
                     notifications,
@@ -1221,16 +1253,21 @@ where
                 recipient,
                 latest_heights,
             } => {
+                tracing::trace!("Loading chain");
                 let mut chain = self.storage.load_chain(sender).await?;
+                tracing::trace!("Loaded chain");
                 let mut chain_state_changed = false;
                 for (medium, height) in latest_heights {
                     let target = Target { recipient, medium };
+                    tracing::trace!("Marking message as received");
                     if !chain.mark_messages_as_received(target, height).await? {
+                        tracing::trace!("Stop");
                         continue;
                     }
                     chain_state_changed = true;
                     if chain.all_messages_delivered_up_to(height) {
                         // Handle delivery notifiers for this chain, if any.
+                        tracing::trace!("Delivery notifiers");
                         if let hash_map::Entry::Occupied(mut map) =
                             self.delivery_notifiers.lock().await.entry(sender)
                         {
@@ -1252,10 +1289,13 @@ where
                         }
                     }
                 }
+                tracing::trace!("Almost");
                 if chain_state_changed {
                     // Save the chain state.
+                    tracing::trace!("Saving chain");
                     chain.save().await?;
                 }
+                tracing::trace!("Done");
                 Ok(NetworkActions::default())
             }
         }

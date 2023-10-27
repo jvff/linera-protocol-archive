@@ -3,11 +3,12 @@
 
 use crate::{config::WalletState, node_service::ChainClients};
 use async_trait::async_trait;
-use futures::{lock::Mutex, StreamExt};
+use futures::StreamExt;
 use linera_base::{
     crypto::KeyPair,
     data_types::Timestamp,
     identifiers::{ChainId, Destination},
+    traced_mutex::TracedMutex,
 };
 use linera_chain::data_types::OutgoingMessage;
 use linera_core::{
@@ -19,7 +20,7 @@ use linera_core::{
 use linera_execution::{ChainOwnership, Message, SystemMessage};
 use linera_storage::Store;
 use linera_views::views::ViewError;
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 use structopt::StructOpt;
 use tracing::{error, info, warn};
 
@@ -81,7 +82,7 @@ where
         C: ClientContext<P> + Send + 'static,
     {
         let chain_ids = context.wallet_state().chain_ids();
-        let context = Arc::new(Mutex::new(context));
+        let context = TracedMutex::new("ChainListener(*).context", context);
         for chain_id in chain_ids {
             Self::run_with_chain_id(
                 chain_id,
@@ -96,25 +97,30 @@ where
     fn run_with_chain_id<C>(
         chain_id: ChainId,
         clients: ChainClients<P, S>,
-        context: Arc<Mutex<C>>,
+        context: TracedMutex<C>,
         storage: S,
         config: ChainListenerConfig,
     ) where
         C: ClientContext<P> + Send + 'static,
     {
-        let _handle = tokio::task::spawn(async move {
-            if let Err(err) =
-                Self::run_client_stream(chain_id, clients, context, storage, config).await
-            {
-                error!("Stream for chain {} failed: {}", chain_id, err);
+        use tracing::Instrument;
+        let span = tracing::error_span!("Chain listener", %chain_id);
+        let _handle = tokio::task::spawn(
+            async move {
+                if let Err(err) =
+                    Self::run_client_stream(chain_id, clients, context, storage, config).await
+                {
+                    error!("Stream for chain {} failed: {}", chain_id, err);
+                }
             }
-        });
+            .instrument(span),
+        );
     }
 
     async fn run_client_stream<C>(
         chain_id: ChainId,
         clients: ChainClients<P, S>,
-        context: Arc<Mutex<C>>,
+        context: TracedMutex<C>,
         storage: S,
         config: ChainListenerConfig,
     ) -> Result<(), anyhow::Error>
@@ -128,7 +134,7 @@ where
                 .entry(chain_id)
                 .or_insert_with(|| {
                     let client = context_guard.make_chain_client(storage.clone(), chain_id);
-                    Arc::new(Mutex::new(client))
+                    TracedMutex::new(format!("Client({chain_id})"), client)
                 })
                 .clone()
         };
@@ -137,6 +143,7 @@ where
         {
             // Process the inbox: For messages that are already there we won't receive a
             // notification.
+            tracing::debug!("Processing inbox");
             let mut guard = client.lock().await;
             guard.synchronize_from_validators().await?;
             if let Err(e) = guard.process_inbox().await {
@@ -148,6 +155,7 @@ where
             }
         }
         while let Some(notification) = stream.next().await {
+            info!("Received notification: {:?}", notification);
             if !tracker.is_new(&notification) {
                 continue;
             }
@@ -163,12 +171,17 @@ where
                 tokio::time::sleep(Duration::from_millis(config.delay_after_ms)).await;
             }
             if let Reason::NewBlock { hash, .. } = notification.reason {
+                tracing::trace!("Notification is new block");
                 let value = storage.read_value(hash).await?;
+                tracing::trace!("Read value");
                 let Some(executed_block) = value.inner().executed_block() else {
+                    tracing::trace!("Skipping");
                     continue;
                 };
+                tracing::trace!("Not skipping");
                 let timestamp = executed_block.block.timestamp;
                 for outgoing_message in &executed_block.messages {
+                    tracing::trace!(?outgoing_message, "Checking outgoing message");
                     if let OutgoingMessage {
                         destination: Destination::Recipient(new_id),
                         message:
@@ -179,6 +192,7 @@ where
                         ..
                     } = outgoing_message
                     {
+                        tracing::trace!("New chain opened");
                         {
                             let mut context_guard = context.lock().await;
                             let key_pair = context_guard.wallet_state().key_pair_for_pk(public_key);
@@ -192,15 +206,31 @@ where
                             config.clone(),
                         );
                     }
+                    tracing::trace!("Processed outgoing message");
                 }
             }
+            tracing::trace!("Finishing up");
             tracker.insert(notification);
-            let mut context_guard = context.lock().await;
-            context_guard.update_wallet(&mut *client.lock().await).await;
+            let end = Box::pin(async {
+                tracing::trace!("Locking context");
+                let mut context_guard = context.lock().await;
+                tracing::trace!("Locking client");
+                let mut client_guard = client.lock().await;
+                tracing::trace!("Updating wallet");
+                context_guard.update_wallet(&mut *client_guard).await;
+                tracing::trace!("Waiting for next notification");
+            });
+            let poll_tracer = futures::future::poll_fn(|_| {
+                tracing::trace!(thread_id = ?std::thread::current().id(),"Polling end of notification handler loop");
+                std::task::Poll::Pending::<()>
+            });
+
+            futures::future::select(poll_tracer, end).await;
         }
         Ok(())
     }
 
+    #[tracing::instrument(skip(client), fields(client = %client.chain_id()))]
     async fn handle_notification(client: &mut ChainClient<P, S>, notification: Notification) {
         match &notification.reason {
             Reason::NewBlock { .. } => {

@@ -14,7 +14,6 @@ use crate::{
 };
 use futures::{
     future,
-    lock::Mutex,
     stream::{self, FuturesUnordered, StreamExt},
 };
 use linera_base::{
@@ -23,6 +22,7 @@ use linera_base::{
     data_types::{Amount, ArithmeticError, BlockHeight, RoundNumber, Timestamp},
     ensure,
     identifiers::{ApplicationId, BytecodeId, ChainId, MessageId, Owner},
+    traced_mutex::TracedMutex,
 };
 use linera_chain::{
     data_types::{
@@ -348,12 +348,15 @@ where
     }
 
     /// Obtains the current epoch of the given chain as well as its set of trusted committees.
+    #[tracing::instrument(skip(self))]
     async fn epoch_and_committees(
         &mut self,
         chain_id: ChainId,
     ) -> Result<(Option<Epoch>, BTreeMap<Epoch, Committee>), LocalNodeError> {
         let query = ChainInfoQuery::new(chain_id).with_committees();
+        tracing::trace!(?query, "Querying");
         let info = self.node_client.handle_chain_info_query(query).await?.info;
+        tracing::trace!(?info, "Got response");
         let epoch = info.epoch;
         let committees = info
             .requested_committees
@@ -460,7 +463,7 @@ where
     }
 
     async fn local_chain_info(
-        this: Arc<Mutex<Self>>,
+        this: TracedMutex<Self>,
         chain_id: ChainId,
         local_node: &mut LocalNodeClient<S>,
     ) -> Option<ChainInfo> {
@@ -475,7 +478,7 @@ where
     }
 
     async fn local_next_block_height(
-        this: Arc<Mutex<Self>>,
+        this: TracedMutex<Self>,
         chain_id: ChainId,
         local_node: &mut LocalNodeClient<S>,
     ) -> Option<BlockHeight> {
@@ -483,8 +486,9 @@ where
         Some(info.next_block_height)
     }
 
+    #[tracing::instrument(skip_all, fields(?notification))]
     async fn process_notification<A>(
-        this: Arc<Mutex<Self>>,
+        this: TracedMutex<Self>,
         name: ValidatorName,
         node: A,
         mut local_node: LocalNodeClient<S>,
@@ -516,17 +520,20 @@ where
             }
             Reason::NewBlock { height, hash } => {
                 let chain_id = notification.chain_id;
+                tracing::trace!("Checking next block height");
                 if Self::local_next_block_height(this.clone(), chain_id, &mut local_node).await
                     > Some(height)
                 {
                     debug!("Accepting redundant notification for new block");
                     return true;
                 }
+                tracing::trace!("Synchronizing chain state");
                 match local_node
                     .try_synchronize_chain_state_from(name, node, chain_id)
                     .await
                 {
                     Ok(()) => {
+                        tracing::trace!("Checking next block height again");
                         if Self::local_next_block_height(this, chain_id, &mut local_node).await
                             <= Some(height)
                         {
@@ -534,6 +541,7 @@ where
                             return false;
                         }
                         // TODO(#940): Avoid reading the block we just stored.
+                        tracing::trace!("Reading certificate");
                         match local_node
                             .storage_client()
                             .await
@@ -542,7 +550,10 @@ where
                         {
                             Ok(certificate)
                                 if certificate.value().chain_id() == chain_id
-                                    && certificate.value().height() == height => {}
+                                    && certificate.value().height() == height =>
+                            {
+                                tracing::trace!("Valid certificate")
+                            }
                             Ok(_) => {
                                 error!("Certificate hash in notification doesn't match");
                                 return false;
@@ -593,10 +604,13 @@ where
     }
 
     /// Listens to notifications about the current chain from all validators.
-    pub async fn listen(this: Arc<Mutex<Self>>) -> Result<NotificationStream, ChainClientError>
+    #[tracing::instrument(skip_all)]
+    pub async fn listen(this: TracedMutex<Self>) -> Result<NotificationStream, ChainClientError>
     where
         P: Send + 'static,
     {
+        use tracing::Instrument;
+
         let mut streams = HashMap::new();
         if let Err(err) = Self::update_streams(&this, &mut streams).await {
             error!("Failed to update committee: {}", err);
@@ -605,31 +619,66 @@ where
             let this = this.clone();
             async move {
                 let nexts = streams.values_mut().map(StreamExt::next);
-                let notification = future::select_all(nexts).await.0?;
+                let notification = future::select_all(nexts).await.0;
+                tracing::trace!(?notification, "New notification");
+                let notification = notification?;
                 if matches!(notification.reason, Reason::NewBlock { .. }) {
+                    tracing::trace!("Updating streams");
                     if let Err(err) = Self::update_streams(&this, &mut streams).await {
                         error!("Failed to update committee: {}", err);
                     }
                 }
                 Some((notification, streams))
             }
+            .instrument(tracing::error_span!("listen stream"))
         });
         Ok(Box::pin(stream))
     }
 
+    #[tracing::instrument(skip_all)]
     async fn update_streams(
-        this: &Arc<Mutex<Self>>,
+        this: &TracedMutex<Self>,
         streams: &mut HashMap<ValidatorName, Pin<Box<dyn Stream<Item = Notification> + Send>>>,
     ) -> Result<(), ChainClientError>
     where
         P: Send + 'static,
     {
-        let (chain_id, nodes, local_node) = {
-            let mut guard = this.lock().await;
+        struct DropTracer(&'static str);
+        impl Drop for DropTracer {
+            fn drop(&mut self) {
+                tracing::trace!(name = %self.0, "Dropping");
+            }
+        }
+        type Fut<P: ValidatorNodeProvider, S> = std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<
+                            (ChainId, HashMap<ValidatorName, P::Node>, LocalNodeClient<S>),
+                            ChainClientError,
+                        >,
+                    > + Send,
+            >,
+        >;
+        let poll_tracer = futures::future::poll_fn(|_: &mut std::task::Context| {
+            tracing::trace!(thread_id = ?std::thread::current().id(),"Polling start of update_streams");
+            std::task::Poll::Pending
+        });
+        let this2 = this.clone();
+        let fut: Fut<P, S> = Box::pin(async move {
+            let _drop_tracer = DropTracer("Start update streams");
+            tracing::trace!("Locking this");
+            let mut guard = this2.lock().await;
+            tracing::trace!("Locked this");
             let committee = guard.local_committee().await?;
+            tracing::trace!("Making nodes");
             let nodes: HashMap<_, _> = guard.validator_node_provider.make_nodes(&committee)?;
-            (guard.chain_id, nodes, guard.node_client.clone())
-        };
+            Ok((guard.chain_id, nodes, guard.node_client.clone()))
+        });
+        let (chain_id, nodes, local_node) = futures::future::select(poll_tracer, fut)
+            .await
+            .factor_first()
+            .0?;
+        tracing::trace!("Updating streams");
         // Drop notification streams from removed validators.
         streams.retain(|name, _| nodes.contains_key(name));
         // Add notification streams from added validators.
@@ -637,6 +686,7 @@ where
             let hash_map::Entry::Vacant(entry) = streams.entry(name) else {
                 continue;
             };
+            tracing::trace!("Subscribing with {name}");
             let stream = match node.subscribe(vec![chain_id]).await {
                 Err(e) => {
                     info!("Could not connect to validator {name}: {e:?}");
@@ -647,21 +697,28 @@ where
             let this = this.clone();
             let local_node = local_node.clone();
             let stream = stream.filter(move |notification| {
-                Box::pin(Self::process_notification(
-                    this.clone(),
-                    name,
-                    node.clone(),
-                    local_node.clone(),
-                    notification.clone(),
-                ))
+                use tracing::Instrument;
+                Box::pin(
+                    Self::process_notification(
+                        this.clone(),
+                        name,
+                        node.clone(),
+                        local_node.clone(),
+                        notification.clone(),
+                    )
+                    .instrument(tracing::error_span!("Even stream", %name)),
+                )
             });
             entry.insert(Box::pin(stream));
         }
+        tracing::trace!("Streams updated");
         Ok(())
     }
 
     /// Prepares the chain for the next operation.
+    #[tracing::instrument(skip_all)]
     async fn prepare_chain(&mut self) -> Result<ChainInfo, ChainClientError> {
+        tracing::trace!("Begin");
         // Verify that our local storage contains enough history compared to the
         // expected block height. Otherwise, download the missing history from the
         // network.
@@ -691,6 +748,7 @@ where
                 .await?;
         }
         self.update_from_info(&info);
+        tracing::trace!("End");
         Ok(info)
     }
 
@@ -1020,7 +1078,7 @@ where
     /// This is similar to `find_received_certificates` but for only one validator.
     /// We also don't try to synchronize the admin chain.
     pub async fn find_received_certificates_from_validator<A>(
-        this: Arc<Mutex<Self>>,
+        this: TracedMutex<Self>,
         name: ValidatorName,
         node: A,
     ) -> Result<(), ChainClientError>
@@ -1460,10 +1518,16 @@ where
     }
 
     /// Attempts to synchronize with validators and re-compute our balance.
+    #[tracing::instrument(skip_all)]
     pub async fn synchronize_from_validators(&mut self) -> Result<Amount, ChainClientError> {
+        tracing::trace!("Finding received certificates");
         self.find_received_certificates().await?;
+        tracing::trace!("Preparing chain");
         self.prepare_chain().await?;
-        self.local_balance().await
+        tracing::trace!("Fetching local balance");
+        let bal = self.local_balance().await;
+        tracing::trace!(?bal, "Done");
+        bal
     }
 
     /// Retries the last pending block
@@ -1686,17 +1750,23 @@ where
     }
 
     /// Creates an empty block to process all incoming messages. This may require several blocks.
+    #[tracing::instrument(skip_all)]
     pub async fn process_inbox(&mut self) -> Result<Vec<Certificate>, ChainClientError> {
         self.prepare_chain().await?;
         let mut certificates = Vec::new();
         loop {
+            tracing::trace!("Fetching pending messages");
             let incoming_messages = self.pending_messages().await?;
+            tracing::trace!("Pending messages: {}", incoming_messages.len());
             if incoming_messages.is_empty() {
                 break;
             }
+            tracing::trace!("Executing block");
             let certificate = self.execute_block(incoming_messages, vec![]).await?;
+            tracing::trace!("Executed");
             certificates.push(certificate);
         }
+        tracing::trace!(?certificates, "Processed inbox");
         Ok(certificates)
     }
 

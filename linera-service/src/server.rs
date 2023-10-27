@@ -2,6 +2,7 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use anyhow::anyhow;
 use async_trait::async_trait;
 use futures::future::join_all;
 use linera_base::crypto::{CryptoRng, KeyPair};
@@ -26,7 +27,7 @@ use linera_service::{
 use linera_storage::Store;
 use linera_views::{common::CommonStoreConfig, views::ViewError};
 use serde::Deserialize;
-use std::{net::SocketAddr, path::PathBuf};
+use std::{env, net::SocketAddr, path::PathBuf};
 use structopt::StructOpt;
 use tokio::fs;
 use tracing::{error, info};
@@ -370,8 +371,25 @@ fn parse_duration(s: &str) -> Result<u64, parse_duration::parse::Error> {
         .unwrap_or(u64::MAX))
 }
 
-#[tokio::main]
-async fn main() {
+fn main() -> Result<(), anyhow::Error> {
+    let mut runtime_builder = tokio::runtime::Builder::new_multi_thread();
+
+    if let Some(thread_count) = env::var_os("LINERA_TOKIO_THREADS") {
+        let thread_count = thread_count
+            .to_str()
+            .ok_or_else(|| anyhow!("Invalid value {thread_count:?} for `LINERA_TOKIO_THREADS`"))?
+            .parse()?;
+        runtime_builder.worker_threads(thread_count);
+    }
+
+    runtime_builder
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(run())
+}
+
+async fn run() -> Result<(), anyhow::Error> {
     let env_filter = tracing_subscriber::EnvFilter::builder()
         .with_default_directive(tracing_subscriber::filter::LevelFilter::INFO.into())
         .from_env_lossy();
@@ -478,6 +496,7 @@ async fn main() {
                 .unwrap();
         }
     }
+    Ok(())
 }
 
 #[cfg(test)]

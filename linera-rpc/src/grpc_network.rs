@@ -58,6 +58,7 @@ use tonic::{
     transport::{Channel, Server},
     Code, Request, Response, Status,
 };
+use tower_http::trace::TraceLayer;
 use tracing::{debug, error, info, instrument, warn};
 
 type CrossChainSender = mpsc::Sender<(linera_core::data_types::CrossChainRequest, ShardId)>;
@@ -137,6 +138,7 @@ where
                 nickname = state.nickname(),
                 "spawning cross-chain queries thread on {} for shard {}", host, shard_id
             );
+            error!("Error rate: {}", cross_chain_config.sender_failure_rate);
             Self::forward_cross_chain_queries(
                 state.nickname().to_string(),
                 internal_network.clone(),
@@ -179,6 +181,11 @@ where
 
         let handle = tokio::spawn(
             Server::builder()
+                .layer(TraceLayer::new_for_grpc().make_span_with(
+                    move |request: &axum::http::Request<axum::body::Body>| {
+                        tracing::error_span!("gRPC server request", shard_id, port, ?request)
+                    },
+                ))
                 .add_service(health_service)
                 .add_service(worker_node)
                 .serve_with_shutdown(server_address, receiver.map(|_| ())),
@@ -323,7 +330,7 @@ where
     S: Store + Clone + Send + Sync + 'static,
     ViewError: From<S::ContextError>,
 {
-    #[instrument(target = "grpc_server", skip_all, err, fields(nickname = self.state.nickname(), chain_id = ?request.get_ref().chain_id()))]
+    #[instrument(target = "grpc_server", skip_all, err, fields(chain_id = ?request.get_ref().chain_id()))]
     async fn handle_block_proposal(
         &self,
         request: Request<BlockProposal>,
@@ -337,14 +344,14 @@ where
                     info.try_into()?
                 }
                 Err(error) => {
-                    warn!(nickname = self.state.nickname(), %error, "Failed to handle block proposal");
+                    warn!(%error, "Failed to handle block proposal");
                     NodeError::from(error).try_into()?
                 }
             },
         ))
     }
 
-    #[instrument(target = "grpc_server", skip_all, err, fields(nickname = self.state.nickname(), chain_id = ?request.get_ref().chain_id()))]
+    #[instrument(target = "grpc_server", skip_all, err, fields(chain_id = ?request.get_ref().chain_id()))]
     async fn handle_lite_certificate(
         &self,
         request: Request<LiteCertificate>,
@@ -372,16 +379,16 @@ where
             }
             Err(error) => {
                 if let WorkerError::MissingCertificateValue = &error {
-                    debug!(nickname = self.state.nickname(), %error, "Failed to handle lite certificate");
+                    debug!(%error, "Failed to handle lite certificate");
                 } else {
-                    error!(nickname = self.state.nickname(), %error, "Failed to handle lite certificate");
+                    error!(%error, "Failed to handle lite certificate");
                 }
                 Ok(Response::new(NodeError::from(error).try_into()?))
             }
         }
     }
 
-    #[instrument(target = "grpc_server", skip_all, err, fields(nickname = self.state.nickname(), chain_id = ?request.get_ref().chain_id()))]
+    #[instrument(target = "grpc_server", skip_all, err, fields(chain_id = ?request.get_ref().chain_id()))]
     async fn handle_certificate(
         &self,
         request: Request<Certificate>,
@@ -409,13 +416,13 @@ where
                 Ok(Response::new(info.try_into()?))
             }
             Err(error) => {
-                error!(nickname = self.state.nickname(), %error, "Failed to handle certificate");
+                error!(%error, "Failed to handle certificate");
                 Ok(Response::new(NodeError::from(error).try_into()?))
             }
         }
     }
 
-    #[instrument(target = "grpc_server", skip_all, err, fields(nickname = self.state.nickname(), chain_id = ?request.get_ref().chain_id()))]
+    #[instrument(target = "grpc_server", skip_all, err, fields(chain_id = ?request.get_ref().chain_id()))]
     async fn handle_chain_info_query(
         &self,
         request: Request<ChainInfoQuery>,
@@ -428,13 +435,13 @@ where
                 Ok(Response::new(info.try_into()?))
             }
             Err(error) => {
-                error!(nickname = self.state.nickname(), %error, "Failed to handle chain info query");
+                error!(%error, "Failed to handle chain info query");
                 Ok(Response::new(NodeError::from(error).try_into()?))
             }
         }
     }
 
-    #[instrument(target = "grpc_server", skip_all, err, fields(nickname = self.state.nickname(), chain_id= ?request.get_ref().chain_id()))]
+    #[instrument(target = "grpc_server", skip_all, err, fields(chain_id= ?request.get_ref().chain_id()))]
     async fn handle_cross_chain_request(
         &self,
         request: Request<CrossChainRequest>,
@@ -444,7 +451,7 @@ where
         match self.state.clone().handle_cross_chain_request(request).await {
             Ok(actions) => self.handle_network_actions(actions),
             Err(error) => {
-                error!(nickname = self.state.nickname(), %error, "Failed to handle cross-chain request");
+                error!(%error, "Failed to handle cross-chain request");
             }
         }
         Ok(Response::new(()))

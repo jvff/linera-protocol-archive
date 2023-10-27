@@ -791,6 +791,7 @@ async fn run_wasm_end_to_end_matching_engine(database: Database) {
     client_b.wallet_init(&[]).await.unwrap();
 
     // Create initial server and client config.
+    // tracing::error!("Create initial server and client config.");
     local_net.run().await.unwrap();
     let (contract_fungible, service_fungible) = local_net.build_example("fungible").await.unwrap();
     let (contract_matching, service_matching) =
@@ -801,10 +802,12 @@ async fn run_wasm_end_to_end_matching_engine(database: Database) {
     let chain_b = client_admin.open_and_assign(&client_b).await.unwrap();
 
     // The players
+    // tracing::error!("The players");
     let owner_admin = get_fungible_account_owner(&client_admin);
     let owner_a = get_fungible_account_owner(&client_a);
     let owner_b = get_fungible_account_owner(&client_b);
     // The initial accounts on chain_a and chain_b
+    // tracing::error!("The initial accounts on chain_a and chain_b");
     let accounts0 = BTreeMap::from([(owner_a, Amount::from_tokens(10))]);
     let state_fungible0 = InitialState {
         accounts: accounts0,
@@ -815,6 +818,7 @@ async fn run_wasm_end_to_end_matching_engine(database: Database) {
     };
 
     // Setting up the application fungible on chain_a and chain_b
+    tracing::error!("Setting up the application fungible on chain_a and chain_b");
     let token0 = client_a
         .publish_and_create::<FungibleTokenAbi>(
             contract_fungible.clone(),
@@ -839,22 +843,26 @@ async fn run_wasm_end_to_end_matching_engine(database: Database) {
         .unwrap();
 
     // Now creating the service and exporting the applications
+    tracing::error!("Now creating the service and exporting the applications");
     let mut node_service_admin = client_admin.run_node_service(8080).await.unwrap();
     let mut node_service_a = client_a.run_node_service(8081).await.unwrap();
     let mut node_service_b = client_b.run_node_service(8082).await.unwrap();
 
+    tracing::error!("make_application chain_a token0");
     let app_fungible0_a = FungibleApp(
         node_service_a
             .make_application(&chain_a, &token0)
             .await
             .unwrap(),
     );
+    tracing::error!("make_application chain_b token1");
     let app_fungible1_b = FungibleApp(
         node_service_b
             .make_application(&chain_b, &token1)
             .await
             .unwrap(),
     );
+    tracing::error!("assert_balances chain_a token0");
     app_fungible0_a
         .assert_balances([
             (owner_a, Amount::from_tokens(10)),
@@ -862,6 +870,7 @@ async fn run_wasm_end_to_end_matching_engine(database: Database) {
             (owner_admin, Amount::ZERO),
         ])
         .await;
+    tracing::error!("assert_balances chain_b token1");
     app_fungible1_b
         .assert_balances([
             (owner_a, Amount::ZERO),
@@ -870,26 +879,31 @@ async fn run_wasm_end_to_end_matching_engine(database: Database) {
         ])
         .await;
 
+    tracing::error!("request_application token0");
     node_service_admin
         .request_application(&chain_admin, &token0)
         .await
         .unwrap();
+    tracing::error!("make_application chain_admin token0");
     let app_fungible0_admin = FungibleApp(
         node_service_admin
             .make_application(&chain_admin, &token0)
             .await
             .unwrap(),
     );
+    tracing::error!("request_application token1");
     node_service_admin
         .request_application(&chain_admin, &token1)
         .await
         .unwrap();
+    tracing::error!("make_application chain_admin token1");
     let app_fungible1_admin = FungibleApp(
         node_service_admin
             .make_application(&chain_admin, &token1)
             .await
             .unwrap(),
     );
+    tracing::error!("assert_balances chain_admin token0");
     app_fungible0_admin
         .assert_balances([
             (owner_a, Amount::ZERO),
@@ -897,6 +911,7 @@ async fn run_wasm_end_to_end_matching_engine(database: Database) {
             (owner_admin, Amount::ZERO),
         ])
         .await;
+    tracing::error!("assert_balances chain_admin token0");
     app_fungible1_admin
         .assert_balances([
             (owner_a, Amount::ZERO),
@@ -906,6 +921,7 @@ async fn run_wasm_end_to_end_matching_engine(database: Database) {
         .await;
 
     // Setting up the application matching engine.
+    tracing::error!("Setting up the application matching engine.");
     let parameter = Parameters {
         tokens: [token0, token1],
     };
@@ -929,6 +945,7 @@ async fn run_wasm_end_to_end_matching_engine(database: Database) {
             .await
             .unwrap(),
     );
+    tracing::error!("request_application chain_a matching");
     node_service_a
         .request_application(&chain_a, &application_id_matching)
         .await
@@ -939,6 +956,7 @@ async fn run_wasm_end_to_end_matching_engine(database: Database) {
             .await
             .unwrap(),
     );
+    tracing::error!("request_application chain_b matching");
     node_service_b
         .request_application(&chain_b, &application_id_matching)
         .await
@@ -951,8 +969,10 @@ async fn run_wasm_end_to_end_matching_engine(database: Database) {
     );
 
     // Now creating orders
+    tracing::error!("Now creating orders");
     for price in [1, 2] {
         // 1 is expected not to match, but 2 is expected to match
+        tracing::error!("order a {price}");
         app_matching_a
             .order(matching_engine::Order::Insert {
                 owner: owner_a,
@@ -964,6 +984,7 @@ async fn run_wasm_end_to_end_matching_engine(database: Database) {
     }
     for price in [4, 2] {
         // price 2 is expected to match, but not 4.
+        tracing::error!("order b {price}");
         app_matching_b
             .order(matching_engine::Order::Insert {
                 owner: owner_b,
@@ -973,21 +994,27 @@ async fn run_wasm_end_to_end_matching_engine(database: Database) {
             })
             .await;
     }
+    tracing::error!("process_indox admin");
     node_service_admin
         .process_inbox(&chain_admin)
         .await
         .unwrap();
+    tracing::error!("process_indox a");
     node_service_a.process_inbox(&chain_a).await.unwrap();
+    tracing::error!("process_indox b");
     node_service_b.process_inbox(&chain_b).await.unwrap();
 
     // Now reading the order_ids
+    tracing::error!("Now reading the order_ids");
     let order_ids_a = app_matching_admin.get_account_info(&owner_a).await;
     let order_ids_b = app_matching_admin.get_account_info(&owner_b).await;
     // The deal that occurred is that 6 token0 were exchanged for 3 token1.
+    tracing::error!("The deal that occurred is that 6 token0 were exchanged for 3 token1.");
     assert_eq!(order_ids_a.len(), 1); // The order of price 2 is completely filled.
     assert_eq!(order_ids_b.len(), 2); // The order of price 2 is partially filled.
 
     // Now cancelling all the orders
+    tracing::error!("Now cancelling all the orders");
     for (owner, order_ids) in [(owner_a, order_ids_a), (owner_b, order_ids_b)] {
         for order_id in order_ids {
             app_matching_admin
@@ -1001,6 +1028,7 @@ async fn run_wasm_end_to_end_matching_engine(database: Database) {
         .unwrap();
 
     // Check balances
+    tracing::error!("Check balances");
     app_fungible0_a
         .assert_balances([
             (owner_a, Amount::from_tokens(1)),

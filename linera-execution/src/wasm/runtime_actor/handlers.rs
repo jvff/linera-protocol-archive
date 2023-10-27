@@ -24,6 +24,8 @@ where
     Runtime: BaseRuntime + ?Sized,
 {
     async fn handle_request(&self, request: BaseRequest) -> Result<(), ExecutionError> {
+        // let dbg_request = format!("{request:?}");
+        // tracing::error!(dbg_request, "Handling request");
         match request {
             BaseRequest::ChainId { response } => response.send(self.chain_id()),
             BaseRequest::ApplicationId { response } => response.send(self.application_id()),
@@ -61,6 +63,7 @@ where
                 let _ = response.send(self.find_key_values_by_prefix(key_prefix).await?);
             }
         }
+        // tracing::error!(dbg_request, "Finished");
 
         Ok(())
     }
@@ -72,6 +75,8 @@ where
     Runtime: ContractRuntime + ?Sized,
 {
     async fn handle_request(&self, request: ContractRequest) -> Result<(), ExecutionError> {
+        // let dbg_request = format!("{request:?}");
+        // tracing::error!(dbg_request, "Handling request");
         // Use unit arguments in `Response::send` in order to have compile errors if the return
         // value of the called function changes.
         #[allow(clippy::unit_arg)]
@@ -117,6 +122,7 @@ where
                     .await?,
             ),
         }
+        // tracing::error!(dbg_request, "Finished");
 
         Ok(())
     }

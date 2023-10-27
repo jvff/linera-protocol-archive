@@ -52,27 +52,32 @@ where
 
     /// Runs the [`RuntimeActor`], handling `Request`s until all the sender endpoints are closed.
     pub async fn run(mut self) -> Result<(), ExecutionError> {
-        let mut active_requests = FuturesUnordered::new();
+        use tracing::Instrument;
+        async move {
+            let mut active_requests = FuturesUnordered::new();
 
-        loop {
-            select! {
-                maybe_result = active_requests.next() => if let Some(result) = maybe_result {
+            loop {
+                select! {
+                    maybe_result = active_requests.next() => if let Some(result) = maybe_result {
+                        result?;
+                    },
+                    maybe_request = self.requests.next() => match maybe_request {
+                        Some(request) => active_requests.push(self.runtime.handle_request(request)),
+                        None => break,
+                    },
+                }
+            }
+
+            while !active_requests.is_empty() {
+                if let Some(result) = active_requests.next().await {
                     result?;
-                },
-                maybe_request = self.requests.next() => match maybe_request {
-                    Some(request) => active_requests.push(self.runtime.handle_request(request)),
-                    None => break,
-                },
+                }
             }
-        }
 
-        while !active_requests.is_empty() {
-            if let Some(result) = active_requests.next().await {
-                result?;
-            }
+            Ok(())
         }
-
-        Ok(())
+        .instrument(tracing::error_span!("RuntimeActor::run"))
+        .await
     }
 }
 

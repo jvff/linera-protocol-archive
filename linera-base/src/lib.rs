@@ -10,6 +10,8 @@ pub mod crypto;
 pub mod data_types;
 mod graphql;
 pub mod identifiers;
+#[cfg(feature = "traced_mutex")]
+pub mod traced_mutex;
 
 pub use graphql::BcsHexParseError;
 #[doc(hidden)]

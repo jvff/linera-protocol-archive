@@ -78,6 +78,12 @@ impl Notifier<crate::worker::Notification> {
     }
 }
 
+impl<N> Drop for Notifier<N> {
+    fn drop(&mut self) {
+        tracing::trace!("Dropping Notifier");
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
     use super::*;
