@@ -321,7 +321,7 @@ pub trait StoreBuilder {
 }
 
 #[derive(Default)]
-struct GenesisStoreBuilder {
+pub struct GenesisStoreBuilder {
     accounts: Vec<GenesisAccount>,
 }
 
@@ -332,7 +332,7 @@ struct GenesisAccount {
 }
 
 impl GenesisStoreBuilder {
-    fn add(&mut self, description: ChainDescription, public_key: PublicKey, balance: Amount) {
+    pub fn add(&mut self, description: ChainDescription, public_key: PublicKey, balance: Amount) {
         self.accounts.push(GenesisAccount {
             description,
             public_key,
@@ -340,7 +340,7 @@ impl GenesisStoreBuilder {
         })
     }
 
-    async fn build<S>(&self, store: S, initial_committee: Committee, admin_id: ChainId) -> S
+    pub async fn build<S>(&self, store: S, initial_committee: Committee, admin_id: ChainId) -> S
     where
         S: Store + Clone + Send + Sync + 'static,
         ViewError: From<S::ContextError>,

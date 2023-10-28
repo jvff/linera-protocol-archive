@@ -14,6 +14,8 @@ mod scylla_db;
 
 #[cfg(feature = "aws")]
 pub use crate::dynamo_db::DynamoDbStore;
+#[cfg(feature = "test")]
+pub use crate::memory::DelayedMemoryStoreClient;
 pub use crate::memory::MemoryStoreClient;
 #[cfg(feature = "rocksdb")]
 pub use crate::rocks_db::RocksDbStore;

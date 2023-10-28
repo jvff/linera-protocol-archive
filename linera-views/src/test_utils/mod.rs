@@ -1,13 +1,17 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::batch::{
-    WriteOperation,
-    WriteOperation::{Delete, Put},
+use crate::{
+    batch::{
+        Batch, WriteOperation,
+        WriteOperation::{Delete, Put},
+    },
+    common::KeyValueStoreClient,
 };
-
+use async_trait::async_trait;
 use rand::{Rng, RngCore};
-use std::collections::HashSet;
+use std::{collections::HashSet, time::Duration};
+use tokio::time;
 use tracing::warn;
 
 fn generate_random_alphanumeric_string(length: usize) -> String {
@@ -168,4 +172,74 @@ pub fn span_random_reordering_put_delete<R: RngCore>(
         }
     }
     operations
+}
+
+/// A helper type to introduce fixed delays before the operations of a `StoreClient`.
+#[derive(Clone, Debug)]
+pub struct DelayedStoreClient<StoreClient> {
+    delay: Duration,
+    inner: StoreClient,
+}
+
+impl<StoreClient> DelayedStoreClient<StoreClient> {
+    /// Creates a new [`DelayedStoreClient`] that applies a `delay` before every operation of the
+    /// `store_client`.
+    pub fn new(store_client: StoreClient, delay: Duration) -> Self {
+        DelayedStoreClient {
+            delay,
+            inner: store_client,
+        }
+    }
+}
+
+#[async_trait]
+impl<StoreClient> KeyValueStoreClient for DelayedStoreClient<StoreClient>
+where
+    StoreClient: KeyValueStoreClient + Send + Sync,
+{
+    const MAX_VALUE_SIZE: usize = StoreClient::MAX_VALUE_SIZE;
+
+    type Error = StoreClient::Error;
+    type Keys = StoreClient::Keys;
+    type KeyValues = StoreClient::KeyValues;
+
+    fn max_stream_queries(&self) -> usize {
+        self.inner.max_stream_queries()
+    }
+
+    async fn read_key_bytes(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Self::Error> {
+        time::sleep(self.delay).await;
+        self.inner.read_key_bytes(key).await
+    }
+
+    async fn read_multi_key_bytes(
+        &self,
+        keys: Vec<Vec<u8>>,
+    ) -> Result<Vec<Option<Vec<u8>>>, Self::Error> {
+        time::sleep(self.delay).await;
+        self.inner.read_multi_key_bytes(keys).await
+    }
+
+    async fn find_keys_by_prefix(&self, key_prefix: &[u8]) -> Result<Self::Keys, Self::Error> {
+        time::sleep(self.delay).await;
+        self.inner.find_keys_by_prefix(key_prefix).await
+    }
+
+    async fn find_key_values_by_prefix(
+        &self,
+        key_prefix: &[u8],
+    ) -> Result<Self::KeyValues, Self::Error> {
+        time::sleep(self.delay).await;
+        self.inner.find_key_values_by_prefix(key_prefix).await
+    }
+
+    async fn write_batch(&self, batch: Batch, base_key: &[u8]) -> Result<(), Self::Error> {
+        time::sleep(self.delay).await;
+        self.inner.write_batch(batch, base_key).await
+    }
+
+    async fn clear_journal(&self, base_key: &[u8]) -> Result<(), Self::Error> {
+        time::sleep(self.delay).await;
+        self.inner.clear_journal(base_key).await
+    }
 }

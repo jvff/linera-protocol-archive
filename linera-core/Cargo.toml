@@ -59,6 +59,7 @@ reentrant-counter = { workspace = true }
 serde_json = { workspace = true }
 social = { workspace = true }
 test-case = { workspace = true }
+tokio-stream = { workspace = true, features = ["sync"] }
 tracing-subscriber = { workspace = true, features = ["fmt"] }
 
 [package.metadata.cargo-machete]
