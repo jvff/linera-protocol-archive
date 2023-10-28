@@ -2,6 +2,8 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#[path = "./deadlock_test.rs"]
+mod deadlock;
 #[path = "./wasm_client_tests.rs"]
 mod wasm;
 
