@@ -1189,6 +1189,7 @@ where
         trace!("{} --> {:?}", self.nickname, response);
         // Trigger any outgoing cross-chain messages that haven't been confirmed yet.
         let actions = self.create_network_actions(&mut chain).await?;
+        tracing::trace!(?actions, "Created network actions");
         Ok((response, actions))
     }
 
