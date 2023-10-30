@@ -658,9 +658,11 @@ where
                     .await;
 
                     if accept {
-                        let Ok(()) = sender.unbounded_send(notification) else {
-                            break;
-                        };
+                        let _ = sender.unbounded_send(notification);
+                    }
+
+                    if sender.is_closed() {
+                        break;
                     }
                 }
             });
