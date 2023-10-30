@@ -636,7 +636,7 @@ where
             let hash_map::Entry::Vacant(entry) = streams.entry(name) else {
                 continue;
             };
-            let mut stream = match node.subscribe(vec![chain_id]).await {
+            let stream = match node.subscribe(vec![chain_id]).await {
                 Err(e) => {
                     info!("Could not connect to validator {name}: {e:?}");
                     continue;
@@ -646,26 +646,20 @@ where
             let this = this.clone();
             let local_node = local_node.clone();
             let (sender, receiver) = mpsc::unbounded();
-            tokio::spawn(async move {
-                while let Some(notification) = stream.next().await {
-                    let accept = Self::process_notification(
-                        this.clone(),
-                        name,
-                        node.clone(),
-                        local_node.clone(),
-                        notification.clone(),
-                    )
-                    .await;
-
-                    if accept {
-                        let _ = sender.unbounded_send(notification);
-                    }
-
-                    if sender.is_closed() {
-                        break;
-                    }
-                }
-            });
+            tokio::spawn(
+                stream
+                    .filter(move |notification| {
+                        Self::process_notification(
+                            this.clone(),
+                            name,
+                            node.clone(),
+                            local_node.clone(),
+                            notification.clone(),
+                        )
+                    })
+                    .map(Ok)
+                    .forward(sender),
+            );
             entry.insert(receiver);
         }
         Ok(())
