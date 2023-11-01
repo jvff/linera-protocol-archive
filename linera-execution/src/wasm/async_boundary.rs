@@ -28,7 +28,7 @@ where
     Future: GuestFutureInterface<Application>,
 {
     context: WasmRuntimeContext<Application>,
-    poll_requests: std::sync::mpsc::Receiver<PollRequest<Future::Output>>,
+    poll_request_receiver: std::sync::mpsc::Receiver<PollRequest<Future::Output>>,
     _future_type: PhantomData<Future>,
 }
 
@@ -55,11 +55,11 @@ where
 
     /// Creates a new [`GuestFutureActor`] to run `future` using a Wasm runtime `context`.
     pub fn new(mut context: WasmRuntimeContext<Application>) -> (Self, PollSender<Future::Output>) {
-        let (poll_sender, poll_requests) = PollSender::new(context.future_queue.take());
+        let (poll_sender, poll_request_receiver) = PollSender::new(context.future_queue.take());
 
         let actor = GuestFutureActor {
             context,
-            poll_requests,
+            poll_request_receiver,
             _future_type: PhantomData,
         };
 
@@ -83,7 +83,7 @@ where
 
     /// Executes the `future`, polling it as requested by the [`PollSender`] until it completes.
     fn run_poll_loop(mut self, future: Future) {
-        while let Ok(request) = self.poll_requests.recv() {
+        while let Ok(request) = self.poll_request_receiver.recv() {
             let response = future.poll(&self.context.application, &mut self.context.store);
             let finished = response.is_ready();
 
@@ -98,7 +98,7 @@ where
     /// Waits for the first poll request sent by the [`PollSender`], and immediately responds with
     /// the error obtained when attempting to create the `Future` instance.
     fn notify_creation_error(self, error: ExecutionError) {
-        if let Ok(request) = self.poll_requests.recv() {
+        if let Ok(request) = self.poll_request_receiver.recv() {
             let _ = request
                 .response_sender
                 .send(PollResponse(Poll::Ready(Err(error))));
