@@ -17,8 +17,8 @@ macro_rules! impl_contract_system_api {
 
             fn chain_id(&mut self) -> Result<contract_system_api::ChainId, Self::Error> {
                 self.runtime
-                    .send_request(|response| {
-                        ContractRequest::Base(BaseRequest::ChainId { response })
+                    .send_request(|response_sender| {
+                        ContractRequest::Base(BaseRequest::ChainId { response_sender })
                     })
                     .recv()
                     .map(|chain_id| chain_id.into())
@@ -29,8 +29,8 @@ macro_rules! impl_contract_system_api {
                 &mut self,
             ) -> Result<contract_system_api::ApplicationId, Self::Error> {
                 self.runtime
-                    .send_request(|response| {
-                        ContractRequest::Base(BaseRequest::ApplicationId { response })
+                    .send_request(|response_sender| {
+                        ContractRequest::Base(BaseRequest::ApplicationId { response_sender })
                     })
                     .recv()
                     .map(|application_id| application_id.into())
@@ -39,8 +39,10 @@ macro_rules! impl_contract_system_api {
 
             fn application_parameters(&mut self) -> Result<Vec<u8>, Self::Error> {
                 self.runtime
-                    .send_request(|response| {
-                        ContractRequest::Base(BaseRequest::ApplicationParameters { response })
+                    .send_request(|response_sender| {
+                        ContractRequest::Base(BaseRequest::ApplicationParameters {
+                            response_sender,
+                        })
                     })
                     .recv()
                     .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into())
@@ -48,8 +50,8 @@ macro_rules! impl_contract_system_api {
 
             fn read_system_balance(&mut self) -> Result<contract_system_api::Amount, Self::Error> {
                 self.runtime
-                    .send_request(|response| {
-                        ContractRequest::Base(BaseRequest::ReadSystemBalance { response })
+                    .send_request(|response_sender| {
+                        ContractRequest::Base(BaseRequest::ReadSystemBalance { response_sender })
                     })
                     .recv()
                     .map(|balance| balance.into())
@@ -60,8 +62,8 @@ macro_rules! impl_contract_system_api {
                 &mut self,
             ) -> Result<contract_system_api::Timestamp, Self::Error> {
                 self.runtime
-                    .send_request(|response| {
-                        ContractRequest::Base(BaseRequest::ReadSystemTimestamp { response })
+                    .send_request(|response_sender| {
+                        ContractRequest::Base(BaseRequest::ReadSystemTimestamp { response_sender })
                     })
                     .recv()
                     .map(|timestamp| timestamp.micros())
@@ -70,10 +72,8 @@ macro_rules! impl_contract_system_api {
 
             fn load(&mut self) -> Result<Vec<u8>, Self::Error> {
                 self.runtime
-                    .send_request(|response| {
-                        ContractRequest::Base(BaseRequest::TryReadMyState {
-                            response: response.into(),
-                        })
+                    .send_request(|response_sender| {
+                        ContractRequest::Base(BaseRequest::TryReadMyState { response_sender })
                     })
                     .recv()
                     .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into())
@@ -81,16 +81,18 @@ macro_rules! impl_contract_system_api {
 
             fn load_and_lock(&mut self) -> Result<Option<Vec<u8>>, Self::Error> {
                 self.runtime
-                    .send_request(|response| ContractRequest::TryReadAndLockMyState { response })
+                    .send_request(|response_sender| ContractRequest::TryReadAndLockMyState {
+                        response_sender,
+                    })
                     .recv()
                     .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into())
             }
 
             fn store_and_unlock(&mut self, state: &[u8]) -> Result<bool, Self::Error> {
                 self.runtime
-                    .send_request(|response| ContractRequest::SaveAndUnlockMyState {
+                    .send_request(|response_sender| ContractRequest::SaveAndUnlockMyState {
                         state: state.to_owned(),
-                        response,
+                        response_sender,
                     })
                     .recv()
                     .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into())
@@ -100,8 +102,10 @@ macro_rules! impl_contract_system_api {
                 Ok(Mutex::new(
                     self.queued_future_factory.enqueue(
                         self.runtime
-                            .send_request(|response| {
-                                ContractRequest::Base(BaseRequest::LockViewUserState { response })
+                            .send_request(|response_sender| {
+                                ContractRequest::Base(BaseRequest::LockViewUserState {
+                                    response_sender,
+                                })
                             })
                             .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into()),
                     ),
@@ -143,12 +147,12 @@ macro_rules! impl_contract_system_api {
                     .collect();
 
                 self.runtime
-                    .send_request(|response| ContractRequest::TryCallApplication {
+                    .send_request(|response_sender| ContractRequest::TryCallApplication {
                         authenticated,
                         callee_id: application.into(),
                         argument: argument.to_owned(),
                         forwarded_sessions,
-                        response,
+                        response_sender,
                     })
                     .recv()
                     .map(|call_result| call_result.into())
@@ -169,12 +173,12 @@ macro_rules! impl_contract_system_api {
                     .collect();
 
                 self.runtime
-                    .send_request(|response| ContractRequest::TryCallSession {
+                    .send_request(|response_sender| ContractRequest::TryCallSession {
                         authenticated,
                         session_id: session.into(),
                         argument: argument.to_owned(),
                         forwarded_sessions,
-                        response,
+                        response_sender,
                     })
                     .recv()
                     .map(|call_result| call_result.into())
@@ -218,8 +222,8 @@ macro_rules! impl_service_system_api {
 
             fn chain_id(&mut self) -> Result<service_system_api::ChainId, Self::Error> {
                 self.runtime
-                    .send_request(|response| {
-                        ServiceRequest::Base(BaseRequest::ChainId { response })
+                    .send_request(|response_sender| {
+                        ServiceRequest::Base(BaseRequest::ChainId { response_sender })
                     })
                     .recv()
                     .map(|chain_id| chain_id.into())
@@ -228,8 +232,8 @@ macro_rules! impl_service_system_api {
 
             fn application_id(&mut self) -> Result<service_system_api::ApplicationId, Self::Error> {
                 self.runtime
-                    .send_request(|response| {
-                        ServiceRequest::Base(BaseRequest::ApplicationId { response })
+                    .send_request(|response_sender| {
+                        ServiceRequest::Base(BaseRequest::ApplicationId { response_sender })
                     })
                     .recv()
                     .map(|application_id| application_id.into())
@@ -238,8 +242,8 @@ macro_rules! impl_service_system_api {
 
             fn application_parameters(&mut self) -> Result<Vec<u8>, Self::Error> {
                 self.runtime
-                    .send_request(|response| {
-                        ServiceRequest::Base(BaseRequest::ApplicationParameters { response })
+                    .send_request(|response_sender| {
+                        ServiceRequest::Base(BaseRequest::ApplicationParameters { response_sender })
                     })
                     .recv()
                     .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into())
@@ -247,8 +251,8 @@ macro_rules! impl_service_system_api {
 
             fn read_system_balance(&mut self) -> Result<service_system_api::Amount, Self::Error> {
                 self.runtime
-                    .send_request(|response| {
-                        ServiceRequest::Base(BaseRequest::ReadSystemBalance { response })
+                    .send_request(|response_sender| {
+                        ServiceRequest::Base(BaseRequest::ReadSystemBalance { response_sender })
                     })
                     .recv()
                     .map(|balance| balance.into())
@@ -259,8 +263,8 @@ macro_rules! impl_service_system_api {
                 &mut self,
             ) -> Result<service_system_api::Timestamp, Self::Error> {
                 self.runtime
-                    .send_request(|response| {
-                        ServiceRequest::Base(BaseRequest::ReadSystemTimestamp { response })
+                    .send_request(|response_sender| {
+                        ServiceRequest::Base(BaseRequest::ReadSystemTimestamp { response_sender })
                     })
                     .recv()
                     .map(|timestamp| timestamp.micros())
@@ -268,10 +272,8 @@ macro_rules! impl_service_system_api {
             }
 
             fn load_new(&mut self) -> Result<Self::Load, Self::Error> {
-                Ok(Mutex::new(self.runtime.send_request(|response| {
-                    ServiceRequest::Base(BaseRequest::TryReadMyState {
-                        response: response.into(),
-                    })
+                Ok(Mutex::new(self.runtime.send_request(|response_sender| {
+                    ServiceRequest::Base(BaseRequest::TryReadMyState { response_sender })
                 })))
             }
 
@@ -293,8 +295,8 @@ macro_rules! impl_service_system_api {
             }
 
             fn lock_new(&mut self) -> Result<Self::Lock, Self::Error> {
-                Ok(Mutex::new(self.runtime.send_request(|response| {
-                    ServiceRequest::Base(BaseRequest::LockViewUserState { response })
+                Ok(Mutex::new(self.runtime.send_request(|response_sender| {
+                    ServiceRequest::Base(BaseRequest::LockViewUserState { response_sender })
                 })))
             }
 
@@ -316,8 +318,8 @@ macro_rules! impl_service_system_api {
             }
 
             fn unlock_new(&mut self) -> Result<Self::Unlock, Self::Error> {
-                Ok(Mutex::new(self.runtime.send_request(|response| {
-                    ServiceRequest::Base(BaseRequest::UnlockViewUserState { response })
+                Ok(Mutex::new(self.runtime.send_request(|response_sender| {
+                    ServiceRequest::Base(BaseRequest::UnlockViewUserState { response_sender })
                 })))
             }
 
@@ -345,11 +347,11 @@ macro_rules! impl_service_system_api {
             ) -> Result<Self::TryQueryApplication, Self::Error> {
                 let argument = Vec::from(argument);
 
-                Ok(Mutex::new(self.runtime.send_request(|response| {
+                Ok(Mutex::new(self.runtime.send_request(|response_sender| {
                     ServiceRequest::TryQueryApplication {
                         queried_id: application.into(),
                         argument: argument.to_owned(),
-                        response,
+                        response_sender,
                     }
                 })))
             }
@@ -412,10 +414,10 @@ macro_rules! impl_view_system_api_for_service {
                 &mut self,
                 key: &[u8],
             ) -> Result<Self::ReadKeyBytes, Self::Error> {
-                Ok(Mutex::new(self.runtime.send_request(|response| {
+                Ok(Mutex::new(self.runtime.send_request(|response_sender| {
                     ServiceRequest::Base(BaseRequest::ReadKeyBytes {
                         key: key.to_owned(),
-                        response,
+                        response_sender,
                     })
                 })))
             }
@@ -438,10 +440,10 @@ macro_rules! impl_view_system_api_for_service {
             }
 
             fn find_keys_new(&mut self, key_prefix: &[u8]) -> Result<Self::FindKeys, Self::Error> {
-                Ok(Mutex::new(self.runtime.send_request(|response| {
+                Ok(Mutex::new(self.runtime.send_request(|response_sender| {
                     ServiceRequest::Base(BaseRequest::FindKeysByPrefix {
                         key_prefix: key_prefix.to_owned(),
-                        response,
+                        response_sender,
                     })
                 })))
             }
@@ -467,10 +469,10 @@ macro_rules! impl_view_system_api_for_service {
                 &mut self,
                 key_prefix: &[u8],
             ) -> Result<Self::FindKeyValues, Self::Error> {
-                Ok(Mutex::new(self.runtime.send_request(|response| {
+                Ok(Mutex::new(self.runtime.send_request(|response_sender| {
                     ServiceRequest::Base(BaseRequest::FindKeyValuesByPrefix {
                         key_prefix: key_prefix.to_owned(),
-                        response,
+                        response_sender,
                     })
                 })))
             }
@@ -541,10 +543,10 @@ macro_rules! impl_view_system_api_for_contract {
                 Ok(Mutex::new(
                     self.queued_future_factory.enqueue(
                         self.runtime
-                            .send_request(|response| {
+                            .send_request(|response_sender| {
                                 ContractRequest::Base(BaseRequest::ReadKeyBytes {
                                     key: key.to_owned(),
-                                    response,
+                                    response_sender,
                                 })
                             })
                             .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into()),
@@ -574,10 +576,10 @@ macro_rules! impl_view_system_api_for_contract {
                 Ok(Mutex::new(
                     self.queued_future_factory.enqueue(
                         self.runtime
-                            .send_request(|response| {
+                            .send_request(|response_sender| {
                                 ContractRequest::Base(BaseRequest::FindKeysByPrefix {
                                     key_prefix: key_prefix.to_owned(),
-                                    response,
+                                    response_sender,
                                 })
                             })
                             .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into()),
@@ -610,10 +612,10 @@ macro_rules! impl_view_system_api_for_contract {
                 Ok(Mutex::new(
                     self.queued_future_factory.enqueue(
                         self.runtime
-                            .send_request(|response| {
+                            .send_request(|response_sender| {
                                 ContractRequest::Base(BaseRequest::FindKeyValuesByPrefix {
                                     key_prefix: key_prefix.to_owned(),
-                                    response,
+                                    response_sender,
                                 })
                             })
                             .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into()),
@@ -660,9 +662,9 @@ macro_rules! impl_view_system_api_for_contract {
                 Ok(Mutex::new(
                     self.queued_future_factory.enqueue(
                         self.runtime
-                            .send_request(|response| ContractRequest::WriteBatchAndUnlock {
+                            .send_request(|response_sender| ContractRequest::WriteBatchAndUnlock {
                                 batch,
-                                response,
+                                response_sender,
                             })
                             .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into()),
                     ),

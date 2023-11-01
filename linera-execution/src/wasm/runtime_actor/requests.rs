@@ -14,49 +14,61 @@ use std::fmt::{self, Debug, Formatter};
 /// Requests shared by contracts and services.
 pub enum BaseRequest {
     /// Requests the current chain id.
-    ChainId { response: oneshot::Sender<ChainId> },
+    ChainId {
+        response_sender: oneshot::Sender<ChainId>,
+    },
 
     /// Requests the current application id.
     ApplicationId {
-        response: oneshot::Sender<UserApplicationId>,
+        response_sender: oneshot::Sender<UserApplicationId>,
     },
 
     /// Requests the current application parameters.
-    ApplicationParameters { response: oneshot::Sender<Vec<u8>> },
+    ApplicationParameters {
+        response_sender: oneshot::Sender<Vec<u8>>,
+    },
 
     /// Requests to read the system balance.
-    ReadSystemBalance { response: oneshot::Sender<Amount> },
+    ReadSystemBalance {
+        response_sender: oneshot::Sender<Amount>,
+    },
 
     /// Requests to read the system timestamp.
     ReadSystemTimestamp {
-        response: oneshot::Sender<Timestamp>,
+        response_sender: oneshot::Sender<Timestamp>,
     },
 
     /// Requests to read the application state.
-    TryReadMyState { response: oneshot::Sender<Vec<u8>> },
+    TryReadMyState {
+        response_sender: oneshot::Sender<Vec<u8>>,
+    },
 
     /// Requests to lock the view user state and prevent further reading/loading.
-    LockViewUserState { response: oneshot::Sender<()> },
+    LockViewUserState {
+        response_sender: oneshot::Sender<()>,
+    },
 
     /// Requests to unlocks the view user state and allow reading/loading again.
-    UnlockViewUserState { response: oneshot::Sender<()> },
+    UnlockViewUserState {
+        response_sender: oneshot::Sender<()>,
+    },
 
     /// Requests to read an entry from the key-value store.
     ReadKeyBytes {
         key: Vec<u8>,
-        response: oneshot::Sender<Option<Vec<u8>>>,
+        response_sender: oneshot::Sender<Option<Vec<u8>>>,
     },
 
     /// Requests to read the keys that have a specific prefix.
     FindKeysByPrefix {
         key_prefix: Vec<u8>,
-        response: oneshot::Sender<Vec<Vec<u8>>>,
+        response_sender: oneshot::Sender<Vec<Vec<u8>>>,
     },
 
     /// Requests to read the entries whose keys have a specific prefix.
     FindKeyValuesByPrefix {
         key_prefix: Vec<u8>,
-        response: oneshot::Sender<Vec<(Vec<u8>, Vec<u8>)>>,
+        response_sender: oneshot::Sender<Vec<(Vec<u8>, Vec<u8>)>>,
     },
 }
 
@@ -109,35 +121,39 @@ pub enum ContractRequest {
     Base(BaseRequest),
 
     /// Requests the amount of execution fuel remaining before execution is aborted.
-    RemainingFuel { response: oneshot::Sender<u64> },
+    RemainingFuel {
+        response_sender: oneshot::Sender<u64>,
+    },
 
     /// Requests to set the amount of execution fuel remaining before execution is aborted.
     SetRemainingFuel {
         remaining_fuel: u64,
-        response: oneshot::Sender<()>,
+        response_sender: oneshot::Sender<()>,
     },
 
     /// Requests to read the application state and prevent further reading/loading until the state
     /// is saved or unlocked.
     TryReadAndLockMyState {
-        response: oneshot::Sender<Option<Vec<u8>>>,
+        response_sender: oneshot::Sender<Option<Vec<u8>>>,
     },
 
     /// Requests to save the application state and allow reading/loading the state again.
     SaveAndUnlockMyState {
         state: Vec<u8>,
-        response: oneshot::Sender<bool>,
+        response_sender: oneshot::Sender<bool>,
     },
 
     /// Requests to unlock the application state without saving anything and allow reading/loading
     /// it again.
-    UnlockMyState { response: oneshot::Sender<()> },
+    UnlockMyState {
+        response_sender: oneshot::Sender<()>,
+    },
 
     /// Requests to write the batch and unlock the application state to allow further
     /// reading/loading it.
     WriteBatchAndUnlock {
         batch: Batch,
-        response: oneshot::Sender<()>,
+        response_sender: oneshot::Sender<()>,
     },
 
     /// Requests to call another application.
@@ -146,7 +162,7 @@ pub enum ContractRequest {
         callee_id: UserApplicationId,
         argument: Vec<u8>,
         forwarded_sessions: Vec<SessionId>,
-        response: oneshot::Sender<CallResult>,
+        response_sender: oneshot::Sender<CallResult>,
     },
 
     /// Calls into a session that is in our scope.
@@ -155,7 +171,7 @@ pub enum ContractRequest {
         session_id: SessionId,
         argument: Vec<u8>,
         forwarded_sessions: Vec<SessionId>,
-        response: oneshot::Sender<CallResult>,
+        response_sender: oneshot::Sender<CallResult>,
     },
 }
 
@@ -234,7 +250,7 @@ pub enum ServiceRequest {
     TryQueryApplication {
         queried_id: UserApplicationId,
         argument: Vec<u8>,
-        response: oneshot::Sender<Vec<u8>>,
+        response_sender: oneshot::Sender<Vec<u8>>,
     },
 }
 

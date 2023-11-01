@@ -85,7 +85,7 @@ impl ApplicationRuntimeContext for Contract {
         let remaining_points = context
             .extra
             .runtime
-            .send_request(|response| ContractRequest::RemainingFuel { response })
+            .send_request(|response_sender| ContractRequest::RemainingFuel { response_sender })
             .recv()
             .unwrap_or(0);
 
@@ -106,9 +106,9 @@ impl ApplicationRuntimeContext for Contract {
         let _ = context
             .extra
             .runtime
-            .send_request(|response| ContractRequest::SetRemainingFuel {
+            .send_request(|response_sender| ContractRequest::SetRemainingFuel {
                 remaining_fuel,
-                response,
+                response_sender,
             })
             .recv();
     }

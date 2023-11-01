@@ -25,44 +25,47 @@ where
 {
     async fn handle_request(&self, request: BaseRequest) -> Result<(), ExecutionError> {
         match request {
-            BaseRequest::ChainId { response } => {
-                let _ = response.send(self.chain_id());
+            BaseRequest::ChainId { response_sender } => {
+                let _ = response_sender.send(self.chain_id());
             }
-            BaseRequest::ApplicationId { response } => {
-                let _ = response.send(self.application_id());
+            BaseRequest::ApplicationId { response_sender } => {
+                let _ = response_sender.send(self.application_id());
             }
-            BaseRequest::ApplicationParameters { response } => {
-                let _ = response.send(self.application_parameters());
+            BaseRequest::ApplicationParameters { response_sender } => {
+                let _ = response_sender.send(self.application_parameters());
             }
-            BaseRequest::ReadSystemBalance { response } => {
-                let _ = response.send(self.read_system_balance());
+            BaseRequest::ReadSystemBalance { response_sender } => {
+                let _ = response_sender.send(self.read_system_balance());
             }
-            BaseRequest::ReadSystemTimestamp { response } => {
-                let _ = response.send(self.read_system_timestamp());
+            BaseRequest::ReadSystemTimestamp { response_sender } => {
+                let _ = response_sender.send(self.read_system_timestamp());
             }
-            BaseRequest::TryReadMyState { response } => {
-                let _ = response.send(self.try_read_my_state().await?);
+            BaseRequest::TryReadMyState { response_sender } => {
+                let _ = response_sender.send(self.try_read_my_state().await?);
             }
-            BaseRequest::LockViewUserState { response } => {
-                let _ = response.send(self.lock_view_user_state().await?);
+            BaseRequest::LockViewUserState { response_sender } => {
+                let _ = response_sender.send(self.lock_view_user_state().await?);
             }
-            BaseRequest::UnlockViewUserState { response } => {
-                let _ = response.send(self.unlock_view_user_state().await?);
+            BaseRequest::UnlockViewUserState { response_sender } => {
+                let _ = response_sender.send(self.unlock_view_user_state().await?);
             }
-            BaseRequest::ReadKeyBytes { key, response } => {
-                let _ = response.send(self.read_key_bytes(key).await?);
+            BaseRequest::ReadKeyBytes {
+                key,
+                response_sender,
+            } => {
+                let _ = response_sender.send(self.read_key_bytes(key).await?);
             }
             BaseRequest::FindKeysByPrefix {
                 key_prefix,
-                response,
+                response_sender,
             } => {
-                let _ = response.send(self.find_keys_by_prefix(key_prefix).await?);
+                let _ = response_sender.send(self.find_keys_by_prefix(key_prefix).await?);
             }
             BaseRequest::FindKeyValuesByPrefix {
                 key_prefix,
-                response,
+                response_sender,
             } => {
-                let _ = response.send(self.find_key_values_by_prefix(key_prefix).await?);
+                let _ = response_sender.send(self.find_key_values_by_prefix(key_prefix).await?);
             }
         }
 
@@ -83,39 +86,45 @@ where
             ContractRequest::Base(base_request) => {
                 let _ = (*self).handle_request(base_request).await?;
             }
-            ContractRequest::RemainingFuel { response } => {
-                let _ = response.send(self.remaining_fuel());
+            ContractRequest::RemainingFuel { response_sender } => {
+                let _ = response_sender.send(self.remaining_fuel());
             }
             ContractRequest::SetRemainingFuel {
                 remaining_fuel,
-                response,
+                response_sender,
             } => {
-                let _ = response.send(self.set_remaining_fuel(remaining_fuel));
+                let _ = response_sender.send(self.set_remaining_fuel(remaining_fuel));
             }
-            ContractRequest::TryReadAndLockMyState { response } => {
-                let _ = response.send(match self.try_read_and_lock_my_state().await {
+            ContractRequest::TryReadAndLockMyState { response_sender } => {
+                let _ = response_sender.send(match self.try_read_and_lock_my_state().await {
                     Ok(bytes) => Some(bytes),
                     Err(ExecutionError::ViewError(ViewError::NotFound(_))) => None,
                     Err(error) => return Err(error),
                 });
             }
-            ContractRequest::SaveAndUnlockMyState { state, response } => {
-                let _ = response.send(self.save_and_unlock_my_state(state).is_ok());
+            ContractRequest::SaveAndUnlockMyState {
+                state,
+                response_sender,
+            } => {
+                let _ = response_sender.send(self.save_and_unlock_my_state(state).is_ok());
             }
-            ContractRequest::UnlockMyState { response } => {
-                let _ = response.send(self.unlock_my_state());
+            ContractRequest::UnlockMyState { response_sender } => {
+                let _ = response_sender.send(self.unlock_my_state());
             }
-            ContractRequest::WriteBatchAndUnlock { batch, response } => {
-                let _ = response.send(self.write_batch_and_unlock(batch).await?);
+            ContractRequest::WriteBatchAndUnlock {
+                batch,
+                response_sender,
+            } => {
+                let _ = response_sender.send(self.write_batch_and_unlock(batch).await?);
             }
             ContractRequest::TryCallApplication {
                 authenticated,
                 callee_id,
                 argument,
                 forwarded_sessions,
-                response,
+                response_sender,
             } => {
-                let _ = response.send(
+                let _ = response_sender.send(
                     self.try_call_application(
                         authenticated,
                         callee_id,
@@ -130,9 +139,9 @@ where
                 session_id,
                 argument,
                 forwarded_sessions,
-                response,
+                response_sender,
             } => {
-                let _ = response.send(
+                let _ = response_sender.send(
                     self.try_call_session(authenticated, session_id, &argument, forwarded_sessions)
                         .await?,
                 );
@@ -157,9 +166,10 @@ where
             ServiceRequest::TryQueryApplication {
                 queried_id,
                 argument,
-                response,
+                response_sender,
             } => {
-                let _ = response.send(self.try_query_application(queried_id, &argument).await?);
+                let _ =
+                    response_sender.send(self.try_query_application(queried_id, &argument).await?);
             }
         }
 
