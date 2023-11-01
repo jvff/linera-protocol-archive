@@ -119,7 +119,7 @@ struct PollResponse<Output>(Poll<Result<Output, ExecutionError>>);
 /// execution (as controlled by the [`HostFutureQueue`]).
 pub struct PollSender<Output> {
     host_future_queue: Option<HostFutureQueue>,
-    poll_requester: std::sync::mpsc::Sender<oneshot::Sender<PollResponse<Output>>>,
+    poll_request_sender: std::sync::mpsc::Sender<oneshot::Sender<PollResponse<Output>>>,
     state: PollSenderState<Output>,
 }
 
@@ -151,7 +151,7 @@ impl<Output> PollSender<Output> {
 
         let this = PollSender {
             host_future_queue,
-            poll_requester: poll_sender,
+            poll_request_sender: poll_sender,
             state: PollSenderState::Queued,
         };
 
@@ -165,7 +165,7 @@ impl<Output> PollSender<Output> {
         }
 
         let (response_sender, response_receiver) = oneshot::channel();
-        let _ = self.poll_requester.send(response_sender);
+        let _ = self.poll_request_sender.send(response_sender);
         self.state = PollSenderState::Polling(response_receiver);
 
         Poll::Ready(())
