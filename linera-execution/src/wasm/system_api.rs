@@ -9,7 +9,7 @@ macro_rules! impl_contract_system_api {
         impl contract_system_api::ContractSystemApi for $contract_system_api {
             type Error = ExecutionError;
 
-            type Lock = Mutex<oneshot::Receiver<Result<(), ExecutionError>>>;
+            type Lock = Mutex<futures::channel::oneshot::Receiver<Result<(), ExecutionError>>>;
 
             fn error_to_trap(&mut self, error: Self::Error) -> $trap {
                 error.into()
@@ -17,82 +17,90 @@ macro_rules! impl_contract_system_api {
 
             fn chain_id(&mut self) -> Result<contract_system_api::ChainId, Self::Error> {
                 self.runtime
-                    .sync_request(|response| {
+                    .send_request(|response| {
                         ContractRequest::Base(BaseRequest::ChainId { response })
                     })
+                    .recv()
                     .map(|chain_id| chain_id.into())
-                    .map_err(|_: CanceledError| WasmExecutionError::MissingRuntimeResponse.into())
+                    .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into())
             }
 
             fn application_id(
                 &mut self,
             ) -> Result<contract_system_api::ApplicationId, Self::Error> {
                 self.runtime
-                    .sync_request(|response| {
+                    .send_request(|response| {
                         ContractRequest::Base(BaseRequest::ApplicationId { response })
                     })
+                    .recv()
                     .map(|application_id| application_id.into())
-                    .map_err(|_: CanceledError| WasmExecutionError::MissingRuntimeResponse.into())
+                    .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into())
             }
 
             fn application_parameters(&mut self) -> Result<Vec<u8>, Self::Error> {
                 self.runtime
-                    .sync_request(|response| {
+                    .send_request(|response| {
                         ContractRequest::Base(BaseRequest::ApplicationParameters { response })
                     })
-                    .map_err(|_: CanceledError| WasmExecutionError::MissingRuntimeResponse.into())
+                    .recv()
+                    .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into())
             }
 
             fn read_system_balance(&mut self) -> Result<contract_system_api::Amount, Self::Error> {
                 self.runtime
-                    .sync_request(|response| {
+                    .send_request(|response| {
                         ContractRequest::Base(BaseRequest::ReadSystemBalance { response })
                     })
+                    .recv()
                     .map(|balance| balance.into())
-                    .map_err(|_: CanceledError| WasmExecutionError::MissingRuntimeResponse.into())
+                    .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into())
             }
 
             fn read_system_timestamp(
                 &mut self,
             ) -> Result<contract_system_api::Timestamp, Self::Error> {
                 self.runtime
-                    .sync_request(|response| {
+                    .send_request(|response| {
                         ContractRequest::Base(BaseRequest::ReadSystemTimestamp { response })
                     })
+                    .recv()
                     .map(|timestamp| timestamp.micros())
-                    .map_err(|_: CanceledError| WasmExecutionError::MissingRuntimeResponse.into())
+                    .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into())
             }
 
             fn load(&mut self) -> Result<Vec<u8>, Self::Error> {
                 self.runtime
-                    .sync_request(|response| {
+                    .send_request(|response| {
                         ContractRequest::Base(BaseRequest::TryReadMyState {
                             response: response.into(),
                         })
                     })
-                    .map_err(|_: CanceledError| WasmExecutionError::MissingRuntimeResponse.into())
+                    .recv()
+                    .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into())
             }
 
             fn load_and_lock(&mut self) -> Result<Option<Vec<u8>>, Self::Error> {
                 self.runtime
-                    .sync_request(|response| ContractRequest::TryReadAndLockMyState { response })
-                    .map_err(|_: CanceledError| WasmExecutionError::MissingRuntimeResponse.into())
+                    .send_request(|response| ContractRequest::TryReadAndLockMyState { response })
+                    .recv()
+                    .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into())
             }
 
             fn store_and_unlock(&mut self, state: &[u8]) -> Result<bool, Self::Error> {
                 self.runtime
-                    .sync_request(|response| ContractRequest::SaveAndUnlockMyState {
+                    .send_request(|response| ContractRequest::SaveAndUnlockMyState {
                         state: state.to_owned(),
                         response,
                     })
-                    .map_err(|_: CanceledError| WasmExecutionError::MissingRuntimeResponse.into())
+                    .recv()
+                    .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into())
             }
 
             fn lock_new(&mut self) -> Result<Self::Lock, Self::Error> {
                 Ok(Mutex::new(
                     self.queued_future_factory.enqueue(
                         self.runtime
-                            .async_request(|response| {
+                            .send_request(|response| {
                                 ContractRequest::Base(BaseRequest::LockViewUserState { response })
                             })
                             .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into()),
@@ -115,7 +123,7 @@ macro_rules! impl_contract_system_api {
                         Ok(PollLock::ReadyNotLocked)
                     }
                     Ok(Some(Err(error))) => Err(error),
-                    Err(oneshot::Canceled) => {
+                    Err(futures::channel::oneshot::Canceled) => {
                         Err(WasmExecutionError::MissingRuntimeResponse.into())
                     }
                 }
@@ -135,15 +143,16 @@ macro_rules! impl_contract_system_api {
                     .collect();
 
                 self.runtime
-                    .sync_request(|response| ContractRequest::TryCallApplication {
+                    .send_request(|response| ContractRequest::TryCallApplication {
                         authenticated,
                         callee_id: application.into(),
                         argument: argument.to_owned(),
                         forwarded_sessions,
                         response,
                     })
+                    .recv()
                     .map(|call_result| call_result.into())
-                    .map_err(|_: CanceledError| WasmExecutionError::MissingRuntimeResponse.into())
+                    .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into())
             }
 
             fn try_call_session(
@@ -160,15 +169,16 @@ macro_rules! impl_contract_system_api {
                     .collect();
 
                 self.runtime
-                    .sync_request(|response| ContractRequest::TryCallSession {
+                    .send_request(|response| ContractRequest::TryCallSession {
                         authenticated,
                         session_id: session.into(),
                         argument: argument.to_owned(),
                         forwarded_sessions,
                         response,
                     })
+                    .recv()
                     .map(|call_result| call_result.into())
-                    .map_err(|_: CanceledError| WasmExecutionError::MissingRuntimeResponse.into())
+                    .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into())
             }
 
             fn log(
@@ -208,52 +218,57 @@ macro_rules! impl_service_system_api {
 
             fn chain_id(&mut self) -> Result<service_system_api::ChainId, Self::Error> {
                 self.runtime
-                    .sync_request(|response| {
+                    .send_request(|response| {
                         ServiceRequest::Base(BaseRequest::ChainId { response })
                     })
+                    .recv()
                     .map(|chain_id| chain_id.into())
-                    .map_err(|_: CanceledError| WasmExecutionError::MissingRuntimeResponse.into())
+                    .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into())
             }
 
             fn application_id(&mut self) -> Result<service_system_api::ApplicationId, Self::Error> {
                 self.runtime
-                    .sync_request(|response| {
+                    .send_request(|response| {
                         ServiceRequest::Base(BaseRequest::ApplicationId { response })
                     })
+                    .recv()
                     .map(|application_id| application_id.into())
-                    .map_err(|_: CanceledError| WasmExecutionError::MissingRuntimeResponse.into())
+                    .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into())
             }
 
             fn application_parameters(&mut self) -> Result<Vec<u8>, Self::Error> {
                 self.runtime
-                    .sync_request(|response| {
+                    .send_request(|response| {
                         ServiceRequest::Base(BaseRequest::ApplicationParameters { response })
                     })
-                    .map_err(|_: CanceledError| WasmExecutionError::MissingRuntimeResponse.into())
+                    .recv()
+                    .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into())
             }
 
             fn read_system_balance(&mut self) -> Result<service_system_api::Amount, Self::Error> {
                 self.runtime
-                    .sync_request(|response| {
+                    .send_request(|response| {
                         ServiceRequest::Base(BaseRequest::ReadSystemBalance { response })
                     })
+                    .recv()
                     .map(|balance| balance.into())
-                    .map_err(|_: CanceledError| WasmExecutionError::MissingRuntimeResponse.into())
+                    .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into())
             }
 
             fn read_system_timestamp(
                 &mut self,
             ) -> Result<service_system_api::Timestamp, Self::Error> {
                 self.runtime
-                    .sync_request(|response| {
+                    .send_request(|response| {
                         ServiceRequest::Base(BaseRequest::ReadSystemTimestamp { response })
                     })
+                    .recv()
                     .map(|timestamp| timestamp.micros())
-                    .map_err(|_: CanceledError| WasmExecutionError::MissingRuntimeResponse.into())
+                    .map_err(|_| WasmExecutionError::MissingRuntimeResponse.into())
             }
 
             fn load_new(&mut self) -> Result<Self::Load, Self::Error> {
-                Ok(Mutex::new(self.runtime.async_request(|response| {
+                Ok(Mutex::new(self.runtime.send_request(|response| {
                     ServiceRequest::Base(BaseRequest::TryReadMyState {
                         response: response.into(),
                     })
@@ -265,20 +280,20 @@ macro_rules! impl_service_system_api {
                 future: &Self::Load,
             ) -> Result<service_system_api::PollLoad, Self::Error> {
                 use service_system_api::PollLoad;
-                let mut receiver = future
+                let receiver = future
                     .try_lock()
                     .expect("Unexpected reentrant locking of `oneshot::Receiver`");
                 match receiver.try_recv() {
-                    Ok(None) => Ok(PollLoad::Pending),
-                    Ok(Some(bytes)) => Ok(PollLoad::Ready(Ok(bytes))),
-                    Err(oneshot::Canceled) => {
+                    Ok(bytes) => Ok(PollLoad::Ready(Ok(bytes))),
+                    Err(oneshot::TryRecvError::Empty) => Ok(PollLoad::Pending),
+                    Err(oneshot::TryRecvError::Disconnected) => {
                         Err(WasmExecutionError::MissingRuntimeResponse.into())
                     }
                 }
             }
 
             fn lock_new(&mut self) -> Result<Self::Lock, Self::Error> {
-                Ok(Mutex::new(self.runtime.async_request(|response| {
+                Ok(Mutex::new(self.runtime.send_request(|response| {
                     ServiceRequest::Base(BaseRequest::LockViewUserState { response })
                 })))
             }
@@ -288,20 +303,20 @@ macro_rules! impl_service_system_api {
                 future: &Self::Lock,
             ) -> Result<service_system_api::PollLock, Self::Error> {
                 use service_system_api::PollLock;
-                let mut receiver = future
+                let receiver = future
                     .try_lock()
                     .expect("Unexpected reentrant locking of `oneshot::Receiver`");
                 match receiver.try_recv() {
-                    Ok(None) => Ok(PollLock::Pending),
-                    Ok(Some(())) => Ok(PollLock::Ready(Ok(()))),
-                    Err(oneshot::Canceled) => {
+                    Ok(()) => Ok(PollLock::Ready(Ok(()))),
+                    Err(oneshot::TryRecvError::Empty) => Ok(PollLock::Pending),
+                    Err(oneshot::TryRecvError::Disconnected) => {
                         Err(WasmExecutionError::MissingRuntimeResponse.into())
                     }
                 }
             }
 
             fn unlock_new(&mut self) -> Result<Self::Unlock, Self::Error> {
-                Ok(Mutex::new(self.runtime.async_request(|response| {
+                Ok(Mutex::new(self.runtime.send_request(|response| {
                     ServiceRequest::Base(BaseRequest::UnlockViewUserState { response })
                 })))
             }
@@ -311,13 +326,13 @@ macro_rules! impl_service_system_api {
                 future: &Self::Lock,
             ) -> Result<service_system_api::PollUnlock, Self::Error> {
                 use service_system_api::PollUnlock;
-                let mut receiver = future
+                let receiver = future
                     .try_lock()
                     .expect("Unexpected reentrant locking of `oneshot::Receiver`");
                 match receiver.try_recv() {
-                    Ok(None) => Ok(PollUnlock::Pending),
-                    Ok(Some(())) => Ok(PollUnlock::Ready(Ok(()))),
-                    Err(oneshot::Canceled) => {
+                    Ok(()) => Ok(PollUnlock::Ready(Ok(()))),
+                    Err(oneshot::TryRecvError::Empty) => Ok(PollUnlock::Pending),
+                    Err(oneshot::TryRecvError::Disconnected) => {
                         Err(WasmExecutionError::MissingRuntimeResponse.into())
                     }
                 }
@@ -330,7 +345,7 @@ macro_rules! impl_service_system_api {
             ) -> Result<Self::TryQueryApplication, Self::Error> {
                 let argument = Vec::from(argument);
 
-                Ok(Mutex::new(self.runtime.async_request(|response| {
+                Ok(Mutex::new(self.runtime.send_request(|response| {
                     ServiceRequest::TryQueryApplication {
                         queried_id: application.into(),
                         argument: argument.to_owned(),
@@ -344,13 +359,13 @@ macro_rules! impl_service_system_api {
                 future: &Self::TryQueryApplication,
             ) -> Result<service_system_api::PollLoad, Self::Error> {
                 use service_system_api::PollLoad;
-                let mut receiver = future
+                let receiver = future
                     .try_lock()
                     .expect("Unexpected reentrant locking of `oneshot::Receiver`");
                 match receiver.try_recv() {
-                    Ok(None) => Ok(PollLoad::Pending),
-                    Ok(Some(result)) => Ok(PollLoad::Ready(Ok(result))),
-                    Err(oneshot::Canceled) => {
+                    Ok(result) => Ok(PollLoad::Ready(Ok(result))),
+                    Err(oneshot::TryRecvError::Empty) => Ok(PollLoad::Pending),
+                    Err(oneshot::TryRecvError::Disconnected) => {
                         Err(WasmExecutionError::MissingRuntimeResponse.into())
                     }
                 }
@@ -397,7 +412,7 @@ macro_rules! impl_view_system_api_for_service {
                 &mut self,
                 key: &[u8],
             ) -> Result<Self::ReadKeyBytes, Self::Error> {
-                Ok(Mutex::new(self.runtime.async_request(|response| {
+                Ok(Mutex::new(self.runtime.send_request(|response| {
                     ServiceRequest::Base(BaseRequest::ReadKeyBytes {
                         key: key.to_owned(),
                         response,
@@ -410,20 +425,20 @@ macro_rules! impl_view_system_api_for_service {
                 future: &Self::ReadKeyBytes,
             ) -> Result<view_system_api::PollReadKeyBytes, Self::Error> {
                 use view_system_api::PollReadKeyBytes;
-                let mut receiver = future
+                let receiver = future
                     .try_lock()
                     .expect("Unexpected reentrant locking of `oneshot::Receiver`");
                 match receiver.try_recv() {
-                    Ok(None) => Ok(PollReadKeyBytes::Pending),
-                    Ok(Some(opt_list)) => Ok(PollReadKeyBytes::Ready(opt_list)),
-                    Err(oneshot::Canceled) => {
+                    Ok(opt_list) => Ok(PollReadKeyBytes::Ready(opt_list)),
+                    Err(oneshot::TryRecvError::Empty) => Ok(PollReadKeyBytes::Pending),
+                    Err(oneshot::TryRecvError::Disconnected) => {
                         Err(WasmExecutionError::MissingRuntimeResponse.into())
                     }
                 }
             }
 
             fn find_keys_new(&mut self, key_prefix: &[u8]) -> Result<Self::FindKeys, Self::Error> {
-                Ok(Mutex::new(self.runtime.async_request(|response| {
+                Ok(Mutex::new(self.runtime.send_request(|response| {
                     ServiceRequest::Base(BaseRequest::FindKeysByPrefix {
                         key_prefix: key_prefix.to_owned(),
                         response,
@@ -436,13 +451,13 @@ macro_rules! impl_view_system_api_for_service {
                 future: &Self::FindKeys,
             ) -> Result<view_system_api::PollFindKeys, Self::Error> {
                 use view_system_api::PollFindKeys;
-                let mut receiver = future
+                let receiver = future
                     .try_lock()
                     .expect("Unexpected reentrant locking of `oneshot::Receiver`");
                 match receiver.try_recv() {
-                    Ok(None) => Ok(PollFindKeys::Pending),
-                    Ok(Some(keys)) => Ok(PollFindKeys::Ready(keys)),
-                    Err(oneshot::Canceled) => {
+                    Ok(keys) => Ok(PollFindKeys::Ready(keys)),
+                    Err(oneshot::TryRecvError::Empty) => Ok(PollFindKeys::Pending),
+                    Err(oneshot::TryRecvError::Disconnected) => {
                         Err(WasmExecutionError::MissingRuntimeResponse.into())
                     }
                 }
@@ -452,7 +467,7 @@ macro_rules! impl_view_system_api_for_service {
                 &mut self,
                 key_prefix: &[u8],
             ) -> Result<Self::FindKeyValues, Self::Error> {
-                Ok(Mutex::new(self.runtime.async_request(|response| {
+                Ok(Mutex::new(self.runtime.send_request(|response| {
                     ServiceRequest::Base(BaseRequest::FindKeyValuesByPrefix {
                         key_prefix: key_prefix.to_owned(),
                         response,
@@ -465,13 +480,13 @@ macro_rules! impl_view_system_api_for_service {
                 future: &Self::FindKeyValues,
             ) -> Result<view_system_api::PollFindKeyValues, Self::Error> {
                 use view_system_api::PollFindKeyValues;
-                let mut receiver = future
+                let receiver = future
                     .try_lock()
                     .expect("Unexpected reentrant locking of `oneshot::Receiver`");
                 match receiver.try_recv() {
-                    Ok(None) => Ok(PollFindKeyValues::Pending),
-                    Ok(Some(key_values)) => Ok(PollFindKeyValues::Ready(key_values)),
-                    Err(oneshot::Canceled) => {
+                    Ok(key_values) => Ok(PollFindKeyValues::Ready(key_values)),
+                    Err(oneshot::TryRecvError::Empty) => Ok(PollFindKeyValues::Pending),
+                    Err(oneshot::TryRecvError::Disconnected) => {
                         Err(WasmExecutionError::MissingRuntimeResponse.into())
                     }
                 }
@@ -503,11 +518,17 @@ macro_rules! impl_view_system_api_for_contract {
         impl view_system_api::ViewSystemApi for $view_system_api {
             type Error = ExecutionError;
 
-            type ReadKeyBytes = Mutex<oneshot::Receiver<Result<Option<Vec<u8>>, ExecutionError>>>;
-            type FindKeys = Mutex<oneshot::Receiver<Result<Vec<Vec<u8>>, ExecutionError>>>;
-            type FindKeyValues =
-                Mutex<oneshot::Receiver<Result<Vec<(Vec<u8>, Vec<u8>)>, ExecutionError>>>;
-            type WriteBatch = Mutex<oneshot::Receiver<Result<(), ExecutionError>>>;
+            type ReadKeyBytes =
+                Mutex<futures::channel::oneshot::Receiver<Result<Option<Vec<u8>>, ExecutionError>>>;
+            type FindKeys =
+                Mutex<futures::channel::oneshot::Receiver<Result<Vec<Vec<u8>>, ExecutionError>>>;
+            type FindKeyValues = Mutex<
+                futures::channel::oneshot::Receiver<
+                    Result<Vec<(Vec<u8>, Vec<u8>)>, ExecutionError>,
+                >,
+            >;
+            type WriteBatch =
+                Mutex<futures::channel::oneshot::Receiver<Result<(), ExecutionError>>>;
 
             fn error_to_trap(&mut self, error: Self::Error) -> $trap {
                 error.into()
@@ -520,7 +541,7 @@ macro_rules! impl_view_system_api_for_contract {
                 Ok(Mutex::new(
                     self.queued_future_factory.enqueue(
                         self.runtime
-                            .async_request(|response| {
+                            .send_request(|response| {
                                 ContractRequest::Base(BaseRequest::ReadKeyBytes {
                                     key: key.to_owned(),
                                     response,
@@ -543,7 +564,7 @@ macro_rules! impl_view_system_api_for_contract {
                     Ok(None) => Ok(PollReadKeyBytes::Pending),
                     Ok(Some(Ok(opt_list))) => Ok(PollReadKeyBytes::Ready(opt_list)),
                     Ok(Some(Err(error))) => Err(error),
-                    Err(oneshot::Canceled) => {
+                    Err(futures::channel::oneshot::Canceled) => {
                         Err(WasmExecutionError::MissingRuntimeResponse.into())
                     }
                 }
@@ -553,7 +574,7 @@ macro_rules! impl_view_system_api_for_contract {
                 Ok(Mutex::new(
                     self.queued_future_factory.enqueue(
                         self.runtime
-                            .async_request(|response| {
+                            .send_request(|response| {
                                 ContractRequest::Base(BaseRequest::FindKeysByPrefix {
                                     key_prefix: key_prefix.to_owned(),
                                     response,
@@ -576,7 +597,7 @@ macro_rules! impl_view_system_api_for_contract {
                     Ok(None) => Ok(PollFindKeys::Pending),
                     Ok(Some(Ok(keys))) => Ok(PollFindKeys::Ready(keys)),
                     Ok(Some(Err(error))) => Err(error),
-                    Err(oneshot::Canceled) => {
+                    Err(futures::channel::oneshot::Canceled) => {
                         Err(WasmExecutionError::MissingRuntimeResponse.into())
                     }
                 }
@@ -589,7 +610,7 @@ macro_rules! impl_view_system_api_for_contract {
                 Ok(Mutex::new(
                     self.queued_future_factory.enqueue(
                         self.runtime
-                            .async_request(|response| {
+                            .send_request(|response| {
                                 ContractRequest::Base(BaseRequest::FindKeyValuesByPrefix {
                                     key_prefix: key_prefix.to_owned(),
                                     response,
@@ -612,7 +633,7 @@ macro_rules! impl_view_system_api_for_contract {
                     Ok(None) => Ok(PollFindKeyValues::Pending),
                     Ok(Some(Ok(key_values))) => Ok(PollFindKeyValues::Ready(key_values)),
                     Ok(Some(Err(error))) => Err(error),
-                    Err(oneshot::Canceled) => {
+                    Err(futures::channel::oneshot::Canceled) => {
                         Err(WasmExecutionError::MissingRuntimeResponse.into())
                     }
                 }
@@ -639,7 +660,7 @@ macro_rules! impl_view_system_api_for_contract {
                 Ok(Mutex::new(
                     self.queued_future_factory.enqueue(
                         self.runtime
-                            .async_request(|response| ContractRequest::WriteBatchAndUnlock {
+                            .send_request(|response| ContractRequest::WriteBatchAndUnlock {
                                 batch,
                                 response,
                             })
@@ -660,7 +681,7 @@ macro_rules! impl_view_system_api_for_contract {
                     Ok(None) => Ok(PollUnit::Pending),
                     Ok(Some(Ok(()))) => Ok(PollUnit::Ready),
                     Ok(Some(Err(error))) => Err(error),
-                    Err(oneshot::Canceled) => {
+                    Err(futures::channel::oneshot::Canceled) => {
                         Err(WasmExecutionError::MissingRuntimeResponse.into())
                     }
                 }

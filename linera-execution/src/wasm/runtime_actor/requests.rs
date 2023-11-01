@@ -3,9 +3,7 @@
 
 //! Different request types for different runtimes.
 
-use super::responses::{SyncOrAsyncResponse, SyncResponseSender};
 use crate::{CallResult, UserApplicationId};
-use futures::channel::oneshot;
 use linera_base::{
     data_types::{Amount, Timestamp},
     identifiers::{ChainId, SessionId},
@@ -16,34 +14,26 @@ use std::fmt::{self, Debug, Formatter};
 /// Requests shared by contracts and services.
 pub enum BaseRequest {
     /// Requests the current chain id.
-    ChainId {
-        response: SyncResponseSender<ChainId>,
-    },
+    ChainId { response: oneshot::Sender<ChainId> },
 
     /// Requests the current application id.
     ApplicationId {
-        response: SyncResponseSender<UserApplicationId>,
+        response: oneshot::Sender<UserApplicationId>,
     },
 
     /// Requests the current application parameters.
-    ApplicationParameters {
-        response: SyncResponseSender<Vec<u8>>,
-    },
+    ApplicationParameters { response: oneshot::Sender<Vec<u8>> },
 
     /// Requests to read the system balance.
-    ReadSystemBalance {
-        response: SyncResponseSender<Amount>,
-    },
+    ReadSystemBalance { response: oneshot::Sender<Amount> },
 
     /// Requests to read the system timestamp.
     ReadSystemTimestamp {
-        response: SyncResponseSender<Timestamp>,
+        response: oneshot::Sender<Timestamp>,
     },
 
     /// Requests to read the application state.
-    TryReadMyState {
-        response: SyncOrAsyncResponse<Vec<u8>>,
-    },
+    TryReadMyState { response: oneshot::Sender<Vec<u8>> },
 
     /// Requests to lock the view user state and prevent further reading/loading.
     LockViewUserState { response: oneshot::Sender<()> },
@@ -119,29 +109,29 @@ pub enum ContractRequest {
     Base(BaseRequest),
 
     /// Requests the amount of execution fuel remaining before execution is aborted.
-    RemainingFuel { response: SyncResponseSender<u64> },
+    RemainingFuel { response: oneshot::Sender<u64> },
 
     /// Requests to set the amount of execution fuel remaining before execution is aborted.
     SetRemainingFuel {
         remaining_fuel: u64,
-        response: SyncResponseSender<()>,
+        response: oneshot::Sender<()>,
     },
 
     /// Requests to read the application state and prevent further reading/loading until the state
     /// is saved or unlocked.
     TryReadAndLockMyState {
-        response: SyncResponseSender<Option<Vec<u8>>>,
+        response: oneshot::Sender<Option<Vec<u8>>>,
     },
 
     /// Requests to save the application state and allow reading/loading the state again.
     SaveAndUnlockMyState {
         state: Vec<u8>,
-        response: SyncResponseSender<bool>,
+        response: oneshot::Sender<bool>,
     },
 
     /// Requests to unlock the application state without saving anything and allow reading/loading
     /// it again.
-    UnlockMyState { response: SyncResponseSender<()> },
+    UnlockMyState { response: oneshot::Sender<()> },
 
     /// Requests to write the batch and unlock the application state to allow further
     /// reading/loading it.
@@ -156,7 +146,7 @@ pub enum ContractRequest {
         callee_id: UserApplicationId,
         argument: Vec<u8>,
         forwarded_sessions: Vec<SessionId>,
-        response: SyncResponseSender<CallResult>,
+        response: oneshot::Sender<CallResult>,
     },
 
     /// Calls into a session that is in our scope.
@@ -165,7 +155,7 @@ pub enum ContractRequest {
         session_id: SessionId,
         argument: Vec<u8>,
         forwarded_sessions: Vec<SessionId>,
-        response: SyncResponseSender<CallResult>,
+        response: oneshot::Sender<CallResult>,
     },
 }
 

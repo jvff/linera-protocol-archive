@@ -25,19 +25,23 @@ where
 {
     async fn handle_request(&self, request: BaseRequest) -> Result<(), ExecutionError> {
         match request {
-            BaseRequest::ChainId { response } => response.send(self.chain_id()),
-            BaseRequest::ApplicationId { response } => response.send(self.application_id()),
+            BaseRequest::ChainId { response } => {
+                let _ = response.send(self.chain_id());
+            }
+            BaseRequest::ApplicationId { response } => {
+                let _ = response.send(self.application_id());
+            }
             BaseRequest::ApplicationParameters { response } => {
-                response.send(self.application_parameters())
+                let _ = response.send(self.application_parameters());
             }
             BaseRequest::ReadSystemBalance { response } => {
-                response.send(self.read_system_balance())
+                let _ = response.send(self.read_system_balance());
             }
             BaseRequest::ReadSystemTimestamp { response } => {
-                response.send(self.read_system_timestamp())
+                let _ = response.send(self.read_system_timestamp());
             }
             BaseRequest::TryReadMyState { response } => {
-                response.send(self.try_read_my_state().await?)
+                let _ = response.send(self.try_read_my_state().await?);
             }
             BaseRequest::LockViewUserState { response } => {
                 let _ = response.send(self.lock_view_user_state().await?);
@@ -76,23 +80,31 @@ where
         // value of the called function changes.
         #[allow(clippy::unit_arg)]
         match request {
-            ContractRequest::Base(base_request) => (*self).handle_request(base_request).await?,
-            ContractRequest::RemainingFuel { response } => response.send(self.remaining_fuel()),
+            ContractRequest::Base(base_request) => {
+                let _ = (*self).handle_request(base_request).await?;
+            }
+            ContractRequest::RemainingFuel { response } => {
+                let _ = response.send(self.remaining_fuel());
+            }
             ContractRequest::SetRemainingFuel {
                 remaining_fuel,
                 response,
-            } => response.send(self.set_remaining_fuel(remaining_fuel)),
+            } => {
+                let _ = response.send(self.set_remaining_fuel(remaining_fuel));
+            }
             ContractRequest::TryReadAndLockMyState { response } => {
-                response.send(match self.try_read_and_lock_my_state().await {
+                let _ = response.send(match self.try_read_and_lock_my_state().await {
                     Ok(bytes) => Some(bytes),
                     Err(ExecutionError::ViewError(ViewError::NotFound(_))) => None,
                     Err(error) => return Err(error),
-                })
+                });
             }
             ContractRequest::SaveAndUnlockMyState { state, response } => {
-                response.send(self.save_and_unlock_my_state(state).is_ok())
+                let _ = response.send(self.save_and_unlock_my_state(state).is_ok());
             }
-            ContractRequest::UnlockMyState { response } => response.send(self.unlock_my_state()),
+            ContractRequest::UnlockMyState { response } => {
+                let _ = response.send(self.unlock_my_state());
+            }
             ContractRequest::WriteBatchAndUnlock { batch, response } => {
                 let _ = response.send(self.write_batch_and_unlock(batch).await?);
             }
@@ -102,20 +114,29 @@ where
                 argument,
                 forwarded_sessions,
                 response,
-            } => response.send(
-                self.try_call_application(authenticated, callee_id, &argument, forwarded_sessions)
+            } => {
+                let _ = response.send(
+                    self.try_call_application(
+                        authenticated,
+                        callee_id,
+                        &argument,
+                        forwarded_sessions,
+                    )
                     .await?,
-            ),
+                );
+            }
             ContractRequest::TryCallSession {
                 authenticated,
                 session_id,
                 argument,
                 forwarded_sessions,
                 response,
-            } => response.send(
-                self.try_call_session(authenticated, session_id, &argument, forwarded_sessions)
-                    .await?,
-            ),
+            } => {
+                let _ = response.send(
+                    self.try_call_session(authenticated, session_id, &argument, forwarded_sessions)
+                        .await?,
+                );
+            }
         }
 
         Ok(())

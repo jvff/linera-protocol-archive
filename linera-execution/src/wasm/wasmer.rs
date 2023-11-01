@@ -38,7 +38,7 @@ use super::{
     async_determinism::{HostFutureQueue, QueuedHostFutureFactory},
     common::{self, ApplicationRuntimeContext, WasmRuntimeContext},
     module_cache::ModuleCache,
-    runtime_actor::{BaseRequest, CanceledError, ContractRequest, SendRequestExt, ServiceRequest},
+    runtime_actor::{BaseRequest, ContractRequest, SendRequestExt, ServiceRequest},
     WasmApplication, WasmExecutionError,
 };
 use crate::{
@@ -46,10 +46,7 @@ use crate::{
     QueryContext, ServiceRuntime,
 };
 use bytes::Bytes;
-use futures::{
-    channel::{mpsc, oneshot},
-    TryFutureExt,
-};
+use futures::{channel::mpsc, TryFutureExt};
 use linera_base::identifiers::SessionId;
 use linera_views::{batch::Batch, views::ViewError};
 use once_cell::sync::Lazy;
@@ -88,7 +85,8 @@ impl ApplicationRuntimeContext for Contract {
         let remaining_points = context
             .extra
             .runtime
-            .sync_request(|response| ContractRequest::RemainingFuel { response })
+            .send_request(|response| ContractRequest::RemainingFuel { response })
+            .recv()
             .unwrap_or(0);
 
         metering::set_remaining_points(
@@ -108,10 +106,11 @@ impl ApplicationRuntimeContext for Contract {
         let _ = context
             .extra
             .runtime
-            .sync_request(|response| ContractRequest::SetRemainingFuel {
+            .send_request(|response| ContractRequest::SetRemainingFuel {
                 remaining_fuel,
                 response,
-            });
+            })
+            .recv();
     }
 }
 

@@ -5,19 +5,12 @@
 
 mod handlers;
 mod requests;
-mod responses;
 
-use self::{
-    handlers::RequestHandler,
-    responses::{SyncResponse, SyncResponseSender},
-};
-pub use self::{
-    requests::{BaseRequest, ContractRequest, ServiceRequest},
-    responses::CanceledError,
-};
+use self::handlers::RequestHandler;
+pub use self::requests::{BaseRequest, ContractRequest, ServiceRequest};
 use crate::ExecutionError;
 use futures::{
-    channel::{mpsc, oneshot},
+    channel::mpsc,
     select,
     stream::{FuturesUnordered, StreamExt},
 };
@@ -80,17 +73,9 @@ where
 ///
 /// Prepares a channel for the actor to send a response back to the sender of the request.
 pub trait SendRequestExt<Request> {
-    /// Sends a synchronous request built by `builder`, blocking until the `Response` is received.
-    fn sync_request<Response>(
-        &self,
-        builder: impl FnOnce(SyncResponseSender<Response>) -> Request,
-    ) -> Result<Response, CanceledError>
-    where
-        Response: Send;
-
-    /// Sends an asynchronous request built by `builder`, returning a [`oneshot::Receiver`] for
-    /// awaiting the `Response`.
-    fn async_request<Response>(
+    /// Sends a request built by `builder`, returning a [`oneshot::Receiver`] for receiving the
+    /// `Response`.
+    fn send_request<Response>(
         &self,
         builder: impl FnOnce(oneshot::Sender<Response>) -> Request,
     ) -> oneshot::Receiver<Response>
@@ -102,24 +87,7 @@ impl<Request> SendRequestExt<Request> for mpsc::UnboundedSender<Request>
 where
     Request: Send,
 {
-    fn sync_request<Response>(
-        &self,
-        builder: impl FnOnce(SyncResponseSender<Response>) -> Request,
-    ) -> Result<Response, CanceledError>
-    where
-        Response: Send,
-    {
-        let (response_sender, response_receiver) = SyncResponse::channel();
-        let request = builder(response_sender);
-
-        self.unbounded_send(request).unwrap_or_else(|error| {
-            panic!("Failed to send request because receiver has stopped listening: {error}")
-        });
-
-        response_receiver.wait()
-    }
-
-    fn async_request<Response>(
+    fn send_request<Response>(
         &self,
         builder: impl FnOnce(oneshot::Sender<Response>) -> Request,
     ) -> oneshot::Receiver<Response>

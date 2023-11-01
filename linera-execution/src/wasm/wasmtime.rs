@@ -42,17 +42,14 @@ use super::{
     async_determinism::{HostFutureQueue, QueuedHostFutureFactory},
     common::{self, ApplicationRuntimeContext, WasmRuntimeContext},
     module_cache::ModuleCache,
-    runtime_actor::{BaseRequest, CanceledError, ContractRequest, SendRequestExt, ServiceRequest},
+    runtime_actor::{BaseRequest, ContractRequest, SendRequestExt, ServiceRequest},
     WasmApplication, WasmExecutionError,
 };
 use crate::{
     Bytecode, CalleeContext, ExecutionError, MessageContext, OperationContext, QueryContext,
     SessionId,
 };
-use futures::{
-    channel::{mpsc, oneshot},
-    TryFutureExt,
-};
+use futures::{channel::mpsc, TryFutureExt};
 use linera_views::{batch::Batch, views::ViewError};
 use once_cell::sync::Lazy;
 use std::error::Error;
@@ -95,7 +92,8 @@ impl ApplicationRuntimeContext for Contract {
     fn configure_initial_fuel(context: &mut WasmRuntimeContext<Self>) {
         let runtime = &context.store.data().system_api.runtime;
         let fuel = runtime
-            .sync_request(|response| ContractRequest::RemainingFuel { response })
+            .send_request(|response| ContractRequest::RemainingFuel { response })
+            .recv()
             .unwrap_or(0);
 
         context
@@ -107,15 +105,18 @@ impl ApplicationRuntimeContext for Contract {
     fn persist_remaining_fuel(context: &mut WasmRuntimeContext<Self>) {
         let runtime = &context.store.data().system_api.runtime;
         let initial_fuel = runtime
-            .sync_request(|response| ContractRequest::RemainingFuel { response })
+            .send_request(|response| ContractRequest::RemainingFuel { response })
+            .recv()
             .unwrap_or(0);
         let consumed_fuel = context.store.fuel_consumed().unwrap_or(0);
         let remaining_fuel = initial_fuel.saturating_sub(consumed_fuel);
 
-        let _ = runtime.sync_request(|response| ContractRequest::SetRemainingFuel {
-            remaining_fuel,
-            response,
-        });
+        let _ = runtime
+            .send_request(|response| ContractRequest::SetRemainingFuel {
+                remaining_fuel,
+                response,
+            })
+            .recv();
     }
 }
 
