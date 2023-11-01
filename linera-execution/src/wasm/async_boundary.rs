@@ -28,7 +28,7 @@ where
     Future: GuestFutureInterface<Application>,
 {
     context: WasmRuntimeContext<Application>,
-    poll_requests: std::sync::mpsc::Receiver<oneshot::Sender<PollResponse<Future::Output>>>,
+    poll_requests: std::sync::mpsc::Receiver<PollRequest<Future::Output>>,
     _future_type: PhantomData<Future>,
 }
 
@@ -83,11 +83,11 @@ where
 
     /// Executes the `future`, polling it as requested by the [`PollSender`] until it completes.
     fn run_poll_loop(mut self, future: Future) {
-        while let Ok(response_sender) = self.poll_requests.recv() {
+        while let Ok(request) = self.poll_requests.recv() {
             let response = future.poll(&self.context.application, &mut self.context.store);
             let finished = response.is_ready();
 
-            let _ = response_sender.send(PollResponse(response));
+            let _ = request.response_sender.send(PollResponse(response));
 
             if finished {
                 break;
@@ -98,10 +98,17 @@ where
     /// Waits for the first poll request sent by the [`PollSender`], and immediately responds with
     /// the error obtained when attempting to create the `Future` instance.
     fn notify_creation_error(self, error: ExecutionError) {
-        if let Ok(response_sender) = self.poll_requests.recv() {
-            let _ = response_sender.send(PollResponse(Poll::Ready(Err(error))));
+        if let Ok(request) = self.poll_requests.recv() {
+            let _ = request
+                .response_sender
+                .send(PollResponse(Poll::Ready(Err(error))));
         }
     }
+}
+
+/// A message type sent to request the actor to poll the guest Wasm future.
+struct PollRequest<Output> {
+    response_sender: oneshot::Sender<PollResponse<Output>>,
 }
 
 /// A wrapper type representing the response sent from a future actor to a poll request sent from a
@@ -119,7 +126,7 @@ struct PollResponse<Output>(Poll<Result<Output, ExecutionError>>);
 /// execution (as controlled by the [`HostFutureQueue`]).
 pub struct PollSender<Output> {
     host_future_queue: Option<HostFutureQueue>,
-    poll_request_sender: std::sync::mpsc::Sender<oneshot::Sender<PollResponse<Output>>>,
+    poll_request_sender: std::sync::mpsc::Sender<PollRequest<Output>>,
     state: PollSenderState<Output>,
 }
 
@@ -143,10 +150,7 @@ impl<Output> PollSender<Output> {
     /// Returns the new [`PollSender`] together with the receiver endpoint of the poll requests.
     fn new(
         host_future_queue: Option<HostFutureQueue>,
-    ) -> (
-        Self,
-        std::sync::mpsc::Receiver<oneshot::Sender<PollResponse<Output>>>,
-    ) {
+    ) -> (Self, std::sync::mpsc::Receiver<PollRequest<Output>>) {
         let (poll_sender, poll_receiver) = std::sync::mpsc::channel();
 
         let this = PollSender {
@@ -165,7 +169,9 @@ impl<Output> PollSender<Output> {
         }
 
         let (response_sender, response_receiver) = oneshot::channel();
-        let _ = self.poll_request_sender.send(response_sender);
+        let _ = self
+            .poll_request_sender
+            .send(PollRequest { response_sender });
         self.state = PollSenderState::Polling(response_receiver);
 
         Poll::Ready(())
