@@ -20,8 +20,8 @@ use std::{
 
 /// An actor that runs a future implemented in a Wasm module.
 ///
-/// The actor should run in its own non-asynchronous thread, where it will block until it receives
-/// poll requests from a [`PollSender`].
+/// The actor should run in its own separate thread, where it will block until it receives poll
+/// requests from a [`PollSender`].
 pub struct GuestFutureActor<Future, Application>
 where
     Application: ApplicationRuntimeContext,
@@ -118,7 +118,7 @@ pub struct PollRequest<Output> {
 /// This helps to simplify some types used, avoiding some Clippy lints.
 struct PollResponse<Output>(Poll<Result<Output, ExecutionError>>);
 
-/// An abstraction over a [`Future`] running as an actor on a non-asynchronous thread.
+/// An abstraction over a [`Future`] running as an actor on a separate thread.
 ///
 /// This type implements [`Future`] and sends poll requests to the actor implementation. When the
 /// actor finishes, it sends back the result to this type, which then returns it.
