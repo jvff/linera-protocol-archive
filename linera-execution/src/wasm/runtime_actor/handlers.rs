@@ -25,48 +25,40 @@ where
 {
     async fn handle_request(&self, request: BaseRequest) -> Result<(), ExecutionError> {
         match request {
-            BaseRequest::ChainId { response_sender } => {
-                let _ = response_sender.send(self.chain_id());
-            }
+            BaseRequest::ChainId { response_sender } => response_sender.respond(self.chain_id()),
             BaseRequest::ApplicationId { response_sender } => {
-                let _ = response_sender.send(self.application_id());
+                response_sender.respond(self.application_id())
             }
             BaseRequest::ApplicationParameters { response_sender } => {
-                let _ = response_sender.send(self.application_parameters());
+                response_sender.respond(self.application_parameters())
             }
             BaseRequest::ReadSystemBalance { response_sender } => {
-                let _ = response_sender.send(self.read_system_balance());
+                response_sender.respond(self.read_system_balance())
             }
             BaseRequest::ReadSystemTimestamp { response_sender } => {
-                let _ = response_sender.send(self.read_system_timestamp());
+                response_sender.respond(self.read_system_timestamp())
             }
             BaseRequest::TryReadMyState { response_sender } => {
-                let _ = response_sender.send(self.try_read_my_state().await?);
+                response_sender.respond(self.try_read_my_state().await?)
             }
             BaseRequest::LockViewUserState { response_sender } => {
-                let _ = response_sender.send(self.lock_view_user_state().await?);
+                response_sender.respond(self.lock_view_user_state().await?)
             }
             BaseRequest::UnlockViewUserState { response_sender } => {
-                let _ = response_sender.send(self.unlock_view_user_state().await?);
+                response_sender.respond(self.unlock_view_user_state().await?)
             }
             BaseRequest::ReadKeyBytes {
                 key,
                 response_sender,
-            } => {
-                let _ = response_sender.send(self.read_key_bytes(key).await?);
-            }
+            } => response_sender.respond(self.read_key_bytes(key).await?),
             BaseRequest::FindKeysByPrefix {
                 key_prefix,
                 response_sender,
-            } => {
-                let _ = response_sender.send(self.find_keys_by_prefix(key_prefix).await?);
-            }
+            } => response_sender.respond(self.find_keys_by_prefix(key_prefix).await?),
             BaseRequest::FindKeyValuesByPrefix {
                 key_prefix,
                 response_sender,
-            } => {
-                let _ = response_sender.send(self.find_key_values_by_prefix(key_prefix).await?);
-            }
+            } => response_sender.respond(self.find_key_values_by_prefix(key_prefix).await?),
         }
 
         Ok(())
@@ -79,73 +71,59 @@ where
     Runtime: ContractRuntime + ?Sized,
 {
     async fn handle_request(&self, request: ContractRequest) -> Result<(), ExecutionError> {
-        // Use unit arguments in `Response::send` in order to have compile errors if the return
-        // value of the called function changes.
-        #[allow(clippy::unit_arg)]
         match request {
             ContractRequest::Base(base_request) => {
-                let _ = (*self).handle_request(base_request).await?;
+                (*self).handle_request(base_request).await?;
             }
             ContractRequest::RemainingFuel { response_sender } => {
-                let _ = response_sender.send(self.remaining_fuel());
+                response_sender.respond(self.remaining_fuel())
             }
             ContractRequest::SetRemainingFuel {
                 remaining_fuel,
                 response_sender,
             } => {
-                let _ = response_sender.send(self.set_remaining_fuel(remaining_fuel));
+                self.set_remaining_fuel(remaining_fuel);
+                response_sender.respond(());
             }
             ContractRequest::TryReadAndLockMyState { response_sender } => {
-                let _ = response_sender.send(match self.try_read_and_lock_my_state().await {
+                response_sender.respond(match self.try_read_and_lock_my_state().await {
                     Ok(bytes) => Some(bytes),
                     Err(ExecutionError::ViewError(ViewError::NotFound(_))) => None,
                     Err(error) => return Err(error),
-                });
+                })
             }
             ContractRequest::SaveAndUnlockMyState {
                 state,
                 response_sender,
-            } => {
-                let _ = response_sender.send(self.save_and_unlock_my_state(state).is_ok());
-            }
+            } => response_sender.respond(self.save_and_unlock_my_state(state).is_ok()),
             ContractRequest::UnlockMyState { response_sender } => {
-                let _ = response_sender.send(self.unlock_my_state());
+                self.unlock_my_state();
+                response_sender.respond(());
             }
             ContractRequest::WriteBatchAndUnlock {
                 batch,
                 response_sender,
-            } => {
-                let _ = response_sender.send(self.write_batch_and_unlock(batch).await?);
-            }
+            } => response_sender.respond(self.write_batch_and_unlock(batch).await?),
             ContractRequest::TryCallApplication {
                 authenticated,
                 callee_id,
                 argument,
                 forwarded_sessions,
                 response_sender,
-            } => {
-                let _ = response_sender.send(
-                    self.try_call_application(
-                        authenticated,
-                        callee_id,
-                        &argument,
-                        forwarded_sessions,
-                    )
+            } => response_sender.respond(
+                self.try_call_application(authenticated, callee_id, &argument, forwarded_sessions)
                     .await?,
-                );
-            }
+            ),
             ContractRequest::TryCallSession {
                 authenticated,
                 session_id,
                 argument,
                 forwarded_sessions,
                 response_sender,
-            } => {
-                let _ = response_sender.send(
-                    self.try_call_session(authenticated, session_id, &argument, forwarded_sessions)
-                        .await?,
-                );
-            }
+            } => response_sender.respond(
+                self.try_call_session(authenticated, session_id, &argument, forwarded_sessions)
+                    .await?,
+            ),
         }
 
         Ok(())
@@ -158,21 +136,33 @@ where
     Runtime: ServiceRuntime + ?Sized,
 {
     async fn handle_request(&self, request: ServiceRequest) -> Result<(), ExecutionError> {
-        // Use unit arguments in `Response::send` in order to have compile errors if the return
-        // value of the called function changes.
-        #[allow(clippy::unit_arg)]
         match request {
             ServiceRequest::Base(base_request) => (*self).handle_request(base_request).await?,
             ServiceRequest::TryQueryApplication {
                 queried_id,
                 argument,
                 response_sender,
-            } => {
-                let _ =
-                    response_sender.send(self.try_query_application(queried_id, &argument).await?);
-            }
+            } => response_sender.respond(self.try_query_application(queried_id, &argument).await?),
         }
 
         Ok(())
+    }
+}
+
+/// Helper trait to send a response and log on failure.
+trait RespondExt {
+    type Response;
+
+    /// Responds to a request using the `response_sender` channel endpoint.
+    fn respond(self, response: Self::Response);
+}
+
+impl<Response> RespondExt for oneshot::Sender<Response> {
+    type Response = Response;
+
+    fn respond(self, response: Self::Response) {
+        if self.send(response).is_err() {
+            tracing::debug!("Request sent to `RuntimeActor` was canceled");
+        }
     }
 }

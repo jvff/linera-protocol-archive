@@ -86,9 +86,16 @@ where
     fn run_poll_loop(mut self, future: Future) {
         while let Ok(request) = self.poll_request_receiver.recv() {
             let response = future.poll(&self.context.application, &mut self.context.store);
-            let finished = response.is_ready();
+            let mut finished = response.is_ready();
 
-            let _ = request.response_sender.send(PollResponse(response));
+            if request
+                .response_sender
+                .send(PollResponse(response))
+                .is_err()
+            {
+                tracing::debug!("Wasm guest future cancelled");
+                finished = true;
+            }
 
             if finished {
                 break;
@@ -100,9 +107,15 @@ where
     /// the error obtained when attempting to create the `Future` instance.
     fn notify_creation_error(self, error: ExecutionError) {
         if let Ok(request) = self.poll_request_receiver.recv() {
-            let _ = request
+            if request
                 .response_sender
-                .send(PollResponse(Poll::Ready(Err(error))));
+                .send(PollResponse(Poll::Ready(Err(error))))
+                .is_err()
+            {
+                tracing::debug!(
+                    "Wasm guest future cancelled before constructor error was reported"
+                );
+            }
         }
     }
 }
@@ -170,6 +183,8 @@ impl<Output> PollSender<Output> {
         let _ = self
             .poll_request_sender
             .send(PollRequest { response_sender });
+        // If sending fails, `poll_response` will handle the `Err(oneshot::Canceled)` when it
+        // attempts to receive the response
         self.state = PollSenderState::Polling(response_receiver);
 
         Poll::Ready(())
@@ -197,6 +212,7 @@ impl<Output> PollSender<Output> {
                 None
             }
             Poll::Ready(Err(oneshot::Canceled)) => {
+                tracing::debug!("Wasm guest is no longer reachable");
                 self.state = PollSenderState::Finished;
                 Some(Poll::Ready(Err(WasmExecutionError::Aborted.into())))
             }
