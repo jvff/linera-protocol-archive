@@ -44,9 +44,11 @@ where
     /// result.
     pub fn spawn(
         parameters: Future::Parameters,
-        context: WasmRuntimeContext<Application>,
+        mut context: WasmRuntimeContext<Application>,
     ) -> PollSender<Future::Output> {
-        let (actor, poll_sender) = Self::new(context);
+        let (poll_request_sender, poll_request_receiver) = std::sync::mpsc::channel();
+        let poll_sender = PollSender::new(context.future_queue.take(), poll_request_sender);
+        let actor = Self::new(context, poll_request_receiver);
 
         thread::spawn(|| actor.run(parameters));
 
@@ -54,16 +56,15 @@ where
     }
 
     /// Creates a new [`GuestFutureActor`] to run `future` using a Wasm runtime `context`.
-    pub fn new(mut context: WasmRuntimeContext<Application>) -> (Self, PollSender<Future::Output>) {
-        let (poll_sender, poll_request_receiver) = PollSender::new(context.future_queue.take());
-
-        let actor = GuestFutureActor {
+    pub fn new(
+        context: WasmRuntimeContext<Application>,
+        poll_request_receiver: std::sync::mpsc::Receiver<PollRequest<Future::Output>>,
+    ) -> Self {
+        GuestFutureActor {
             context,
             poll_request_receiver,
             _future_type: PhantomData,
-        };
-
-        (actor, poll_sender)
+        }
     }
 
     /// Creates and executes the `Future` instance, polling it as requested by the [`PollSender`]
@@ -107,7 +108,7 @@ where
 }
 
 /// A message type sent to request the actor to poll the guest Wasm future.
-struct PollRequest<Output> {
+pub struct PollRequest<Output> {
     response_sender: oneshot::Sender<PollResponse<Output>>,
 }
 
@@ -150,16 +151,13 @@ impl<Output> PollSender<Output> {
     /// Returns the new [`PollSender`] together with the receiver endpoint of the poll requests.
     fn new(
         host_future_queue: Option<HostFutureQueue>,
-    ) -> (Self, std::sync::mpsc::Receiver<PollRequest<Output>>) {
-        let (poll_sender, poll_receiver) = std::sync::mpsc::channel();
-
-        let this = PollSender {
+        poll_request_sender: std::sync::mpsc::Sender<PollRequest<Output>>,
+    ) -> Self {
+        PollSender {
             host_future_queue,
-            poll_request_sender: poll_sender,
+            poll_request_sender,
             state: PollSenderState::Queued,
-        };
-
-        (this, poll_receiver)
+        }
     }
 
     /// Sends a poll request if allowed by the [`HostFutureQueue`].
