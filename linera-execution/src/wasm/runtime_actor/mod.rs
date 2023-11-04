@@ -70,7 +70,7 @@ where
             }
         }
 
-        // Wait for all remaining active requests being hnadled, returning any errors as soon as
+        // Wait for all remaining active requests being handled, returning any errors as soon as
         // they appear
         active_requests.try_collect::<()>().await?;
 
