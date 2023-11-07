@@ -131,15 +131,6 @@ impl From<wit_system_api::Amount> for Amount {
     }
 }
 
-impl From<LockResult> for Poll<bool> {
-    fn from(lock_result: LockResult) -> Poll<bool> {
-        match lock_result {
-            LockResult::Locked => Poll::Ready(true),
-            LockResult::NotLocked => Poll::Ready(false),
-        }
-    }
-}
-
 impl From<wit_system_api::CallResult> for (Vec<u8>, Vec<SessionId>) {
     fn from(call_result: wit_system_api::CallResult) -> (Vec<u8>, Vec<SessionId>) {
         let value = call_result.value;
