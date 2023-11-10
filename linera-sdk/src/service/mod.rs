@@ -5,10 +5,11 @@
 
 mod conversions_from_wit;
 mod conversions_to_wit;
-pub mod exported_futures;
+mod storage;
 pub mod system_api;
 pub mod wit_types;
 
+pub use self::storage::ServiceStateStorage;
 use crate::ServiceLogger;
 use futures::task;
 use std::{
@@ -38,11 +39,10 @@ macro_rules! service {
                 argument: Vec<u8>,
             ) -> Result<Vec<u8>, String> {
                 $crate::service::run_async_entrypoint(
-                            <
-                                <$application as $crate::Service>::Storage
-                                    as $crate::service::exported_futures::ServiceStateStorage
-                            >::handle_query(context, argument),
-                        )
+                    <
+                        <$application as $crate::Service>::Storage as $crate::ServiceStateStorage
+                    >::handle_query(context, argument),
+                )
             }
         }
 
