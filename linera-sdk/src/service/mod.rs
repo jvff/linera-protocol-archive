@@ -10,13 +10,8 @@ pub mod system_api;
 pub mod wit_types;
 
 pub use self::storage::ServiceStateStorage;
-use crate::ServiceLogger;
-use futures::task;
-use std::{
-    future::Future,
-    pin::pin,
-    task::{Context, Poll},
-};
+use crate::{util::BlockingWait, ServiceLogger};
+use std::future::Future;
 
 // Import the system interface.
 wit_bindgen_guest_rust::import!("service_system_api.wit");
@@ -65,15 +60,8 @@ where
 {
     ServiceLogger::install();
 
-    let waker = task::noop_waker();
-    let mut task_context = Context::from_waker(&waker);
-    let mut future = pin!(entrypoint);
-
-    loop {
-        match future.as_mut().poll(&mut task_context) {
-            Poll::Pending => continue,
-            Poll::Ready(Ok(output)) => return Ok(output.into()),
-            Poll::Ready(Err(error)) => return Err(error.to_string()),
-        }
-    }
+    entrypoint
+        .blocking_wait()
+        .map(|output| output.into())
+        .map_err(|error| error.to_string())
 }
