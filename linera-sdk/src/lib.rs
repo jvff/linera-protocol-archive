@@ -47,7 +47,7 @@ pub mod service;
 #[cfg_attr(not(target_arch = "wasm32"), path = "./test/integration/mod.rs")]
 #[cfg_attr(target_arch = "wasm32", path = "./test/unit/mod.rs")]
 pub mod test;
-mod util;
+pub mod util;
 pub mod views;
 
 use self::contract::ContractStateStorage;
