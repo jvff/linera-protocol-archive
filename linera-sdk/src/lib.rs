@@ -49,10 +49,7 @@ pub mod service;
 pub mod test;
 pub mod views;
 
-use crate::{
-    contract::exported_futures::ContractStateStorage,
-    service::exported_futures::ServiceStateStorage,
-};
+use self::contract::ContractStateStorage;
 use async_trait::async_trait;
 use linera_base::{
     abi::{ContractAbi, ServiceAbi, WithContractAbi, WithServiceAbi},
@@ -65,6 +62,7 @@ use std::{error::Error, fmt::Debug, sync::Arc};
 pub use self::{
     extensions::{FromBcsBytes, ToBcsBytes},
     log::{ContractLogger, ServiceLogger},
+    service::ServiceStateStorage,
 };
 pub use linera_base::{abi, ensure};
 #[doc(hidden)]
