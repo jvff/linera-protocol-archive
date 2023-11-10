@@ -11,12 +11,8 @@ pub mod wit_types;
 
 pub use self::storage::ContractStateStorage;
 use super::log::ContractLogger;
-use crate::Contract;
-use futures::task;
-use std::{
-    future::Future,
-    task::{Context, Poll},
-};
+use crate::{util::BlockingWait, Contract};
+use std::future::Future;
 
 // Import the system interface.
 wit_bindgen_guest_rust::import!("contract_system_api.wit");
@@ -157,15 +153,8 @@ where
 {
     ContractLogger::install();
 
-    let waker = task::noop_waker();
-    let mut task_context = Context::from_waker(&waker);
-    let mut future = <Application as Contract>::Storage::execute_with_state(entrypoint);
-
-    loop {
-        match future.as_mut().poll(&mut task_context) {
-            Poll::Pending => continue,
-            Poll::Ready(Ok(output)) => return Ok(output.into()),
-            Poll::Ready(Err(error)) => return Err(error.to_string()),
-        }
-    }
+    <Application as Contract>::Storage::execute_with_state(entrypoint)
+        .blocking_wait()
+        .map(|output| output.into())
+        .map_err(|error| error.to_string())
 }
