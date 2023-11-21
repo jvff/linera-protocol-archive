@@ -14,7 +14,7 @@ struct DatabaseToolOptions {
     command: DatabaseToolCommand,
 
     /// The number of Tokio worker threads to use.
-    #[structopt(long)]
+    #[structopt(long, env = "LINERA_DB_TOOL_TOKIO_THREADS")]
     tokio_threads: Option<usize>,
 }
 
