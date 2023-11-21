@@ -668,7 +668,7 @@ struct ClientOptions {
     wait_for_outgoing_messages: bool,
 
     /// The number of Tokio worker threads to use.
-    #[structopt(long)]
+    #[structopt(long, env = "LINERA_CLIENT_TOKIO_THREADS")]
     tokio_threads: Option<usize>,
 }
 
