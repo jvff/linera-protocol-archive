@@ -1631,10 +1631,10 @@ name = "linera-base"
 version = "0.6.0"
 dependencies = [
  "async-graphql",
+ "async-lock",
  "bcs",
  "chrono",
  "ed25519-dalek",
- "futures",
  "generic-array",
  "hex",
  "proptest",

@@ -3,7 +3,7 @@
 
 //! Custom synchronization locks with embedded logging.
 
-use futures::lock::{Mutex, MutexGuard, OwnedMutexGuard};
+use async_lock::{Mutex, MutexGuard, MutexGuardArc};
 use std::{
     any::type_name,
     fmt::{self, Debug, Formatter},
@@ -40,7 +40,7 @@ impl<T> AsyncMutex<T> {
     pub async fn lock_owned(&self) -> OwnedAsyncMutexGuard<T> {
         let name = self.name.clone();
         tracing::trace!(name = %self.name, "Locking");
-        let guard = self.lock.clone().lock_owned().await;
+        let guard = self.lock.clone().lock_arc().await;
         tracing::trace!(name = %self.name, "Locked");
         OwnedAsyncMutexGuard { name, guard }
     }
@@ -138,7 +138,7 @@ impl<'guard, T> DerefMut for AsyncMutexGuard<'guard, T> {
 /// An owned guard that unlocks its respective [`AsyncMutex`] when dropped.
 pub struct OwnedAsyncMutexGuard<T> {
     name: Arc<str>,
-    guard: OwnedMutexGuard<T>,
+    guard: MutexGuardArc<T>,
 }
 
 impl<T> Drop for OwnedAsyncMutexGuard<T> {
@@ -148,7 +148,7 @@ impl<T> Drop for OwnedAsyncMutexGuard<T> {
 }
 
 impl<T> Deref for OwnedAsyncMutexGuard<T> {
-    type Target = OwnedMutexGuard<T>;
+    type Target = MutexGuardArc<T>;
 
     fn deref(&self) -> &Self::Target {
         &self.guard

@@ -11,14 +11,14 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-locks = ["futures", "tracing"]
+locks = ["async-lock", "tracing"]
 test = ["test-strategy", "proptest"]
 
 [dependencies]
 async-graphql = { workspace = true }
+async-lock = { workspace = true, optional = true }
 bcs = { workspace = true }
 ed25519-dalek = { workspace = true }
-futures = { workspace = true, optional = true }
 generic-array = { workspace = true }
 hex = { workspace = true }
 proptest = { workspace = true, optional = true }
