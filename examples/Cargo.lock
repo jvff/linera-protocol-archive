@@ -1634,6 +1634,7 @@ dependencies = [
  "bcs",
  "chrono",
  "ed25519-dalek",
+ "futures",
  "generic-array",
  "hex",
  "proptest",
@@ -1644,6 +1645,7 @@ dependencies = [
  "sha3",
  "test-strategy",
  "thiserror",
+ "tracing",
 ]
 
 [[package]]

@@ -3,7 +3,7 @@
 
 use crate::{config::WalletState, node_service::ChainClients};
 use async_trait::async_trait;
-use futures::{lock::Mutex, StreamExt};
+use futures::StreamExt;
 use linera_base::{
     crypto::KeyPair,
     data_types::Timestamp,
@@ -20,7 +20,7 @@ use linera_core::{
 use linera_execution::{Message, SystemMessage};
 use linera_storage::Storage;
 use linera_views::views::ViewError;
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 use structopt::StructOpt;
 use tracing::{error, info, warn};
 
@@ -128,7 +128,7 @@ where
                 .entry(chain_id)
                 .or_insert_with(|| {
                     let client = context_guard.make_chain_client(storage.clone(), chain_id);
-                    Arc::new(Mutex::new(client))
+                    AsyncMutex::new(format!("ChainClient({chain_id})"), client)
                 })
                 .clone()
         };
