@@ -15,7 +15,6 @@ use crate::{
 use futures::{
     channel::mpsc,
     future,
-    lock::Mutex,
     stream::{self, FuturesUnordered, StreamExt},
 };
 use linera_base::{
@@ -24,6 +23,7 @@ use linera_base::{
     data_types::{Amount, ArithmeticError, BlockHeight, Timestamp},
     ensure,
     identifiers::{ApplicationId, BytecodeId, ChainId, MessageId, Owner},
+    locks::AsyncMutex,
 };
 use linera_chain::{
     data_types::{
@@ -477,7 +477,7 @@ where
     }
 
     async fn local_chain_info(
-        this: Arc<Mutex<Self>>,
+        this: AsyncMutex<Self>,
         chain_id: ChainId,
         local_node: &mut LocalNodeClient<S>,
     ) -> Option<ChainInfo> {
@@ -492,7 +492,7 @@ where
     }
 
     async fn local_next_block_height(
-        this: Arc<Mutex<Self>>,
+        this: AsyncMutex<Self>,
         chain_id: ChainId,
         local_node: &mut LocalNodeClient<S>,
     ) -> Option<BlockHeight> {
@@ -501,7 +501,7 @@ where
     }
 
     async fn process_notification<A>(
-        this: Arc<Mutex<Self>>,
+        this: AsyncMutex<Self>,
         name: ValidatorName,
         node: A,
         mut local_node: LocalNodeClient<S>,
@@ -610,7 +610,7 @@ where
     }
 
     /// Listens to notifications about the current chain from all validators.
-    pub async fn listen(this: Arc<Mutex<Self>>) -> Result<NotificationStream, ChainClientError>
+    pub async fn listen(this: AsyncMutex<Self>) -> Result<NotificationStream, ChainClientError>
     where
         P: Send + 'static,
     {
@@ -635,7 +635,7 @@ where
     }
 
     async fn update_streams(
-        this: &Arc<Mutex<Self>>,
+        this: &AsyncMutex<Self>,
         streams: &mut HashMap<ValidatorName, mpsc::UnboundedReceiver<Notification>>,
     ) -> Result<(), ChainClientError>
     where
@@ -1041,7 +1041,7 @@ where
     /// This is similar to `find_received_certificates` but for only one validator.
     /// We also don't try to synchronize the admin chain.
     pub async fn find_received_certificates_from_validator<A>(
-        this: Arc<Mutex<Self>>,
+        this: AsyncMutex<Self>,
         name: ValidatorName,
         node: A,
     ) -> Result<(), ChainClientError>

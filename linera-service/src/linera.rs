@@ -6,11 +6,12 @@ use anyhow::{anyhow, bail, Context, Error};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use colored::Colorize;
-use futures::{lock::Mutex, StreamExt};
+use futures::StreamExt;
 use linera_base::{
     crypto::{CryptoHash, CryptoRng, KeyPair, PublicKey},
     data_types::{Amount, BlockHeight, Timestamp},
     identifiers::{BytecodeId, ChainDescription, ChainId, MessageId, Owner},
+    locks::AsyncMutex,
 };
 use linera_chain::data_types::{Certificate, CertificateValue, ExecutedBlock};
 use linera_core::{
@@ -1666,7 +1667,7 @@ impl Runnable for Job {
                 info!("Watching for notifications for chain {:?}", chain_id);
                 let mut tracker = NotificationTracker::default();
                 let mut notification_stream =
-                    ChainClient::listen(Arc::new(Mutex::new(chain_client))).await?;
+                    ChainClient::listen(AsyncMutex::new("Watch ChainClient", chain_client)).await?;
                 while let Some(notification) = notification_stream.next().await {
                     if raw || tracker.insert(notification.clone()) {
                         println!("{:?}", notification);
