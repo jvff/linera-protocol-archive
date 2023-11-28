@@ -31,8 +31,8 @@ use syn::{
 pub struct Specializations(Vec<Specialization>);
 
 impl Specializations {
-    /// Creates a new [`Specializations`] instance by parsing the `specialize` attributes from the
-    /// [`DeriveInput`].
+    /// Creates a new [`Specializations`] instance by parsing the `witty_specialize_with`
+    /// attributes from the [`DeriveInput`].
     ///
     /// The [`DeriveInput`] is changed so that its `where` clause and field types are specialized.
     pub fn new(input: &mut DeriveInput) -> Self {
@@ -45,8 +45,8 @@ impl Specializations {
         Specializations(specializations)
     }
 
-    /// Creates a list of [`Specialization`]s based on the `specialize` attributes found in the
-    /// provided `attributes`.
+    /// Creates a list of [`Specialization`]s based on the `witty_specialize_with` attributes found
+    /// in the provided `attributes`.
     fn parse_specialization_attributes(
         attributes: &[Attribute],
     ) -> impl Iterator<Item = Specialization> {
@@ -55,8 +55,8 @@ impl Specializations {
         let abort_with_error = |span: Span| -> ! {
             abort!(
                 span,
-                "Failed to parse Witty attribute. \
-            Only `#[witty(specialize(TypeParam = Type, ...))]` attributes are supported"
+                "Failed to parse Witty specialization attribute. \
+                Expected: `#[witty_specialize_with(TypeParam = Type, ...))]`."
             );
         };
 
@@ -66,25 +66,16 @@ impl Specializations {
                     path,
                     delimiter,
                     tokens,
-                }) if path.is_ident("witty") && matches!(delimiter, MacroDelimiter::Paren(_)) => {
-                    let MetaList {
-                        path,
-                        delimiter,
-                        tokens,
-                    } = syn::parse2::<MetaList>(tokens.clone())
-                        .unwrap_or_else(|_| abort_with_error(attribute.span()));
-
-                    if path.is_ident("specialize") && matches!(delimiter, MacroDelimiter::Paren(_))
-                    {
-                        let parser =
-                            Punctuated::<Specialization, Token![,]>::parse_separated_nonempty;
-                        specializations.push(
-                            parser
-                                .parse2(tokens)
-                                .unwrap_or_else(|_| abort_with_error(attribute.span()))
-                                .into_iter(),
-                        );
-                    }
+                }) if path.is_ident("witty_specialize_with")
+                    && matches!(delimiter, MacroDelimiter::Paren(_)) =>
+                {
+                    let parser = Punctuated::<Specialization, Token![,]>::parse_separated_nonempty;
+                    specializations.push(
+                        parser
+                            .parse2(tokens.clone())
+                            .unwrap_or_else(|_| abort_with_error(attribute.span()))
+                            .into_iter(),
+                    );
                 }
                 _ => {}
             }
