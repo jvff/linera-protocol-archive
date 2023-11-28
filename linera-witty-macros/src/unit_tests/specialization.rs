@@ -1,7 +1,7 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-//! Unit tests for the `specialize` attribute.
+//! Unit tests for the `witty_specialize_with` attribute.
 
 use super::{super::apply_specialization_attribute, Specialization, Specializations};
 use proc_macro2::Span;
@@ -12,8 +12,8 @@ use syn::{parse_quote, DeriveInput, Ident};
 #[test]
 fn derive_input_changes() {
     let mut input: DeriveInput = parse_quote! {
-        #[witty(specialize(First = u8, Second = Vec<bool>))]
-        #[witty(specialize(Third = (String, i32)))]
+        #[witty_specialize_with(First = u8, Second = Vec<bool>)]
+        #[witty_specialize_with(Third = (String, i32))]
         struct Dummy<'lifetime, First, Second, Third>
         where
             Option<First>: From<u8>,
@@ -46,8 +46,8 @@ fn derive_input_changes() {
     assert_eq!(specializations.0, expected_specializations);
 
     let expected_changed_input = quote! {
-        #[witty(specialize(First = u8, Second = Vec<bool>))]
-        #[witty(specialize(Third = (String, i32)))]
+        #[witty_specialize_with(First = u8, Second = Vec<bool>)]
+        #[witty_specialize_with(Third = (String, i32))]
         struct Dummy<'lifetime, First, Second, Third>
         where
             Option<u8>: From<u8>,
