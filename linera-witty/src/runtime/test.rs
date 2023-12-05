@@ -149,6 +149,11 @@ impl MockInstance {
 
         Results::lift_from(flat_results, &self.clone().memory()?)
     }
+
+    /// Returns a copy of the current memory contents.
+    pub fn memory_contents(&self) -> Vec<u8> {
+        self.memory.lock().unwrap().clone()
+    }
 }
 
 impl Instance for MockInstance {
