@@ -68,6 +68,13 @@ struct TestApplication {
     owner: Owner,
 }
 
+#[repr(u8)]
+enum TestOperation {
+    Completely,
+    LeakingSession,
+    FailingCrossApplicationCall,
+}
+
 #[async_trait]
 impl UserContract for TestApplication {
     /// Nothing needs to be done during initialization.
@@ -91,6 +98,7 @@ impl UserContract for TestApplication {
         runtime: &dyn ContractRuntime,
         operation: &[u8],
     ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
+        assert_eq!(operation.len(), 1);
         // Who we are.
         assert_eq!(context.authenticated_signer, Some(self.owner));
         let app_id = runtime.application_id();
@@ -112,7 +120,7 @@ impl UserContract for TestApplication {
             .await?;
         assert_eq!(call_result.value, Vec::<u8>::new());
         assert_eq!(call_result.sessions.len(), 1);
-        if !operation.is_empty() {
+        if operation[0] != TestOperation::LeakingSession as u8 {
             // Call the session to close it.
             let session_id = call_result.sessions[0];
             runtime
@@ -129,6 +137,7 @@ impl UserContract for TestApplication {
         runtime: &dyn ContractRuntime,
         message: &[u8],
     ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
+        assert_eq!(message.len(), 1);
         // Who we are.
         assert_eq!(context.authenticated_signer, Some(self.owner));
         let app_id = runtime.application_id();
@@ -149,10 +158,11 @@ impl UserContract for TestApplication {
         argument: &[u8],
         _forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallResult, ExecutionError> {
+        assert_eq!(argument.len(), 1);
         assert_eq!(context.authenticated_signer, Some(self.owner));
         ensure!(
-            !argument.is_empty(),
-            ExecutionError::UserError("Argument must not be empty".to_owned())
+            argument[0] != TestOperation::FailingCrossApplicationCall as u8,
+            ExecutionError::UserError("Cross-application call failed".to_owned())
         );
         Ok(ApplicationCallResult {
             create_sessions: vec![vec![1]],
@@ -232,7 +242,7 @@ async fn test_simple_user_operation() -> anyhow::Result<()> {
             &context,
             &Operation::User {
                 application_id: app_id,
-                bytes: vec![1],
+                bytes: vec![TestOperation::Completely as u8],
             },
             &policy,
             &mut tracker,
@@ -267,7 +277,7 @@ async fn test_simple_user_operation() -> anyhow::Result<()> {
         )
         .await
         .unwrap(),
-        Response::User(vec![1])
+        Response::User(vec![TestOperation::Completely as u8])
     );
     Ok(())
 }
@@ -305,7 +315,7 @@ async fn test_simple_user_operation_with_leaking_session() -> anyhow::Result<()>
             &context,
             &Operation::User {
                 application_id: app_id,
-                bytes: vec![],
+                bytes: vec![TestOperation::LeakingSession as u8],
             },
             &policy,
             &mut tracker,
@@ -358,7 +368,7 @@ async fn test_cross_application_error() -> anyhow::Result<()> {
             &context,
             &Operation::User {
                 application_id: app_id,
-                bytes: vec![],
+                bytes: vec![TestOperation::FailingCrossApplicationCall as u8],
             },
             &policy,
             &mut tracker,
