@@ -10,6 +10,7 @@ use async_trait::async_trait;
 use linera_base::{
     crypto::PublicKey,
     data_types::BlockHeight,
+    ensure,
     identifiers::{ChainDescription, ChainId, Owner, SessionId},
 };
 use linera_execution::{policy::ResourceControlPolicy, *};
@@ -107,7 +108,7 @@ impl UserContract for TestApplication {
             .expect("State is locked at the start of the operation");
         // Call ourselves after the state => ok.
         let call_result = runtime
-            .try_call_application(/* authenticate */ true, app_id, &[], vec![])
+            .try_call_application(/* authenticate */ true, app_id, operation, vec![])
             .await?;
         assert_eq!(call_result.value, Vec::<u8>::new());
         assert_eq!(call_result.sessions.len(), 1);
@@ -126,7 +127,7 @@ impl UserContract for TestApplication {
         &self,
         context: &MessageContext,
         runtime: &dyn ContractRuntime,
-        _message: &[u8],
+        message: &[u8],
     ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
         // Who we are.
         assert_eq!(context.authenticated_signer, Some(self.owner));
@@ -134,7 +135,7 @@ impl UserContract for TestApplication {
         runtime.lock_view_user_state().await?;
         // Call ourselves while the state is locked => not ok.
         runtime
-            .try_call_application(/* authenticate */ true, app_id, &[], vec![])
+            .try_call_application(/* authenticate */ true, app_id, message, vec![])
             .await?;
         runtime.unlock_view_user_state().await?;
         Ok(RawExecutionResult::default())
@@ -145,10 +146,14 @@ impl UserContract for TestApplication {
         &self,
         context: &CalleeContext,
         _runtime: &dyn ContractRuntime,
-        _argument: &[u8],
+        argument: &[u8],
         _forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallResult, ExecutionError> {
         assert_eq!(context.authenticated_signer, Some(self.owner));
+        ensure!(
+            !argument.is_empty(),
+            ExecutionError::UserError("Argument must not be empty".to_owned())
+        );
         Ok(ApplicationCallResult {
             create_sessions: vec![vec![1]],
             ..ApplicationCallResult::default()
