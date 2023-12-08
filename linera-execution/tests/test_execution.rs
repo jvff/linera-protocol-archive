@@ -315,3 +315,63 @@ async fn test_simple_user_operation_with_leaking_session() -> anyhow::Result<()>
     assert!(matches!(result, Err(ExecutionError::SessionWasNotClosed)));
     Ok(())
 }
+
+/// Tests if user application errors when handling cross-application calls are handled correctly.
+///
+/// Sends an empty operation to the [`TestApplication`], which then forwards it across chains and
+/// then through the reentrant call. The cross-application call handler then fails and the error
+/// should be handled correctly.
+#[tokio::test]
+async fn test_cross_application_error() -> anyhow::Result<()> {
+    let owner = Owner::from(PublicKey::debug(0));
+    let mut state = SystemExecutionState::default();
+    state.description = Some(ChainDescription::Root(0));
+    let mut view =
+        ExecutionStateView::<MemoryContext<TestExecutionRuntimeContext>>::from_system_state(state)
+            .await;
+    let app_desc = create_dummy_user_application_description();
+    let app_id = view
+        .system
+        .registry
+        .register_application(app_desc.clone())
+        .await?;
+    view.context()
+        .extra()
+        .user_contracts()
+        .insert(app_id, Arc::new(TestApplication { owner }));
+    view.context()
+        .extra()
+        .user_services()
+        .insert(app_id, Arc::new(TestApplication { owner }));
+
+    let context = OperationContext {
+        chain_id: ChainId::root(0),
+        height: BlockHeight(0),
+        index: 0,
+        authenticated_signer: Some(owner),
+        next_message_index: 0,
+    };
+    let mut tracker = ResourceTracker::default();
+    let policy = ResourceControlPolicy::default();
+    let result = view
+        .execute_operation(
+            &context,
+            &Operation::User {
+                application_id: app_id,
+                bytes: vec![],
+            },
+            &policy,
+            &mut tracker,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        result,
+        vec![ExecutionResult::User(
+            app_id,
+            RawExecutionResult::default().with_authenticated_signer(Some(owner))
+        ),]
+    );
+
+    Ok(())
+}
