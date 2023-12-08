@@ -520,9 +520,9 @@ where
             parameters: description.parameters,
             signer: None,
         });
-        let value = code.handle_query(&query_context, self, argument).await?;
+        let result = code.handle_query(&query_context, self, argument).await;
         self.applications_mut().pop();
-        Ok(value)
+        Ok(result?)
     }
 }
 
@@ -647,8 +647,9 @@ where
         });
         let raw_result = code
             .handle_application_call(&callee_context, self, argument, forwarded_sessions)
-            .await?;
+            .await;
         self.applications_mut().pop();
+        let raw_result = raw_result?;
         // Interpret the results of the call.
         self.execution_results_mut().push(ExecutionResult::User(
             callee_id,
@@ -709,8 +710,9 @@ where
                 argument,
                 forwarded_sessions,
             )
-            .await?;
+            .await;
         self.applications_mut().pop();
+        let raw_result = raw_result?;
         // Interpret the results of the call.
         if raw_result.close_session {
             // Terminate the session.
