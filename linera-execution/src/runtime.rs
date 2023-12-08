@@ -520,9 +520,9 @@ where
             parameters: description.parameters,
             signer: None,
         });
-        let value = code.handle_query(&query_context, self, argument).await?;
+        let result = code.handle_query(&query_context, self, argument).await;
         self.applications_mut().pop();
-        Ok(value)
+        Ok(result?)
     }
 }
 
@@ -645,10 +645,11 @@ where
             // Allow further nested calls to be authenticated if this one is.
             signer: authenticated_signer,
         });
-        let raw_result = code
+        let result = code
             .handle_application_call(&callee_context, self, argument, forwarded_sessions)
-            .await?;
+            .await;
         self.applications_mut().pop();
+        let raw_result = result?;
         // Interpret the results of the call.
         self.execution_results_mut().push(ExecutionResult::User(
             callee_id,
@@ -701,7 +702,7 @@ where
             // Allow further nested calls to be authenticated if this one is.
             signer: authenticated_signer,
         });
-        let raw_result = code
+        let result = code
             .handle_session_call(
                 &callee_context,
                 self,
@@ -709,8 +710,9 @@ where
                 argument,
                 forwarded_sessions,
             )
-            .await?;
+            .await;
         self.applications_mut().pop();
+        let raw_result = result?;
         // Interpret the results of the call.
         if raw_result.close_session {
             // Terminate the session.
