@@ -38,7 +38,7 @@ const CLIENT_SERVICE_ENV: &str = "LINERA_CLIENT_SERVICE_PARAMS";
 
 fn reqwest_client() -> reqwest::Client {
     reqwest::ClientBuilder::new()
-        .timeout(Duration::from_secs(30))
+        .timeout(Duration::from_secs(60))
         .build()
         .unwrap()
 }
@@ -138,8 +138,8 @@ impl ClientWrapper {
                 "--max-pending-messages",
                 &self.max_pending_messages.to_string(),
             ])
-            .args(["--send-timeout-us", "10000000"])
-            .args(["--recv-timeout-us", "10000000"])
+            .args(["--send-timeout-us", "40000000"])
+            .args(["--recv-timeout-us", "40000000"])
             .arg("--wait-for-outgoing-messages");
         Ok(command)
     }
@@ -636,6 +636,7 @@ impl NodeService {
                 return Ok(ApplicationWrapper::from(link.to_string()));
             }
             warn!("Waiting for application {application_id:?} to be visible on chain {chain_id:?}");
+            tracing::trace!("Attempt #{i}");
         }
         bail!("Could not find application URI: {application_id} after {n_try} tries");
     }

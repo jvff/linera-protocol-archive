@@ -210,6 +210,7 @@ where
                 }
             }
             Reason::NewIncomingMessage { .. } => {
+                tracing::error!("Processing inbox from validators");
                 if let Err(e) = client.process_inbox_if_owned().await {
                     warn!(
                         "Failed to process inbox after receiving new message: {:?} \

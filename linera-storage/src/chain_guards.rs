@@ -50,10 +50,13 @@ impl ChainGuards {
     /// the same chain.
     pub async fn guard(&self, chain_id: ChainId) -> ChainGuard {
         let guard = self.get_or_create_lock(chain_id);
+        tracing::error!("Locking {chain_id}");
+        let guard = guard.lock_owned().await;
+        tracing::error!("Locked {chain_id}");
         ChainGuard {
             chain_id,
             guards: self.guards.clone(),
-            guard: Some(guard.lock_owned().await),
+            guard: Some(guard),
         }
     }
 
@@ -131,6 +134,7 @@ impl Drop for ChainGuard {
     /// 3. The mutex is only locked in [`ChainGuards::guard`], which does not hold any locks to the
     ///    map.
     fn drop(&mut self) {
+        tracing::error!("Dropping {}", self.chain_id);
         self.guards.remove_if(&self.chain_id, |_, _| {
             let mutex = Arc::downgrade(OwnedMutexGuard::mutex(
                 &self
@@ -140,6 +144,7 @@ impl Drop for ChainGuard {
             ));
             mutex.upgrade().is_none()
         });
+        tracing::error!("Dropped {}", self.chain_id);
     }
 }
 

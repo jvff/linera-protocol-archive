@@ -1674,15 +1674,22 @@ where
     }
 
     /// Creates an empty block to process all incoming messages. This may require several blocks.
+    #[tracing::instrument(skip_all)]
     pub async fn process_inbox(&mut self) -> Result<Vec<Certificate>, ChainClientError> {
+        tracing::error!("Preparing chain");
         self.prepare_chain().await?;
+        tracing::error!("Prepared chain");
         let mut certificates = Vec::new();
         loop {
+            tracing::error!("Getting pending messages");
             let incoming_messages = self.pending_messages().await?;
+            tracing::error!("Got pending messages");
             if incoming_messages.is_empty() {
                 break;
             }
+            tracing::error!("Executing block");
             let certificate = self.execute_block(incoming_messages, vec![]).await?;
+            tracing::error!("Executed block");
             certificates.push(certificate);
         }
         Ok(certificates)
@@ -1690,6 +1697,7 @@ where
 
     /// Creates an empty block to process all incoming messages. This may require several blocks.
     /// If we are not a chain owner, this doesn't fail, and just returns an empty list.
+    #[tracing::instrument(skip_all)]
     pub async fn process_inbox_if_owned(&mut self) -> Result<Vec<Certificate>, ChainClientError> {
         match self.process_inbox().await {
             Ok(certificates) => Ok(certificates),

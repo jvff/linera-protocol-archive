@@ -158,6 +158,7 @@ impl ClientContext {
     fn configure(options: &ClientOptions, wallet_state: WalletState) -> Self {
         let send_timeout = Duration::from_micros(options.send_timeout_us);
         let recv_timeout = Duration::from_micros(options.recv_timeout_us);
+        tracing::error!(?send_timeout, ?recv_timeout, "Timeouts");
         let notification_retry_delay = Duration::from_micros(options.notification_retry_delay_us);
         let prng = wallet_state.make_prng();
 
@@ -608,11 +609,11 @@ struct ClientOptions {
     with_wallet: Option<u32>,
 
     /// Timeout for sending queries (us)
-    #[structopt(long, default_value = "4000000")]
+    #[structopt(long, default_value = "40000000")]
     send_timeout_us: u64,
 
     /// Timeout for receiving responses (us)
-    #[structopt(long, default_value = "4000000")]
+    #[structopt(long, default_value = "40000000")]
     recv_timeout_us: u64,
 
     #[structopt(long, default_value = "10")]

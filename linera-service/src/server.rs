@@ -397,17 +397,18 @@ fn main() {
 
     let options = ServerOptions::from_args();
 
-    let mut runtime = if options.tokio_threads == Some(1) {
-        tokio::runtime::Builder::new_current_thread()
-    } else {
-        let mut builder = tokio::runtime::Builder::new_multi_thread();
+    let mut runtime = tokio::runtime::Builder::new_current_thread();
+    // let mut runtime = if options.tokio_threads == Some(1) {
+    // tokio::runtime::Builder::new_current_thread()
+    // } else {
+    // let mut builder = tokio::runtime::Builder::new_multi_thread();
 
-        if let Some(threads) = options.tokio_threads {
-            builder.worker_threads(threads);
-        }
+    // if let Some(threads) = options.tokio_threads {
+    // builder.worker_threads(threads);
+    // }
 
-        builder
-    };
+    // builder
+    // };
 
     runtime
         .enable_all()

@@ -1007,8 +1007,11 @@ where
             validated,
         } = &proposal;
         let chain_id = block.chain_id;
+        tracing::error!("Loading active chain: {chain_id}");
         let mut chain = self.storage.load_active_chain(chain_id).await?;
+        tracing::error!("Loaded active chain: {chain_id}");
         // Check the epoch.
+        tracing::error!("Check the epoch.");
         let (epoch, committee) = chain
             .execution_state
             .system
@@ -1022,6 +1025,7 @@ where
             validated.check(committee)?;
         }
         // Check the authentication of the block.
+        tracing::error!("Check the authentication of the block.");
         let public_key = chain
             .manager
             .get()
@@ -1029,6 +1033,7 @@ where
             .ok_or(WorkerError::InvalidOwner)?;
         signature.check(&proposal.content, public_key)?;
         // Check the authentication of the operations in the block.
+        tracing::error!("Check the authentication of the operations in the block.");
         if let Some(signer) = block.authenticated_signer {
             ensure!(signer == *owner, WorkerError::InvalidSigner(signer));
         }
@@ -1044,10 +1049,13 @@ where
         }
         // Update the inboxes so that we can verify the provided blobs are legitimately required.
         // Actual execution happens below, after other validity checks.
+        tracing::error!("Actual execution happens below, after other validity checks.");
         chain.remove_events_from_inboxes(block).await?;
         // Verify that all required bytecode blobs are available, and no unrelated ones provided.
+        tracing::error!("Verify that all required bytecode blobs are available, and no unrelated ones provided.");
         self.check_no_missing_bytecode(block, blobs).await?;
         // Write the values so that the bytecode is available during execution.
+        tracing::error!("Write the values so that the bytecode is available during execution.");
         self.storage.write_values(blobs).await?;
         let local_time = self.storage.current_time();
         let time_till_block = block.timestamp.saturating_diff_micros(local_time);
@@ -1061,24 +1069,37 @@ where
         let local_time = self.storage.current_time();
         let outcome = chain.execute_block(block, local_time).await?;
         // Verify that the resulting chain would have no unconfirmed incoming messages.
+        tracing::error!(
+            "Verify that the resulting chain would have no unconfirmed incoming messages."
+        );
         chain.validate_incoming_messages().await?;
         // Reset all the staged changes as we were only validating things.
+        tracing::error!("Reset all the staged changes as we were only validating things.");
         chain.rollback();
         // Create the vote and store it in the chain state.
+        tracing::error!("Create the vote and store it in the chain state.");
         let manager = chain.manager.get_mut();
         let round = proposal.content.round;
         manager.create_vote(proposal, outcome, self.key_pair(), local_time);
         // Cache the value we voted on, so the client doesn't have to send it again.
+        tracing::error!(
+            "Cache the value we voted on, so the client doesn't have to send it again."
+        );
         if let Some(vote) = manager.pending() {
             self.cache_recent_value(Cow::Borrowed(&vote.value)).await;
         }
         let info = ChainInfoResponse::new(&chain, self.key_pair());
+        tracing::error!("Saving");
         chain.save().await?;
         // Trigger any outgoing cross-chain messages that haven't been confirmed yet.
+        tracing::error!(
+            "Trigger any outgoing cross-chain messages that haven't been confirmed yet."
+        );
         let actions = self.create_network_actions(&mut chain).await?;
         NUM_ROUNDS_IN_BLOCK_PROPOSAL
             .with_label_values(&[round.type_name()])
             .observe(round.number() as f64);
+        tracing::error!("Done!!!");
         Ok((info, actions))
     }
 
@@ -1090,6 +1111,7 @@ where
         certificate: LiteCertificate<'a>,
         notify_when_messages_are_delivered: Option<oneshot::Sender<()>>,
     ) -> Result<(ChainInfoResponse, NetworkActions), WorkerError> {
+        tracing::trace!("handle_lite_certificate");
         let full_cert = self.full_certificate(certificate).await?;
         self.handle_certificate(full_cert, vec![], notify_when_messages_are_delivered)
             .await
@@ -1122,6 +1144,7 @@ where
         let (info, actions) = match certificate.value() {
             CertificateValue::ValidatedBlock { .. } => {
                 // Confirm the validated block.
+                tracing::error!("Confirm the validated block.");
                 let (info, actions, d) = self.process_validated_block(certificate).await?;
                 duplicated = d;
                 (info, actions)
@@ -1131,6 +1154,7 @@ where
                     + executed_block.block.operations.len())
                     as u64;
                 // Execute the confirmed block.
+                tracing::error!("Execute the confirmed block.");
                 self.process_confirmed_block(
                     certificate,
                     &blobs,
@@ -1140,6 +1164,7 @@ where
             }
             CertificateValue::LeaderTimeout { .. } => {
                 // Handle the leader timeout.
+                tracing::error!("Handle the leader timeout.");
                 self.process_leader_timeout(certificate).await?
             }
         };
@@ -1167,6 +1192,7 @@ where
     ) -> Result<(ChainInfoResponse, NetworkActions), WorkerError> {
         trace!("{} <-- {:?}", self.nickname, query);
         let mut chain = self.storage.load_chain(query.chain_id).await?;
+        tracing::error!("Loaded active chain: {}", query.chain_id);
         if query.request_leader_timeout {
             if let Some(epoch) = chain.execution_state.system.epoch.get() {
                 if chain.manager.get_mut().vote_leader_timeout(
