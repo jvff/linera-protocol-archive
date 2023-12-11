@@ -536,6 +536,7 @@ where
         let value_future = tokio::task::spawn_blocking(move || {
             code.handle_query(query_context, runtime_sender, argument)
         });
+        // TODO(#989): Simplify after message failures are not ignored.
         let runtime_result = runtime_actor.run().await;
         let value = value_future.await;
         self.applications_mut().pop();
@@ -684,6 +685,7 @@ where
                 forwarded_sessions,
             )
         });
+        // TODO(#989): Simplify after message failures are not ignored.
         let runtime_result = runtime_actor.run().await;
         let raw_result = raw_result_future.await;
         self.applications_mut().pop();
@@ -752,6 +754,7 @@ where
                 forwarded_sessions,
             )
         });
+        // TODO(#989): Simplify after message failures are not ignored.
         let runtime_result = runtime_actor.run().await;
         let raw_result = raw_result_future.await;
         self.applications_mut().pop();
