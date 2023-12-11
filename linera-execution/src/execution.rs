@@ -228,6 +228,11 @@ where
                 tracing::error!("Ignoring error reported by user application: {message}");
                 RawExecutionResult::default()
             }
+            (runtime_result, Err(ExecutionError::UserError(message))) => {
+                runtime_result?;
+                tracing::error!("Ignoring error reported by user application: {message}");
+                RawExecutionResult::default()
+            }
             (runtime_result, call_result) => {
                 runtime_result?;
                 call_result?
