@@ -1,12 +1,8 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    runtime_actor::{
-        BaseRequest, ContractRequest, ReceiverExt, ServiceRequest, UnboundedSenderExt,
-    },
-    BaseRuntime, CallResult, ContractRuntime, ExecutionError, ServiceRuntime,
-};
+use super::{BaseRequest, ContractRequest, ReceiverExt, ServiceRequest, UnboundedSenderExt};
+use crate::{BaseRuntime, CallResult, ContractRuntime, ExecutionError, ServiceRuntime};
 use futures::channel::mpsc;
 use linera_base::{
     data_types::{Amount, Timestamp},
