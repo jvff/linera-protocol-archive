@@ -221,10 +221,11 @@ where
 
         // TODO(#989): Make user errors fail blocks again.
         let mut result = match (runtime_result, call_result) {
-            (
-                Err(ExecutionError::UserError(message)),
-                Err(ExecutionError::MissingRuntimeResponse),
-            ) => {
+            (Err(ExecutionError::UserError(message)), call_result) => {
+                assert!(matches!(
+                    call_result,
+                    Err(ExecutionError::MissingRuntimeResponse)
+                ));
                 tracing::error!("Ignoring error reported by user application: {message}");
                 RawExecutionResult::default()
             }
