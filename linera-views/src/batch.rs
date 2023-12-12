@@ -16,17 +16,15 @@
 //! not have to deal with batches.
 
 use crate::{
-    common::{Context, KeyIterable},
+    common::{get_interval, Context, KeyIterable},
     memory::{MemoryContext, MemoryContextError},
     views::ViewError,
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
-
-use crate::common::get_interval;
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
+    fmt::Debug,
     ops::Bound,
 };
 
@@ -35,7 +33,7 @@ use std::{
 /// * Deletion of a specific key.
 /// * Deletion of all keys matching a specific prefix.
 /// * Insertion or replacement of a key with a value.
-#[derive(Debug)]
+#[derive(Debug, WitType, WitLoad)]
 pub enum WriteOperation {
     /// Delete the given key.
     Delete {
