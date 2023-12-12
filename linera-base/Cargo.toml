@@ -19,6 +19,7 @@ bcs = { workspace = true }
 ed25519-dalek = { workspace = true }
 generic-array = { workspace = true }
 hex = { workspace = true }
+linera-witty = { workspace = true, features = ["macros"] }
 proptest = { workspace = true, optional = true }
 serde = { workspace = true }
 serde-name = { workspace = true }

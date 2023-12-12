@@ -152,10 +152,10 @@ query{
 
 use async_graphql::{scalar, InputObject, Request, Response, SimpleObject};
 use fungible::{AccountOwner, FungibleTokenAbi};
+use linera_sdk::views::{CustomSerialize, ViewError};
 use linera_sdk::{
     base::{Amount, ApplicationId, ContractAbi, ServiceAbi},
     graphql::GraphQLMutationRoot,
-    views::{CustomSerialize, ViewError},
 };
 use serde::{Deserialize, Serialize};
 

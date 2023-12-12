@@ -177,6 +177,12 @@ fn mock_load_view() {
     assert_eq!(initial_view.two.get(), contract_view.two.get());
     assert_eq!(initial_view.three.get(), contract_view.three.get());
 
+    contract_view.rollback();
+    contract_view
+        .save()
+        .blocking_wait()
+        .expect("Failed to persist contract view state");
+
     let service_view = service::system_api::private::load_view::<DummyView<_>>().blocking_wait();
 
     assert_eq!(initial_view.one.get(), service_view.one.get());
@@ -215,6 +221,12 @@ fn mock_find_keys() {
         .expect("Failed to load keys of dummy map view");
 
     assert_eq!(contract_keys, keys);
+
+    contract_view.rollback();
+    contract_view
+        .save()
+        .blocking_wait()
+        .expect("Failed to persist contract view state");
 
     let service_view = service::system_api::private::load_view::<DummyView<_>>().blocking_wait();
 
@@ -268,6 +280,12 @@ fn mock_find_key_value_pairs() {
         .expect("Failed to load key value pairs of dummy map view");
 
     assert_eq!(contract_pairs, expected_pairs);
+
+    contract_view.rollback();
+    contract_view
+        .save()
+        .blocking_wait()
+        .expect("Failed to persist contract view state");
 
     let service_view = service::system_api::private::load_view::<DummyView<_>>().blocking_wait();
 
