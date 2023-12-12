@@ -40,10 +40,20 @@ impl From<CryptoHash> for wit_types::CryptoHash {
     }
 }
 
+impl From<ChainId> for wit_types::ChainId {
+    fn from(chain_id: ChainId) -> Self {
+        wit_types::ChainId {
+            inner0: chain_id.0.into(),
+        }
+    }
+}
+
 impl From<ApplicationId> for wit_system_api::ApplicationId {
     fn from(application_id: ApplicationId) -> wit_system_api::ApplicationId {
         wit_system_api::ApplicationId {
-            bytecode_id: application_id.bytecode_id.message_id.into(),
+            bytecode_id: wit_system_api::BytecodeId {
+                message_id: application_id.bytecode_id.message_id.into(),
+            },
             creation: application_id.creation.into(),
         }
     }
@@ -61,8 +71,12 @@ impl From<SessionId> for wit_system_api::SessionId {
 impl From<MessageId> for wit_system_api::MessageId {
     fn from(message_id: MessageId) -> Self {
         wit_system_api::MessageId {
-            chain_id: message_id.chain_id.0.into(),
-            height: message_id.height.0,
+            chain_id: wit_system_api::ChainId {
+                inner0: message_id.chain_id.0.into(),
+            },
+            height: wit_system_api::BlockHeight {
+                inner0: message_id.height.0,
+            },
             index: message_id.index,
         }
     }
@@ -129,7 +143,7 @@ where
     }
 }
 
-impl<Message> From<OutgoingMessage<Message>> for wit_types::OutgoingMessage
+impl<Message> From<OutgoingMessage<Message>> for wit_types::RawOutgoingMessage
 where
     Message: Debug + Serialize + DeserializeOwned,
 {
@@ -167,19 +181,19 @@ where
         let messages = outcome
             .messages
             .into_iter()
-            .map(wit_types::OutgoingMessage::from)
+            .map(wit_types::RawOutgoingMessage::from)
             .collect();
 
         let subscribe = outcome
             .subscribe
             .into_iter()
-            .map(|(subscription, chain_id)| (subscription.into(), chain_id.0.into()))
+            .map(|(subscription, chain_id)| (subscription.into(), chain_id.into()))
             .collect();
 
         let unsubscribe = outcome
             .unsubscribe
             .into_iter()
-            .map(|(subscription, chain_id)| (subscription.into(), chain_id.0.into()))
+            .map(|(subscription, chain_id)| (subscription.into(), chain_id.into()))
             .collect();
 
         wit_types::ExecutionOutcome {
@@ -193,9 +207,7 @@ where
 impl From<Destination> for wit_types::Destination {
     fn from(destination: Destination) -> Self {
         match destination {
-            Destination::Recipient(chain_id) => {
-                wit_types::Destination::Recipient(chain_id.0.into())
-            }
+            Destination::Recipient(chain_id) => wit_types::Destination::Recipient(chain_id.into()),
             Destination::Subscribers(subscription) => {
                 wit_types::Destination::Subscribers(subscription.into())
             }
@@ -206,7 +218,7 @@ impl From<Destination> for wit_types::Destination {
 impl From<ChannelName> for wit_types::ChannelName {
     fn from(name: ChannelName) -> Self {
         wit_types::ChannelName {
-            name: name.into_bytes(),
+            inner0: name.into_bytes(),
         }
     }
 }

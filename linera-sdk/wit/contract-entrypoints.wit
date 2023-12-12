@@ -1,0 +1,104 @@
+package linera:app;
+
+interface contract-entrypoints {
+    initialize: func(context: operation-context, argument: list<u8>) -> result<raw-execution-result, string>;
+    execute-operation: func(context: operation-context, operation: list<u8>) -> result<raw-execution-result, string>;
+    execute-message: func(context: message-context, message: list<u8>) -> result<raw-execution-result, string>;
+    handle-application-call: func(context: callee-context, argument: list<u8>, forwarded-sessions: list<session-id>) -> result<application-call-result, string>;
+    handle-session-call: func(context: callee-context, session-state: list<u8>, argument: list<u8>, forwarded-sessions: list<session-id>) -> result<tuple<session-call-result, list<u8>>, string>;
+
+    record raw-execution-result {
+        authenticated-signer: option<owner>,
+        messages: list<raw-outgoing-message>,
+        subscribe: list<tuple<channel-name, chain-id>>,
+        unsubscribe: list<tuple<channel-name, chain-id>>,
+    }
+
+    record bytecode-id {
+        message-id: message-id,
+    }
+
+    record crypto-hash {
+        part1: u64,
+        part2: u64,
+        part3: u64,
+        part4: u64,
+    }
+
+    record application-call-result {
+        value: list<u8>,
+        execution-result: raw-execution-result,
+        create-sessions: list<list<u8>>,
+    }
+
+    record session-call-result {
+        inner: application-call-result,
+        close-session: bool,
+    }
+
+    record operation-context {
+        chain-id: chain-id,
+        authenticated-signer: option<owner>,
+        height: block-height,
+        index: u32,
+        next-message-index: u32,
+    }
+
+    record block-height {
+        inner0: u64,
+    }
+
+    variant destination {
+        recipient(chain-id),
+        subscribers(channel-name),
+    }
+
+    record application-id {
+        bytecode-id: bytecode-id,
+        creation: message-id,
+    }
+
+    record callee-context {
+        chain-id: chain-id,
+        authenticated-signer: option<owner>,
+        authenticated-caller-id: option<application-id>,
+    }
+
+    record message-context {
+        chain-id: chain-id,
+        authenticated-signer: option<owner>,
+        height: block-height,
+        certificate-hash: crypto-hash,
+        message-id: message-id,
+    }
+
+    record message-id {
+        chain-id: chain-id,
+        height: block-height,
+        index: u32,
+    }
+
+    record owner {
+        inner0: crypto-hash,
+    }
+
+    record raw-outgoing-message {
+        destination: destination,
+        authenticated: bool,
+        message: list<u8>,
+        is-skippable: bool,
+    }
+
+    record session-id {
+        application-id: application-id,
+        index: u64,
+    }
+
+    record chain-id {
+        inner0: crypto-hash,
+    }
+
+    record channel-name {
+        inner0: list<u8>,
+    }
+}

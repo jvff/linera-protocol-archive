@@ -515,6 +515,7 @@ where
                     }
                 );
                 let balance = self.balance.get_mut();
+                tracing::error!("SystemExecutionStateView::execute_operation (OpenChain)");
                 balance.try_sub_assign(new_balance).map_err(|_| {
                     SystemExecutionError::InsufficientFunding {
                         current_balance: *balance,
@@ -606,6 +607,7 @@ where
                     Some(owner) => self.balances.get_mut_or_default(owner).await?,
                     None => self.balance.get_mut(),
                 };
+                tracing::error!("SystemExecutionStateView::execute_operation (Transfer)");
                 ensure!(
                     *balance >= amount,
                     SystemExecutionError::InsufficientFunding {

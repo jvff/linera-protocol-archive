@@ -6,9 +6,13 @@
 #![allow(missing_docs)]
 
 // Export the contract interface.
-wit_bindgen_guest_rust::export!(
-    export_macro = "export_contract"
-    types_path = "contract::wit_types"
-    reexported_crate_path = "wit_bindgen_guest_rust"
-    "contract.wit"
-);
+wit_bindgen::generate!({
+    path: "linera-sdk/wit",
+    inline:
+        "package linera:app-gen;\
+        world contract-entrypoints-only { export linera:app/contract-entrypoints; }",
+    world: "contract-entrypoints-only",
+    stubs,
+});
+
+pub use self::exports::linera::app::contract_entrypoints::*;
