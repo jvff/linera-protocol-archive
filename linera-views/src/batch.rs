@@ -21,6 +21,7 @@ use crate::{
     views::ViewError,
 };
 use async_trait::async_trait;
+use linera_witty::{WitLoad, WitStore, WitType};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
@@ -33,7 +34,7 @@ use std::{
 /// * Deletion of a specific key.
 /// * Deletion of all keys matching a specific prefix.
 /// * Insertion or replacement of a key with a value.
-#[derive(Debug, WitType, WitLoad)]
+#[derive(Debug, WitType, WitLoad, WitStore)]
 pub enum WriteOperation {
     /// Delete the given key.
     Delete {

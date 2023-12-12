@@ -46,6 +46,7 @@ linera-chain = { workspace = true }
 linera-core = { workspace = true, features = ["test"] }
 linera-execution = { workspace = true }
 linera-storage = { workspace = true }
+linera-witty = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 wasmtime = { workspace = true }

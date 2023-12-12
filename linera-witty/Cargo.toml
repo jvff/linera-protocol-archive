@@ -13,6 +13,7 @@ edition = "2021"
 [features]
 default = ["macros"]
 guest = []
+log = ["dep:log"]
 macros = ["linera-witty-macros"]
 test = ["linera-witty-macros?/mock-instance"]
 wasmer = ["dep:wasmer", "linera-witty-macros?/wasmer", "wasmer-vm"]
@@ -23,6 +24,7 @@ anyhow = { workspace = true, optional = true }
 either = { workspace = true }
 frunk = { workspace = true }
 linera-witty-macros = { workspace = true, optional = true }
+log = { workspace = true, optional = true }
 thiserror = { workspace = true }
 wasmer = { workspace = true, optional = true }
 wasmer-vm = { workspace = true, optional = true }

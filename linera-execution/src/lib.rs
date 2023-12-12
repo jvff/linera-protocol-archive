@@ -51,6 +51,7 @@ use linera_base::{
     identifiers::{BytecodeId, ChainId, ChannelName, Destination, MessageId, Owner, SessionId},
 };
 use linera_views::{batch::Batch, views::ViewError};
+use linera_witty::{WitLoad, WitStore, WitType};
 use serde::{Deserialize, Serialize};
 use std::{fmt, io, path::Path, str::FromStr, sync::Arc};
 use thiserror::Error;
@@ -198,7 +199,7 @@ pub trait UserService {
 }
 
 /// The result of calling into a user application.
-#[derive(Default)]
+#[derive(Default, WitLoad, WitType)]
 pub struct ApplicationCallResult {
     /// The return value.
     pub value: Vec<u8>,
@@ -209,7 +210,7 @@ pub struct ApplicationCallResult {
 }
 
 /// The result of calling into a session.
-#[derive(Default)]
+#[derive(Default, WitLoad, WitType)]
 pub struct SessionCallResult {
     /// The application result.
     pub inner: ApplicationCallResult,
@@ -238,7 +239,7 @@ pub trait ExecutionRuntimeContext {
     ) -> Result<UserServiceCode, ExecutionError>;
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, WitStore, WitType)]
 pub struct OperationContext {
     /// The current chain id.
     pub chain_id: ChainId,
@@ -252,7 +253,7 @@ pub struct OperationContext {
     pub next_message_index: u32,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, WitStore, WitType)]
 pub struct MessageContext {
     /// The current chain id.
     pub chain_id: ChainId,
@@ -267,7 +268,7 @@ pub struct MessageContext {
     pub message_id: MessageId,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, WitStore, WitType)]
 pub struct CalleeContext {
     /// The current chain id.
     pub chain_id: ChainId,
@@ -278,7 +279,7 @@ pub struct CalleeContext {
     pub authenticated_caller_id: Option<UserApplicationId>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, WitStore, WitType)]
 pub struct QueryContext {
     /// The current chain id.
     pub chain_id: ChainId,
@@ -464,6 +465,7 @@ pub trait ServiceRuntime: BaseRuntime {
 }
 
 /// The result of calling into an application or a session.
+#[derive(WitStore, WitType)]
 pub struct CallResult {
     /// The return value.
     pub value: Vec<u8>,
@@ -563,23 +565,25 @@ pub enum Response {
 }
 
 /// A message together with routing information.
-#[derive(Debug)]
+#[derive(Debug, WitLoad, WitType)]
 #[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
+#[witty_specialize_with(Message = Vec<u8>)]
 pub struct RawOutgoingMessage<Message> {
     /// The destination of the message.
     pub destination: Destination,
     /// Whether the message is authenticated.
     pub authenticated: bool,
-    /// Whether the message can be skipped by the receiver.
-    pub is_skippable: bool,
     /// The message itself.
     pub message: Message,
+    /// Whether the message can be skipped by the receiver.
+    pub is_skippable: bool,
 }
 
 /// Externally visible results of an execution. These results are meant in the context of
 /// the application that created them.
-#[derive(Debug)]
+#[derive(Debug, WitLoad, WitType)]
 #[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
+#[witty_specialize_with(Message = Vec<u8>)]
 pub struct RawExecutionResult<Message> {
     /// The signer who created the messages.
     pub authenticated_signer: Option<Owner>,

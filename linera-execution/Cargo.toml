@@ -14,11 +14,12 @@ edition = "2021"
 default = ["wasmer"]
 test = ["tokio/macros"]
 wasmer = [
-    "bytes", "dep:wasmer", "wasm-encoder", "wasmer-middlewares", "wasmparser",
-    "wit-bindgen-host-wasmer-rust",
+    "bytes", "dep:wasmer", "linera-witty/wasmer", "wasm-encoder", "wasmer-middlewares",
+    "wasmparser", "wit-bindgen-host-wasmer-rust",
 ]
 wasmtime = [
-    "dep:wasmtime", "wasm-encoder", "wasmparser", "wit-bindgen-host-wasmtime-rust",
+    "dep:wasmtime", "linera-witty/wasmtime", "wasm-encoder", "wasmparser",
+    "wit-bindgen-host-wasmtime-rust",
 ]
 
 [dependencies]
@@ -35,6 +36,7 @@ futures = { workspace = true }
 linera-base = { workspace = true }
 linera-views = { workspace = true, features = ["metrics"] }
 linera-views-derive = { workspace = true }
+linera-witty = { workspace = true, features = ["macros"] }
 lru = { workspace = true }
 once_cell = { workspace = true }
 oneshot = { workspace = true }

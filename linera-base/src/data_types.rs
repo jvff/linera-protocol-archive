@@ -2,6 +2,7 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use linera_witty::{WitLoad, WitStore, WitType};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt,
@@ -15,7 +16,9 @@ use crate::doc_scalar;
 ///
 /// This is a fixed-point fraction, with [`Amount::DECIMAL_PLACES`] digits after the point.
 /// [`Amount::ONE`] is one whole token, divisible into `10.pow(Amount::DECIMAL_PLACES)` parts.
-#[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Default, Debug)]
+#[derive(
+    Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Default, Debug, WitType, WitLoad, WitStore,
+)]
 pub struct Amount(u128);
 
 #[derive(Serialize, Deserialize)]
@@ -49,7 +52,20 @@ impl<'de> Deserialize<'de> for Amount {
 
 /// A block height to identify blocks in a chain.
 #[derive(
-    Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Default, Debug, Serialize, Deserialize,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    Copy,
+    Clone,
+    Hash,
+    Default,
+    Debug,
+    Serialize,
+    Deserialize,
+    WitType,
+    WitLoad,
+    WitStore,
 )]
 #[cfg_attr(any(test, feature = "test"), derive(test_strategy::Arbitrary))]
 pub struct BlockHeight(pub u64);
@@ -67,7 +83,20 @@ pub enum Round {
 
 /// A timestamp, in microseconds since the Unix epoch.
 #[derive(
-    Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Default, Debug, Serialize, Deserialize,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    Copy,
+    Clone,
+    Hash,
+    Default,
+    Debug,
+    Serialize,
+    Deserialize,
+    WitType,
+    WitLoad,
+    WitStore,
 )]
 pub struct Timestamp(u64);
 
