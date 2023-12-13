@@ -103,6 +103,22 @@ fn load_indirect_bytes(
     load_bytes(caller, offset, length)
 }
 
+/// Allocates some `bytes` in a the heap of the guest WebAssembly module's memory.
+fn allocate_memory(caller: &mut Caller<'_, Resources>, size: i32) -> i32 {
+    let alloc_function = get_function(&mut *caller, "cabi_realloc")
+        .expect(
+            "Missing `cabi_realloc` function in the module. \
+            Please ensure `linera_sdk` is compiled in with the module",
+        )
+        .typed::<(i32, i32, i32, i32), i32, _>(&mut *caller)
+        .expect("Incorrect `cabi_realloc` function signature");
+
+    alloc_function
+        .call_async(&mut *caller, (0, 0, 1, length))
+        .await
+        .expect("Failed to call `cabi_realloc` function")
+}
+
 /// Stores some bytes from a host-side resource to the WebAssembly module's memory.
 ///
 /// Returns the offset of the module's memory where the bytes were stored, and how many bytes were
@@ -114,19 +130,7 @@ async fn store_bytes_from_resource(
     let resources = caller.data_mut();
     let bytes = bytes_getter(resources);
     let length = i32::try_from(bytes.len()).expect("Resource bytes is too large");
-
-    let alloc_function = get_function(&mut *caller, "cabi_realloc")
-        .expect(
-            "Missing `cabi_realloc` function in the module. \
-            Please ensure `linera_sdk` is compiled in with the module",
-        )
-        .typed::<(i32, i32, i32, i32), i32, _>(&mut *caller)
-        .expect("Incorrect `cabi_realloc` function signature");
-
-    let address = alloc_function
-        .call_async(&mut *caller, (0, 0, 1, length))
-        .await
-        .expect("Failed to call `cabi_realloc` function");
+    let address = allocate_memory(&mut *caller, length);
 
     let memory = get_memory(caller, "memory").expect("Missing `memory` export in the module.");
     let (memory, resources) = memory.data_and_store_mut(caller);
@@ -349,17 +353,7 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
                     Please ensure `linera_sdk` is compiled with the `test` feature enabled",
                 );
 
-                let alloc_function = get_function(&mut caller, "cabi_realloc").expect(
-                    "Missing `cabi_realloc` function in the module. \
-                    Please ensure `linera_sdk` is compiled in with the module",
-                );
-
-                let new_message_address = alloc_function
-                    .typed::<(i32, i32, i32, i32), i32, _>(&mut caller)
-                    .expect("Incorrect `cabi_realloc` function signature")
-                    .call_async(&mut caller, (0, 0, 1, message_length))
-                    .await
-                    .expect("Failed to call `cabi_realloc` function");
+                let new_message_address = allocate_memory(&mut caller, message_length);
 
                 copy_memory_slices(
                     &mut caller,
@@ -639,17 +633,7 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
                     Please ensure `linera_sdk` is compiled with the `test` feature enabled",
                 );
 
-                let alloc_function = get_function(&mut caller, "cabi_realloc").expect(
-                    "Missing `cabi_realloc` function in the module. \
-                    Please ensure `linera_sdk` is compiled in with the module",
-                );
-
-                let new_message_address = alloc_function
-                    .typed::<(i32, i32, i32, i32), i32, _>(&mut caller)
-                    .expect("Incorrect `cabi_realloc` function signature")
-                    .call_async(&mut caller, (0, 0, 1, message_length))
-                    .await
-                    .expect("Failed to call `cabi_realloc` function");
+                let new_message_address = allocate_memory(&mut caller, message_length);
 
                 copy_memory_slices(
                     &mut caller,
@@ -727,19 +711,10 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
                         store_in_memory(&mut caller, return_offset, 1_i32);
                     }
                     _ => {
-                        let alloc_function = get_function(&mut caller, "cabi_realloc").expect(
-                            "Missing `cabi_realloc` function in the module. \
-                            Please ensure `linera_sdk` is compiled in with the module",
-                        );
-
                         let error_message = "Failed to lock view".as_bytes();
                         let error_message_length = error_message.len() as i32;
-                        let error_message_address = alloc_function
-                            .typed::<(i32, i32, i32, i32), i32, _>(&mut caller)
-                            .expect("Incorrect `cabi_realloc` function signature")
-                            .call_async(&mut caller, (0, 0, 1, error_message_length))
-                            .await
-                            .expect("Failed to call `cabi_realloc` function");
+                        let error_message_address =
+                            allocate_memory(&mut caller, error_message_length);
 
                         store_in_memory(&mut caller, return_offset, 0_i32);
                         store_in_memory(&mut caller, return_offset + 4, error_message_address);
