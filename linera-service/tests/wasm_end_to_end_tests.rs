@@ -476,16 +476,13 @@ async fn test_wasm_end_to_end_same_wallet_fungible(config: impl LineraNetConfig)
 
     let chain1 = client1.get_wallet().unwrap().default_chain().unwrap();
     // Get a chain different than the default
-    let mut chain2 = None;
-    for chain_id in client1.get_wallet().unwrap().chain_ids() {
-        if chain_id != chain1 {
-            chain2 = Some(chain_id);
-            break;
-        }
-    }
-
-    assert!(chain2.is_some());
-    let chain2 = chain2.expect("chain2 should be set at this point");
+    let chain2 = client1
+        .get_wallet()
+        .unwrap()
+        .chain_ids()
+        .into_iter()
+        .find(|chain_id| chain_id != &chain1)
+        .expect("Failed to obtain a chain ID from the wallet");
 
     // The players
     let account_owner1 = get_fungible_account_owner(&client1);
