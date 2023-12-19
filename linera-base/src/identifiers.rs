@@ -107,6 +107,7 @@ pub struct ApplicationId<A = ()> {
 #[cfg_attr(any(test, feature = "test"), derive(Default))]
 pub struct BytecodeId<A = ()> {
     pub message_id: MessageId,
+    #[witty(skip)]
     _phantom: std::marker::PhantomData<A>,
 }
 

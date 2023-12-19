@@ -15,7 +15,7 @@ use crate::{util::BlockingWait, Contract};
 use std::future::Future;
 
 // Import the system interface.
-wit_bindgen_guest_rust::import!("contract_system_api.wit");
+// wit_bindgen_guest_rust::import!("contract_system_api.wit");
 
 /// Declares an implementation of the [`Contract`][`crate::Contract`] trait, exporting it from the
 /// Wasm module.

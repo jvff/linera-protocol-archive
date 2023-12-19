@@ -4,14 +4,14 @@
 //! Functions and types to interface with the system API available to application services.
 
 #[cfg(not(any(test, feature = "test")))]
-mod private;
+pub(crate) mod private;
 #[cfg(any(test, feature = "test"))]
 pub mod private;
 
+use self::private::wit;
 pub(crate) use self::private::{
     current_application_parameters, load, lock_and_load_view, query_application, unlock_view,
 };
-use super::service_system_api as wit;
 use linera_base::{
     data_types::{Amount, Timestamp},
     identifiers::{ApplicationId, ChainId},
@@ -20,12 +20,12 @@ use std::fmt;
 
 /// Retrieves the current chain ID.
 pub fn current_chain_id() -> ChainId {
-    ChainId(wit::chain_id().into())
+    ChainId(wit::get_chain_id().inner0.into())
 }
 
 /// Retrieves the current application ID.
 pub fn current_application_id() -> ApplicationId {
-    wit::application_id().into()
+    wit::get_application_id().into()
 }
 
 /// Retrieves the current system balance.
@@ -35,7 +35,7 @@ pub fn current_system_balance() -> Amount {
 
 /// Retrieves the current system time, i.e. the timestamp of the latest block in this chain.
 pub fn current_system_time() -> Timestamp {
-    wit::read_system_timestamp().into()
+    wit::read_system_timestamp().inner0.into()
 }
 
 /// Requests the host to log a message.

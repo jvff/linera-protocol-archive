@@ -22,6 +22,11 @@ mod wasmer;
 #[path = "wasmtime.rs"]
 mod wasmtime;
 
+pub use self::{
+    entrypoints::{ContractEntrypoints, ServiceEntrypoints},
+    system_api::{ContractSystemApi, ContractViewSystemApi as ViewSystemApi, ServiceSystemApi},
+};
+
 use self::sanitizer::sanitize;
 use crate::{
     Bytecode, ContractActorRuntime, ExecutionError, ServiceActorRuntime, UserContract,

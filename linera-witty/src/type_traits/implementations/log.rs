@@ -9,11 +9,30 @@ use crate::{
 };
 use frunk::{hlist_pat, HList};
 use log::Level;
+use std::borrow::Cow;
 
 impl WitType for Level {
     const SIZE: u32 = 1;
 
     type Layout = HList![i8];
+    type Dependencies = HList![];
+
+    fn wit_type_name() -> Cow<'static, str> {
+        "log-level".into()
+    }
+
+    fn wit_type_declaration() -> Cow<'static, str> {
+        concat!(
+            "    enum log-level {\n",
+            "        error,\n",
+            "        warn,\n",
+            "        info,\n",
+            "        debug,\n",
+            "        trace,\n",
+            "    }\n",
+        )
+        .into()
+    }
 }
 
 impl WitLoad for Level {

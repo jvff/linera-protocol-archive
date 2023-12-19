@@ -3,7 +3,7 @@
 
 //! Functions and types to interface with the system API available to application views.
 
-use super::view_system_api as wit;
+pub use self::linera::app::view_system_api as wit;
 use crate::util::yield_once;
 use async_trait::async_trait;
 use linera_base::ensure;
@@ -12,6 +12,15 @@ use linera_views::{
     common::{ContextFromStore, KeyValueStore},
     views::ViewError,
 };
+
+// Import the system interface.
+wit_bindgen::generate!({
+    path: "linera-sdk/wit",
+    inline:
+        "package linera:app-gen;\
+        world view-system-api-only { import linera:app/view-system-api; }",
+    world: "view-system-api-only",
+});
 
 /// We need to have a maximum key size that handles all possible underlying
 /// sizes. The constraint so far is DynamoDb which has a key length of 1024.
@@ -27,15 +36,15 @@ pub struct AppStateStore;
 
 impl AppStateStore {
     async fn find_keys_by_prefix_load(&self, key_prefix: &[u8]) -> Vec<Vec<u8>> {
-        let promise = wit::FindKeys::new(key_prefix);
+        let promise = wit::find_keys_new(key_prefix);
         yield_once().await;
-        promise.wait()
+        wit::find_keys_wait(promise)
     }
 
     async fn find_key_values_by_prefix_load(&self, key_prefix: &[u8]) -> Vec<(Vec<u8>, Vec<u8>)> {
-        let promise = wit::FindKeyValues::new(key_prefix);
+        let promise = wit::find_key_values_new(key_prefix);
         yield_once().await;
-        promise.wait()
+        wit::find_key_values_wait(promise)
     }
 }
 
@@ -55,9 +64,9 @@ impl KeyValueStore for AppStateStore {
 
     async fn contains_key(&self, key: &[u8]) -> Result<bool, Self::Error> {
         ensure!(key.len() <= Self::MAX_KEY_SIZE, ViewError::KeyTooLong);
-        let promise = wit::ContainsKey::new(key);
+        let promise = wit::contains_key_new(key);
         yield_once().await;
-        Ok(promise.wait())
+        Ok(wit::contains_key_wait(promise))
     }
 
     async fn read_multi_values_bytes(
@@ -67,17 +76,16 @@ impl KeyValueStore for AppStateStore {
         for key in &keys {
             ensure!(key.len() <= Self::MAX_KEY_SIZE, ViewError::KeyTooLong);
         }
-        let keys = keys.iter().map(Vec::as_slice).collect::<Vec<_>>();
-        let promise = wit::ReadMultiValuesBytes::new(keys.as_slice());
+        let promise = wit::read_multi_values_bytes_new(keys.as_slice());
         yield_once().await;
-        Ok(promise.wait())
+        Ok(wit::read_multi_values_bytes_wait(promise))
     }
 
     async fn read_value_bytes(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Self::Error> {
         ensure!(key.len() <= Self::MAX_KEY_SIZE, ViewError::KeyTooLong);
-        let promise = wit::ReadValueBytes::new(key);
+        let promise = wit::read_value_bytes_new(key);
         yield_once().await;
-        Ok(promise.wait())
+        Ok(wit::read_value_bytes_wait(promise))
     }
 
     async fn find_keys_by_prefix(&self, key_prefix: &[u8]) -> Result<Self::Keys, ViewError> {
@@ -103,7 +111,7 @@ impl KeyValueStore for AppStateStore {
 
     async fn write_batch(&self, batch: Batch, _base_key: &[u8]) -> Result<(), ViewError> {
         let mut operations = Vec::new();
-        for operation in &batch.operations {
+        for operation in batch.operations {
             match operation {
                 WriteOperation::Delete { key } => {
                     ensure!(key.len() <= Self::MAX_KEY_SIZE, ViewError::KeyTooLong);
@@ -118,7 +126,7 @@ impl KeyValueStore for AppStateStore {
                         key_prefix.len() <= Self::MAX_KEY_SIZE,
                         ViewError::KeyTooLong
                     );
-                    operations.push(wit::WriteOperation::Deleteprefix(key_prefix))
+                    operations.push(wit::WriteOperation::DeletePrefix(key_prefix))
                 }
             }
         }

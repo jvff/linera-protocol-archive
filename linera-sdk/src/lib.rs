@@ -42,6 +42,8 @@ pub mod contract;
 mod extensions;
 pub mod graphql;
 mod log;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod mock_system_api;
 pub mod service;
 #[cfg(feature = "test")]
 #[cfg_attr(not(target_arch = "wasm32"), path = "./test/integration/mod.rs")]
@@ -60,6 +62,8 @@ use linera_base::{
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{error::Error, fmt::Debug, sync::Arc};
 
+#[cfg(not(target_arch = "wasm32"))]
+pub use self::mock_system_api::MockSystemApi;
 pub use self::{
     extensions::{FromBcsBytes, ToBcsBytes},
     log::{ContractLogger, ServiceLogger},
@@ -67,7 +71,7 @@ pub use self::{
 };
 pub use linera_base::{abi, ensure};
 #[doc(hidden)]
-pub use wit_bindgen_guest_rust;
+pub use wit_bindgen;
 
 /// A simple state management runtime based on a single byte array.
 pub struct SimpleStateStorage<A>(std::marker::PhantomData<A>);
@@ -475,7 +479,6 @@ where
 pub struct SessionCallResult<Message, Value, SessionState> {
     /// The result of the application call.
     pub inner: ApplicationCallResult<Message, Value, SessionState>,
-    /// The new state of the session, if any. `None` means that the session was consumed
-    /// by the call.
-    pub new_state: Option<SessionState>,
+    /// If true, the session should be terminated.
+    pub close_session: bool,
 }

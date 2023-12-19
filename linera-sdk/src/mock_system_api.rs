@@ -1,6 +1,10 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+//! Hooks for mocking system APIs inside unit tests.
+
+#![allow(missing_docs)]
+
 use anyhow::{anyhow, Result};
 use linera_base::{
     data_types::{Amount, Timestamp},
@@ -45,7 +49,7 @@ struct Query {
     query: Vec<u8>,
 }
 
-#[linera_witty::wit_import(package = "linera")]
+#[linera_witty::wit_import(package = "linera:app")]
 pub trait MockSystemApi {
     fn mocked_chain_id() -> ChainId;
     fn mocked_application_id() -> ApplicationId;
@@ -58,11 +62,11 @@ pub trait MockSystemApi {
     fn mocked_store_and_unlock(value: Vec<u8>) -> bool;
     fn mocked_lock() -> bool;
     fn mocked_unlock() -> bool;
+    fn mocked_read_multi_values_bytes(keys: Vec<Vec<u8>>) -> Vec<Option<Vec<u8>>>;
     fn mocked_read_value_bytes(key: Vec<u8>) -> Option<Vec<u8>>;
     fn mocked_find_keys(prefix: Vec<u8>) -> Vec<Vec<u8>>;
     fn mocked_find_key_values(prefix: Vec<u8>) -> Vec<(Vec<u8>, Vec<u8>)>;
     fn mocked_write_batch(operations: Vec<WriteOperation>);
-
     fn mocked_try_query_application(
         application: ApplicationId,
         query: Vec<u8>,
@@ -72,21 +76,21 @@ pub trait MockSystemApi {
 #[derive(Default)]
 pub struct ContractSystemApi<Caller>(PhantomData<Caller>);
 
-#[linera_witty::wit_export(package = "linera")]
+#[linera_witty::wit_export(package = "linera:app")]
 impl<Caller> ContractSystemApi<Caller>
 where
-    Caller: Instance<UserData = ()> + InstanceForMockSystemApi,
+    Caller: Instance<UserData = Resources> + InstanceForMockSystemApi,
     <Caller::Runtime as Runtime>::Memory: RuntimeMemory<Caller>,
 {
-    fn chain_id(caller: &mut Caller) -> Result<ChainId, RuntimeError> {
+    fn get_chain_id(caller: &mut Caller) -> Result<ChainId, RuntimeError> {
         MockSystemApi::new(caller).mocked_chain_id()
     }
 
-    fn application_id(caller: &mut Caller) -> Result<ApplicationId, RuntimeError> {
+    fn get_application_id(caller: &mut Caller) -> Result<ApplicationId, RuntimeError> {
         MockSystemApi::new(caller).mocked_application_id()
     }
 
-    fn application_parameters(caller: &mut Caller) -> Result<Vec<u8>, RuntimeError> {
+    fn get_application_parameters(caller: &mut Caller) -> Result<Vec<u8>, RuntimeError> {
         MockSystemApi::new(caller).mocked_application_parameters()
     }
 
@@ -130,21 +134,21 @@ where
 #[derive(Default)]
 pub struct ServiceSystemApi<Caller>(PhantomData<Caller>);
 
-#[linera_witty::wit_export(package = "linera")]
+#[linera_witty::wit_export(package = "linera:app")]
 impl<Caller> ServiceSystemApi<Caller>
 where
     Caller: Instance<UserData = Resources> + InstanceForMockSystemApi,
     <Caller::Runtime as Runtime>::Memory: RuntimeMemory<Caller>,
 {
-    fn chain_id(caller: &mut Caller) -> Result<ChainId, RuntimeError> {
+    fn get_chain_id(caller: &mut Caller) -> Result<ChainId, RuntimeError> {
         MockSystemApi::new(caller).mocked_chain_id()
     }
 
-    fn application_id(caller: &mut Caller) -> Result<ApplicationId, RuntimeError> {
+    fn get_application_id(caller: &mut Caller) -> Result<ApplicationId, RuntimeError> {
         MockSystemApi::new(caller).mocked_application_id()
     }
 
-    fn application_parameters(caller: &mut Caller) -> Result<Vec<u8>, RuntimeError> {
+    fn get_application_parameters(caller: &mut Caller) -> Result<Vec<u8>, RuntimeError> {
         MockSystemApi::new(caller).mocked_application_parameters()
     }
 
@@ -160,20 +164,26 @@ where
         Ok(0)
     }
 
-    fn load_wait(caller: &mut Caller, _promise_id: u32) -> Result<Vec<u8>, RuntimeError> {
-        MockSystemApi::new(caller).mocked_load()
+    fn load_wait(
+        caller: &mut Caller,
+        _promise_id: u32,
+    ) -> Result<Result<Vec<u8>, String>, RuntimeError> {
+        MockSystemApi::new(caller).mocked_load().map(Ok)
     }
 
     fn lock_new(_caller: &mut Caller) -> Result<u32, RuntimeError> {
         Ok(0)
     }
 
-    fn lock_wait(caller: &mut Caller, _promise_id: u32) -> Result<(), RuntimeError> {
+    fn lock_wait(
+        caller: &mut Caller,
+        _promise_id: u32,
+    ) -> Result<Result<bool, String>, RuntimeError> {
         ensure!(
             MockSystemApi::new(caller).mocked_lock()?,
             RuntimeError::Custom(anyhow!("`mocked_lock` function returned a failure"))
         );
-        Ok(())
+        Ok(Ok(true))
     }
 
     fn try_query_application_new(
@@ -210,12 +220,31 @@ where
 #[derive(Default)]
 pub struct ViewSystemApi<Caller>(PhantomData<Caller>);
 
-#[linera_witty::wit_export(package = "linera")]
+#[linera_witty::wit_export(package = "linera:app")]
 impl<Caller> ViewSystemApi<Caller>
 where
     Caller: Instance<UserData = Resources> + InstanceForMockSystemApi,
     <Caller::Runtime as Runtime>::Memory: RuntimeMemory<Caller>,
 {
+    fn read_multi_values_bytes_new(
+        caller: &mut Caller,
+        keys: Vec<Vec<u8>>,
+    ) -> Result<u32, RuntimeError> {
+        Ok(caller.user_data_mut().insert(keys) as u32)
+    }
+
+    fn read_multi_values_bytes_wait(
+        caller: &mut Caller,
+        promise_id: u32,
+    ) -> Result<Vec<Option<Vec<u8>>>, RuntimeError> {
+        let keys = caller
+            .user_data_mut()
+            .get::<Vec<Vec<u8>>>(promise_id as i32)
+            .clone();
+
+        MockSystemApi::new(caller).mocked_read_multi_values_bytes(keys)
+    }
+
     fn read_value_bytes_new(caller: &mut Caller, key: Vec<u8>) -> Result<u32, RuntimeError> {
         Ok(caller.user_data_mut().insert(key) as u32)
     }
@@ -1534,7 +1563,6 @@ pub fn add_to_linker(linker: &mut Linker<Resources>) -> Result<()> {
     let resource_names = [
         "load",
         "lock",
-        "read-multi-values-bytes",
         "read-value-bytes",
         "find-keys",
         "find-key-values",

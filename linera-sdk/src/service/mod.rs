@@ -14,7 +14,7 @@ use crate::{util::BlockingWait, ServiceLogger};
 use std::future::Future;
 
 // Import the system interface.
-wit_bindgen_guest_rust::import!("service_system_api.wit");
+// wit_bindgen_guest_rust::import!("service_system_api.wit");
 
 /// Declares an implementation of the [`Service`][`crate::Service`] trait, exporting it from the
 /// Wasm module.

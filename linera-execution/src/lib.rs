@@ -33,7 +33,10 @@ pub use system::{
 ))]
 pub use wasm::test as wasm_test;
 #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
-pub use wasm::{WasmContractModule, WasmExecutionError, WasmServiceModule};
+pub use wasm::{
+    ContractEntrypoints, ContractSystemApi, ServiceEntrypoints, ServiceSystemApi, ViewSystemApi,
+    WasmContractModule, WasmExecutionError, WasmServiceModule,
+};
 #[cfg(any(test, feature = "test"))]
 pub use {applications::ApplicationRegistry, system::SystemExecutionState};
 

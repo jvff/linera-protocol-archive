@@ -8,7 +8,7 @@ use crate::{
     RawExecutionResult, SessionCallResult, SessionId,
 };
 
-#[linera_witty::wit_import(package = "linera")]
+#[linera_witty::wit_import(package = "linera:app")]
 pub trait ContractEntrypoints {
     fn initialize(
         context: OperationContext,
@@ -39,7 +39,7 @@ pub trait ContractEntrypoints {
     ) -> Result<(SessionCallResult, Vec<u8>), String>;
 }
 
-#[linera_witty::wit_import(package = "linera")]
+#[linera_witty::wit_import(package = "linera:app")]
 pub trait ServiceEntrypoints {
     fn handle_query(context: QueryContext, argument: Vec<u8>) -> Result<Vec<u8>, String>;
 }

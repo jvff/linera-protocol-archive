@@ -13,7 +13,7 @@ pub use linera_views::{
 };
 
 // Import the views system interface.
-wit_bindgen_guest_rust::import!("view_system_api.wit");
+// wit_bindgen_guest_rust::import!("view_system_api.wit");
 
 /// An alias to [`linera_views::collection_view::ByteCollectionView`] that uses the
 /// WebAssembly specific [`ViewStorageContext`].

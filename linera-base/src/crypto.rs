@@ -5,11 +5,11 @@
 use ed25519_dalek::{self as dalek, Signer, Verifier};
 use generic_array::typenum::Unsigned;
 use linera_witty::{
-    GuestPointer, InstanceWithMemory, Layout, Memory, Runtime, RuntimeError, RuntimeMemory,
+    GuestPointer, HList, InstanceWithMemory, Layout, Memory, Runtime, RuntimeError, RuntimeMemory,
     WitLoad, WitStore, WitType,
 };
 use serde::{Deserialize, Serialize};
-use std::{num::ParseIntError, str::FromStr};
+use std::{borrow::Cow, num::ParseIntError, str::FromStr};
 use thiserror::Error;
 
 use crate::doc_scalar;
@@ -495,6 +495,23 @@ impl Signature {
 impl WitType for CryptoHash {
     const SIZE: u32 = <(u64, u64, u64, u64) as WitType>::SIZE;
     type Layout = <(u64, u64, u64, u64) as WitType>::Layout;
+    type Dependencies = HList![];
+
+    fn wit_type_name() -> Cow<'static, str> {
+        "crypto-hash".into()
+    }
+
+    fn wit_type_declaration() -> Cow<'static, str> {
+        concat!(
+            "    record crypto-hash {\n",
+            "        part1: u64,\n",
+            "        part2: u64,\n",
+            "        part3: u64,\n",
+            "        part4: u64,\n",
+            "    }\n",
+        )
+        .into()
+    }
 }
 
 impl WitLoad for CryptoHash {

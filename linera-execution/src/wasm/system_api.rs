@@ -53,12 +53,12 @@ impl<Runtime> SystemApiData<Runtime> {
 #[derive(Default)]
 pub struct ContractSystemApi<Caller>(PhantomData<Caller>);
 
-#[linera_witty::wit_export(package = "linera")]
+#[linera_witty::wit_export(package = "linera:app")]
 impl<Caller> ContractSystemApi<Caller>
 where
     Caller: Instance<UserData = SystemApiData<ContractActorRuntime>>,
 {
-    fn chain_id(caller: &mut Caller) -> Result<ChainId, RuntimeError> {
+    fn get_chain_id(caller: &mut Caller) -> Result<ChainId, RuntimeError> {
         caller
             .user_data_mut()
             .runtime
@@ -66,7 +66,7 @@ where
             .map_err(|error| RuntimeError::Custom(error.into()))
     }
 
-    fn application_id(caller: &mut Caller) -> Result<ApplicationId, RuntimeError> {
+    fn get_application_id(caller: &mut Caller) -> Result<ApplicationId, RuntimeError> {
         caller
             .user_data_mut()
             .runtime
@@ -74,7 +74,7 @@ where
             .map_err(|error| RuntimeError::Custom(error.into()))
     }
 
-    fn application_parameters(caller: &mut Caller) -> Result<Vec<u8>, RuntimeError> {
+    fn get_application_parameters(caller: &mut Caller) -> Result<Vec<u8>, RuntimeError> {
         caller
             .user_data_mut()
             .runtime
@@ -184,12 +184,12 @@ where
 #[derive(Default)]
 pub struct ServiceSystemApi<Caller>(PhantomData<Caller>);
 
-#[linera_witty::wit_export(package = "linera")]
+#[linera_witty::wit_export(package = "linera:app")]
 impl<Caller> ServiceSystemApi<Caller>
 where
     Caller: Instance<UserData = SystemApiData<ServiceActorRuntime>>,
 {
-    fn chain_id(caller: &mut Caller) -> Result<ChainId, RuntimeError> {
+    fn get_chain_id(caller: &mut Caller) -> Result<ChainId, RuntimeError> {
         caller
             .user_data_mut()
             .runtime
@@ -197,7 +197,7 @@ where
             .map_err(|error| RuntimeError::Custom(error.into()))
     }
 
-    fn application_id(caller: &mut Caller) -> Result<ApplicationId, RuntimeError> {
+    fn get_application_id(caller: &mut Caller) -> Result<ApplicationId, RuntimeError> {
         caller
             .user_data_mut()
             .runtime
@@ -205,7 +205,7 @@ where
             .map_err(|error| RuntimeError::Custom(error.into()))
     }
 
-    fn application_parameters(caller: &mut Caller) -> Result<Vec<u8>, RuntimeError> {
+    fn get_application_parameters(caller: &mut Caller) -> Result<Vec<u8>, RuntimeError> {
         caller
             .user_data_mut()
             .runtime
@@ -264,13 +264,16 @@ where
         data.register_promise(promise)
     }
 
-    fn lock_wait(caller: &mut Caller, promise_id: u32) -> Result<Result<(), String>, RuntimeError> {
+    fn lock_wait(
+        caller: &mut Caller,
+        promise_id: u32,
+    ) -> Result<Result<bool, String>, RuntimeError> {
         let mut data = caller.user_data_mut();
         let promise = data.take_promise(promise_id)?;
 
         data.runtime
             .lock_wait(&promise)
-            .map(Ok)
+            .map(|()| Ok(true))
             .map_err(|error| RuntimeError::Custom(error.into()))
     }
 
@@ -287,13 +290,13 @@ where
     fn unlock_wait(
         caller: &mut Caller,
         promise_id: u32,
-    ) -> Result<Result<(), String>, RuntimeError> {
+    ) -> Result<Result<bool, String>, RuntimeError> {
         let mut data = caller.user_data_mut();
         let promise = data.take_promise(promise_id)?;
 
         data.runtime
             .unlock_wait(&promise)
-            .map(Ok)
+            .map(|()| Ok(true))
             .map_err(|error| RuntimeError::Custom(error.into()))
     }
 
@@ -339,11 +342,55 @@ where
 #[derive(Default)]
 pub struct ContractViewSystemApi<Caller>(PhantomData<Caller>);
 
-#[linera_witty::wit_export(package = "linera")]
+#[linera_witty::wit_export(package = "linera:app", interface = "view-system-api")]
 impl<Caller> ContractViewSystemApi<Caller>
 where
     Caller: Instance<UserData = SystemApiData<ContractActorRuntime>>,
 {
+    fn contains_key_new(caller: &mut Caller, key: Vec<u8>) -> Result<u32, RuntimeError> {
+        let mut data = caller.user_data_mut();
+        let promise = data
+            .runtime
+            .contains_key_new(key)
+            .map_err(|error| RuntimeError::Custom(error.into()))?;
+
+        data.register_promise(promise)
+    }
+
+    fn contains_key_wait(caller: &mut Caller, promise_id: u32) -> Result<bool, RuntimeError> {
+        let mut data = caller.user_data_mut();
+        let promise = data.take_promise(promise_id)?;
+
+        data.runtime
+            .contains_key_wait(&promise)
+            .map_err(|error| RuntimeError::Custom(error.into()))
+    }
+
+    fn read_multi_values_bytes_new(
+        caller: &mut Caller,
+        keys: Vec<Vec<u8>>,
+    ) -> Result<u32, RuntimeError> {
+        let mut data = caller.user_data_mut();
+        let promise = data
+            .runtime
+            .read_multi_values_bytes_new(keys)
+            .map_err(|error| RuntimeError::Custom(error.into()))?;
+
+        data.register_promise(promise)
+    }
+
+    fn read_multi_values_bytes_wait(
+        caller: &mut Caller,
+        promise_id: u32,
+    ) -> Result<Vec<Option<Vec<u8>>>, RuntimeError> {
+        let mut data = caller.user_data_mut();
+        let promise = data.take_promise(promise_id)?;
+
+        data.runtime
+            .read_multi_values_bytes_wait(&promise)
+            .map_err(|error| RuntimeError::Custom(error.into()))
+    }
+
     fn read_value_bytes_new(caller: &mut Caller, key: Vec<u8>) -> Result<u32, RuntimeError> {
         let mut data = caller.user_data_mut();
         let promise = data
@@ -423,11 +470,55 @@ where
 #[derive(Default)]
 pub struct ServiceViewSystemApi<Caller>(PhantomData<Caller>);
 
-#[linera_witty::wit_export(package = "linera")]
+#[linera_witty::wit_export(package = "linera:app", interface = "view-system-api")]
 impl<Caller> ServiceViewSystemApi<Caller>
 where
     Caller: Instance<UserData = SystemApiData<ServiceActorRuntime>>,
 {
+    fn contains_key_new(caller: &mut Caller, key: Vec<u8>) -> Result<u32, RuntimeError> {
+        let mut data = caller.user_data_mut();
+        let promise = data
+            .runtime
+            .contains_key_new(key)
+            .map_err(|error| RuntimeError::Custom(error.into()))?;
+
+        data.register_promise(promise)
+    }
+
+    fn contains_key_wait(caller: &mut Caller, promise_id: u32) -> Result<bool, RuntimeError> {
+        let mut data = caller.user_data_mut();
+        let promise = data.take_promise(promise_id)?;
+
+        data.runtime
+            .contains_key_wait(&promise)
+            .map_err(|error| RuntimeError::Custom(error.into()))
+    }
+
+    fn read_multi_values_bytes_new(
+        caller: &mut Caller,
+        keys: Vec<Vec<u8>>,
+    ) -> Result<u32, RuntimeError> {
+        let mut data = caller.user_data_mut();
+        let promise = data
+            .runtime
+            .read_multi_values_bytes_new(keys)
+            .map_err(|error| RuntimeError::Custom(error.into()))?;
+
+        data.register_promise(promise)
+    }
+
+    fn read_multi_values_bytes_wait(
+        caller: &mut Caller,
+        promise_id: u32,
+    ) -> Result<Vec<Option<Vec<u8>>>, RuntimeError> {
+        let mut data = caller.user_data_mut();
+        let promise = data.take_promise(promise_id)?;
+
+        data.runtime
+            .read_multi_values_bytes_wait(&promise)
+            .map_err(|error| RuntimeError::Custom(error.into()))
+    }
+
     fn read_value_bytes_new(caller: &mut Caller, key: Vec<u8>) -> Result<u32, RuntimeError> {
         let mut data = caller.user_data_mut();
         let promise = data

@@ -4,15 +4,26 @@
 //! Functions and types that interface with the system API available to application contracts but
 //! that shouldn't be used by applications directly.
 
-use super::super::contract_system_api as wit;
+#![allow(missing_docs)]
+
+pub use self::linera::app::contract_system_api as wit;
 use crate::{util::yield_once, views::ViewStorageContext};
 use linera_base::identifiers::{ApplicationId, SessionId};
 use linera_views::views::{RootView, View};
 use serde::{de::DeserializeOwned, Serialize};
 
+// Import the system interface.
+wit_bindgen::generate!({
+    path: "linera-sdk/wit",
+    inline:
+        "package linera:app-gen;\
+        world contract-system-api-only { import linera:app/contract-system-api; }",
+    world: "contract-system-api-only",
+});
+
 /// Retrieves the current application parameters.
 pub fn current_application_parameters() -> Vec<u8> {
-    wit::application_parameters()
+    wit::get_application_parameters()
 }
 
 /// Deserializes the application state or creates a new one if the `bytes` vector is empty.
@@ -46,9 +57,9 @@ where
 
 /// Loads the application state and locks it for writes.
 pub async fn load_and_lock_view<State: View<ViewStorageContext>>() -> State {
-    let promise = wit::Lock::new();
+    let promise = wit::lock_new();
     yield_once().await;
-    promise.wait();
+    wit::lock_wait(promise);
     load_view_using::<State>().await
 }
 

@@ -10,13 +10,22 @@
 //! The system API isn't available to the tests by default. However, calls to them are intercepted
 //! and can be controlled by the test to return mock values using the functions in this module.
 
+#![allow(missing_docs)]
+
 // Import the contract system interface.
-wit_bindgen_guest_rust::export!("mock_system_api.wit");
+wit_bindgen::generate!({
+    path: "linera-sdk/wit",
+    inline:
+        "package linera:app-gen;\
+        world mock-system-api-only { export linera:app/mock-system-api; }",
+    world: "mock-system-api-only",
+    exports: { "linera:app/mock-system-api": MockSystemApi },
+});
 
 mod conversions_from_wit;
 mod conversions_to_wit;
 
-use self::mock_system_api as wit;
+use self::exports::linera::app::mock_system_api as wit;
 use futures::FutureExt;
 use linera_base::{
     data_types::{Amount, Timestamp},
@@ -103,8 +112,8 @@ pub fn mock_try_query_application<E>(
 /// Implementation of type that exports an interface for using the mock system API.
 pub struct MockSystemApi;
 
-impl wit::MockSystemApi for MockSystemApi {
-    fn mocked_chain_id() -> wit::CryptoHash {
+impl wit::Guest for MockSystemApi {
+    fn mocked_chain_id() -> wit::ChainId {
         unsafe { MOCK_CHAIN_ID }
             .expect(
                 "Unexpected call to the `chain_id` system API. Please call `mock_chain_id` first",
@@ -139,13 +148,13 @@ impl wit::MockSystemApi for MockSystemApi {
             .into()
     }
 
-    fn mocked_read_system_timestamp() -> u64 {
+    fn mocked_read_system_timestamp() -> wit::Timestamp {
         unsafe { MOCK_SYSTEM_TIMESTAMP }
             .expect(
                 "Unexpected call to the `read_system_timestamp` system API. \
                 Please call `mock_system_timestamp` first",
             )
-            .micros()
+            .into()
     }
 
     fn mocked_log(message: String, level: wit::LogLevel) {
@@ -264,7 +273,9 @@ impl wit::MockSystemApi for MockSystemApi {
             })
             .now_or_never()
             .expect("Attempt to write to key-value store while it is being used")
-            .expect("Failed to write to memory store")
+            .expect("Failed to write to memory store");
+
+        Self::mocked_unlock();
     }
 
     fn mocked_try_query_application(
