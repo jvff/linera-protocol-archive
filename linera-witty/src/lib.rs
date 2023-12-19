@@ -47,3 +47,6 @@ pub use frunk::{hlist, hlist::HList, hlist_pat, HCons, HList, HNil};
 pub use linera_witty_macros::wit_export;
 #[cfg(feature = "macros")]
 pub use linera_witty_macros::{wit_import, WitLoad, WitStore, WitType};
+
+#[derive(Clone, Copy, Debug, Error)]
+pub enum WitError {}

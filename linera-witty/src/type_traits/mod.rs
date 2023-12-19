@@ -7,6 +7,7 @@ mod implementations;
 
 use crate::{
     GuestPointer, InstanceWithMemory, Layout, Memory, Runtime, RuntimeError, RuntimeMemory,
+    WitError,
 };
 
 /// A type that is representable by fundamental WIT types.
@@ -19,6 +20,7 @@ pub trait WitType: Sized {
 }
 
 /// A type that can be loaded from a guest Wasm module.
+#[cfg(not(target_arch = "wasm32"))]
 pub trait WitLoad: WitType {
     /// Loads an instance of the type from the `location` in the guest's `memory`.
     fn load<Instance>(
@@ -42,6 +44,7 @@ pub trait WitLoad: WitType {
 }
 
 /// A type that can be stored in a guest Wasm module.
+#[cfg(not(target_arch = "wasm32"))]
 pub trait WitStore: WitType {
     /// Stores the type at the `location` in the guest's `memory`.
     fn store<Instance>(
@@ -64,4 +67,29 @@ pub trait WitStore: WitType {
     where
         Instance: InstanceWithMemory,
         <Instance::Runtime as Runtime>::Memory: RuntimeMemory<Instance>;
+}
+
+/// A type that can be loaded from a WIT type representation.
+#[cfg(target_arch = "wasm32")]
+pub trait WitLoad: WitType {
+    /// Loads an instance of the type from the `location` in the guest's memory.
+    fn load(location: GuestPointer) -> Result<Self, WitError>;
+
+    /// Lifts an instance of the type from the `flat_layout` representation.
+    ///
+    /// May read from memory if the type has references to heap data.
+    fn lift_from(flat_layout: <Self::Layout as Layout>::Flat) -> Result<Self, WitError>;
+}
+
+/// A type that can be stored as a WIT type representation.
+#[cfg(target_arch = "wasm32")]
+pub trait WitStore: WitType {
+    /// Stores the type at the `location` in the guest's memory.
+    fn store(&self, location: *mut ()) -> Result<(), WitError>;
+
+    /// Lowers the type into its flat layout representation.
+    ///
+    /// May write to memory if the type has references to heap data or if it doesn't fix in the
+    /// maximum flat layout size.
+    fn lower(&self) -> Result<<Self::Layout as Layout>::Flat, WitError>;
 }

@@ -17,6 +17,7 @@ macro_rules! impl_wit_traits {
             type Layout = HList![$float];
         }
 
+        #[cfg(not(target_arch = "wasm32"))]
         impl WitLoad for $float {
             fn load<Instance>(
                 memory: &Memory<'_, Instance>,
@@ -44,6 +45,7 @@ macro_rules! impl_wit_traits {
             }
         }
 
+        #[cfg(not(target_arch = "wasm32"))]
         impl WitStore for $float {
             fn store<Instance>(
                 &self,
@@ -65,6 +67,33 @@ macro_rules! impl_wit_traits {
                 Instance: InstanceWithMemory,
                 <Instance::Runtime as Runtime>::Memory: RuntimeMemory<Instance>,
             {
+                Ok(hlist![*self])
+            }
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        impl WitLoad for $float {
+            fn load(location: GuestPointer) -> Result<Self, RuntimeError> {
+                let slice = memory.read(location, Self::SIZE)?;
+                let bytes = (*slice).try_into().expect("Incorrect number of bytes read");
+
+                Ok(Self::from_le_bytes(bytes))
+            }
+
+            fn lift_from(
+                hlist_pat![value]: <Self::Layout as Layout>::Flat,
+            ) -> Result<Self, RuntimeError> {
+                Ok(value)
+            }
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        impl WitStore for $float {
+            fn store(&self, location: GuestPointer) -> Result<(), RuntimeError> {
+                memory.write(location, &self.to_le_bytes())
+            }
+
+            fn lower(&self) -> Result<<Self::Layout as Layout>::Flat, RuntimeError> {
                 Ok(hlist![*self])
             }
         }
