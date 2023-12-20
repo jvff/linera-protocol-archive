@@ -3,7 +3,12 @@
 
 //! Generation of code to export host functions to a Wasm guest instance.
 
-#![cfg(any(feature = "mock-instance", feature = "wasmer", feature = "wasmtime"))]
+#![cfg(any(
+    feature = "guest",
+    feature = "mock-instance",
+    feature = "wasmer",
+    feature = "wasmtime"
+))]
 
 mod function_information;
 
@@ -65,12 +70,14 @@ impl<'input> WitExportGenerator<'input> {
         let wasmer = self.generate_for_wasmer();
         let wasmtime = self.generate_for_wasmtime();
         let mock_instance = self.generate_for_mock_instance();
+        let guest = self.generate_for_guest();
 
         quote! {
             #implementation
             #wasmer
             #wasmtime
             #mock_instance
+            #guest
         }
     }
 
@@ -135,6 +142,23 @@ impl<'input> WitExportGenerator<'input> {
             Some(self.generate_for(export_target, &target_caller_type, exported_functions))
         }
         #[cfg(not(feature = "mock-instance"))]
+        {
+            None
+        }
+    }
+
+    /// Generates the code to export functions from inside a Wasm guest module.
+    fn generate_for_guest(&mut self) -> Option<TokenStream> {
+        #[cfg(feature = "guest")]
+        {
+            let exported_functions = self
+                .functions
+                .iter()
+                .map(|function| function.generate_for_guest(self.namespace, self.type_name));
+
+            Some(quote! { #( #exported_functions )* })
+        }
+        #[cfg(not(feature = "guest"))]
         {
             None
         }

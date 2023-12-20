@@ -215,6 +215,15 @@ impl<'input> FunctionInformation<'input> {
         )
     }
 
+    /// Generates the code to export a guest function from a Wasm module.
+    #[cfg(feature = "guest")]
+    pub fn generate_for_guest(&self, namespace: &LitStr, type_name: &Ident) -> TokenStream {
+        quote! {
+            extern "C" #name() -> () {
+            }
+        }
+    }
+
     /// Generates the code to export a host function using a mock Wasm instance for testing.
     #[cfg(feature = "mock-instance")]
     pub fn generate_for_mock_instance(
