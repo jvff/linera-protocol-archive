@@ -12,6 +12,7 @@ edition = "2021"
 
 [features]
 default = ["macros"]
+guest = []
 macros = ["linera-witty-macros"]
 test = ["linera-witty-macros?/mock-instance"]
 wasmer = ["dep:wasmer", "linera-witty-macros?/wasmer", "wasmer-vm"]
