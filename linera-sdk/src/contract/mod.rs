@@ -3,11 +3,8 @@
 
 //! Types and macros useful for writing an application contract.
 
-mod conversions_from_wit;
-mod conversions_to_wit;
 mod storage;
 pub mod system_api;
-pub mod wit_types;
 
 pub use self::storage::ContractStateStorage;
 use super::log::ContractLogger;
@@ -26,15 +23,14 @@ use std::future::Future;
 macro_rules! contract {
     ($application:ty) => {
         // Export the contract interface.
-        $crate::export_contract!($application);
-
-        /// Mark the contract type to be exported.
-        impl $crate::contract::wit_types::Contract for $application {
+        extern "C" {
             fn initialize(
-                context: $crate::contract::wit_types::OperationContext,
-                argument: Vec<u8>,
-            ) -> Result<$crate::contract::wit_types::ExecutionResult, String> {
-                $crate::contract::run_async_entrypoint::<$application, _, _, _, _>(
+                parameters_area: i32,
+                // context: $crate::contract::wit_types::OperationContext,
+                // argument: Vec<u8>,
+            ) {
+            // ) -> Result<$crate::contract::wit_types::ExecutionResult, String> {
+                $crate::contract::run_async_entrypoint::<$application, _, _, _>(
                     move |mut application| async move {
                         let argument = serde_json::from_slice(&argument)?;
 
@@ -43,14 +39,16 @@ macro_rules! contract {
                             .await
                             .map(|result| (application, result))
                     },
-                )
+                );
             }
 
             fn execute_operation(
-                context: $crate::contract::wit_types::OperationContext,
-                operation: Vec<u8>,
-            ) -> Result<$crate::contract::wit_types::ExecutionResult, String> {
-                $crate::contract::run_async_entrypoint::<$application, _, _, _, _>(
+                parameters_area: i32,
+                // context: $crate::contract::wit_types::OperationContext,
+                // operation: Vec<u8>,
+            ) {
+            // ) -> Result<$crate::contract::wit_types::ExecutionResult, String> {
+                $crate::contract::run_async_entrypoint::<$application, _, _, _>(
                     move |mut application| async move {
                         let operation: <$application as $crate::abi::ContractAbi>::Operation =
                             bcs::from_bytes(&operation)?;
@@ -60,14 +58,16 @@ macro_rules! contract {
                             .await
                             .map(|result| (application, result))
                     },
-                )
+                );
             }
 
             fn execute_message(
-                context: $crate::contract::wit_types::MessageContext,
-                message: Vec<u8>,
-            ) -> Result<$crate::contract::wit_types::ExecutionResult, String> {
-                $crate::contract::run_async_entrypoint::<$application, _, _, _, _>(
+                parameters_area: i32,
+                // context: $crate::contract::wit_types::MessageContext,
+                // message: Vec<u8>,
+            ) {
+            // ) -> Result<$crate::contract::wit_types::ExecutionResult, String> {
+                $crate::contract::run_async_entrypoint::<$application, _, _, _>(
                     move |mut application| async move {
                         let message: <$application as $crate::abi::ContractAbi>::Message =
                             bcs::from_bytes(&message)?;
@@ -77,15 +77,17 @@ macro_rules! contract {
                             .await
                             .map(|result| (application, result))
                     },
-                )
+                );
             }
 
             fn handle_application_call(
-                context: $crate::contract::wit_types::CalleeContext,
-                argument: Vec<u8>,
-                forwarded_sessions: Vec<$crate::contract::wit_types::SessionId>,
-            ) -> Result<$crate::contract::wit_types::ApplicationCallResult, String> {
-                $crate::contract::run_async_entrypoint::<$application, _, _, _, _>(
+                parameters_area: i32,
+                // context: $crate::contract::wit_types::CalleeContext,
+                // argument: Vec<u8>,
+                // forwarded_sessions: Vec<$crate::contract::wit_types::SessionId>,
+            ) {
+            // ) -> Result<$crate::contract::wit_types::ApplicationCallResult, String> {
+                $crate::contract::run_async_entrypoint::<$application, _, _, _>(
                     move |mut application| async move {
                         let argument: <$application as $crate::abi::ContractAbi>::ApplicationCall =
                             bcs::from_bytes(&argument)?;
@@ -99,16 +101,18 @@ macro_rules! contract {
                             .await
                             .map(|result| (application, result))
                     },
-                )
+                );
             }
 
             fn handle_session_call(
-                context: $crate::contract::wit_types::CalleeContext,
-                session_state: Vec<u8>,
-                argument: Vec<u8>,
-                forwarded_sessions: Vec<$crate::contract::wit_types::SessionId>,
-            ) -> Result<$crate::contract::wit_types::SessionCallResult, String> {
-                $crate::contract::run_async_entrypoint::<$application, _, _, _, _>(
+                parameters_area: i32,
+                // context: $crate::contract::wit_types::CalleeContext,
+                // session_state: Vec<u8>,
+                // argument: Vec<u8>,
+                // forwarded_sessions: Vec<$crate::contract::wit_types::SessionId>,
+            ) {
+            // ) -> Result<$crate::contract::wit_types::SessionCallResult, String> {
+                $crate::contract::run_async_entrypoint::<$application, _, _, _>(
                     move |mut application| async move {
                         let session_state: <$application as $crate::abi::ContractAbi>::SessionState =
                             bcs::from_bytes(&session_state)?;
@@ -129,7 +133,7 @@ macro_rules! contract {
                             .await
                             .map(|result| (application, result))
                     },
-                )
+                );
             }
         }
 
@@ -142,19 +146,18 @@ macro_rules! contract {
 
 /// Runs an asynchronous entrypoint in a blocking manner, by repeatedly polling the entrypoint
 /// future.
-pub fn run_async_entrypoint<Application, Entrypoint, Output, Error, RawOutput>(
+pub fn run_async_entrypoint<Application, Entrypoint, Output, Error>(
     entrypoint: impl FnOnce(Application) -> Entrypoint + Send,
-) -> Result<RawOutput, String>
+) -> Result<Output, String>
 where
     Application: Contract,
     Entrypoint: Future<Output = Result<(Application, Output), Error>> + Send,
-    Output: Into<RawOutput> + Send + 'static,
+    Output: Send + 'static,
     Error: ToString + 'static,
 {
     ContractLogger::install();
 
     <Application as Contract>::Storage::execute_with_state(entrypoint)
         .blocking_wait()
-        .map(|output| output.into())
         .map_err(|error| error.to_string())
 }

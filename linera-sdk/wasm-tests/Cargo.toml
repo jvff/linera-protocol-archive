@@ -13,3 +13,5 @@ linera-views = { workspace = true }
 log = { workspace = true }
 serde_json = { workspace = true }
 webassembly-test = { workspace = true }
+
+linera-witty = { workspace = true, features = ["guest"] }

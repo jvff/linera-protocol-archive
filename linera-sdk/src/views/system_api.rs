@@ -3,24 +3,15 @@
 
 //! Functions and types to interface with the system API available to application views.
 
-pub use self::linera::app::view_system_api as wit;
+use super::wit;
 use crate::util::yield_once;
 use async_trait::async_trait;
 use linera_base::ensure;
 use linera_views::{
-    batch::{Batch, WriteOperation},
+    batch::Batch,
     common::{ContextFromStore, KeyValueStore},
     views::ViewError,
 };
-
-// Import the system interface.
-wit_bindgen::generate!({
-    path: "linera-sdk/wit",
-    inline:
-        "package linera:app-gen;\
-        world view-system-api-only { import linera:app/view-system-api; }",
-    world: "view-system-api-only",
-});
 
 /// We need to have a maximum key size that handles all possible underlying
 /// sizes. The constraint so far is DynamoDb which has a key length of 1024.
@@ -76,7 +67,7 @@ impl KeyValueStore for AppStateStore {
         for key in &keys {
             ensure!(key.len() <= Self::MAX_KEY_SIZE, ViewError::KeyTooLong);
         }
-        let promise = wit::read_multi_values_bytes_new(keys.as_slice());
+        let promise = wit::read_multi_values_bytes_new(keys);
         yield_once().await;
         Ok(wit::read_multi_values_bytes_wait(promise))
     }
@@ -110,27 +101,7 @@ impl KeyValueStore for AppStateStore {
     }
 
     async fn write_batch(&self, batch: Batch, _base_key: &[u8]) -> Result<(), ViewError> {
-        let mut operations = Vec::new();
-        for operation in batch.operations {
-            match operation {
-                WriteOperation::Delete { key } => {
-                    ensure!(key.len() <= Self::MAX_KEY_SIZE, ViewError::KeyTooLong);
-                    operations.push(wit::WriteOperation::Delete(key));
-                }
-                WriteOperation::Put { key, value } => {
-                    ensure!(key.len() <= Self::MAX_KEY_SIZE, ViewError::KeyTooLong);
-                    operations.push(wit::WriteOperation::Put((key, value)))
-                }
-                WriteOperation::DeletePrefix { key_prefix } => {
-                    ensure!(
-                        key_prefix.len() <= Self::MAX_KEY_SIZE,
-                        ViewError::KeyTooLong
-                    );
-                    operations.push(wit::WriteOperation::DeletePrefix(key_prefix))
-                }
-            }
-        }
-        wit::write_batch(&operations);
+        wit::write_batch(batch.operations);
         Ok(())
     }
 

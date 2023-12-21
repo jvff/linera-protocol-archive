@@ -35,10 +35,10 @@ futures = { workspace = true }
 linera-base = { workspace = true }
 linera-sdk-derive = { workspace = true }
 linera-views = { workspace = true }
+linera-witty = { workspace = true, features = ["guest", "log"] }
 log = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-wit-bindgen = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 async-graphql = { workspace = true }
@@ -55,7 +55,6 @@ linera-witty = { workspace = true, features = ["log", "test", "wit-generation"] 
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 wasmtime = { workspace = true }
-wit-bindgen-host-wasmtime-rust = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 tokio-test = { workspace = true }

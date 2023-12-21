@@ -38,12 +38,15 @@
 #![deny(missing_docs)]
 
 pub mod base;
+#[cfg(target_arch = "wasm32")]
 pub mod contract;
 mod extensions;
 pub mod graphql;
+#[cfg(target_arch = "wasm32")]
 mod log;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod mock_system_api;
+#[cfg(target_arch = "wasm32")]
 pub mod service;
 #[cfg(feature = "test")]
 #[cfg_attr(not(target_arch = "wasm32"), path = "./test/integration/mod.rs")]
@@ -52,6 +55,7 @@ pub mod test;
 pub mod util;
 pub mod views;
 
+#[cfg(target_arch = "wasm32")]
 use self::contract::ContractStateStorage;
 use async_trait::async_trait;
 use linera_base::{
@@ -59,19 +63,19 @@ use linera_base::{
     data_types::BlockHeight,
     identifiers::{ApplicationId, ChainId, ChannelName, Destination, MessageId, Owner, SessionId},
 };
+use linera_witty::{WitLoad, WitType};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{error::Error, fmt::Debug, sync::Arc};
 
+pub use self::extensions::{FromBcsBytes, ToBcsBytes};
 #[cfg(not(target_arch = "wasm32"))]
 pub use self::mock_system_api::MockSystemApi;
+#[cfg(target_arch = "wasm32")]
 pub use self::{
-    extensions::{FromBcsBytes, ToBcsBytes},
     log::{ContractLogger, ServiceLogger},
     service::ServiceStateStorage,
 };
 pub use linera_base::{abi, ensure};
-#[doc(hidden)]
-pub use wit_bindgen;
 
 /// A simple state management runtime based on a single byte array.
 pub struct SimpleStateStorage<A>(std::marker::PhantomData<A>);
@@ -87,6 +91,7 @@ pub struct ViewStateStorage<A>(std::marker::PhantomData<A>);
 ///
 /// Below we use the word "transaction" to refer to the current operation or message being
 /// executed.
+#[cfg(target_arch = "wasm32")]
 #[async_trait]
 pub trait Contract: WithContractAbi + ContractAbi + Send + Sized {
     /// The type used to report errors to the execution environment.
@@ -287,6 +292,7 @@ pub trait Contract: WithContractAbi + ContractAbi + Send + Sized {
 /// As opposed to the [`Contract`] interface of an application, service entry points
 /// are triggered by JSON queries (typically GraphQL). Their execution cannot modify
 /// storage and is not gas-metered.
+#[cfg(target_arch = "wasm32")]
 #[async_trait]
 pub trait Service: WithServiceAbi + ServiceAbi {
     /// Type used to report errors to the execution environment.
@@ -447,6 +453,15 @@ impl<Message: Serialize + Debug + DeserializeOwned> ExecutionResult<Message> {
         });
         self
     }
+}
+
+/// The result of calling into an application or a session.
+#[derive(WitLoad, WitType)]
+pub struct CallResult {
+    /// The return value.
+    pub value: Vec<u8>,
+    /// The new sessions now visible to the caller.
+    pub sessions: Vec<SessionId>,
 }
 
 /// The result of calling into an application.

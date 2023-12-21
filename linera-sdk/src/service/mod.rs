@@ -3,11 +3,8 @@
 
 //! Types and macros useful for writing an application service.
 
-mod conversions_from_wit;
-mod conversions_to_wit;
 mod storage;
 pub mod system_api;
-pub mod wit_types;
 
 pub use self::storage::ServiceStateStorage;
 use crate::{util::BlockingWait, ServiceLogger};
@@ -25,14 +22,13 @@ use std::future::Future;
 macro_rules! service {
     ($application:ty) => {
         // Export the service interface.
-        $crate::export_service!($application);
-
-        /// Marks the service type to be exported.
-        impl $crate::service::wit_types::Service for $application {
+        extern "C" {
             fn handle_query(
-                context: $crate::service::wit_types::QueryContext,
-                argument: Vec<u8>,
-            ) -> Result<Vec<u8>, String> {
+                parameters: i32,
+                // context: $crate::service::wit_types::QueryContext,
+                // argument: Vec<u8>,
+            ) {
+            // ) -> Result<Vec<u8>, String> {
                 $crate::service::run_async_entrypoint(
                     <
                         <$application as $crate::Service>::Storage as $crate::ServiceStateStorage
@@ -50,18 +46,17 @@ macro_rules! service {
 
 /// Runs an asynchronous entrypoint in a blocking manner, by repeatedly polling the entrypoint
 /// future.
-pub fn run_async_entrypoint<Entrypoint, Output, Error, RawOutput>(
+pub fn run_async_entrypoint<Entrypoint, Output, Error>(
     entrypoint: Entrypoint,
-) -> Result<RawOutput, String>
+) -> Result<Output, String>
 where
     Entrypoint: Future<Output = Result<Output, Error>> + Send,
-    Output: Into<RawOutput> + Send + 'static,
+    Output: Send + 'static,
     Error: ToString + 'static,
 {
     ServiceLogger::install();
 
     entrypoint
         .blocking_wait()
-        .map(|output| output.into())
         .map_err(|error| error.to_string())
 }

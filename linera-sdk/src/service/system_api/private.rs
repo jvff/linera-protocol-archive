@@ -6,20 +6,11 @@
 
 #![allow(missing_docs)]
 
-pub use self::linera::app::service_system_api as wit;
+use super::wit;
 use crate::{util::yield_once, views::ViewStorageContext};
 use linera_base::identifiers::ApplicationId;
 use linera_views::views::View;
 use serde::de::DeserializeOwned;
-
-// Import the system interface.
-wit_bindgen::generate!({
-    path: "linera-sdk/wit",
-    inline:
-        "package linera:app-gen;\
-        world service-system-api-only { import linera:app/service-system-api; }",
-    world: "service-system-api-only",
-});
 
 /// Loads the application state, without locking it for writes.
 pub async fn load<State>() -> State
@@ -69,7 +60,7 @@ pub async fn query_application(
     application: ApplicationId,
     argument: &[u8],
 ) -> Result<Vec<u8>, String> {
-    let promise = wit::try_query_application_new(application.into(), argument);
+    let promise = wit::try_query_application_new(application, argument.to_owned());
     yield_once().await;
     wit::try_query_application_wait(promise)
 }

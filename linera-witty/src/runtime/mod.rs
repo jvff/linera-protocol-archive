@@ -6,7 +6,7 @@
 mod borrowed_instance;
 mod error;
 #[cfg(feature = "guest")]
-mod guest;
+pub mod guest;
 mod memory;
 #[cfg(any(test, feature = "test"))]
 mod test;

@@ -48,6 +48,19 @@ impl GuestPointer {
 
         GuestPointer(self.0 + index * element_size.0)
     }
+
+    /// Returns the pointer value as an [`i32`].
+    #[cfg(all(target_arch = "wasm32", feature = "guest"))]
+    pub fn as_i32(&self) -> i32 {
+        self.0 as i32
+    }
+}
+
+#[cfg(all(target_arch = "wasm32", feature = "guest"))]
+impl<T> From<*mut T> for GuestPointer {
+    fn from(pointer: *mut T) -> Self {
+        GuestPointer(pointer as u32)
+    }
 }
 
 /// Interface for accessing a runtime specific memory.

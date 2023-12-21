@@ -8,9 +8,8 @@
 //! service type that implements [`linera-sdk::Service`].
 
 use crate::{
-    service::{system_api, wit_types},
-    views::ViewStorageContext,
-    Service, SimpleStateStorage, ViewStateStorage,
+    service::system_api, views::ViewStorageContext, QueryContext, Service, SimpleStateStorage,
+    ViewStateStorage,
 };
 use async_trait::async_trait;
 use linera_views::views::RootView;
@@ -21,10 +20,7 @@ use std::sync::Arc;
 #[async_trait]
 pub trait ServiceStateStorage {
     /// Loads the application state and run the given query.
-    async fn handle_query(
-        context: wit_types::QueryContext,
-        argument: Vec<u8>,
-    ) -> Result<Vec<u8>, String>;
+    async fn handle_query(context: QueryContext, argument: Vec<u8>) -> Result<Vec<u8>, String>;
 }
 
 #[async_trait]
@@ -32,10 +28,7 @@ impl<Application> ServiceStateStorage for SimpleStateStorage<Application>
 where
     Application: Service + Default + DeserializeOwned + Serialize + Send + Sync,
 {
-    async fn handle_query(
-        context: wit_types::QueryContext,
-        argument: Vec<u8>,
-    ) -> Result<Vec<u8>, String> {
+    async fn handle_query(context: QueryContext, argument: Vec<u8>) -> Result<Vec<u8>, String> {
         let application: Arc<Application> = Arc::new(system_api::load().await);
         let argument: Application::Query =
             serde_json::from_slice(&argument).map_err(|e| e.to_string())?;
@@ -53,10 +46,7 @@ where
     Application: Service + RootView<ViewStorageContext> + Send + Sync,
     Application::Error: Send,
 {
-    async fn handle_query(
-        context: wit_types::QueryContext,
-        argument: Vec<u8>,
-    ) -> Result<Vec<u8>, String> {
+    async fn handle_query(context: QueryContext, argument: Vec<u8>) -> Result<Vec<u8>, String> {
         let application: Arc<Application> = Arc::new(system_api::lock_and_load_view().await);
         let argument: Application::Query =
             serde_json::from_slice(&argument).map_err(|e| e.to_string())?;

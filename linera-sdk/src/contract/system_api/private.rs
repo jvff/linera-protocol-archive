@@ -6,20 +6,11 @@
 
 #![allow(missing_docs)]
 
-pub use self::linera::app::contract_system_api as wit;
+use super::wit;
 use crate::{util::yield_once, views::ViewStorageContext};
 use linera_base::identifiers::{ApplicationId, SessionId};
 use linera_views::views::{RootView, View};
 use serde::{de::DeserializeOwned, Serialize};
-
-// Import the system interface.
-wit_bindgen::generate!({
-    path: "linera-sdk/wit",
-    inline:
-        "package linera:app-gen;\
-        world contract-system-api-only { import linera:app/contract-system-api; }",
-    world: "contract-system-api-only",
-});
 
 /// Retrieves the current application parameters.
 pub fn current_application_parameters() -> Vec<u8> {
@@ -85,18 +76,14 @@ pub fn call_application_without_persisting_state(
     argument: &[u8],
     forwarded_sessions: Vec<SessionId>,
 ) -> (Vec<u8>, Vec<SessionId>) {
-    let forwarded_sessions = forwarded_sessions
-        .into_iter()
-        .map(wit::SessionId::from)
-        .collect::<Vec<_>>();
-
-    wit::try_call_application(
+    let call_result = wit::try_call_application(
         authenticated,
-        application.into(),
-        argument,
-        &forwarded_sessions,
-    )
-    .into()
+        application,
+        argument.to_vec(),
+        forwarded_sessions,
+    );
+
+    (call_result.value, call_result.sessions)
 }
 
 /// Calls another application's session without persisting the current application's state.
@@ -109,10 +96,12 @@ pub fn call_session_without_persisting_state(
     argument: &[u8],
     forwarded_sessions: Vec<SessionId>,
 ) -> (Vec<u8>, Vec<SessionId>) {
-    let forwarded_sessions = forwarded_sessions
-        .into_iter()
-        .map(wit::SessionId::from)
-        .collect::<Vec<_>>();
+    let call_result = wit::try_call_session(
+        authenticated,
+        session,
+        argument.to_vec(),
+        forwarded_sessions,
+    );
 
-    wit::try_call_session(authenticated, session.into(), argument, &forwarded_sessions).into()
+    (call_result.value, call_result.sessions)
 }

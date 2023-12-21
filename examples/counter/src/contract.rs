@@ -14,11 +14,6 @@ use linera_sdk::{
 };
 use thiserror::Error;
 
-wit_bindgen::generate!({
-    path: "../linera-sdk/wit",
-    world: "contract",
-});
-
 linera_sdk::contract!(Counter);
 
 impl WithContractAbi for Counter {
