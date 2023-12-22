@@ -106,7 +106,7 @@ where
             ContractRequest::TryReadAndLockMyState { response_sender } => response_sender.respond(
                 match self.write().await.try_read_and_lock_my_state().await {
                     Ok(bytes) => Some(bytes),
-                    Err(ExecutionError::ViewError(ViewError::NotFound(_))) => None,
+                    Err(ExecutionError::ViewError(_)) => None,
                     Err(error) => return Err(error),
                 },
             ),
