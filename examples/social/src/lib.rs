@@ -169,7 +169,6 @@ receivedPosts {
 */
 
 use async_graphql::{InputObject, Request, Response, SimpleObject};
-#[cfg(target_arch = "wasm32")]
 use linera_sdk::views::{CustomSerialize, ViewError};
 use linera_sdk::{
     base::{ChainId, ContractAbi, ServiceAbi, Timestamp},
@@ -252,7 +251,6 @@ pub struct Key {
 
 // Serialize keys so that the lexicographic order of the serialized keys corresponds to reverse
 // chronological order, then sorted by author, then by descending index.
-#[cfg(target_arch = "wasm32")]
 impl CustomSerialize for Key {
     fn to_custom_bytes(&self) -> Result<Vec<u8>, ViewError> {
         let data = (

@@ -12,20 +12,6 @@
 
 #![allow(missing_docs)]
 
-// Import the contract system interface.
-wit_bindgen::generate!({
-    path: "linera-sdk/wit",
-    inline:
-        "package linera:app-gen;\
-        world mock-system-api-only { export linera:app/mock-system-api; }",
-    world: "mock-system-api-only",
-    exports: { "linera:app/mock-system-api": MockSystemApi },
-});
-
-mod conversions_from_wit;
-mod conversions_to_wit;
-
-use self::exports::linera::app::mock_system_api as wit;
 use futures::FutureExt;
 use linera_base::{
     data_types::{Amount, Timestamp},

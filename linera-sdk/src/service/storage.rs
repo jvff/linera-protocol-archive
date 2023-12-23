@@ -33,7 +33,7 @@ where
         let argument: Application::Query =
             serde_json::from_slice(&argument).map_err(|e| e.to_string())?;
         let query_response = application
-            .handle_query(&context.into(), argument)
+            .handle_query(&context, argument)
             .await
             .map_err(|error| error.to_string())?;
         serde_json::to_vec(&query_response).map_err(|e| e.to_string())
@@ -50,7 +50,7 @@ where
         let application: Arc<Application> = Arc::new(system_api::lock_and_load_view().await);
         let argument: Application::Query =
             serde_json::from_slice(&argument).map_err(|e| e.to_string())?;
-        let result = application.handle_query(&context.into(), argument).await;
+        let result = application.handle_query(&context, argument).await;
         if result.is_ok() {
             system_api::unlock_view().await;
         }

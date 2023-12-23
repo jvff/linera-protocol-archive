@@ -5,7 +5,7 @@
 
 #![allow(missing_docs)]
 
-use anyhow::{anyhow, Result};
+use anyhow::anyhow;
 use linera_base::{
     data_types::{Amount, Timestamp},
     ensure,
@@ -14,7 +14,6 @@ use linera_base::{
 use linera_views::batch::WriteOperation;
 use linera_witty::{Instance, Runtime, RuntimeError, RuntimeMemory};
 use std::{any::Any, marker::PhantomData};
-use wasmtime::{Caller, Extern, Func, Linker};
 
 /// A map of resources allocated on the host side.
 #[derive(Default)]
@@ -292,13 +291,5 @@ where
         operations: Vec<WriteOperation>,
     ) -> Result<(), RuntimeError> {
         MockSystemApi::new(caller).mocked_write_batch(operations)
-    }
-}
-
-/// Retrieves a function exported from the guest WebAssembly module.
-fn get_function(caller: &mut Caller<'_, Resources>, name: &str) -> Option<Func> {
-    match caller.get_export(name)? {
-        Extern::Func(function) => Some(function),
-        _ => None,
     }
 }

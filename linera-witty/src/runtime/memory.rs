@@ -57,6 +57,17 @@ impl GuestPointer {
 }
 
 #[cfg(all(target_arch = "wasm32", feature = "guest"))]
+impl From<i32> for GuestPointer {
+    fn from(address: i32) -> Self {
+        GuestPointer(
+            address
+                .try_into()
+                .expect("Attempt to create an invalid `GuestPointer`"),
+        )
+    }
+}
+
+#[cfg(all(target_arch = "wasm32", feature = "guest"))]
 impl<T> From<*mut T> for GuestPointer {
     fn from(pointer: *mut T) -> Self {
         GuestPointer(pointer as u32)

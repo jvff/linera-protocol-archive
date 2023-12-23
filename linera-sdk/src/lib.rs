@@ -38,15 +38,12 @@
 #![deny(missing_docs)]
 
 pub mod base;
-#[cfg(target_arch = "wasm32")]
 pub mod contract;
 mod extensions;
 pub mod graphql;
-#[cfg(target_arch = "wasm32")]
 mod log;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod mock_system_api;
-#[cfg(target_arch = "wasm32")]
 pub mod service;
 #[cfg(feature = "test")]
 #[cfg_attr(not(target_arch = "wasm32"), path = "./test/integration/mod.rs")]
@@ -55,27 +52,27 @@ pub mod test;
 pub mod util;
 pub mod views;
 
-#[cfg(target_arch = "wasm32")]
 use self::contract::ContractStateStorage;
 use async_trait::async_trait;
 use linera_base::{
     abi::{ContractAbi, ServiceAbi, WithContractAbi, WithServiceAbi},
     data_types::BlockHeight,
-    identifiers::{ApplicationId, ChainId, ChannelName, Destination, MessageId, Owner, SessionId},
+    identifiers::{ApplicationId, ChainId, ChannelName, Destination, MessageId, Owner},
 };
-use linera_witty::{WitLoad, WitType};
+use linera_witty::{WitLoad, WitStore, WitType};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{error::Error, fmt::Debug, sync::Arc};
 
 pub use self::extensions::{FromBcsBytes, ToBcsBytes};
 #[cfg(not(target_arch = "wasm32"))]
 pub use self::mock_system_api::MockSystemApi;
-#[cfg(target_arch = "wasm32")]
 pub use self::{
     log::{ContractLogger, ServiceLogger},
     service::ServiceStateStorage,
 };
-pub use linera_base::{abi, ensure};
+pub use linera_base::{abi, ensure, identifiers::SessionId};
+#[doc(hidden)]
+pub use linera_witty as witty;
 
 /// A simple state management runtime based on a single byte array.
 pub struct SimpleStateStorage<A>(std::marker::PhantomData<A>);
@@ -91,7 +88,6 @@ pub struct ViewStateStorage<A>(std::marker::PhantomData<A>);
 ///
 /// Below we use the word "transaction" to refer to the current operation or message being
 /// executed.
-#[cfg(target_arch = "wasm32")]
 #[async_trait]
 pub trait Contract: WithContractAbi + ContractAbi + Send + Sized {
     /// The type used to report errors to the execution environment.
@@ -292,7 +288,6 @@ pub trait Contract: WithContractAbi + ContractAbi + Send + Sized {
 /// As opposed to the [`Contract`] interface of an application, service entry points
 /// are triggered by JSON queries (typically GraphQL). Their execution cannot modify
 /// storage and is not gas-metered.
-#[cfg(target_arch = "wasm32")]
 #[async_trait]
 pub trait Service: WithServiceAbi + ServiceAbi {
     /// Type used to report errors to the execution environment.
@@ -340,7 +335,7 @@ pub trait Service: WithServiceAbi + ServiceAbi {
 }
 
 /// The context of the execution of an application's operation.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, WitLoad, WitType)]
 pub struct OperationContext {
     /// The current chain id.
     pub chain_id: ChainId,
@@ -353,7 +348,7 @@ pub struct OperationContext {
 }
 
 /// The context of the execution of an application's message.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, WitLoad, WitType)]
 pub struct MessageContext {
     /// The current chain id.
     pub chain_id: ChainId,
@@ -367,7 +362,7 @@ pub struct MessageContext {
 }
 
 /// The context of the execution of an application's cross-application call or session call handler.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, WitLoad, WitType)]
 pub struct CalleeContext {
     /// The current chain id.
     pub chain_id: ChainId,
@@ -379,15 +374,16 @@ pub struct CalleeContext {
 }
 
 /// The context of the execution of an application's query.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, WitLoad, WitType)]
 pub struct QueryContext {
     /// The current chain id.
     pub chain_id: ChainId,
 }
 
 /// A message together with routing information.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, WitStore, WitType)]
 #[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
+#[witty_specialize_with(Message = Vec<u8>)]
 pub struct OutgoingMessage<Message> {
     /// The destination of the message.
     pub destination: Destination,
@@ -401,8 +397,9 @@ pub struct OutgoingMessage<Message> {
 
 /// Externally visible results of an execution. These results are meant in the context of
 /// the application that created them.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, WitStore, WitType)]
 #[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
+#[witty_specialize_with(Message = Vec<u8>)]
 pub struct ExecutionResult<Message> {
     /// Sends messages to the given destinations, possibly forwarding the authenticated
     /// signer.
@@ -465,8 +462,9 @@ pub struct CallResult {
 }
 
 /// The result of calling into an application.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, WitStore, WitType)]
 #[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
+#[witty_specialize_with(Message = Vec<u8>, Value = Vec<u8>, SessionState = Vec<u8>)]
 pub struct ApplicationCallResult<Message, Value, SessionState> {
     /// The return value, if any.
     pub value: Value,
@@ -494,6 +492,16 @@ where
 pub struct SessionCallResult<Message, Value, SessionState> {
     /// The result of the application call.
     pub inner: ApplicationCallResult<Message, Value, SessionState>,
+    /// The new state of the session, if any. `None` means that the session was consumed
+    /// by the call.
+    pub new_state: Option<SessionState>,
+}
+
+/// The type used in the WIT interface for the result of calling into a session.
+#[derive(Debug, Default, Deserialize, Serialize, WitStore, WitType)]
+pub struct RawSessionCallResult {
+    /// The result of the application call.
+    pub inner: ApplicationCallResult<Vec<u8>, Vec<u8>, Vec<u8>>,
     /// If true, the session should be terminated.
     pub close_session: bool,
 }

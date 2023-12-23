@@ -3,7 +3,6 @@
 
 use async_graphql::{scalar, InputObject, Request, Response, SimpleObject};
 use fungible::{AccountOwner, FungibleTokenAbi};
-#[cfg(target_arch = "wasm32")]
 use linera_sdk::views::{CustomSerialize, ViewError};
 use linera_sdk::{
     base::{Amount, ApplicationId, ContractAbi, ServiceAbi},
@@ -81,7 +80,6 @@ impl PriceAsk {
 
 /// We use the custom serialization for the PriceAsk so that the order of the serialization
 /// corresponds to the order of the Prices.
-#[cfg(target_arch = "wasm32")]
 impl CustomSerialize for PriceAsk {
     fn to_custom_bytes(&self) -> Result<Vec<u8>, ViewError> {
         let mut short_key = bcs::to_bytes(&self.price)?;
@@ -111,7 +109,6 @@ impl PriceBid {
 
 /// We use the custom serialization for the PriceAsk so that the order of the serialization
 /// corresponds to the order of the Prices.
-#[cfg(target_arch = "wasm32")]
 impl CustomSerialize for PriceBid {
     fn to_custom_bytes(&self) -> Result<Vec<u8>, ViewError> {
         let price_rev = u64::MAX - self.price;

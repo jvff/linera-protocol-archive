@@ -3,14 +3,15 @@
 
 //! Helper types for using [`linera_views`] to store application state.
 
-#[cfg(target_arch = "wasm32")]
 mod aliases;
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg_attr(not(target_arch = "wasm32"), path = "system_api_stubs.rs")]
+mod system_api;
 #[cfg(target_arch = "wasm32")]
 mod system_api;
 #[cfg(target_arch = "wasm32")]
 mod wit;
 
-#[cfg(target_arch = "wasm32")]
 pub use self::{
     aliases::{
         ByteCollectionView, ByteMapView, ByteSetView, CollectionView, CustomCollectionView,

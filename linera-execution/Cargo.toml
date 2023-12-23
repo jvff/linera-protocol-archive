@@ -45,7 +45,7 @@ serde_bytes = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs", "rt-multi-thread"] }
-tracing = { workspace = true }
+tracing = { workspace = true, features = ["log"] }
 wasm-encoder = { workspace = true, optional = true }
 wasmer = { workspace = true, optional = true }
 wasmer-middlewares = { workspace = true, optional = true }

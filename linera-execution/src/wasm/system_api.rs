@@ -22,6 +22,14 @@ pub struct SystemApiData<Runtime> {
 }
 
 impl<Runtime> SystemApiData<Runtime> {
+    pub fn new(runtime: Runtime) -> Self {
+        SystemApiData {
+            runtime,
+            active_promises: HashMap::new(),
+            promise_counter: 0,
+        }
+    }
+
     fn register_promise<Promise>(&mut self, promise: Promise) -> Result<u32, RuntimeError>
     where
         Promise: Send + 'static,
@@ -343,9 +351,9 @@ where
 pub struct ContractViewSystemApi<Caller>(PhantomData<Caller>);
 
 #[linera_witty::wit_export(package = "linera:app", interface = "view-system-api")]
-impl<Caller> ContractViewSystemApi<Caller>
+impl<Caller, Runtime> ContractViewSystemApi<Caller>
 where
-    Caller: Instance<UserData = SystemApiData<ContractActorRuntime>>,
+    Caller: Instance<UserData = SystemApiData<Runtime>>,
 {
     fn contains_key_new(caller: &mut Caller, key: Vec<u8>) -> Result<u32, RuntimeError> {
         let mut data = caller.user_data_mut();

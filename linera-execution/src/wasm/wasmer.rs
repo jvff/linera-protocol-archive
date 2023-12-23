@@ -32,7 +32,11 @@ mod conversions_from_wit;
 #[path = "conversions_to_wit.rs"]
 mod conversions_to_wit;
 
-use super::{module_cache::ModuleCache, WasmExecutionError};
+use super::{
+    module_cache::ModuleCache,
+    system_api::{ContractSystemApi, ContractViewSystemApi, SystemApiData},
+    WasmExecutionError,
+};
 use crate::{
     wasm::{WasmContractModule, WasmServiceModule},
     ApplicationCallResult, BaseRuntime, Bytecode, CalleeContext, ContractRuntime, ExecutionError,
@@ -41,6 +45,7 @@ use crate::{
 };
 use bytes::Bytes;
 use linera_base::{identifiers::SessionId, sync::Lazy};
+use linera_witty::{wasmer::InstanceBuilder, ExportTo};
 use std::{marker::Unpin, sync::Arc};
 use tokio::sync::Mutex;
 use wasmer::{
@@ -66,9 +71,6 @@ static SERVICE_CACHE: Lazy<Mutex<ModuleCache<Module>>> = Lazy::new(Mutex::defaul
 pub(crate) struct WasmerContractInstance<Runtime> {
     /// The application type.
     application: contract::Contract,
-
-    /// The application's memory state.
-    store: Store,
 
     /// The system runtime.
     runtime: Runtime,
@@ -131,18 +133,13 @@ where
         contract_module: &Module,
         runtime: Runtime,
     ) -> Result<Self, WasmExecutionError> {
-        let mut store = Store::new(contract_engine);
-        let mut imports = imports! {};
-        let system_api_setup =
-            contract_system_api::add_to_imports(&mut store, &mut imports, runtime.clone());
-        let views_api_setup =
-            view_system_api::add_to_imports(&mut store, &mut imports, runtime.clone());
-        let (application, instance) =
-            contract::Contract::instantiate(&mut store, contract_module, &mut imports)
-                .map_err(WasmExecutionError::LoadContractModule)?;
+        let system_api_data = SystemApiData::new(runtime);
+        let mut instance_builder = InstanceBuilder::new(contract_engine, system_api_data);
 
-        system_api_setup(&instance, &store).map_err(WasmExecutionError::LoadContractModule)?;
-        views_api_setup(&instance, &store).map_err(WasmExecutionError::LoadContractModule)?;
+        ContractSystemApi::export_to(&mut instance_builder);
+        ContractViewSystemApi::export_to(&mut instance_builder);
+
+        let instance = instance_builder.instantiate(contract_module)?;
 
         Ok(Self {
             application,

@@ -4,6 +4,10 @@
 //! Types and macros useful for writing an application contract.
 
 mod storage;
+#[cfg(target_arch = "wasm32")]
+pub mod system_api;
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg_attr(not(target_arch = "wasm32"), path = "system_api_stubs.rs")]
 pub mod system_api;
 
 pub use self::storage::ContractStateStorage;
@@ -23,118 +27,182 @@ use std::future::Future;
 macro_rules! contract {
     ($application:ty) => {
         // Export the contract interface.
-        extern "C" {
-            fn initialize(
-                parameters_area: i32,
-                // context: $crate::contract::wit_types::OperationContext,
-                // argument: Vec<u8>,
-            ) {
+        #[cfg(target_arch = "wasm32")]
+        #[export_name = "initialize"]
+        extern "C" fn initialize(
+            parameters_area: i32,
+            // context: $crate::contract::wit_types::OperationContext,
+            // argument: Vec<u8>,
+        ) {
             // ) -> Result<$crate::contract::wit_types::ExecutionResult, String> {
-                $crate::contract::run_async_entrypoint::<$application, _, _, _>(
-                    move |mut application| async move {
-                        let argument = serde_json::from_slice(&argument)?;
+            use $crate::witty::{guest::Guest, GuestPointer, InstanceWithMemory, WitLoad};
 
-                        application
-                            .initialize(&context.into(), argument)
-                            .await
-                            .map(|result| (application, result))
-                    },
-                );
-            }
+            let mut guest = Guest::default();
+            let mut memory = guest
+                .memory()
+                .expect("Failed to create guest `Memory` instance");
 
-            fn execute_operation(
-                parameters_area: i32,
-                // context: $crate::contract::wit_types::OperationContext,
-                // operation: Vec<u8>,
-            ) {
+            let (context, argument) = <($crate::OperationContext, Vec<u8>) as WitLoad>::load(
+                &memory,
+                GuestPointer::from(parameters_area),
+            )
+            .expect("Failed to load `initialize` parameters");
+
+            $crate::contract::run_async_entrypoint::<$application, _, _, _>(
+                move |mut application| async move {
+                    let argument = serde_json::from_slice(&argument)?;
+
+                    application
+                        .initialize(&context, argument)
+                        .await
+                        .map(|result| (application, result))
+                },
+            );
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        #[export_name = "execute-operation"]
+        extern "C" fn execute_operation(
+            parameters_area: i32,
+            // context: $crate::contract::wit_types::OperationContext,
+            // operation: Vec<u8>,
+        ) {
             // ) -> Result<$crate::contract::wit_types::ExecutionResult, String> {
-                $crate::contract::run_async_entrypoint::<$application, _, _, _>(
-                    move |mut application| async move {
-                        let operation: <$application as $crate::abi::ContractAbi>::Operation =
-                            bcs::from_bytes(&operation)?;
+            use $crate::witty::{guest::Guest, GuestPointer, InstanceWithMemory, WitLoad};
 
-                        application
-                            .execute_operation(&context.into(), operation)
-                            .await
-                            .map(|result| (application, result))
-                    },
-                );
-            }
+            let mut guest = Guest::default();
+            let mut memory = guest
+                .memory()
+                .expect("Failed to create guest `Memory` instance");
 
-            fn execute_message(
-                parameters_area: i32,
-                // context: $crate::contract::wit_types::MessageContext,
-                // message: Vec<u8>,
-            ) {
+            let (context, operation) = <($crate::OperationContext, Vec<u8>) as WitLoad>::load(
+                &memory,
+                GuestPointer::from(parameters_area),
+            )
+            .expect("Failed to load `execute_operation` parameters");
+
+            $crate::contract::run_async_entrypoint::<$application, _, _, _>(
+                move |mut application| async move {
+                    let operation: <$application as $crate::abi::ContractAbi>::Operation =
+                        bcs::from_bytes(&operation)?;
+
+                    application
+                        .execute_operation(&context, operation)
+                        .await
+                        .map(|result| (application, result))
+                },
+            );
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        #[export_name = "execute-message"]
+        extern "C" fn execute_message(
+            parameters_area: i32,
+            // context: $crate::contract::wit_types::MessageContext,
+            // message: Vec<u8>,
+        ) {
             // ) -> Result<$crate::contract::wit_types::ExecutionResult, String> {
-                $crate::contract::run_async_entrypoint::<$application, _, _, _>(
-                    move |mut application| async move {
-                        let message: <$application as $crate::abi::ContractAbi>::Message =
-                            bcs::from_bytes(&message)?;
+            use $crate::witty::{guest::Guest, GuestPointer, InstanceWithMemory, WitLoad};
 
-                        application
-                            .execute_message(&context.into(), message)
-                            .await
-                            .map(|result| (application, result))
-                    },
-                );
-            }
+            let mut guest = Guest::default();
+            let mut memory = guest
+                .memory()
+                .expect("Failed to create guest `Memory` instance");
 
-            fn handle_application_call(
-                parameters_area: i32,
-                // context: $crate::contract::wit_types::CalleeContext,
-                // argument: Vec<u8>,
-                // forwarded_sessions: Vec<$crate::contract::wit_types::SessionId>,
-            ) {
+            let (context, message) = <($crate::MessageContext, Vec<u8>) as WitLoad>::load(
+                &memory,
+                GuestPointer::from(parameters_area),
+            )
+            .expect("Failed to load `execute_message` parameters");
+
+            $crate::contract::run_async_entrypoint::<$application, _, _, _>(
+                move |mut application| async move {
+                    let message: <$application as $crate::abi::ContractAbi>::Message =
+                        bcs::from_bytes(&message)?;
+
+                    application
+                        .execute_message(&context, message)
+                        .await
+                        .map(|result| (application, result))
+                },
+            );
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        #[export_name = "handle-application-call"]
+        extern "C" fn handle_application_call(
+            parameters_area: i32,
+            // context: $crate::contract::wit_types::CalleeContext,
+            // argument: Vec<u8>,
+            // forwarded_sessions: Vec<$crate::contract::wit_types::SessionId>,
+        ) {
             // ) -> Result<$crate::contract::wit_types::ApplicationCallResult, String> {
-                $crate::contract::run_async_entrypoint::<$application, _, _, _>(
-                    move |mut application| async move {
-                        let argument: <$application as $crate::abi::ContractAbi>::ApplicationCall =
-                            bcs::from_bytes(&argument)?;
-                        let forwarded_sessions = forwarded_sessions
-                            .into_iter()
-                            .map(SessionId::from)
-                            .collect();
+            use $crate::witty::{guest::Guest, GuestPointer, InstanceWithMemory, WitLoad};
 
-                        application
-                            .handle_application_call(&context.into(), argument, forwarded_sessions)
-                            .await
-                            .map(|result| (application, result))
-                    },
-                );
-            }
+            let mut guest = Guest::default();
+            let mut memory = guest
+                .memory()
+                .expect("Failed to create guest `Memory` instance");
 
-            fn handle_session_call(
-                parameters_area: i32,
-                // context: $crate::contract::wit_types::CalleeContext,
-                // session_state: Vec<u8>,
-                // argument: Vec<u8>,
-                // forwarded_sessions: Vec<$crate::contract::wit_types::SessionId>,
-            ) {
+            let (context, argument, forwarded_sessions) =
+                <($crate::CalleeContext, Vec<u8>, Vec<$crate::SessionId>) as WitLoad>::load(
+                    &memory,
+                    GuestPointer::from(parameters_area),
+                )
+                .expect("Failed to load `handle_application_call` parameters");
+
+            $crate::contract::run_async_entrypoint::<$application, _, _, _>(
+                move |mut application| async move {
+                    let argument: <$application as $crate::abi::ContractAbi>::ApplicationCall =
+                        bcs::from_bytes(&argument)?;
+
+                    application
+                        .handle_application_call(&context, argument, forwarded_sessions)
+                        .await
+                        .map(|result| (application, result))
+                },
+            );
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        #[export_name = "handle-session-call"]
+        extern "C" fn handle_session_call(
+            parameters_area: i32,
+            // context: $crate::contract::wit_types::CalleeContext,
+            // session_state: Vec<u8>,
+            // argument: Vec<u8>,
+            // forwarded_sessions: Vec<$crate::contract::wit_types::SessionId>,
+        ) {
             // ) -> Result<$crate::contract::wit_types::SessionCallResult, String> {
-                $crate::contract::run_async_entrypoint::<$application, _, _, _>(
-                    move |mut application| async move {
-                        let session_state: <$application as $crate::abi::ContractAbi>::SessionState =
-                            bcs::from_bytes(&session_state)?;
-                        let argument: <$application as $crate::abi::ContractAbi>::SessionCall =
-                            bcs::from_bytes(&argument)?;
-                        let forwarded_sessions = forwarded_sessions
-                            .into_iter()
-                            .map(SessionId::from)
-                            .collect();
+            use $crate::witty::{guest::Guest, GuestPointer, InstanceWithMemory, WitLoad};
 
-                        application
-                            .handle_session_call(
-                                &context.into(),
-                                session_state,
-                                argument,
-                                forwarded_sessions,
-                            )
-                            .await
-                            .map(|result| (application, result))
-                    },
-                );
-            }
+            let mut guest = Guest::default();
+            let mut memory = guest
+                .memory()
+                .expect("Failed to create guest `Memory` instance");
+
+            let (context, session_state, argument, forwarded_sessions) =
+                <(
+                    $crate::CalleeContext,
+                    Vec<u8>,
+                    Vec<u8>,
+                    Vec<$crate::SessionId>,
+                ) as WitLoad>::load(&memory, GuestPointer::from(parameters_area))
+                .expect("Failed to load `handle_session_call` parameters");
+
+            $crate::contract::run_async_entrypoint::<$application, _, _, _>(
+                move |mut application| async move {
+                    let session_state: <$application as $crate::abi::ContractAbi>::SessionState =
+                        bcs::from_bytes(&session_state)?;
+                    let argument: <$application as $crate::abi::ContractAbi>::SessionCall =
+                        bcs::from_bytes(&argument)?;
+
+                    application
+                        .handle_session_call(&context, session_state, argument, forwarded_sessions)
+                        .await
+                        .map(|result| (application, result))
+                },
+            );
         }
 
         /// Stub of a `main` entrypoint so that the binary doesn't fail to compile on targets other
