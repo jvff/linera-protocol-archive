@@ -7764,11 +7764,3 @@ dependencies = [
  "cc",
  "pkg-config",
 ]
-
-[[patch.unused]]
-name = "wit-bindgen"
-version = "0.16.0"
-
-[[patch.unused]]
-name = "wit-bindgen-core"
-version = "0.16.0"

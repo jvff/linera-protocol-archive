@@ -4,7 +4,8 @@
 //! Generator of WIT files representing the interface between Linera applications and nodes.
 
 use linera_execution::{
-    ContractEntrypoints, ContractSystemApi, ServiceEntrypoints, ServiceSystemApi, ViewSystemApi,
+    ContractActorRuntime, ContractEntrypoints, ContractSystemApi, ServiceActorRuntime,
+    ServiceEntrypoints, ServiceSystemApi, SystemApiData, ViewSystemApi,
 };
 use linera_sdk::MockSystemApi;
 use linera_witty::{
@@ -27,33 +28,33 @@ async fn main() -> Result<(), io::Error> {
         .write_to_file(base_directory.join("mock-system-api.wit"))
         .await?;
 
-    WitInterfaceWriter::new::<ContractSystemApi<MockInstance<_>>>()
+    WitInterfaceWriter::new::<ContractSystemApi<MockInstance<SystemApiData<ContractActorRuntime>>>>()
         .write_to_file(base_directory.join("contract-system-api.wit"))
         .await?;
-    WitInterfaceWriter::new::<ServiceSystemApi<MockInstance<_>>>()
+    WitInterfaceWriter::new::<ServiceSystemApi<MockInstance<SystemApiData<ServiceActorRuntime>>>>()
         .write_to_file(base_directory.join("service-system-api.wit"))
         .await?;
-    WitInterfaceWriter::new::<ViewSystemApi<MockInstance<_>>>()
+    WitInterfaceWriter::new::<ViewSystemApi<MockInstance<SystemApiData<ContractActorRuntime>>>>()
         .write_to_file(base_directory.join("view-system-api.wit"))
         .await?;
 
     WitWorldWriter::new("linera:app", "contract")
         .export::<ContractEntrypoints<MockInstance<()>>>()
-        .import::<ContractSystemApi<MockInstance<_>>>()
-        .import::<ViewSystemApi<MockInstance<_>>>()
+        .import::<ContractSystemApi<MockInstance<SystemApiData<ContractActorRuntime>>>>()
+        .import::<ViewSystemApi<MockInstance<SystemApiData<ContractActorRuntime>>>>()
         .write_to_file(base_directory.join("contract.wit"))
         .await?;
     WitWorldWriter::new("linera:app", "service")
         .export::<ServiceEntrypoints<MockInstance<()>>>()
-        .import::<ServiceSystemApi<MockInstance<_>>>()
-        .import::<ViewSystemApi<MockInstance<_>>>()
+        .import::<ServiceSystemApi<MockInstance<SystemApiData<ServiceActorRuntime>>>>()
+        .import::<ViewSystemApi<MockInstance<SystemApiData<ContractActorRuntime>>>>()
         .write_to_file(base_directory.join("service.wit"))
         .await?;
     WitWorldWriter::new("linera:app", "unit-tests")
         .export::<MockSystemApi<MockInstance<()>>>()
-        .import::<ContractSystemApi<MockInstance<_>>>()
-        .import::<ServiceSystemApi<MockInstance<_>>>()
-        .import::<ViewSystemApi<MockInstance<_>>>()
+        .import::<ContractSystemApi<MockInstance<SystemApiData<ContractActorRuntime>>>>()
+        .import::<ServiceSystemApi<MockInstance<SystemApiData<ServiceActorRuntime>>>>()
+        .import::<ViewSystemApi<MockInstance<SystemApiData<ContractActorRuntime>>>>()
         .write_to_file(base_directory.join("unit-tests.wit"))
         .await?;
 

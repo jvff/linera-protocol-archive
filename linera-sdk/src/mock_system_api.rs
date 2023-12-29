@@ -9,7 +9,7 @@ use anyhow::anyhow;
 use linera_base::{
     data_types::{Amount, Timestamp},
     ensure,
-    identifiers::{ApplicationId, BytecodeId, ChainId, MessageId},
+    identifiers::{ApplicationId, ChainId},
 };
 use linera_views::batch::WriteOperation;
 use linera_witty::{Instance, Runtime, RuntimeError, RuntimeMemory};

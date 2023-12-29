@@ -221,7 +221,9 @@ where
         fees: Amount,
         chain_execution_context: ChainExecutionContext,
     ) -> Result<(), ChainError> {
+        tracing::error!("ChainStateView::sub_assign_fees({balance:?}, {fees:?}");
         balance.try_sub_assign(fees).map_err(|_| {
+            // panic!("{balance:?} - {fees:?}");
             ChainError::ExecutionError(
                 ExecutionError::SystemError(SystemExecutionError::InsufficientFunding {
                     current_balance: *balance,
@@ -544,6 +546,7 @@ where
         block: &Block,
         local_time: Timestamp,
     ) -> Result<BlockExecutionOutcome, ChainError> {
+        tracing::error!("execute_block");
         let start_time = Instant::now();
 
         assert_eq!(block.chain_id, self.chain_id());
@@ -596,6 +599,7 @@ where
             );
         }
         for (index, message) in block.incoming_messages.iter().enumerate() {
+            tracing::error!("incoming message[{index}] = {message:?}");
             let index = u32::try_from(index).map_err(|_| ArithmeticError::Overflow)?;
             let chain_execution_context = ChainExecutionContext::IncomingMessage(index);
             // Execute the received message.
@@ -640,6 +644,7 @@ where
         }
         // Second, execute the operations in the block and remember the recipients to notify.
         for (index, operation) in block.operations.iter().enumerate() {
+            tracing::error!("operation[{index}] = {operation:?}");
             let index = u32::try_from(index).map_err(|_| ArithmeticError::Overflow)?;
             let chain_execution_context = ChainExecutionContext::Operation(index);
             let next_message_index =
@@ -674,6 +679,7 @@ where
             message_counts
                 .push(u32::try_from(messages.len()).map_err(|_| ArithmeticError::Overflow)?);
         }
+        tracing::error!("Done");
         let balance = self.execution_state.system.balance.get_mut();
         Self::sub_assign_fees(
             balance,

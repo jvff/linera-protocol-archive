@@ -37,6 +37,9 @@
 
 #![deny(missing_docs)]
 
+#[macro_use]
+pub mod util;
+
 pub mod base;
 pub mod contract;
 mod extensions;
@@ -49,7 +52,6 @@ pub mod service;
 #[cfg_attr(not(target_arch = "wasm32"), path = "./test/integration/mod.rs")]
 #[cfg_attr(target_arch = "wasm32", path = "./test/unit/mod.rs")]
 pub mod test;
-pub mod util;
 pub mod views;
 
 use self::contract::ContractStateStorage;
@@ -345,6 +347,8 @@ pub struct OperationContext {
     pub height: BlockHeight,
     /// The current index of the operation.
     pub index: u32,
+    /// The index of the next message to be created.
+    pub next_message_index: u32,
 }
 
 /// The context of the execution of an application's message.
@@ -395,12 +399,25 @@ pub struct OutgoingMessage<Message> {
     pub message: Message,
 }
 
+impl<Message: Debug + DeserializeOwned + Serialize> OutgoingMessage<Message> {
+    /// Returns an [`OutgoingMessage`] that's compatible with the WIT types.
+    pub fn into_raw(self) -> OutgoingMessage<Vec<u8>> {
+        OutgoingMessage {
+            destination: self.destination,
+            authenticated: self.authenticated,
+            is_skippable: self.is_skippable,
+            message: bcs::to_bytes(&self.message).expect("Failed to serialize outgoing message"),
+        }
+    }
+}
+
 /// Externally visible results of an execution. These results are meant in the context of
 /// the application that created them.
 #[derive(Debug, Deserialize, Serialize, WitStore, WitType)]
 #[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
 #[witty_specialize_with(Message = Vec<u8>)]
 pub struct ExecutionResult<Message> {
+    authenticated_signer: Option<Owner>,
     /// Sends messages to the given destinations, possibly forwarding the authenticated
     /// signer.
     pub messages: Vec<OutgoingMessage<Message>>,
@@ -413,6 +430,7 @@ pub struct ExecutionResult<Message> {
 impl<Message> Default for ExecutionResult<Message> {
     fn default() -> Self {
         Self {
+            authenticated_signer: None,
             messages: vec![],
             subscribe: vec![],
             unsubscribe: vec![],
@@ -449,6 +467,22 @@ impl<Message: Serialize + Debug + DeserializeOwned> ExecutionResult<Message> {
             message,
         });
         self
+    }
+
+    /// Returns an [`ExecutionResult`] that's compatible with the WIT types.
+    pub fn into_raw(self) -> ExecutionResult<Vec<u8>> {
+        let messages = self
+            .messages
+            .into_iter()
+            .map(OutgoingMessage::into_raw)
+            .collect();
+
+        ExecutionResult {
+            authenticated_signer: None,
+            messages,
+            subscribe: self.subscribe,
+            unsubscribe: self.unsubscribe,
+        }
     }
 }
 
@@ -487,6 +521,34 @@ where
     }
 }
 
+impl<Message, Value, SessionState> ApplicationCallResult<Message, Value, SessionState>
+where
+    Message: Debug + DeserializeOwned + Serialize,
+    Value: Serialize,
+    SessionState: Serialize,
+{
+    /// Returns an [`ApplicationCallResult`] that's compatible with the WIT types.
+    pub fn into_raw(self) -> ApplicationCallResult<Vec<u8>, Vec<u8>, Vec<u8>> {
+        let value = bcs::to_bytes(&self.value)
+            .expect("Failed to serialize `ApplicationCallResult`'s value");
+
+        let create_sessions = self
+            .create_sessions
+            .into_iter()
+            .map(|session| {
+                bcs::to_bytes(&session)
+                    .expect("Failed to serialize `ApplicationCallResult`'s created sessions")
+            })
+            .collect();
+
+        ApplicationCallResult {
+            value,
+            execution_result: self.execution_result.into_raw(),
+            create_sessions,
+        }
+    }
+}
+
 /// The result of calling into a session.
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct SessionCallResult<Message, Value, SessionState> {
@@ -495,6 +557,31 @@ pub struct SessionCallResult<Message, Value, SessionState> {
     /// The new state of the session, if any. `None` means that the session was consumed
     /// by the call.
     pub new_state: Option<SessionState>,
+}
+
+impl<Message, Value, SessionState> SessionCallResult<Message, Value, SessionState>
+where
+    Message: Debug + DeserializeOwned + Serialize,
+    Value: Serialize,
+    SessionState: Serialize,
+{
+    /// Returns a [`RawSessionCallResult`] and serialized updated session state pair that's
+    /// compatible with the WIT types.
+    pub fn into_raw(self) -> (RawSessionCallResult, Vec<u8>) {
+        let session_call_result = RawSessionCallResult {
+            inner: self.inner.into_raw(),
+            close_session: self.new_state.is_none(),
+        };
+
+        let session_state = self
+            .new_state
+            .map(|session_state| {
+                bcs::to_bytes(&session_state).expect("Failed to serialize updated session state")
+            })
+            .unwrap_or_default();
+
+        (session_call_result, session_state)
+    }
 }
 
 /// The type used in the WIT interface for the result of calling into a session.

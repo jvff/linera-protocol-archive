@@ -36,17 +36,22 @@ use self::{
     contract::ContractData, contract_system_api::ContractSystemApiTables, service::ServiceData,
     service_system_api::ServiceSystemApiTables, view_system_api::ViewSystemApiTables,
 };
-use super::{module_cache::ModuleCache, WasmExecutionError};
+use super::{
+    module_cache::ModuleCache,
+    system_api::{ContractSystemApi, ServiceSystemApi, SystemApiData, ViewSystemApi},
+    ContractEntrypoints, ServiceEntrypoints, WasmExecutionError,
+};
 use crate::{
     wasm::{WasmContractModule, WasmServiceModule},
     ApplicationCallResult, BaseRuntime, Bytecode, CalleeContext, ContractRuntime, ExecutionError,
     MessageContext, OperationContext, QueryContext, RawExecutionResult, ServiceRuntime,
     SessionCallResult, SessionId,
 };
+use linera_witty::{wasmtime::EntrypointInstance, ExportTo, Instance};
 use once_cell::sync::Lazy;
 use std::error::Error;
 use tokio::sync::Mutex;
-use wasmtime::{Config, Engine, Linker, Module, Store};
+use wasmtime::{AsContextMut, Config, Engine, Linker, Module, Store};
 use wit_bindgen_host_wasmtime_rust::Le;
 
 /// An [`Engine`] instance configured to run application contracts.
@@ -76,11 +81,8 @@ pub(crate) struct WasmtimeContractInstance<Runtime>
 where
     Runtime: ContractRuntime + Send + Sync + 'static,
 {
-    /// The application type.
-    application: contract::Contract<ContractState<Runtime>>,
-
-    /// The application's memory state.
-    store: Store<ContractState<Runtime>>,
+    /// The Wasm module instance.
+    instance: EntrypointInstance<SystemApiData<Runtime>>,
 }
 
 impl<Runtime> WasmtimeContractInstance<Runtime>
@@ -88,10 +90,11 @@ where
     Runtime: ContractRuntime + Send + Sync,
 {
     fn configure_initial_fuel(&mut self) -> Result<(), ExecutionError> {
-        let runtime = &mut self.store.data_mut().runtime;
+        let runtime = &mut self.instance.user_data_mut().runtime_mut();
         let fuel = runtime.remaining_fuel()?;
 
-        self.store
+        self.instance
+            .as_context_mut()
             .add_fuel(fuel)
             .expect("Fuel consumption wasn't properly enabled");
 
@@ -100,10 +103,11 @@ where
 
     fn persist_remaining_fuel(&mut self) -> Result<(), ExecutionError> {
         let consumed_fuel = self
-            .store
+            .instance
+            .as_context_mut()
             .fuel_consumed()
             .expect("Failed to read consumed fuel");
-        let runtime = &mut self.store.data_mut().runtime;
+        let runtime = &mut self.instance.user_data_mut().runtime_mut();
         let initial_fuel = runtime.remaining_fuel()?;
         let remaining_fuel = initial_fuel.saturating_sub(consumed_fuel);
 
@@ -112,15 +116,9 @@ where
 }
 
 /// Type representing a running [Wasmtime](https://wasmtime.dev/) service.
-pub struct WasmtimeServiceInstance<Runtime>
-where
-    Runtime: ServiceRuntime + Send + Sync + 'static,
-{
-    /// The application type.
-    application: service::Service<ServiceState<Runtime>>,
-
-    /// The application's memory state.
-    store: Store<ServiceState<Runtime>>,
+pub struct WasmtimeServiceInstance<Runtime> {
+    /// The Wasm module instance.
+    instance: EntrypointInstance<SystemApiData<Runtime>>,
 }
 
 impl WasmContractModule {
@@ -144,22 +142,18 @@ where
     pub fn prepare(contract_module: &Module, runtime: Runtime) -> Result<Self, WasmExecutionError> {
         let mut linker = Linker::new(&CONTRACT_ENGINE);
 
-        contract_system_api::add_to_linker(&mut linker, ContractState::system_api)
-            .map_err(WasmExecutionError::LoadContractModule)?;
-        view_system_api::add_to_linker(&mut linker, ContractState::views_api)
+        ContractSystemApi::export_to(&mut linker)?;
+        ViewSystemApi::export_to(&mut linker)?;
+
+        let user_data = SystemApiData::new(runtime);
+        let mut store = Store::new(&CONTRACT_ENGINE, user_data);
+        let instance = linker
+            .instantiate(&mut store, contract_module)
             .map_err(WasmExecutionError::LoadContractModule)?;
 
-        let state = ContractState::new(runtime);
-        let mut store = Store::new(&CONTRACT_ENGINE, state);
-        let (application, _instance) = contract::Contract::instantiate(
-            &mut store,
-            contract_module,
-            &mut linker,
-            ContractState::data,
-        )
-        .map_err(WasmExecutionError::LoadContractModule)?;
-
-        Ok(Self { application, store })
+        Ok(Self {
+            instance: EntrypointInstance::new(instance, store),
+        })
     }
 }
 
@@ -184,22 +178,18 @@ where
     pub fn prepare(service_module: &Module, runtime: Runtime) -> Result<Self, WasmExecutionError> {
         let mut linker = Linker::new(&SERVICE_ENGINE);
 
-        service_system_api::add_to_linker(&mut linker, ServiceState::system_api)
-            .map_err(WasmExecutionError::LoadServiceModule)?;
-        view_system_api::add_to_linker(&mut linker, ServiceState::views_api)
+        ServiceSystemApi::export_to(&mut linker)?;
+        ViewSystemApi::export_to(&mut linker)?;
+
+        let user_data = SystemApiData::new(runtime);
+        let mut store = Store::new(&SERVICE_ENGINE, user_data);
+        let instance = linker
+            .instantiate(&mut store, service_module)
             .map_err(WasmExecutionError::LoadServiceModule)?;
 
-        let state = ServiceState::new(runtime);
-        let mut store = Store::new(&SERVICE_ENGINE, state);
-        let (application, _instance) = service::Service::instantiate(
-            &mut store,
-            service_module,
-            &mut linker,
-            ServiceState::data,
-        )
-        .map_err(WasmExecutionError::LoadServiceModule)?;
-
-        Ok(Self { application, store })
+        Ok(Self {
+            instance: EntrypointInstance::new(instance, store),
+        })
     }
 }
 
@@ -299,15 +289,11 @@ where
         argument: Vec<u8>,
     ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
         self.configure_initial_fuel()?;
-        let result = contract::Contract::initialize(
-            &self.application,
-            &mut self.store,
-            context.into(),
-            &argument,
-        )
-        .map(|inner| inner.map(RawExecutionResult::from));
+        let result = ContractEntrypoints::new(&mut self.instance).initialize(context, argument);
         self.persist_remaining_fuel()?;
-        result?.map_err(ExecutionError::UserError)
+        result
+            .map_err(WasmExecutionError::from)?
+            .map_err(ExecutionError::UserError)
     }
 
     fn execute_operation(
@@ -316,15 +302,12 @@ where
         operation: Vec<u8>,
     ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
         self.configure_initial_fuel()?;
-        let result = contract::Contract::execute_operation(
-            &self.application,
-            &mut self.store,
-            context.into(),
-            &operation,
-        )
-        .map(|inner| inner.map(RawExecutionResult::from));
+        let result =
+            ContractEntrypoints::new(&mut self.instance).execute_operation(context, operation);
         self.persist_remaining_fuel()?;
-        result?.map_err(ExecutionError::UserError)
+        result
+            .map_err(WasmExecutionError::from)?
+            .map_err(ExecutionError::UserError)
     }
 
     fn execute_message(
@@ -333,15 +316,11 @@ where
         message: Vec<u8>,
     ) -> Result<RawExecutionResult<Vec<u8>>, ExecutionError> {
         self.configure_initial_fuel()?;
-        let result = contract::Contract::execute_message(
-            &self.application,
-            &mut self.store,
-            context.into(),
-            &message,
-        )
-        .map(|inner| inner.map(RawExecutionResult::from));
+        let result = ContractEntrypoints::new(&mut self.instance).execute_message(context, message);
         self.persist_remaining_fuel()?;
-        result?.map_err(ExecutionError::UserError)
+        result
+            .map_err(WasmExecutionError::from)?
+            .map_err(ExecutionError::UserError)
     }
 
     fn handle_application_call(
@@ -350,22 +329,16 @@ where
         argument: Vec<u8>,
         forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallResult, ExecutionError> {
-        let forwarded_sessions = forwarded_sessions
-            .into_iter()
-            .map(contract::SessionId::from)
-            .collect::<Vec<_>>();
-
         self.configure_initial_fuel()?;
-        let result = contract::Contract::handle_application_call(
-            &self.application,
-            &mut self.store,
-            context.into(),
-            &argument,
-            &forwarded_sessions,
-        )
-        .map(|inner| inner.map(ApplicationCallResult::from));
+        let result = ContractEntrypoints::new(&mut self.instance).handle_application_call(
+            context,
+            argument,
+            forwarded_sessions,
+        );
         self.persist_remaining_fuel()?;
-        result?.map_err(ExecutionError::UserError)
+        result
+            .map_err(WasmExecutionError::from)?
+            .map_err(ExecutionError::UserError)
     }
 
     fn handle_session_call(
@@ -375,23 +348,17 @@ where
         argument: Vec<u8>,
         forwarded_sessions: Vec<SessionId>,
     ) -> Result<(SessionCallResult, Vec<u8>), ExecutionError> {
-        let forwarded_sessions = forwarded_sessions
-            .into_iter()
-            .map(contract::SessionId::from)
-            .collect::<Vec<_>>();
-
         self.configure_initial_fuel()?;
-        let result = contract::Contract::handle_session_call(
-            &self.application,
-            &mut self.store,
-            context.into(),
-            &session,
-            &argument,
-            &forwarded_sessions,
-        )
-        .map(|inner| inner.map(<(SessionCallResult, Vec<u8>)>::from));
+        let result = ContractEntrypoints::new(&mut self.instance).handle_session_call(
+            context,
+            session,
+            argument,
+            forwarded_sessions,
+        );
         self.persist_remaining_fuel()?;
-        result?.map_err(ExecutionError::UserError)
+        result
+            .map_err(WasmExecutionError::from)?
+            .map_err(ExecutionError::UserError)
     }
 }
 
@@ -404,13 +371,10 @@ where
         context: QueryContext,
         argument: Vec<u8>,
     ) -> Result<Vec<u8>, ExecutionError> {
-        service::Service::handle_query(
-            &self.application,
-            &mut self.store,
-            context.into(),
-            &argument,
-        )?
-        .map_err(ExecutionError::UserError)
+        ServiceEntrypoints::new(&mut self.instance)
+            .handle_query(context, argument)
+            .map_err(WasmExecutionError::from)?
+            .map_err(ExecutionError::UserError)
     }
 }
 

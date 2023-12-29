@@ -34,8 +34,8 @@ pub use system::{
 pub use wasm::test as wasm_test;
 #[cfg(any(feature = "wasmer", feature = "wasmtime"))]
 pub use wasm::{
-    ContractEntrypoints, ContractSystemApi, ServiceEntrypoints, ServiceSystemApi, ViewSystemApi,
-    WasmContractModule, WasmExecutionError, WasmServiceModule,
+    ContractEntrypoints, ContractSystemApi, ServiceEntrypoints, ServiceSystemApi, SystemApiData,
+    ViewSystemApi, WasmContractModule, WasmExecutionError, WasmServiceModule,
 };
 #[cfg(any(test, feature = "test"))]
 pub use {applications::ApplicationRegistry, system::SystemExecutionState};
@@ -289,14 +289,14 @@ pub struct QueryContext {
 }
 
 pub trait BaseRuntime {
-    type Read: fmt::Debug + Send;
-    type Lock: fmt::Debug + Send;
-    type Unlock: fmt::Debug + Send;
-    type ContainsKey: fmt::Debug + Send;
-    type ReadMultiValuesBytes: fmt::Debug + Send;
-    type ReadValueBytes: fmt::Debug + Send;
-    type FindKeysByPrefix: fmt::Debug + Send;
-    type FindKeyValuesByPrefix: fmt::Debug + Send;
+    type Read: fmt::Debug + Send + Sync;
+    type Lock: fmt::Debug + Send + Sync;
+    type Unlock: fmt::Debug + Send + Sync;
+    type ContainsKey: fmt::Debug + Send + Sync;
+    type ReadMultiValuesBytes: fmt::Debug + Send + Sync;
+    type ReadValueBytes: fmt::Debug + Send + Sync;
+    type FindKeysByPrefix: fmt::Debug + Send + Sync;
+    type FindKeyValuesByPrefix: fmt::Debug + Send + Sync;
 
     /// The current chain id.
     fn chain_id(&mut self) -> Result<ChainId, ExecutionError>;
@@ -451,7 +451,7 @@ pub trait BaseRuntime {
 }
 
 pub trait ServiceRuntime: BaseRuntime {
-    type TryQueryApplication: fmt::Debug + Send;
+    type TryQueryApplication: fmt::Debug + Send + Sync;
 
     /// Queries another application (new).
     fn try_query_application_new(

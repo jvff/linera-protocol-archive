@@ -5,7 +5,7 @@
 
 mod specialization;
 
-pub use self::specialization::Specializations;
+pub use self::specialization::{Specialization, Specializations};
 use heck::ToKebabCase;
 use proc_macro2::{Span, TokenStream};
 use proc_macro_error::abort;
@@ -35,7 +35,7 @@ pub fn hlist_type_for(fields: &Fields) -> TokenStream {
 
 /// Changes the [`DeriveInput`] by replacing some generic type parameters with specialized types.
 pub fn apply_specialization_attribute(input: &mut DeriveInput) -> Specializations {
-    Specializations::new(input)
+    Specializations::prepare_derive_input(input)
 }
 
 /// Returns `true` if `the_type` is the unit `()` type.

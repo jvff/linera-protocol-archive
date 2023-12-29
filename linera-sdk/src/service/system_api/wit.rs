@@ -73,21 +73,6 @@ extern "C" {
     pub fn wit_log(message_address: i32, message_length: i32, log_level: i32);
 }
 
-macro_rules! stack_buffer_for {
-    ($wit_type:ty) => {
-        MaybeUninit::<
-            [u8; <$wit_type as WitType>::SIZE as usize
-                + <$wit_type as WitType>::Layout::ALIGNMENT as usize],
-        >::uninit()
-    };
-}
-
-macro_rules! stack_buffer_address {
-    ($buffer:ident, $wit_type:ty) => {
-        GuestPointer::from($buffer.as_mut_ptr()).after_padding_for::<$wit_type>()
-    };
-}
-
 pub fn get_chain_id() -> ChainId {
     let mut return_area = stack_buffer_for!(ChainId);
     let return_area_address = stack_buffer_address!(return_area, ChainId);

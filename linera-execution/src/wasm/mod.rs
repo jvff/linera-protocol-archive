@@ -24,7 +24,7 @@ mod wasmtime;
 
 pub use self::{
     entrypoints::{ContractEntrypoints, ServiceEntrypoints},
-    system_api::{ContractSystemApi, ContractViewSystemApi as ViewSystemApi, ServiceSystemApi},
+    system_api::{ContractSystemApi, ServiceSystemApi, SystemApiData, ViewSystemApi},
 };
 
 use self::sanitizer::sanitize;
@@ -180,6 +180,9 @@ pub enum WasmExecutionError {
     LoadContractModule(#[source] anyhow::Error),
     #[error("Failed to load service Wasm module: {_0}")]
     LoadServiceModule(#[source] anyhow::Error),
+    #[cfg(feature = "wasmer")]
+    #[error("Failed to instantiate Wasm module: {_0}")]
+    InstantiateModuleWithWasmer(#[from] ::wasmer::InstantiationError),
     #[cfg(feature = "wasmtime")]
     #[error("Failed to create and configure Wasmtime runtime")]
     CreateWasmtimeEngine(#[source] anyhow::Error),
@@ -189,6 +192,8 @@ pub enum WasmExecutionError {
     #[cfg(feature = "wasmtime")]
     #[error("Failed to execute Wasm module (Wasmtime)")]
     ExecuteModuleInWasmtime(#[from] ::wasmtime::Trap),
+    #[error("Failed to execute Wasm module")]
+    ExecuteModule(#[from] linera_witty::RuntimeError),
     #[error("Attempt to wait for an unknown promise")]
     UnknownPromise,
     #[error("Attempt to call incorrect `wait` function for a promise")]

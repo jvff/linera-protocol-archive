@@ -181,6 +181,6 @@ opt-level = 3
 [profile.dev.package.wasmtime]
 opt-level = 3
 
-[patch.crates-io]
-wit-bindgen-core = { path = "/tmp/wit-bindgen/crates/core" }
-wit-bindgen = { path = "/tmp/wit-bindgen/crates/guest-rust" }
+# [patch.crates-io]
+# wit-bindgen-core = { path = "/tmp/wit-bindgen/crates/core" }
+# wit-bindgen = { path = "/tmp/wit-bindgen/crates/guest-rust" }
