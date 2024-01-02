@@ -58,6 +58,7 @@ use self::contract::ContractStateStorage;
 use async_trait::async_trait;
 use linera_base::{
     abi::{ContractAbi, ServiceAbi, WithContractAbi, WithServiceAbi},
+    crypto::CryptoHash,
     data_types::BlockHeight,
     identifiers::{ApplicationId, ChainId, ChannelName, Destination, MessageId, Owner},
 };
@@ -360,6 +361,8 @@ pub struct MessageContext {
     pub authenticated_signer: Option<Owner>,
     /// The current block height.
     pub height: BlockHeight,
+    /// The hash of the remote certificate that created the message.
+    pub certificate_hash: CryptoHash,
     /// The id of the message (based on the operation height and index in the remote
     /// chain that created the message).
     pub message_id: MessageId,
