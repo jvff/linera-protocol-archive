@@ -1721,6 +1721,7 @@ dependencies = [
  "linera-views",
  "linera-views-derive",
  "linera-wit-bindgen-host-wasmer-rust",
+ "linked-hash-map",
  "lru",
  "once_cell",
  "oneshot",
@@ -2647,20 +2648,6 @@ dependencies = [
  "getrandom 0.2.11",
  "libredox",
  "thiserror",
-]
-
-[[package]]
-name = "reentrant-counter"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "bcs",
- "futures",
- "linera-sdk",
- "serde",
- "serde_json",
- "thiserror",
- "webassembly-test",
 ]
 
 [[package]]
