@@ -381,6 +381,21 @@ impl<const W: bool> SyncRuntime<W> {
             .try_lock()
             .expect("Synchronous runtimes run on a single execution thread")
     }
+
+    /// Ensures that a call to `application_id` is not-reentrant.
+    ///
+    /// Returns an error if there already is an entry for `application_id` in the call stack.
+    fn check_for_reentrancy(
+        &mut self,
+        application_id: UserApplicationId,
+    ) -> Result<(), ExecutionError> {
+        let this = self.as_inner();
+        ensure!(
+            !this.applications.contains_key(&application_id),
+            ExecutionError::ReentrantCall(application_id)
+        );
+        Ok(())
+    }
 }
 
 impl<const W: bool> BaseRuntime for SyncRuntime<W> {
@@ -877,6 +892,7 @@ impl ContractRuntime for ContractSyncRuntime {
         argument: Vec<u8>,
         forwarded_sessions: Vec<SessionId>,
     ) -> Result<CallResult, ExecutionError> {
+        self.check_for_reentrancy(callee_id)?;
         let (callee_context, authenticated_signer, code) = {
             let mut this = self.as_inner();
             let (&caller_id, caller_status) = this.applications.back().expect("caller must exist");
@@ -937,6 +953,7 @@ impl ContractRuntime for ContractSyncRuntime {
         argument: Vec<u8>,
         forwarded_sessions: Vec<SessionId>,
     ) -> Result<CallResult, ExecutionError> {
+        self.check_for_reentrancy(session_id.application_id)?;
         let (callee_context, authenticated_signer, session_state, code) = {
             let mut this = self.as_inner();
             let callee_id = session_id.application_id;
