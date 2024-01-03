@@ -16,6 +16,7 @@ use linera_base::{
     identifiers::{ChainId, Owner},
 };
 use linera_views::batch::Batch;
+use linked_hash_map::LinkedHashMap;
 use oneshot::Receiver;
 use std::{
     collections::BTreeMap,
@@ -39,7 +40,7 @@ pub struct SyncRuntimeInternal<const WRITABLE: bool> {
     execution_state_sender: ExecutionStateSender,
 
     /// The current stack of application descriptions.
-    applications: Vec<ApplicationStatus>,
+    applications: LinkedHashMap<UserApplicationId, ApplicationStatus>,
     /// Accumulate the externally visible results (e.g. cross-chain messages) of applications.
     execution_results: Vec<ExecutionResult>,
 
@@ -59,8 +60,6 @@ pub struct SyncRuntimeInternal<const WRITABLE: bool> {
 /// The runtime status of an application.
 #[derive(Debug, Clone)]
 struct ApplicationStatus {
-    /// The application id.
-    id: UserApplicationId,
     /// The parameters from the application description.
     parameters: Vec<u8>,
     /// The authenticated signer for the execution thread, if any.
@@ -210,7 +209,7 @@ impl<const W: bool> SyncRuntimeInternal<W> {
         Self {
             chain_id,
             execution_state_sender,
-            applications: Vec::new(),
+            applications: LinkedHashMap::new(),
             execution_results: Vec::default(),
             session_manager: SessionManager::default(),
             simple_user_states: BTreeMap::default(),
@@ -524,17 +523,18 @@ impl<const W: bool> BaseRuntime for SyncRuntimeInternal<W> {
     fn application_id(&mut self) -> Result<UserApplicationId, ExecutionError> {
         let id = self
             .applications
-            .last()
+            .back()
             .expect("at least one application description should be present in the stack")
-            .id;
-        Ok(id)
+            .0;
+        Ok(*id)
     }
 
     fn application_parameters(&mut self) -> Result<Vec<u8>, ExecutionError> {
         let parameters = self
             .applications
-            .last()
+            .back()
             .expect("at least one application description should be present in the stack")
+            .1
             .parameters
             .clone();
         Ok(parameters)
@@ -786,11 +786,13 @@ impl ContractSyncRuntime {
         );
         let (code, description) = runtime.load_contract(application_id)?;
         let signer = action.signer();
-        runtime.applications.push(ApplicationStatus {
-            id: application_id,
-            parameters: description.parameters,
-            signer,
-        });
+        runtime.applications.insert(
+            application_id,
+            ApplicationStatus {
+                parameters: description.parameters,
+                signer,
+            },
+        );
         let runtime = ContractSyncRuntime::new(runtime);
         let execution_result = {
             let mut code = code.instantiate(runtime.clone())?;
@@ -806,7 +808,7 @@ impl ContractSyncRuntime {
             .into_inner()
             .expect("Runtime clones should have been freed by now");
         assert_eq!(runtime.applications.len(), 1);
-        assert_eq!(runtime.applications[0].id, application_id);
+        assert!(runtime.applications.contains_key(&application_id));
         // Check that all sessions were properly closed.
         if let Some(session_id) = runtime.session_manager.states.keys().next() {
             return Err(ExecutionError::SessionWasNotClosed(*session_id));
@@ -877,28 +879,31 @@ impl ContractRuntime for ContractSyncRuntime {
     ) -> Result<CallResult, ExecutionError> {
         let (callee_context, authenticated_signer, code) = {
             let mut this = self.as_inner();
-            let caller = this.applications.last().expect("caller must exist").clone();
+            let (&caller_id, caller_status) = this.applications.back().expect("caller must exist");
+            let caller_signer = caller_status.signer;
             // Load the application.
             let (code, description) = this.load_contract(callee_id)?;
             // Change the owners of forwarded sessions.
-            this.forward_sessions(&forwarded_sessions, caller.id, callee_id)?;
+            this.forward_sessions(&forwarded_sessions, caller_id, callee_id)?;
             // Make the call to user code.
-            let authenticated_signer = match caller.signer {
+            let authenticated_signer = match caller_signer {
                 Some(signer) if authenticated => Some(signer),
                 _ => None,
             };
-            let authenticated_caller_id = authenticated.then_some(caller.id);
+            let authenticated_caller_id = authenticated.then_some(caller_id);
             let callee_context = crate::CalleeContext {
                 chain_id: this.chain_id,
                 authenticated_signer,
                 authenticated_caller_id,
             };
-            this.applications.push(ApplicationStatus {
-                id: callee_id,
-                parameters: description.parameters,
-                // Allow further nested calls to be authenticated if this one is.
-                signer: authenticated_signer,
-            });
+            this.applications.insert(
+                callee_id,
+                ApplicationStatus {
+                    parameters: description.parameters,
+                    // Allow further nested calls to be authenticated if this one is.
+                    signer: authenticated_signer,
+                },
+            );
             (callee_context, authenticated_signer, code)
         };
         let mut code = code.instantiate(self.clone())?;
@@ -906,7 +911,7 @@ impl ContractRuntime for ContractSyncRuntime {
             code.handle_application_call(callee_context, argument, forwarded_sessions)?;
         {
             let mut this = self.as_inner();
-            this.applications.pop();
+            this.applications.pop_back();
 
             // Interpret the results of the call.
             this.execution_results.push(ExecutionResult::User(
@@ -935,30 +940,33 @@ impl ContractRuntime for ContractSyncRuntime {
         let (callee_context, authenticated_signer, session_state, code) = {
             let mut this = self.as_inner();
             let callee_id = session_id.application_id;
-            let caller = this.applications.last().expect("caller must exist").clone();
+            let (&caller_id, caller_status) = this.applications.back().expect("caller must exist");
+            let caller_signer = caller_status.signer;
             // Load the application.
             let (code, description) = this.load_contract(callee_id)?;
             // Change the owners of forwarded sessions.
-            this.forward_sessions(&forwarded_sessions, caller.id, callee_id)?;
+            this.forward_sessions(&forwarded_sessions, caller_id, callee_id)?;
             // Load the session.
-            let session_state = this.try_load_session(session_id, caller.id)?;
+            let session_state = this.try_load_session(session_id, caller_id)?;
             // Make the call to user code.
-            let authenticated_signer = match caller.signer {
+            let authenticated_signer = match caller_signer {
                 Some(signer) if authenticated => Some(signer),
                 _ => None,
             };
-            let authenticated_caller_id = authenticated.then_some(caller.id);
+            let authenticated_caller_id = authenticated.then_some(caller_id);
             let callee_context = crate::CalleeContext {
                 chain_id: this.chain_id,
                 authenticated_signer,
                 authenticated_caller_id,
             };
-            this.applications.push(ApplicationStatus {
-                id: callee_id,
-                parameters: description.parameters,
-                // Allow further nested calls to be authenticated if this one is.
-                signer: authenticated_signer,
-            });
+            this.applications.insert(
+                callee_id,
+                ApplicationStatus {
+                    parameters: description.parameters,
+                    // Allow further nested calls to be authenticated if this one is.
+                    signer: authenticated_signer,
+                },
+            );
             (callee_context, authenticated_signer, session_state, code)
         };
         let mut code = code.instantiate(self.clone())?;
@@ -966,7 +974,7 @@ impl ContractRuntime for ContractSyncRuntime {
             code.handle_session_call(callee_context, session_state, argument, forwarded_sessions)?;
         {
             let mut this = self.as_inner();
-            this.applications.pop();
+            this.applications.pop_back();
 
             // Interpret the results of the call.
             let caller_id = this.application_id()?;
@@ -1028,18 +1036,20 @@ impl ServiceRuntime for ServiceSyncRuntime {
             let query_context = crate::QueryContext {
                 chain_id: this.chain_id,
             };
-            this.applications.push(ApplicationStatus {
-                id: queried_id,
-                parameters: description.parameters,
-                signer: None,
-            });
+            this.applications.insert(
+                queried_id,
+                ApplicationStatus {
+                    parameters: description.parameters,
+                    signer: None,
+                },
+            );
             (query_context, code)
         };
         let mut code = code.instantiate(self.clone())?;
         let response = code.handle_query(query_context, argument)?;
         {
             let mut this = self.as_inner();
-            this.applications.pop();
+            this.applications.pop_back();
         }
         Ok(response)
     }
