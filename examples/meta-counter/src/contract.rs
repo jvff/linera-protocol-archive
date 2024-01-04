@@ -60,8 +60,7 @@ impl Contract for MetaCounter {
         message: u64,
     ) -> Result<ExecutionResult<Self::Message>, Self::Error> {
         log::trace!("executing {:?} via {:?}", message, Self::counter_id()?);
-        self.call_application(true, Self::counter_id()?, &message, vec![])
-            .await?;
+        self.call_application(true, Self::counter_id()?, &message, vec![])?;
         Ok(ExecutionResult::default())
     }
 
