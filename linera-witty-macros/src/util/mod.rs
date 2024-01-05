@@ -14,7 +14,7 @@ use std::hash::{Hash, Hasher};
 use syn::{
     parse::{self, Parse, ParseStream},
     punctuated::Punctuated,
-    DeriveInput, Fields, Ident, Lit, LitStr, MetaNameValue, Token,
+    DeriveInput, Field, Fields, Ident, Lit, LitStr, Meta, MetaList, MetaNameValue, Token,
 };
 
 /// Returns the code with a pattern to match a heterogenous list using the `field_names` as
@@ -68,6 +68,17 @@ pub fn extract_namespace(
 /// Changes the [`DeriveInput`] by replacing some generic type parameters with specialized types.
 pub fn apply_specialization_attribute(input: &mut DeriveInput) -> Specializations {
     Specializations::new(input)
+}
+
+/// Returns `true` if the `field` is marked to be skipped using the `#[witty(skip)]` attribute.
+pub fn should_skip_field(field: &Field) -> bool {
+    field.attrs.iter().any(|attribute| {
+        matches!(
+            &attribute.meta,
+            Meta::List(MetaList { path, tokens, ..})
+                if path.is_ident("witty") && tokens.to_string() == "skip"
+        )
+    })
 }
 
 /// A type representing the parameters for an attribute procedural macro.
