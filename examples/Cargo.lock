@@ -1721,7 +1721,6 @@ dependencies = [
  "linera-views",
  "linera-views-derive",
  "linera-wit-bindgen-host-wasmer-rust",
- "linked-hash-map",
  "lru",
  "once_cell",
  "oneshot",
