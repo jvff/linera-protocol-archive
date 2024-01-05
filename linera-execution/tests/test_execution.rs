@@ -65,16 +65,16 @@ async fn test_missing_bytecode_for_user_application() -> anyhow::Result<()> {
 }
 
 #[derive(Clone)]
-struct TestModule<const CALLER: bool> {
+struct TestModule<const IS_CALLER: bool> {
     owner: Owner,
 }
 
-struct TestApplication<const CALLER: bool, Runtime> {
+struct TestApplication<const IS_CALLER: bool, Runtime> {
     owner: Owner,
     runtime: Runtime,
 }
 
-impl<const CALLER: bool> TestModule<CALLER> {
+impl<const IS_CALLER: bool> TestModule<IS_CALLER> {
     fn new(owner: Owner) -> Self {
         Self { owner }
     }
@@ -304,19 +304,19 @@ where
     }
 }
 
-impl<const CALLER: bool> UserServiceModule for TestModule<CALLER> {
+impl<const IS_CALLER: bool> UserServiceModule for TestModule<IS_CALLER> {
     fn instantiate(
         &self,
         runtime: ServiceSyncRuntime,
     ) -> Result<Box<dyn UserService + Send + Sync + 'static>, ExecutionError> {
-        Ok(Box::new(TestApplication::<CALLER, ServiceSyncRuntime> {
+        Ok(Box::new(TestApplication::<IS_CALLER, ServiceSyncRuntime> {
             owner: self.owner,
             runtime,
         }))
     }
 }
 
-impl<const CALLER: bool, Runtime> UserService for TestApplication<CALLER, Runtime>
+impl<const IS_CALLER: bool, Runtime> UserService for TestApplication<IS_CALLER, Runtime>
 where
     Runtime: ServiceRuntime,
 {
