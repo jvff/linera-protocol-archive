@@ -6,7 +6,11 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
-use syn::{parse_macro_input, Attribute, ItemStruct, Lit, LitStr, MetaNameValue, Type, TypePath};
+use syn::{
+    parse_macro_input, punctuated::Punctuated, spanned::Spanned, Attribute, Ident, ItemStruct,
+    Lifetime, Lit, LitStr, MetaNameValue, Path, PathSegment, PredicateType, Token, TraitBound,
+    TraitBoundModifier, Type, TypeParamBound, TypePath, WhereClause, WherePredicate,
+};
 
 fn get_seq_parameter(generics: syn::Generics) -> Vec<syn::Ident> {
     let mut generic_vect = Vec::new();
@@ -55,7 +59,7 @@ fn custom_attribute(attributes: &[Attribute], key: &str) -> Option<LitStr> {
 fn context_and_constraints(
     attributes: &[Attribute],
     template_vect: &[syn::Ident],
-) -> (Type, Option<TokenStream2>) {
+) -> (Type, Option<WhereClause>) {
     let context;
     let constraints;
 
@@ -71,22 +75,95 @@ fn context_and_constraints(
                 .clone()
                 .into(),
         });
-        constraints = Some(quote! {
-            where
-                #context: linera_views::common::Context + Send + Sync + Clone + 'static,
-                linera_views::views::ViewError: From<#context::Error>,
+        let span = context.span();
+        constraints = Some(WhereClause {
+            where_token: Token![where](span),
+            predicates: Punctuated::from_iter([
+                create_type_predicate(
+                    context,
+                    [
+                        create_trait_bound(Path {
+                            leading_colon: Some(Token![::](span)),
+                            segments: [
+                                Ident::new("linera_views", span),
+                                Ident::new("common", span),
+                                Ident::new("Context", span),
+                            ]
+                            .into_iter()
+                            .map(PathSegment::from)
+                            .collect(),
+                        }),
+                        create_trait_bound(Ident::new("Send", span)),
+                        create_trait_bound(Ident::new("Sync", span)),
+                        create_trait_bound(Ident::new("Clone", span)),
+                        TypeParamBound::Lifetime(Lifetime::new("'static", span)),
+                    ],
+                ),
+                create_type_predicate(
+                    Type::Path(TypePath {
+                        qself: None,
+                        path: Path {
+                            leading_colon: Some(Token![::](span)),
+                            segments: [
+                                Ident::new("linera_views", span),
+                                Ident::new("views", span),
+                                Ident::new("ViewError", span),
+                            ]
+                            .into_iter()
+                            .map(PathSegment::from)
+                            .collect(),
+                        },
+                    }),
+                    [create_trait_bound(Path {
+                        leading_colon: None,
+                        segments: [PathSegment {
+                            ident: Ident::new("From", span),
+                            arguments: PathArguments::AngleBracketed(
+                                AngleBracketedGenericArguments {
+                                    colon2_token: None,
+                                    lt_token: Token![<](span),
+                                    args,
+                                    gt_token: Token![>](span),
+                                },
+                            ),
+                        }],
+                    })],
+                ),
+            ]),
         });
     }
 
     (context, constraints)
 }
 
+fn create_type_predicate(
+    bounded_type: Type,
+    bounds: impl IntoIterator<Item = TypeParamBound>,
+) -> WherePredicate {
+    WherePredicate::Type(PredicateType {
+        lifetimes: None,
+        bounded_ty: bounded_type,
+        colon_token: Token![:](Span::call_site()),
+        bounds: Punctuated::from_iter(bounds),
+    })
+}
+
+fn create_trait_bound(path: impl Into<Path>) -> TypeParamBound {
+    TypeParamBound::Trait(TraitBound {
+        paren_token: None,
+        modifier: TraitBoundModifier::None,
+        lifetimes: None,
+        path: path.into(),
+    })
+}
+
 fn generate_view_code(input: ItemStruct, root: bool) -> TokenStream2 {
     let struct_name = input.ident;
-    let generics = input.generics;
-    let template_vect = get_seq_parameter(generics.clone());
+    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+    let template_vect = get_seq_parameter(input.generics);
 
     let (context, context_constraints) = context_and_constraints(&input.attrs, &template_vect);
+    // let where_clause =
 
     let mut name_quotes = Vec::new();
     let mut load_future_quotes = Vec::new();
@@ -134,8 +211,8 @@ fn generate_view_code(input: ItemStruct, root: bool) -> TokenStream2 {
 
     quote! {
         #[async_trait::async_trait]
-        impl #generics linera_views::views::View<#context> for #struct_name #generics
-        #context_constraints
+        impl #impl_generics linera_views::views::View<#context> for #struct_name #type_generics
+        #where_clause
         {
             fn context(&self) -> &#context {
                 use linera_views::views::View;
