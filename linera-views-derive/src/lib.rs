@@ -84,6 +84,22 @@ fn context_and_constraints(
     (context, constraints)
 }
 
+/// Merges two optional [`WhereClause`]s, returning a new one with all the predicates from both of
+/// them.
+fn merge_where_clauses(
+    first: Option<WhereClause>,
+    second: Option<WhereClause>,
+) -> Option<WhereClause> {
+    match (first, second) {
+        (Some(mut first), Some(second)) => {
+            first.predicates.extend(second.predicates);
+            Some(first)
+        }
+        (None, maybe_second) => maybe_second,
+        (maybe_first, None) => maybe_first,
+    }
+}
+
 fn generate_view_code(input: ItemStruct, root: bool) -> TokenStream2 {
     let struct_name = input.ident;
     let generics = input.generics;
