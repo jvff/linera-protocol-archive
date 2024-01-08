@@ -50,13 +50,17 @@ pub mod test;
 pub mod util;
 pub mod views;
 
-use self::contract::ContractStateStorage;
+use self::{
+    contract::ContractStateStorage,
+    views::{RegisterView, ViewStorageContext},
+};
 use async_trait::async_trait;
 use linera_base::{
     abi::{ContractAbi, ServiceAbi, WithContractAbi, WithServiceAbi},
     data_types::BlockHeight,
     identifiers::{ApplicationId, ChainId, ChannelName, Destination, MessageId, Owner, SessionId},
 };
+use linera_views::views::RootView;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{error::Error, fmt::Debug, sync::Arc};
 
@@ -70,7 +74,14 @@ pub use linera_base::{abi, ensure};
 pub use wit_bindgen_guest_rust;
 
 /// A simple state management runtime based on a single byte array.
-pub struct SimpleStateStorage<A>(std::marker::PhantomData<A>);
+#[derive(RootView)]
+#[view(context = "ViewStorageContext")]
+pub struct SimpleStateStorage<A>
+where
+    A: Default + Serialize + DeserializeOwned,
+{
+    state: RegisterView<A>,
+}
 
 /// A state management runtime based on [`linera_views`].
 pub struct ViewStateStorage<A>(std::marker::PhantomData<A>);
