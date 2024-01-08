@@ -6,7 +6,10 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
-use syn::{parse_macro_input, Attribute, ItemStruct, Lit, LitStr, MetaNameValue, Type, TypePath};
+use syn::{
+    parse_macro_input, parse_quote, Attribute, ItemStruct, Lit, LitStr, MetaNameValue, Type,
+    TypePath, WhereClause,
+};
 
 fn get_seq_parameter(generics: syn::Generics) -> Vec<syn::Ident> {
     let mut generic_vect = Vec::new();
@@ -55,7 +58,7 @@ fn custom_attribute(attributes: &[Attribute], key: &str) -> Option<LitStr> {
 fn context_and_constraints(
     attributes: &[Attribute],
     template_vect: &[syn::Ident],
-) -> (Type, Option<TokenStream2>) {
+) -> (Type, Option<WhereClause>) {
     let context;
     let constraints;
 
@@ -71,7 +74,7 @@ fn context_and_constraints(
                 .clone()
                 .into(),
         });
-        constraints = Some(quote! {
+        constraints = Some(parse_quote! {
             where
                 #context: linera_views::common::Context + Send + Sync + Clone + 'static,
                 linera_views::views::ViewError: From<#context::Error>,
