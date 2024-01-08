@@ -102,10 +102,12 @@ fn merge_where_clauses(
 
 fn generate_view_code(input: ItemStruct, root: bool) -> TokenStream2 {
     let struct_name = input.ident;
-    let generics = input.generics;
-    let template_vect = get_seq_parameter(generics.clone());
+    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+    let template_vect = get_seq_parameter(input.generics.clone());
 
     let (context, context_constraints) = context_and_constraints(&input.attrs, &template_vect);
+
+    let where_clause = merge_where_clauses(where_clause.cloned(), context_constraints);
 
     let mut name_quotes = Vec::new();
     let mut load_future_quotes = Vec::new();
@@ -153,8 +155,8 @@ fn generate_view_code(input: ItemStruct, root: bool) -> TokenStream2 {
 
     quote! {
         #[async_trait::async_trait]
-        impl #generics linera_views::views::View<#context> for #struct_name #generics
-        #context_constraints
+        impl #impl_generics linera_views::views::View<#context> for #struct_name #type_generics
+        #where_clause
         {
             fn context(&self) -> &#context {
                 use linera_views::views::View;
@@ -190,10 +192,12 @@ fn generate_view_code(input: ItemStruct, root: bool) -> TokenStream2 {
 
 fn generate_save_delete_view_code(input: ItemStruct) -> TokenStream2 {
     let struct_name = input.ident;
-    let generics = input.generics;
-    let template_vect = get_seq_parameter(generics.clone());
+    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+    let template_vect = get_seq_parameter(input.generics.clone());
 
     let (context, context_constraints) = context_and_constraints(&input.attrs, &template_vect);
+
+    let where_clause = merge_where_clauses(where_clause.cloned(), context_constraints);
 
     let mut flushes = Vec::new();
     let mut deletes = Vec::new();
@@ -205,8 +209,8 @@ fn generate_save_delete_view_code(input: ItemStruct) -> TokenStream2 {
 
     quote! {
         #[async_trait::async_trait]
-        impl #generics linera_views::views::RootView<#context> for #struct_name #generics
-        #context_constraints
+        impl #impl_generics linera_views::views::RootView<#context> for #struct_name #type_generics
+        #where_clause
         {
             async fn save(&mut self) -> Result<(), linera_views::views::ViewError> {
                 use linera_views::{common::Context, batch::Batch, views::View};
@@ -226,10 +230,12 @@ fn generate_save_delete_view_code(input: ItemStruct) -> TokenStream2 {
 
 fn generate_hash_view_code(input: ItemStruct) -> TokenStream2 {
     let struct_name = input.ident;
-    let generics = input.generics;
-    let template_vect = get_seq_parameter(generics.clone());
+    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+    let template_vect = get_seq_parameter(input.generics.clone());
 
     let (context, context_constraints) = context_and_constraints(&input.attrs, &template_vect);
+
+    let where_clause = merge_where_clauses(where_clause.cloned(), context_constraints);
 
     let mut field_hashes_mut = Vec::new();
     let mut field_hashes = Vec::new();
@@ -241,8 +247,8 @@ fn generate_hash_view_code(input: ItemStruct) -> TokenStream2 {
 
     quote! {
         #[async_trait::async_trait]
-        impl #generics linera_views::views::HashableView<#context> for #struct_name #generics
-        #context_constraints
+        impl #impl_generics linera_views::views::HashableView<#context> for #struct_name #type_generics
+        #where_clause
         {
             type Hasher = linera_views::sha3::Sha3_256;
 
@@ -267,16 +273,19 @@ fn generate_hash_view_code(input: ItemStruct) -> TokenStream2 {
 
 fn generate_crypto_hash_code(input: ItemStruct) -> TokenStream2 {
     let struct_name = input.ident;
-    let generics = input.generics;
-    let template_vect = get_seq_parameter(generics.clone());
+    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+    let template_vect = get_seq_parameter(input.generics.clone());
 
     let (context, context_constraints) = context_and_constraints(&input.attrs, &template_vect);
+
+    let where_clause = merge_where_clauses(where_clause.cloned(), context_constraints);
 
     let hash_type = syn::Ident::new(&format!("{}Hash", struct_name), Span::call_site());
     quote! {
         #[async_trait::async_trait]
-        impl #generics linera_views::views::CryptoHashView<#context> for #struct_name #generics
-        #context_constraints
+        impl #impl_generics linera_views::views::CryptoHashView<#context>
+            for #struct_name #type_generics
+        #where_clause
         {
             async fn crypto_hash(&self) -> Result<linera_base::crypto::CryptoHash, linera_views::views::ViewError> {
                 use linera_base::crypto::{BcsHashable, CryptoHash};
