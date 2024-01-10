@@ -3,16 +3,13 @@ source: linera-views-derive/src/lib.rs
 expression: "pretty(generate_view_code(input, true))"
 ---
 #[async_trait::async_trait]
-impl<MyParam> linera_views::views::View<CustomContext> for TestView<MyParam>
-where
-    MyParam: Send + Sync + 'static,
-{
-    fn context(&self) -> &CustomContext {
+impl linera_views::views::View<custom::path::to::ContextType> for TestView {
+    fn context(&self) -> &custom::path::to::ContextType {
         use linera_views::views::View;
         self.register.context()
     }
     async fn load(
-        context: CustomContext,
+        context: custom::path::to::ContextType,
     ) -> Result<Self, linera_views::views::ViewError> {
         use linera_views::{futures::join, common::Context};
         linera_views::increment_counter(
