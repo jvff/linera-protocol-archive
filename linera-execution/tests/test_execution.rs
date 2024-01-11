@@ -336,7 +336,7 @@ async fn test_simple_session() -> anyhow::Result<()> {
     };
     let mut tracker = ResourceTracker::default();
     let policy = ResourceControlPolicy::default();
-    let result = view
+    let outcomes = view
         .execute_operation(
             context,
             Operation::User {
@@ -346,9 +346,16 @@ async fn test_simple_session() -> anyhow::Result<()> {
             &policy,
             &mut tracker,
         )
-        .await;
+        .await?;
 
-    assert!(result.is_ok());
+    assert_eq!(
+        outcomes,
+        vec![
+            ExecutionOutcome::User(target_id, RawExecutionOutcome::default()),
+            ExecutionOutcome::User(target_id, RawExecutionOutcome::default()),
+            ExecutionOutcome::User(caller_id, RawExecutionOutcome::default()),
+        ]
+    );
     Ok(())
 }
 
