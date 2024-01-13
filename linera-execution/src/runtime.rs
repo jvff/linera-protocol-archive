@@ -7,7 +7,8 @@ use crate::{
     resources::{RuntimeCounts, RuntimeLimits},
     util::{ReceiverExt, UnboundedSenderExt},
     BaseRuntime, CallOutcome, ContractRuntime, ExecutionError, ExecutionOutcome, ServiceRuntime,
-    SessionId, UserApplicationDescription, UserApplicationId, UserContractCode, UserServiceCode,
+    SessionId, UserApplicationDescription, UserApplicationId, UserContractCode,
+    UserContractInstance, UserServiceCode,
 };
 use custom_debug_derive::Debug;
 use linera_base::{
@@ -773,6 +774,16 @@ impl ContractSyncRuntime {
         ));
         Ok((runtime.execution_outcomes, runtime.runtime_counts))
     }
+
+    /// Initializes a contract instance with this runtime.
+    fn load_contract_instance(
+        &mut self,
+        id: UserApplicationId,
+    ) -> Result<(UserContractInstance, UserApplicationDescription), ExecutionError> {
+        let (code, description) = self.as_inner().load_contract(id)?;
+        let instance = code.instantiate(self.clone())?;
+        Ok((instance, description))
+    }
 }
 
 impl ContractRuntime for ContractSyncRuntime {
@@ -795,13 +806,14 @@ impl ContractRuntime for ContractSyncRuntime {
         forwarded_sessions: Vec<SessionId>,
     ) -> Result<CallOutcome, ExecutionError> {
         self.check_for_reentrancy(callee_id)?;
-        let (callee_context, authenticated_signer, code) = {
+        // Load the application.
+        let (mut contract, description) = self.load_contract_instance(callee_id)?;
+        // Prepare the runtime for the call
+        let (callee_context, authenticated_signer) = {
             let mut this = self.as_inner();
             let caller = this.current_application();
             let caller_id = caller.id;
             let caller_signer = caller.signer;
-            // Load the application.
-            let (code, description) = this.load_contract(callee_id)?;
             // Change the owners of forwarded sessions.
             this.forward_sessions(&forwarded_sessions, caller_id, callee_id)?;
             // Make the call to user code.
@@ -821,11 +833,10 @@ impl ContractRuntime for ContractSyncRuntime {
                 // Allow further nested calls to be authenticated if this one is.
                 signer: authenticated_signer,
             });
-            (callee_context, authenticated_signer, code)
+            (callee_context, authenticated_signer)
         };
-        let mut code = code.instantiate(self.clone())?;
         let raw_outcome =
-            code.handle_application_call(callee_context, argument, forwarded_sessions)?;
+            contract.handle_application_call(callee_context, argument, forwarded_sessions)?;
         {
             let mut this = self.as_inner();
             this.pop_application();
@@ -855,14 +866,15 @@ impl ContractRuntime for ContractSyncRuntime {
         forwarded_sessions: Vec<SessionId>,
     ) -> Result<CallOutcome, ExecutionError> {
         self.check_for_reentrancy(session_id.application_id)?;
-        let (callee_context, authenticated_signer, session_state, code) = {
+        // Load the application.
+        let callee_id = session_id.application_id;
+        let (mut contract, description) = self.load_contract_instance(callee_id)?;
+        // Prepare the runtime for the call
+        let (callee_context, authenticated_signer, session_state) = {
             let mut this = self.as_inner();
-            let callee_id = session_id.application_id;
             let caller = this.current_application();
             let caller_id = caller.id;
             let caller_signer = caller.signer;
-            // Load the application.
-            let (code, description) = this.load_contract(callee_id)?;
             // Change the owners of forwarded sessions.
             this.forward_sessions(&forwarded_sessions, caller_id, callee_id)?;
             // Load the session.
@@ -884,11 +896,14 @@ impl ContractRuntime for ContractSyncRuntime {
                 // Allow further nested calls to be authenticated if this one is.
                 signer: authenticated_signer,
             });
-            (callee_context, authenticated_signer, session_state, code)
+            (callee_context, authenticated_signer, session_state)
         };
-        let mut code = code.instantiate(self.clone())?;
-        let (raw_outcome, session_state) =
-            code.handle_session_call(callee_context, session_state, argument, forwarded_sessions)?;
+        let (raw_outcome, session_state) = contract.handle_session_call(
+            callee_context,
+            session_state,
+            argument,
+            forwarded_sessions,
+        )?;
         {
             let mut this = self.as_inner();
             this.pop_application();
