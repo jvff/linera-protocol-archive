@@ -3,7 +3,7 @@
 
 //! Derivation of the `WitStore` trait.
 
-use crate::util::hlist_type_for;
+use crate::util::{hlist_type_for, should_skip_field};
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
 use quote::{format_ident, quote};
@@ -154,20 +154,34 @@ pub fn derive_for_enum<'variants>(
 
 /// Returns the code with a pattern to match the `fields` using the provided `bindings`.
 fn fields_pattern(fields: &Fields, bindings: impl Iterator<Item = Ident>) -> TokenStream {
+    let remaining_ignored_fields = match fields
+        .iter()
+        .filter(|&field| should_skip_field(field))
+        .count()
+    {
+        0 => quote! {},
+        1 => quote! { _ },
+        _ => quote! { .. },
+    };
+
     match fields {
         Fields::Unit => quote! {},
-        Fields::Named(_) => quote! { { #( #bindings ),* } },
-        Fields::Unnamed(_) => quote! { ( #( #bindings ),* ) },
+        Fields::Named(_) => quote! { { #( #bindings, )* #remaining_ignored_fields } },
+        Fields::Unnamed(_) => quote! { ( #( #bindings, )* #remaining_ignored_fields ) },
     }
 }
 
 /// Returns an iterator over names for bindings used to deconstruct the provided `fields`.
 fn field_names(fields: &Fields) -> impl Iterator<Item = Ident> + Clone + '_ {
-    fields.iter().enumerate().map(|(index, field)| {
-        field
-            .ident
-            .as_ref()
-            .cloned()
-            .unwrap_or_else(|| format_ident!("field{index}"))
-    })
+    fields
+        .iter()
+        .enumerate()
+        .filter(|(_index, field)| !should_skip_field(field))
+        .map(|(index, field)| {
+            field
+                .ident
+                .as_ref()
+                .cloned()
+                .unwrap_or_else(|| format_ident!("field{index}"))
+        })
 }

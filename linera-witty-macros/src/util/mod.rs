@@ -26,10 +26,15 @@ pub fn hlist_bindings_for(field_names: impl Iterator<Item = Ident>) -> TokenStre
     quote! { linera_witty::hlist_pat![#( #field_names ),*] }
 }
 
-/// Returns the code with a pattern to match a heterogenous list using the `field_names` as
-/// bindings.
+/// Returns the code with the type representing a heterogenous list of the `fields`.
+///
+/// Will not include any fields marked to be skipped.
 pub fn hlist_type_for(fields: &Fields) -> TokenStream {
-    let field_types = fields.iter().map(|field| &field.ty);
+    let field_types = fields
+        .iter()
+        .filter(|&field| !should_skip_field(field))
+        .map(|field| &field.ty);
+
     quote! { linera_witty::HList![#( #field_types ),*] }
 }
 

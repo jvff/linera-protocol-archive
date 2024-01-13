@@ -180,13 +180,17 @@ fn variant_type(variant: &Variant) -> TokenStream {
 
 /// Returns an iterator over the names of the provided `fields`.
 fn field_names(fields: &Fields) -> impl Iterator<Item = Ident> + Clone + '_ {
-    fields.iter().enumerate().map(|(index, field)| {
-        field
-            .ident
-            .as_ref()
-            .cloned()
-            .unwrap_or_else(|| format_ident!("field{index}"))
-    })
+    fields
+        .iter()
+        .enumerate()
+        .filter(|(_index, field)| !should_skip_field(field))
+        .map(|(index, field)| {
+            field
+                .ident
+                .as_ref()
+                .cloned()
+                .unwrap_or_else(|| format_ident!("field{index}"))
+        })
 }
 
 /// Returns bindings with default values for the fields that are skipped by the load.
