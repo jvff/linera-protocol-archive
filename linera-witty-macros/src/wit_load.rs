@@ -6,7 +6,7 @@
 #[path = "unit_tests/wit_load.rs"]
 mod tests;
 
-use crate::util::{hlist_bindings_for, hlist_type_for};
+use crate::util::{hlist_bindings_for, hlist_type_for, should_skip_field};
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
 use quote::{format_ident, quote};
@@ -18,6 +18,7 @@ pub fn derive_for_struct(fields: &Fields) -> TokenStream {
     let field_names = field_names(fields);
     let fields_hlist_binding = hlist_bindings_for(field_names.clone());
     let fields_hlist_type = hlist_type_for(fields);
+    let default_fields = default_bindings_for(fields, field_names.clone()).collect::<TokenStream>();
     let construction = construction_for_fields(field_names, fields);
 
     quote! {
@@ -33,6 +34,8 @@ pub fn derive_for_struct(fields: &Fields) -> TokenStream {
             let #fields_hlist_binding =
                 <#fields_hlist_type as linera_witty::WitLoad>::load(memory, location)?;
 
+            #default_fields
+
             Ok(Self #construction)
         }
 
@@ -47,6 +50,8 @@ pub fn derive_for_struct(fields: &Fields) -> TokenStream {
         {
             let #fields_hlist_binding =
                 <#fields_hlist_type as linera_witty::WitLoad>::lift_from(flat_layout, memory)?;
+
+            #default_fields
 
             Ok(Self #construction)
         }
@@ -85,12 +90,15 @@ pub fn derive_for_enum<'variants>(
         let field_names = field_names(&variant.fields);
         let field_bindings = hlist_bindings_for(field_names.clone());
         let fields_type = hlist_type_for(&variant.fields);
+        let default_fields = default_bindings_for(&variant.fields, field_names.clone());
         let construction = construction_for_fields(field_names, &variant.fields);
 
         quote! {
             #index => {
                 let #field_bindings =
                     <#fields_type as linera_witty::WitLoad>::load(memory, location)?;
+
+                #( #default_fields )*
 
                 Ok(#name::#variant_name #construction)
             }
@@ -103,6 +111,7 @@ pub fn derive_for_enum<'variants>(
         let field_names = field_names(&variant.fields);
         let field_bindings = hlist_bindings_for(field_names.clone());
         let fields_type = hlist_type_for(&variant.fields);
+        let default_fields = default_bindings_for(&variant.fields, field_names.clone());
         let construction = construction_for_fields(field_names, &variant.fields);
 
         quote! {
@@ -111,6 +120,8 @@ pub fn derive_for_enum<'variants>(
                     linera_witty::JoinFlatLayouts::from_joined(flat_layout),
                     memory,
                 )?;
+
+                #( #default_fields )*
 
                 Ok(#name::#variant_name #construction)
             }
@@ -176,6 +187,22 @@ fn field_names(fields: &Fields) -> impl Iterator<Item = Ident> + Clone + '_ {
             .cloned()
             .unwrap_or_else(|| format_ident!("field{index}"))
     })
+}
+
+/// Returns bindings with default values for the fields that are skipped by the load.
+fn default_bindings_for<'input>(
+    fields: &'input Fields,
+    names: impl Iterator<Item = Ident> + 'input,
+) -> impl Iterator<Item = TokenStream> + 'input {
+    fields
+        .iter()
+        .zip(names)
+        .filter(|(field, _name)| should_skip_field(field))
+        .map(|(_field, name)| {
+            quote! {
+                let #name = Default::default();
+            }
+        })
 }
 
 /// Returns the code to construct an instance of the field type.
