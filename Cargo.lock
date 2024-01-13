@@ -3729,6 +3729,7 @@ name = "linera-witty-macros"
 version = "0.6.0"
 dependencies = [
  "heck 0.4.1",
+ "prettyplease 0.2.15",
  "proc-macro-error",
  "proc-macro2",
  "quote",
