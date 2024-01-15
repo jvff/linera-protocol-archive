@@ -778,13 +778,13 @@ async fn test_multiple_messages_from_different_applications() -> anyhow::Result<
     let mut applications = register_mock_applications(&mut view, 3).await?;
     let (caller_id, caller_application) = applications
         .next()
-        .expect("Missing caller mock application");
+        .expect("Caller mock application should be registered");
     let (silent_target_id, silent_target_application) = applications
         .next()
-        .expect("Missing target mock application that doesn't send messages");
+        .expect("Target mock application that doesn't send messages should be registered");
     let (sending_target_id, sending_target_application) = applications
         .next()
-        .expect("Missing target mock application that sends a message");
+        .expect("Target mock application that sends a message should be registered");
 
     let first_destination_chain = ChainId::from(ChainDescription::Root(1));
     let second_destination_chain = ChainId::from(ChainDescription::Root(2));
