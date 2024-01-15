@@ -530,10 +530,10 @@ async fn test_message_from_cross_application_call() -> anyhow::Result<()> {
     let mut applications = register_mock_applications(&mut view, 2).await?;
     let (caller_id, caller_application) = applications
         .next()
-        .expect("Missing caller mock application");
+        .expect("Caller mock application is registered");
     let (target_id, target_application) = applications
         .next()
-        .expect("Missing target mock application");
+        .expect("Target mock application is registered");
 
     caller_application.expect_call(ExpectedCall::execute_operation(
         move |runtime, _context, _operation| {
