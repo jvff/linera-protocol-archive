@@ -446,7 +446,7 @@ async fn test_simple_message() -> anyhow::Result<()> {
     let mut applications = register_mock_applications(&mut view, 1).await?;
     let (application_id, application) = applications
         .next()
-        .expect("Missing caller mock application");
+        .expect("Caller mock application should be registered");
 
     let destination_chain = ChainId::from(ChainDescription::Root(1));
     let dummy_message = RawOutgoingMessage {
