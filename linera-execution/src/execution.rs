@@ -229,8 +229,7 @@ where
             _ => None,
         });
 
-        let mut applications_to_register_per_destination =
-            HashMap::<&Destination, BTreeSet<UserApplicationId>>::new();
+        let mut applications_to_register_per_destination = HashMap::<_, BTreeSet<_>>::new();
 
         for (application_id, result) in user_application_outcomes {
             for message in &result.messages {
