@@ -629,13 +629,13 @@ async fn test_message_from_session_call() -> anyhow::Result<()> {
     let mut applications = register_mock_applications(&mut view, 3).await?;
     let (caller_id, caller_application) = applications
         .next()
-        .expect("Missing caller mock application");
+        .expect("Caller mock application should be registered");
     let (middle_id, middle_application) = applications
         .next()
-        .expect("Missing middle mock application");
+        .expect("Middle mock application should be registered");
     let (target_id, target_application) = applications
         .next()
-        .expect("Missing target mock application");
+        .expect("Target mock application should be registered");
 
     caller_application.expect_call(ExpectedCall::execute_operation(
         move |runtime, _context, _operation| {
