@@ -244,7 +244,7 @@ where
             return Ok(results);
         }
 
-        let registration_messages = applications_to_register_per_destination
+        let messages = applications_to_register_per_destination
             .into_iter()
             .map(|(destination, applications_to_describe)| async {
                 let applications = self
@@ -268,7 +268,7 @@ where
             .await?;
 
         let system_outcome = RawExecutionOutcome {
-            messages: registration_messages,
+            messages,
             ..RawExecutionOutcome::default()
         };
 
