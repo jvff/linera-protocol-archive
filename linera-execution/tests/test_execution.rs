@@ -751,19 +751,8 @@ async fn test_message_from_session_call() -> anyhow::Result<()> {
 /// Tests if multiple messages are scheduled to be sent by different applications to different
 /// chains.
 ///
-/// Sends three messages from two applications, a "caller" application and a "sending_target"
-/// applications. The "caller" sends one message to a `first_destination_chain`, while the
-/// "sending_target" sends one message to the `first_destination_chain` and one to a second
-/// `destination_chain`.
-///
-/// The "caller" application is the entrypoint, starting by executing an operation. It will call
-/// a "silent_target" application which does not send any messages, and the "sending_target"
-/// application which will the send the two messages described above.
-///
-/// As a result of this scenario, the `first_destination_chain` should receive a message
-/// registering the "caller" and the "sending_target" applications, while the
-/// `second_destination_chain` should receive a message registering only the "sending_target"
-/// application. There should not be any messages registering the "silent_target" application.
+/// Ensures that in a more complex scenario, chains receive application registration messages only
+/// for the applications that will receive messages on them.
 #[tokio::test]
 async fn test_multiple_messages_from_different_applications() -> anyhow::Result<()> {
     let mut state = SystemExecutionState::default();
@@ -776,19 +765,25 @@ async fn test_multiple_messages_from_different_applications() -> anyhow::Result<
         .await;
 
     let mut applications = register_mock_applications(&mut view, 3).await?;
+    // The entrypoint application, which sends a message and calls other applications
     let (caller_id, caller_application) = applications
         .next()
         .expect("Caller mock application should be registered");
+    // An application that does not send any messages
     let (silent_target_id, silent_target_application) = applications
         .next()
         .expect("Target mock application that doesn't send messages should be registered");
+    // An application that sends a message when handling a cross-application call
     let (sending_target_id, sending_target_application) = applications
         .next()
         .expect("Target mock application that sends a message should be registered");
 
+    // The first destination chain receives messages from the caller and the sending applications
     let first_destination_chain = ChainId::from(ChainDescription::Root(1));
+    // The second destination chain only receives a message from the sending application
     let second_destination_chain = ChainId::from(ChainDescription::Root(2));
 
+    // The message sent to the first destination chain by the caller and the sending applications
     let first_message = RawOutgoingMessage {
         destination: Destination::from(first_destination_chain),
         authenticated: false,
@@ -796,6 +791,8 @@ async fn test_multiple_messages_from_different_applications() -> anyhow::Result<
         message: b"first".to_vec(),
     };
 
+    // The entrypoint sends a message to the first chain and calls the silent and the sending
+    // applications
     caller_application.expect_call(ExpectedCall::execute_operation({
         let first_message = first_message.clone();
         move |runtime, _context, _operation| {
@@ -815,10 +812,12 @@ async fn test_multiple_messages_from_different_applications() -> anyhow::Result<
         }
     }));
 
+    // The silent application does nothing
     silent_target_application.expect_call(ExpectedCall::handle_application_call(
         |_runtime, _context, _argument, _forwarded_sessions| Ok(ApplicationCallOutcome::default()),
     ));
 
+    // The message sent to the second destination chain by the sending application
     let second_message = RawOutgoingMessage {
         destination: Destination::from(second_destination_chain),
         authenticated: false,
@@ -826,6 +825,7 @@ async fn test_multiple_messages_from_different_applications() -> anyhow::Result<
         message: b"second".to_vec(),
     };
 
+    // The sending application sends two messages, one to each of the destination chains
     sending_target_application.expect_call(ExpectedCall::handle_application_call({
         let first_message = first_message.clone();
         let second_message = second_message.clone();
@@ -840,6 +840,7 @@ async fn test_multiple_messages_from_different_applications() -> anyhow::Result<
         }
     }));
 
+    // Execute the operation, starting the test scenario
     let context = OperationContext {
         chain_id: ChainId::root(0),
         height: BlockHeight(0),
@@ -861,6 +862,8 @@ async fn test_multiple_messages_from_different_applications() -> anyhow::Result<
         )
         .await?;
 
+    // Describe the two applications that sent messages, and will therefore handle them in the
+    // other chains
     let caller_description = view.system.registry.describe_application(caller_id).await?;
     let sending_target_description = view
         .system
@@ -868,6 +871,7 @@ async fn test_multiple_messages_from_different_applications() -> anyhow::Result<
         .describe_application(sending_target_id)
         .await?;
 
+    // The registration message for the first destination chain
     let first_registration_message = RawOutgoingMessage {
         destination: Destination::from(first_destination_chain),
         authenticated: false,
@@ -876,6 +880,7 @@ async fn test_multiple_messages_from_different_applications() -> anyhow::Result<
             applications: vec![sending_target_description.clone(), caller_description],
         },
     };
+    // The registration message for the second destination chain
     let second_registration_message = RawOutgoingMessage {
         destination: Destination::from(second_destination_chain),
         authenticated: false,
@@ -896,6 +901,7 @@ async fn test_multiple_messages_from_different_applications() -> anyhow::Result<
     assert!(system_outcome.authenticated_signer.is_none());
     assert!(system_outcome.subscribe.is_empty());
     assert!(system_outcome.unsubscribe.is_empty());
+    // Check for the two registration messages
     assert_eq!(system_outcome.messages.len(), 2);
     assert!(system_outcome
         .messages
