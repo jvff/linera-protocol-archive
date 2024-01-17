@@ -20,7 +20,7 @@ use linera_base::{
 use linera_views::batch::Batch;
 use oneshot::Receiver;
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{hash_map, BTreeMap, HashMap, HashSet},
     sync::{Arc, Mutex},
 };
 
@@ -40,8 +40,7 @@ pub struct SyncRuntimeInternal<UserInstance> {
     execution_state_sender: ExecutionStateSender,
 
     /// Application instances loaded in this transaction.
-    loaded_applications:
-        HashMap<UserApplicationId, (Arc<Mutex<UserInstance>>, UserApplicationDescription)>,
+    loaded_applications: HashMap<UserApplicationId, LoadedApplication<UserInstance>>,
     /// The current stack of application descriptions.
     call_stack: Vec<ApplicationStatus>,
     /// The set of the IDs of the applications that are in the `call_stack`.
@@ -319,22 +318,20 @@ impl SyncRuntimeInternal<UserContractInstance> {
         &mut self,
         this: Arc<Mutex<Self>>,
         id: UserApplicationId,
-    ) -> Result<(Arc<Mutex<UserContractInstance>>, UserApplicationDescription), ExecutionError> {
-        let entry = self.loaded_applications.entry(id);
-        match entry {
-            std::collections::hash_map::Entry::Vacant(e) => {
+    ) -> Result<LoadedApplication<UserContractInstance>, ExecutionError> {
+        match self.loaded_applications.entry(id) {
+            hash_map::Entry::Vacant(entry) => {
                 let (code, description) = self
                     .execution_state_sender
                     .send_request(|callback| Request::LoadContract { id, callback })?
                     .recv_response()?;
 
                 let instance = code.instantiate(SyncRuntime(this))?;
-                let value = e.insert((Arc::new(Mutex::new(instance)), description)).clone();
-                Ok(value)
+                Ok(entry
+                    .insert(LoadedApplication::new(instance, description))
+                    .clone())
             }
-            std::collections::hash_map::Entry::Occupied(e) => {
-                Ok(e.get().clone())
-            }
+            hash_map::Entry::Occupied(entry) => Ok(entry.get().clone()),
         }
     }
 
@@ -349,7 +346,7 @@ impl SyncRuntimeInternal<UserContractInstance> {
         self.check_for_reentrancy(callee_id)?;
 
         // Load the application.
-        let (contract, description) = self.load_contract_instance(this, callee_id)?;
+        let application = self.load_contract_instance(this, callee_id)?;
 
         let caller = self.current_application();
         let caller_id = caller.id;
@@ -369,11 +366,11 @@ impl SyncRuntimeInternal<UserContractInstance> {
         };
         self.push_application(ApplicationStatus {
             id: callee_id,
-            parameters: description.parameters,
+            parameters: application.parameters,
             // Allow further nested calls to be authenticated if this one is.
             signer: authenticated_signer,
         });
-        Ok((contract, callee_context))
+        Ok((application.instance, callee_context))
     }
 
     /// Cleans-up the runtime after the execution of a call to a different contract.
@@ -536,22 +533,20 @@ impl SyncRuntimeInternal<UserServiceInstance> {
         &mut self,
         this: Arc<Mutex<Self>>,
         id: UserApplicationId,
-    ) -> Result<(Arc<Mutex<UserServiceInstance>>, UserApplicationDescription), ExecutionError> {
-        let entry = self.loaded_applications.entry(id);
-        match entry {
-            std::collections::hash_map::Entry::Vacant(e) => {
+    ) -> Result<LoadedApplication<UserServiceInstance>, ExecutionError> {
+        match self.loaded_applications.entry(id) {
+            hash_map::Entry::Vacant(entry) => {
                 let (code, description) = self
                     .execution_state_sender
                     .send_request(|callback| Request::LoadService { id, callback })?
                     .recv_response()?;
 
                 let instance = code.instantiate(SyncRuntime(this))?;
-                let value = e.insert((Arc::new(Mutex::new(instance)), description)).clone();
-                Ok(value)
+                Ok(entry
+                    .insert(LoadedApplication::new(instance, description))
+                    .clone())
             }
-            std::collections::hash_map::Entry::Occupied(e) => {
-                Ok(e.get().clone())
-            }
+            hash_map::Entry::Occupied(entry) => Ok(entry.get().clone()),
         }
     }
 }
@@ -581,8 +576,7 @@ impl<UserInstance> BaseRuntime for SyncRuntime<UserInstance> {
     type ContainsKey = <SyncRuntimeInternal<UserInstance> as BaseRuntime>::ContainsKey;
     type ReadMultiValuesBytes =
         <SyncRuntimeInternal<UserInstance> as BaseRuntime>::ReadMultiValuesBytes;
-    type FindKeysByPrefix =
-        <SyncRuntimeInternal<UserInstance> as BaseRuntime>::FindKeysByPrefix;
+    type FindKeysByPrefix = <SyncRuntimeInternal<UserInstance> as BaseRuntime>::FindKeysByPrefix;
     type FindKeyValuesByPrefix =
         <SyncRuntimeInternal<UserInstance> as BaseRuntime>::FindKeyValuesByPrefix;
 
@@ -948,9 +942,12 @@ impl ContractRuntime for ContractSyncRuntime {
         forwarded_sessions: Vec<SessionId>,
     ) -> Result<CallOutcome, ExecutionError> {
         let cloned_self = self.clone().0;
-        let (contract, callee_context) =
-            self.inner()
-                .prepare_for_call(cloned_self, authenticated, callee_id, &forwarded_sessions)?;
+        let (contract, callee_context) = self.inner().prepare_for_call(
+            cloned_self,
+            authenticated,
+            callee_id,
+            &forwarded_sessions,
+        )?;
 
         let raw_outcome = contract
             .try_lock()
@@ -1044,17 +1041,17 @@ impl ServiceRuntime for ServiceSyncRuntime {
             let mut this = self.inner();
 
             // Load the application.
-            let (service, description) = this.load_service_instance(cloned_self, queried_id)?;
+            let application = this.load_service_instance(cloned_self, queried_id)?;
             // Make the call to user code.
             let query_context = crate::QueryContext {
                 chain_id: this.chain_id,
             };
             this.push_application(ApplicationStatus {
                 id: queried_id,
-                parameters: description.parameters,
+                parameters: application.parameters,
                 signer: None,
             });
-            (query_context, service)
+            (query_context, application.instance)
         };
         let response = service
             .try_lock()
