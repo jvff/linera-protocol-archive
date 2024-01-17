@@ -533,8 +533,7 @@ impl<UserInstance> SyncRuntime<UserInstance> {
         SyncRuntime(Arc::new(Mutex::new(runtime)))
     }
 
-    fn into_inner(mut self) -> Option<SyncRuntimeInternal<UserInstance>> {
-        self.inner().loaded_applications.clear();
+    fn into_inner(self) -> Option<SyncRuntimeInternal<UserInstance>> {
         let runtime = Arc::into_inner(self.0)?
             .into_inner()
             .expect("thread should not have panicked");
@@ -868,7 +867,7 @@ impl ContractSyncRuntime {
             parameters: description.parameters,
             signer,
         });
-        let runtime = ContractSyncRuntime::new(runtime);
+        let mut runtime = ContractSyncRuntime::new(runtime);
         let execution_result = {
             let mut code = code.instantiate(runtime.clone())?;
             match action {
@@ -881,6 +880,7 @@ impl ContractSyncRuntime {
         };
         // Ensure the `loaded_applications` are cleared to prevent circular references in the
         // `runtime`
+        runtime.inner().loaded_applications.clear();
         let mut runtime = runtime
             .into_inner()
             .expect("Runtime clones should have been freed by now");
@@ -999,7 +999,7 @@ impl ServiceSyncRuntime {
 
         // Ensure the `loaded_applications` are cleared to remove circular references in
         // `runtime_internal`
-        runtime.into_inner();
+        runtime.inner().loaded_applications.clear();
         result
     }
 }
