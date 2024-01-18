@@ -372,7 +372,7 @@ impl SyncRuntimeInternal<UserContractInstance> {
         Ok((application.instance, callee_context))
     }
 
-    /// Cleans-up the runtime after the execution of a call to a different contract.
+    /// Cleans up the runtime after the execution of a call to a different contract.
     fn finish_call(
         &mut self,
         raw_outcome: ApplicationCallOutcome,
