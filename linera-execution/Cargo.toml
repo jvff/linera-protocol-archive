@@ -32,12 +32,13 @@ custom_debug_derive = { workspace = true }
 dashmap = { workspace = true }
 derive_more = { workspace = true }
 futures = { workspace = true }
-linera-base = { workspace = true }
+linera-base = { workspace = true, features = ["metrics"] }
 linera-views = { workspace = true, features = ["metrics"] }
 linera-views-derive = { workspace = true }
 lru = { workspace = true }
 once_cell = { workspace = true }
 oneshot = { workspace = true }
+prometheus = { workspace = true }
 serde = { workspace = true }
 serde_bytes = { workspace = true }
 serde_json = { workspace = true }

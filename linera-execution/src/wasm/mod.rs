@@ -26,6 +26,8 @@ use crate::{
     Bytecode, ContractSyncRuntime, ExecutionError, ServiceSyncRuntime, UserContractInstance,
     UserContractModule, UserServiceInstance, UserServiceModule, WasmRuntime,
 };
+use linera_base::{metrics::MeasureLatency, sync::Lazy};
+use prometheus::{register_histogram_vec, HistogramVec};
 use std::{path::Path, sync::Arc};
 use thiserror::Error;
 
@@ -33,6 +35,26 @@ use thiserror::Error;
 use wasmer::{WasmerContractInstance, WasmerServiceInstance};
 #[cfg(feature = "wasmtime")]
 use wasmtime::{WasmtimeContractInstance, WasmtimeServiceInstance};
+
+pub static CONTRACT_INSTANTIATION_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    register_histogram_vec!(
+        "contract_instantiation_latency",
+        "Contract instantiation latency",
+        &[],
+        vec![0.000_1, 0.000_3, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0],
+    )
+    .expect("Histogram creation should not fail")
+});
+
+pub static SERVICE_INSTANTIATION_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    register_histogram_vec!(
+        "service_instantiation_latency",
+        "Service instantiation latency",
+        &[],
+        vec![0.000_1, 0.000_3, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0],
+    )
+    .expect("Histogram creation should not fail")
+});
 
 /// A user contract in a compiled WebAssembly module.
 #[derive(Clone)]
@@ -92,16 +114,20 @@ impl UserContractModule for WasmContractModule {
         &self,
         runtime: ContractSyncRuntime,
     ) -> Result<UserContractInstance, ExecutionError> {
-        match self {
+        let _instantiation_latency = CONTRACT_INSTANTIATION_LATENCY.measure_latency();
+
+        let instance: UserContractInstance = match self {
             #[cfg(feature = "wasmtime")]
-            WasmContractModule::Wasmtime { module } => Ok(Box::new(
-                WasmtimeContractInstance::prepare(module, runtime)?,
-            )),
+            WasmContractModule::Wasmtime { module } => {
+                Box::new(WasmtimeContractInstance::prepare(module, runtime)?)
+            }
             #[cfg(feature = "wasmer")]
-            WasmContractModule::Wasmer { engine, module } => Ok(Box::new(
-                WasmerContractInstance::prepare(engine, module, runtime)?,
-            )),
-        }
+            WasmContractModule::Wasmer { engine, module } => {
+                Box::new(WasmerContractInstance::prepare(engine, module, runtime)?)
+            }
+        };
+
+        Ok(instance)
     }
 }
 
@@ -153,16 +179,20 @@ impl UserServiceModule for WasmServiceModule {
         &self,
         runtime: ServiceSyncRuntime,
     ) -> Result<UserServiceInstance, ExecutionError> {
-        match self {
+        let _instantiation_latency = SERVICE_INSTANTIATION_LATENCY.measure_latency();
+
+        let instance: UserServiceInstance = match self {
             #[cfg(feature = "wasmtime")]
             WasmServiceModule::Wasmtime { module } => {
-                Ok(Box::new(WasmtimeServiceInstance::prepare(module, runtime)?))
+                Box::new(WasmtimeServiceInstance::prepare(module, runtime)?)
             }
             #[cfg(feature = "wasmer")]
             WasmServiceModule::Wasmer { module } => {
-                Ok(Box::new(WasmerServiceInstance::prepare(module, runtime)?))
+                Box::new(WasmerServiceInstance::prepare(module, runtime)?)
             }
-        }
+        };
+
+        Ok(instance)
     }
 }
 
