@@ -606,6 +606,7 @@ where
         let mut tracker = ResourceTracker {
             used_fuel: 0,
             num_reads: 0,
+            num_writes: 0,
             bytes_read: 0,
             bytes_written: 0,
             maximum_bytes_left_to_read,

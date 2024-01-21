@@ -30,6 +30,8 @@ pub struct ResourceTracker {
     pub used_fuel: u64,
     /// The number of reads in the computation
     pub num_reads: u64,
+    /// The number of writes in the computation
+    pub num_writes: u64,
     /// The total number of bytes read
     pub bytes_read: u64,
     /// The total number of bytes written
@@ -48,6 +50,7 @@ impl Default for ResourceTracker {
         ResourceTracker {
             used_fuel: 0,
             num_reads: 0,
+            num_writes: 0,
             bytes_read: 0,
             bytes_written: 0,
             stored_size_delta: 0,
@@ -139,6 +142,8 @@ pub struct RuntimeCounts {
     pub remaining_fuel: u64,
     /// The number of read operations
     pub num_reads: u64,
+    /// The number of write operations
+    pub num_writes: u64,
     /// The bytes that have been read
     pub bytes_read: u64,
     /// The bytes that have been written
@@ -153,6 +158,16 @@ impl RuntimeCounts {
         if self.num_reads >= limits.max_budget_num_reads {
             return Err(ExecutionError::ExcessiveNumReads);
         }
+        Ok(())
+    }
+
+    /// Increments the number of executed write operations.
+    pub fn increment_num_writes(
+        &mut self,
+        _limits: &RuntimeLimits,
+        amount: u64,
+    ) -> Result<(), ExecutionError> {
+        self.num_writes += amount;
         Ok(())
     }
 
