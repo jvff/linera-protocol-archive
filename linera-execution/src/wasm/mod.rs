@@ -36,7 +36,7 @@ use wasmer::{WasmerContractInstance, WasmerServiceInstance};
 #[cfg(feature = "wasmtime")]
 use wasmtime::{WasmtimeContractInstance, WasmtimeServiceInstance};
 
-pub static CONTRACT_INSTANTIATION_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+static CONTRACT_INSTANTIATION_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
     register_histogram_vec!(
         "contract_instantiation_latency",
         "Contract instantiation latency",
@@ -46,7 +46,7 @@ pub static CONTRACT_INSTANTIATION_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
     .expect("Histogram creation should not fail")
 });
 
-pub static SERVICE_INSTANTIATION_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+static SERVICE_INSTANTIATION_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
     register_histogram_vec!(
         "service_instantiation_latency",
         "Service instantiation latency",
