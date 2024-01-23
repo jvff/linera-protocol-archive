@@ -70,7 +70,7 @@ static MESSAGE_EXECUTION_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
     .expect("Histogram creation should not fail")
 });
 
-pub static OPERATION_EXECUTION_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+static OPERATION_EXECUTION_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
     register_histogram_vec!(
         "operation_execution_latency",
         "Operation execution latency",
