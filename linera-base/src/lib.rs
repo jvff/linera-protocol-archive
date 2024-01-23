@@ -12,6 +12,8 @@ pub mod crypto;
 pub mod data_types;
 mod graphql;
 pub mod identifiers;
+#[cfg(feature = "metrics")]
+pub mod metrics;
 pub mod sync;
 
 pub use graphql::BcsHexParseError;

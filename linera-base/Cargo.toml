@@ -11,6 +11,7 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
+metrics = ["prometheus"]
 test = ["test-strategy", "proptest"]
 
 [dependencies]
@@ -19,6 +20,7 @@ bcs = { workspace = true }
 ed25519-dalek = { workspace = true }
 generic-array = { workspace = true }
 hex = { workspace = true }
+prometheus = { workspace = true, optional = true }
 proptest = { workspace = true, optional = true }
 serde = { workspace = true }
 serde-name = { workspace = true }
