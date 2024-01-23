@@ -18,7 +18,7 @@ async-graphql = { workspace = true }
 async-lock = { workspace = true }
 async-trait = { workspace = true }
 futures = { workspace = true }
-linera-base = { workspace = true }
+linera-base = { workspace = true, features = ["metrics"] }
 linera-execution = { workspace = true }
 linera-views = { workspace = true, features = ["metrics"] }
 prometheus = { workspace = true }

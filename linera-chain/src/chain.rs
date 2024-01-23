@@ -17,6 +17,7 @@ use linera_base::{
     data_types::{Amount, ArithmeticError, BlockHeight, Timestamp},
     ensure,
     identifiers::{ChainId, Destination, MessageId},
+    metrics::MeasureLatency,
     sync::Lazy,
 };
 use linera_execution::{
@@ -36,10 +37,7 @@ use linera_views::{
 };
 use prometheus::{register_histogram_vec, register_int_counter_vec, HistogramVec, IntCounterVec};
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::{BTreeMap, HashSet},
-    time::Instant,
-};
+use std::collections::{BTreeMap, HashSet};
 
 pub static NUM_BLOCKS_EXECUTED: Lazy<IntCounterVec> = Lazy::new(|| {
     register_int_counter_vec!("num_blocks_executed", "Number of blocks executed", &[])
@@ -585,7 +583,7 @@ where
         block: &Block,
         local_time: Timestamp,
     ) -> Result<BlockExecutionOutcome, ChainError> {
-        let start_time = Instant::now();
+        let _execution_latency = BLOCK_EXECUTION_LATENCY.measure_latency();
 
         assert_eq!(block.chain_id, self.chain_id());
         let chain_id = self.chain_id();
@@ -747,9 +745,6 @@ where
 
         // Log Prometheus metrics
         NUM_BLOCKS_EXECUTED.with_label_values(&[]).inc();
-        BLOCK_EXECUTION_LATENCY
-            .with_label_values(&[])
-            .observe(start_time.elapsed().as_millis() as f64);
         WASM_FUEL_USED_PER_BLOCK
             .with_label_values(&[])
             .observe(tracker.used_fuel as f64);
