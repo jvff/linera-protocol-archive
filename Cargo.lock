@@ -3393,6 +3393,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tokio-test",
+ "tracing",
  "wasmtime",
 ]
 

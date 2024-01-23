@@ -16,6 +16,7 @@ use linera_chain::data_types::{
 };
 use linera_execution::{system::SystemOperation, Operation};
 use std::mem;
+use tracing::instrument;
 
 /// A helper type to build [`Block`]s using the builder pattern, and then signing them into
 /// [`Certificate`]s using a [`TestValidator`].
@@ -146,6 +147,7 @@ impl BlockBuilder {
 
     /// Signs the prepared [`Block`] with the [`TestValidator`]'s keys and returns the resulting
     /// [`Certificate`].
+    #[instrument(skip_all, fields(block = ?self.block, messages = ?self.incoming_messages))]
     pub(crate) async fn sign(mut self) -> (Certificate, Vec<MessageId>) {
         self.collect_incoming_messages().await;
 

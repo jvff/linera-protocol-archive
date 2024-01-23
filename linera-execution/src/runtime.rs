@@ -21,6 +21,7 @@ use oneshot::Receiver;
 use std::{
     collections::{hash_map, BTreeMap, HashMap, HashSet},
     sync::{Arc, Mutex},
+    time::Instant,
 };
 
 #[cfg(test)]
@@ -889,7 +890,11 @@ impl ContractSyncRuntime {
             runtime_limits,
             initial_remaining_fuel,
         );
+        let load_time = Instant::now();
         let (code, description) = runtime.load_contract(application_id)?;
+        tracing::trace!("Loaded contract in {:.2?}", load_time.elapsed());
+
+        let execution_time = Instant::now();
         let signer = action.signer();
         runtime.push_application(ApplicationStatus {
             id: application_id,
@@ -927,6 +932,7 @@ impl ContractSyncRuntime {
             application_id,
             execution_outcome.with_authenticated_signer(signer),
         ));
+        tracing::trace!("Executed user action in {:.2?}", execution_time.elapsed());
         Ok((runtime.execution_outcomes, runtime.runtime_counts))
     }
 }

@@ -117,6 +117,13 @@ async fn collect_pledges() {
 /// collecting the pledges. The final balance of each backer and the campaign owner is checked.
 #[tokio::test(flavor = "multi_thread")]
 async fn cancel_successful_campaign() {
+    let env_filter = tracing_subscriber::EnvFilter::builder()
+        .with_default_directive(tracing_subscriber::filter::LevelFilter::INFO.into())
+        .from_env_lossy();
+    tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
+        .with_env_filter(env_filter)
+        .init();
     let initial_amount = Amount::from_tokens(100);
     let target_amount = Amount::from_tokens(220);
     let pledge_amount = Amount::from_tokens(75);
@@ -207,4 +214,10 @@ async fn cancel_successful_campaign() {
             Some(pledge_amount),
         );
     }
+
+    let metrics = prometheus::TextEncoder::new()
+        .encode_to_string(&prometheus::gather())
+        .unwrap();
+    println!("METRICS");
+    println!("{metrics}");
 }

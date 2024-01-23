@@ -17,7 +17,8 @@ pub struct WrappedHashableContainerView<C, W, O> {
     context: C,
     stored_hash: Option<O>,
     hash: Mutex<Option<O>>,
-    inner: W,
+    /// The inner view `W`.
+    pub inner: W,
 }
 
 /// Key tags to create the sub-keys of a MapView on top of the base key.
