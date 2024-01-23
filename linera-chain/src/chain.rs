@@ -57,7 +57,7 @@ pub static BLOCK_EXECUTION_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
     .expect("Counter creation should not fail")
 });
 
-pub static MESSAGE_EXECUTION_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+static MESSAGE_EXECUTION_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
     register_histogram_vec!(
         "message_execution_latency",
         "Message execution latency",
