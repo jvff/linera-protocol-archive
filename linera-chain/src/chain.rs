@@ -158,7 +158,7 @@ pub static WASM_BYTES_WRITTEN_PER_BLOCK: Lazy<HistogramVec> = Lazy::new(|| {
     .expect("Counter can be created")
 });
 
-pub static STATE_HASH_COMPUTATION_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+static STATE_HASH_COMPUTATION_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
     register_histogram_vec!(
         "state_hash_computation_latency",
         "Time to recompute the state hash",
