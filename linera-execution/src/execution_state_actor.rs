@@ -23,7 +23,7 @@ use prometheus::{register_histogram_vec, HistogramVec};
 use std::fmt::{self, Debug, Formatter};
 
 /// Histogram of the latency to load a contract bytecode.
-pub static LOAD_CONTRACT_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+static LOAD_CONTRACT_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
     register_histogram_vec!(
         "load_contract_latency",
         "Load contract latency",
@@ -37,7 +37,7 @@ pub static LOAD_CONTRACT_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
 });
 
 /// Histogram of the latency to load a service bytecode.
-pub static LOAD_SERVICE_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+static LOAD_SERVICE_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
     register_histogram_vec!(
         "load_service_latency",
         "Load service latency",
