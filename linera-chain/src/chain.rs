@@ -774,10 +774,9 @@ where
         // Recompute the state hash.
         let state_hash = {
             let _hash_latency = STATE_HASH_COMPUTATION_LATENCY.measure_latency();
-            let state_hash = self.execution_state.crypto_hash().await?;
-            self.execution_state_hash.set(Some(state_hash));
-            state_hash
+            self.execution_state.crypto_hash().await?
         };
+        self.execution_state_hash.set(Some(state_hash));
         // Last, reset the consensus state based on the current ownership.
         self.manager.get_mut().reset(
             self.execution_state.system.ownership.get(),
