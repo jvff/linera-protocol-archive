@@ -129,27 +129,27 @@ where
     }
 
     async fn read_value_bytes(&self, key: &[u8]) -> Result<Option<Vec<u8>>, E> {
-        let _latency = self.counter.read_value_bytes.measure_latency();
+        let _metric = self.counter.read_value_bytes.measure_latency();
         self.store.read_value_bytes(key).await
     }
 
     async fn contains_key(&self, key: &[u8]) -> Result<bool, E> {
-        let _latency = self.counter.contains_key.measure_latency();
+        let _metric = self.counter.contains_key.measure_latency();
         self.store.contains_key(key).await
     }
 
     async fn read_multi_values_bytes(&self, keys: Vec<Vec<u8>>) -> Result<Vec<Option<Vec<u8>>>, E> {
-        let _latency = self.counter.read_multi_values_bytes.measure_latency();
+        let _metric = self.counter.read_multi_values_bytes.measure_latency();
         self.store.read_multi_values_bytes(keys).await
     }
 
     async fn find_keys_by_prefix(&self, key_prefix: &[u8]) -> Result<Self::Keys, E> {
-        let _latency = self.counter.find_keys_by_prefix.measure_latency();
+        let _metric = self.counter.find_keys_by_prefix.measure_latency();
         self.store.find_keys_by_prefix(key_prefix).await
     }
 
     async fn find_key_values_by_prefix(&self, key_prefix: &[u8]) -> Result<Self::KeyValues, E> {
-        let _latency = self.counter.find_key_values_by_prefix.measure_latency();
+        let _metric = self.counter.find_key_values_by_prefix.measure_latency();
         self.store.find_key_values_by_prefix(key_prefix).await
     }
 }
@@ -162,12 +162,12 @@ where
     const MAX_VALUE_SIZE: usize = K::MAX_VALUE_SIZE;
 
     async fn write_batch(&self, batch: Batch, base_key: &[u8]) -> Result<(), E> {
-        let _latency = self.counter.write_batch.measure_latency();
+        let _metric = self.counter.write_batch.measure_latency();
         self.store.write_batch(batch, base_key).await
     }
 
     async fn clear_journal(&self, base_key: &[u8]) -> Result<(), E> {
-        let _latency = self.counter.clear_journal.measure_latency();
+        let _metric = self.counter.clear_journal.measure_latency();
         self.store.clear_journal(base_key).await
     }
 }
