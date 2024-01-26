@@ -53,8 +53,10 @@ impl ChainGuards {
         let guard = self.get_or_create_lock(chain_id);
         let chain_id_string = chain_id.to_string();
         let queue_metric = QUEUED_CHAIN_GUARD_REQUESTS.with_label_values(&[&chain_id_string]);
+        let max_metric = MAX_QUEUED_CHAIN_GUARD_REQUESTS.with_label_values(&[&chain_id_string]);
 
         queue_metric.inc();
+        max_metric.set(queue_metric.get().max(max_metric.get()));
         let locked_guard = guard.lock_owned().await;
         queue_metric.dec();
 
@@ -160,11 +162,21 @@ impl Debug for ChainGuard {
     }
 }
 
-/// The number of active requests for a [`ChainGuard`].
+/// The number of active requests waiting for a [`ChainGuard`].
 static QUEUED_CHAIN_GUARD_REQUESTS: Lazy<IntGaugeVec> = Lazy::new(|| {
     register_int_gauge_vec(
         "queued_chain_guard_requests",
         "The number of lock requests that are waiting for a chain guard",
+        &["chain_id"],
+    )
+    .expect("Creation of Gauge should not fail")
+});
+
+/// The number of maximum simultaneous requests waiting for a [`ChainGuard`].
+static MAX_QUEUED_CHAIN_GUARD_REQUESTS: Lazy<IntGaugeVec> = Lazy::new(|| {
+    register_int_gauge_vec(
+        "max_queued_chain_guard_requests",
+        "The maximum number of lock requests waiting for a chain guard",
         &["chain_id"],
     )
     .expect("Creation of Gauge should not fail")
