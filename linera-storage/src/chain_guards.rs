@@ -11,8 +11,12 @@
 //! instance is dropped.
 
 use dashmap::DashMap;
-use linera_base::{identifiers::ChainId, prometheus_util::register_int_gauge_vec, sync::Lazy};
-use prometheus::IntGaugeVec;
+use linera_base::{
+    identifiers::ChainId,
+    prometheus_util::{register_histogram_vec, MeasureLatency},
+    sync::Lazy,
+};
+use prometheus::HistogramVec;
 use std::{
     fmt::{self, Debug, Formatter},
     sync::{Arc, Weak},
@@ -51,19 +55,12 @@ impl ChainGuards {
     /// the same chain.
     pub async fn guard(&self, chain_id: ChainId) -> ChainGuard {
         let guard = self.get_or_create_lock(chain_id);
-        let chain_id_string = chain_id.to_string();
-        let queue_metric = QUEUED_CHAIN_GUARD_REQUESTS.with_label_values(&[&chain_id_string]);
-        let max_metric = MAX_QUEUED_CHAIN_GUARD_REQUESTS.with_label_values(&[&chain_id_string]);
-
-        queue_metric.inc();
-        max_metric.set(queue_metric.get().max(max_metric.get()));
-        let locked_guard = guard.lock_owned().await;
-        queue_metric.dec();
+        let _measurement = CHAIN_GUARD_LOCK_LATENCY.measure_latency();
 
         ChainGuard {
             chain_id,
             guards: self.guards.clone(),
-            guard: Some(locked_guard),
+            guard: Some(guard.lock_owned().await),
         }
     }
 
@@ -162,22 +159,15 @@ impl Debug for ChainGuard {
     }
 }
 
-/// The number of active requests waiting for a [`ChainGuard`].
-static QUEUED_CHAIN_GUARD_REQUESTS: Lazy<IntGaugeVec> = Lazy::new(|| {
-    register_int_gauge_vec(
-        "queued_chain_guard_requests",
-        "The number of lock requests that are waiting for a chain guard",
-        &["chain_id"],
-    )
-    .expect("Creation of Gauge should not fail")
-});
-
-/// The number of maximum simultaneous requests waiting for a [`ChainGuard`].
-static MAX_QUEUED_CHAIN_GUARD_REQUESTS: Lazy<IntGaugeVec> = Lazy::new(|| {
-    register_int_gauge_vec(
-        "max_queued_chain_guard_requests",
-        "The maximum number of lock requests waiting for a chain guard",
-        &["chain_id"],
+/// The time spent waiting to acquire a [`ChainGuard`].
+static CHAIN_GUARD_LOCK_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    register_histogram_vec(
+        "chain_guard_lock_atency",
+        "The time spent waiting to acquire a chain guard",
+        &[],
+        Some(vec![
+            0.000_5, 0.001, 0.005, 0.01, 0.1, 1.0, 2.5, 5.0, 10.0, 25.0, 50.0, 100.0, 500.0,
+        ]),
     )
     .expect("Creation of Gauge should not fail")
 });
