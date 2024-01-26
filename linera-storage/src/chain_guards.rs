@@ -11,7 +11,8 @@
 //! instance is dropped.
 
 use dashmap::DashMap;
-use linera_base::identifiers::ChainId;
+use linera_base::{identifiers::ChainId, prometheus_util::register_int_gauge_vec, sync::Lazy};
+use prometheus::IntGaugeVec;
 use std::{
     fmt::{self, Debug, Formatter},
     sync::{Arc, Weak},
@@ -50,10 +51,17 @@ impl ChainGuards {
     /// the same chain.
     pub async fn guard(&self, chain_id: ChainId) -> ChainGuard {
         let guard = self.get_or_create_lock(chain_id);
+        let chain_id_string = chain_id.to_string();
+        let queue_metric = QUEUED_CHAIN_GUARD_REQUESTS.with_label_values(&[&chain_id_string]);
+
+        queue_metric.inc();
+        let locked_guard = guard.lock_owned().await;
+        queue_metric.dec();
+
         ChainGuard {
             chain_id,
             guards: self.guards.clone(),
-            guard: Some(guard.lock_owned().await),
+            guard: Some(locked_guard),
         }
     }
 
@@ -151,3 +159,13 @@ impl Debug for ChainGuard {
             .finish_non_exhaustive()
     }
 }
+
+/// The number of active requests for a [`ChainGuard`].
+static QUEUED_CHAIN_GUARD_REQUESTS: Lazy<IntGaugeVec> = Lazy::new(|| {
+    register_int_gauge_vec(
+        "queued_chain_guard_requests",
+        "The number of lock requests that are waiting for a chain guard",
+        &["chain_id"],
+    )
+    .expect("Creation of Gauge should not fail")
+});
