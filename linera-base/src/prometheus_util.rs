@@ -4,8 +4,8 @@
 //! This module defines util functions for interacting with Prometheus (logging metrics, etc)
 
 use prometheus::{
-    histogram_opts, opts, register_histogram_vec, register_int_counter_vec, register_int_gauge_vec,
-    Error, HistogramVec, IntCounterVec, IntGaugeVec, Opts,
+    histogram_opts, register_histogram_vec, register_int_counter_vec, Error, HistogramVec,
+    IntCounterVec, Opts,
 };
 use std::time::Instant;
 
@@ -35,16 +35,6 @@ pub fn register_histogram_vec(
     };
 
     register_histogram_vec!(histogram_opts, label_names)
-}
-
-/// Wrapper around prometheus register_int_gauge_vec! macro which also sets the linera namespace
-pub fn register_int_gauge_vec(
-    name: &str,
-    description: &str,
-    label_names: &[&str],
-) -> Result<IntGaugeVec, Error> {
-    let options = opts!(name, description).namespace(LINERA_NAMESPACE);
-    register_int_gauge_vec!(options, label_names)
 }
 
 /// A guard for an active latency measurement.
