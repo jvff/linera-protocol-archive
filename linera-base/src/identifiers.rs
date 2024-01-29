@@ -10,6 +10,7 @@ use crate::{
     doc_scalar,
 };
 use anyhow::{anyhow, Context};
+use linera_witty::{WitLoad, WitStore, WitType};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Debug, Display},
@@ -19,7 +20,21 @@ use std::{
 
 /// The owner of a chain. This is currently the hash of the owner's public key used to
 /// verify signatures.
-#[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Debug, Serialize, Deserialize)]
+#[derive(
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    Copy,
+    Clone,
+    Hash,
+    Debug,
+    Serialize,
+    Deserialize,
+    WitLoad,
+    WitStore,
+    WitType,
+)]
 #[cfg_attr(with_testing, derive(Default, test_strategy::Arbitrary))]
 pub struct Owner(pub CryptoHash);
 
@@ -105,13 +120,40 @@ impl ChainDescription {
 
 /// The unique identifier (UID) of a chain. This is currently computed as the hash value
 /// of a [`ChainDescription`].
-#[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Serialize, Deserialize)]
+#[derive(
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    Copy,
+    Clone,
+    Hash,
+    Serialize,
+    Deserialize,
+    WitLoad,
+    WitStore,
+    WitType,
+)]
 #[cfg_attr(with_testing, derive(test_strategy::Arbitrary))]
 #[cfg_attr(with_testing, derive(Default))]
 pub struct ChainId(pub CryptoHash);
 
 /// The index of a message in a chain.
-#[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Debug, Serialize, Deserialize)]
+#[derive(
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    Copy,
+    Clone,
+    Hash,
+    Debug,
+    Serialize,
+    Deserialize,
+    WitLoad,
+    WitStore,
+    WitType,
+)]
 #[cfg_attr(with_testing, derive(Default))]
 pub struct MessageId {
     /// The chain ID that created the message.
@@ -123,6 +165,7 @@ pub struct MessageId {
 }
 
 /// A unique identifier for a user application.
+#[derive(WitLoad, WitStore, WitType)]
 #[cfg_attr(with_testing, derive(Default))]
 pub struct ApplicationId<A = ()> {
     /// The bytecode to use for the application.
@@ -132,15 +175,18 @@ pub struct ApplicationId<A = ()> {
 }
 
 /// A unique identifier for an application bytecode.
+#[derive(WitLoad, WitStore, WitType)]
 #[cfg_attr(with_testing, derive(Default))]
 pub struct BytecodeId<A = ()> {
     /// The message ID that published the bytecode.
     pub message_id: MessageId,
+    #[witty(skip)]
     _phantom: std::marker::PhantomData<A>,
 }
 
 /// The identifier of a session.
 #[cfg_attr(with_testing, derive(Default))]
+#[derive(WitLoad, WitStore, WitType)]
 pub struct SessionId<A = ()> {
     /// The user application that runs the session.
     pub application_id: ApplicationId<A>,
@@ -149,11 +195,24 @@ pub struct SessionId<A = ()> {
 }
 
 /// The name of a subscription channel.
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    Deserialize,
+    WitLoad,
+    WitStore,
+    WitType,
+)]
 pub struct ChannelName(#[serde(with = "serde_bytes")] Vec<u8>);
 
 /// The destination of a message, relative to a particular application.
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize, WitLoad, WitStore, WitType)]
 pub enum Destination {
     /// Direct message to a chain.
     Recipient(ChainId),

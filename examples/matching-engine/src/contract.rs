@@ -17,7 +17,7 @@ use linera_sdk::{
     base::{AccountOwner, Amount, ApplicationId, Owner, SessionId, WithContractAbi},
     contract::system_api,
     ensure, ApplicationCallOutcome, CalleeContext, Contract, ExecutionOutcome, MessageContext,
-    OperationContext, OutgoingMessage, Resources, SessionCallOutcome, ViewStateStorage,
+    MessageKind, OperationContext, OutgoingMessage, SessionCallOutcome, ViewStateStorage,
 };
 
 linera_sdk::contract!(MatchingEngine);
@@ -316,8 +316,7 @@ impl MatchingEngine {
         outcome.messages.push(OutgoingMessage {
             destination: chain_id.into(),
             authenticated: true,
-            is_tracked: false,
-            resources: Resources::default(),
+            kind: MessageKind::Simple,
             message,
         });
         Ok(())

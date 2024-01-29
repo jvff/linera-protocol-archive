@@ -8,130 +8,13 @@
 
 #![allow(clippy::duplicate_mod)]
 
-use super::{contract, contract_system_api, service_system_api};
-use crate::{
-    ApplicationCallOutcome, ChannelName, Destination, MessageKind, RawExecutionOutcome,
-    RawOutgoingMessage, SessionCallOutcome, SessionId, UserApplicationId,
-};
+use super::{contract_system_api, service_system_api};
+use crate::{SessionId, UserApplicationId};
 use linera_base::{
     crypto::CryptoHash,
     data_types::{BlockHeight, Resources},
     identifiers::{BytecodeId, ChainId, MessageId},
 };
-
-impl From<contract::SessionCallOutcome> for (SessionCallOutcome, Vec<u8>) {
-    fn from(outcome: contract::SessionCallOutcome) -> Self {
-        let session_call_outcome = SessionCallOutcome {
-            inner: outcome.inner.into(),
-            close_session: outcome.new_state.is_some(),
-        };
-
-        let updated_session_state = outcome.new_state.unwrap_or_default();
-
-        (session_call_outcome, updated_session_state)
-    }
-}
-
-impl From<contract::ApplicationCallOutcome> for ApplicationCallOutcome {
-    fn from(outcome: contract::ApplicationCallOutcome) -> Self {
-        ApplicationCallOutcome {
-            create_sessions: outcome.create_sessions,
-            execution_outcome: outcome.execution_outcome.into(),
-            value: outcome.value,
-        }
-    }
-}
-
-impl From<contract::Resources> for Resources {
-    fn from(value: contract::Resources) -> Self {
-        Self {
-            fuel: value.fuel,
-            read_operations: value.read_operations,
-            write_operations: value.write_operations,
-            bytes_to_read: value.bytes_to_read,
-            bytes_to_write: value.bytes_to_write,
-            messages: value.messages,
-            message_size: value.message_size,
-            storage_size_delta: value.storage_size_delta,
-        }
-    }
-}
-
-impl From<contract::OutgoingMessage> for RawOutgoingMessage<Vec<u8>, Resources> {
-    fn from(message: contract::OutgoingMessage) -> Self {
-        Self {
-            destination: message.destination.into(),
-            authenticated: message.authenticated,
-            grant: message.resources.into(),
-            kind: if message.is_tracked {
-                MessageKind::Tracked
-            } else {
-                MessageKind::Simple
-            },
-            message: message.message,
-        }
-    }
-}
-
-impl From<contract::ExecutionOutcome> for RawExecutionOutcome<Vec<u8>, Resources> {
-    fn from(outcome: contract::ExecutionOutcome) -> Self {
-        let messages = outcome
-            .messages
-            .into_iter()
-            .map(RawOutgoingMessage::from)
-            .collect();
-
-        let subscribe = outcome
-            .subscribe
-            .into_iter()
-            .map(|(subscription, chain_id)| (subscription.into(), chain_id.into()))
-            .collect();
-
-        let unsubscribe = outcome
-            .unsubscribe
-            .into_iter()
-            .map(|(subscription, chain_id)| (subscription.into(), chain_id.into()))
-            .collect();
-
-        RawExecutionOutcome {
-            authenticated_signer: None,
-            refund_grant_to: None,
-            messages,
-            subscribe,
-            unsubscribe,
-        }
-    }
-}
-
-impl From<contract::Destination> for Destination {
-    fn from(guest: contract::Destination) -> Self {
-        match guest {
-            contract::Destination::Recipient(chain_id) => Destination::Recipient(chain_id.into()),
-            contract::Destination::Subscribers(subscription) => {
-                Destination::Subscribers(subscription.into())
-            }
-        }
-    }
-}
-
-impl From<contract::ChannelName> for ChannelName {
-    fn from(guest: contract::ChannelName) -> Self {
-        guest.name.into()
-    }
-}
-
-impl From<contract::CryptoHash> for CryptoHash {
-    fn from(guest: contract::CryptoHash) -> Self {
-        let integers = [guest.part1, guest.part2, guest.part3, guest.part4];
-        CryptoHash::from(integers)
-    }
-}
-
-impl From<contract::ChainId> for ChainId {
-    fn from(guest: contract::ChainId) -> Self {
-        ChainId(guest.into())
-    }
-}
 
 impl From<contract_system_api::SessionId> for SessionId {
     fn from(guest: contract_system_api::SessionId) -> Self {

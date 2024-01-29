@@ -171,11 +171,18 @@ fn mock_load_view() {
         .blocking_wait()
         .expect("Failed to persist view state");
 
-    let contract_view = contract::system_api::private::load_view::<DummyView<_>>().blocking_wait();
+    let mut contract_view =
+        contract::system_api::private::load_view::<DummyView<_>>().blocking_wait();
 
     assert_eq!(initial_view.one.get(), contract_view.one.get());
     assert_eq!(initial_view.two.get(), contract_view.two.get());
     assert_eq!(initial_view.three.get(), contract_view.three.get());
+
+    contract_view.rollback();
+    contract_view
+        .save()
+        .blocking_wait()
+        .expect("Failed to persist contract view state");
 
     let service_view = service::system_api::private::load_view::<DummyView<_>>().blocking_wait();
 
@@ -206,7 +213,8 @@ fn mock_find_keys() {
         .blocking_wait()
         .expect("Failed to persist view state");
 
-    let contract_view = contract::system_api::private::load_view::<DummyView<_>>().blocking_wait();
+    let mut contract_view =
+        contract::system_api::private::load_view::<DummyView<_>>().blocking_wait();
 
     let contract_keys = contract_view
         .map
@@ -216,7 +224,13 @@ fn mock_find_keys() {
 
     assert_eq!(contract_keys, keys);
 
-    let service_view = service::system_api::private::load_view::<DummyView<_>>().blocking_wait();
+    contract_view.rollback();
+    contract_view
+        .save()
+        .blocking_wait()
+        .expect("Failed to persist contract view state");
+
+    let service_view = service::system_api::private::lock_view::<DummyView<_>>().blocking_wait();
 
     let service_keys = service_view
         .map
@@ -254,7 +268,8 @@ fn mock_find_key_value_pairs() {
         .blocking_wait()
         .expect("Failed to persist view state");
 
-    let contract_view = contract::system_api::private::load_view::<DummyView<_>>().blocking_wait();
+    let mut contract_view =
+        contract::system_api::private::load_view::<DummyView<_>>().blocking_wait();
 
     let mut contract_pairs = Vec::new();
 
@@ -269,7 +284,13 @@ fn mock_find_key_value_pairs() {
 
     assert_eq!(contract_pairs, expected_pairs);
 
-    let service_view = service::system_api::private::load_view::<DummyView<_>>().blocking_wait();
+    contract_view.rollback();
+    contract_view
+        .save()
+        .blocking_wait()
+        .expect("Failed to persist contract view state");
+
+    let service_view = service::system_api::private::lock_view::<DummyView<_>>().blocking_wait();
 
     let mut service_pairs = Vec::new();
 

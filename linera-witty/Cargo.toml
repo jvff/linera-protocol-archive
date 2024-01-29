@@ -12,17 +12,22 @@ edition = "2021"
 
 [features]
 default = ["macros"]
+log = ["dep:log"]
 macros = ["linera-witty-macros"]
+guest = []
 test = ["linera-witty-macros?/test"]
 wasmer = ["dep:wasmer", "linera-witty-macros?/wasmer", "wasmer-vm"]
 wasmtime = ["dep:wasmtime", "linera-witty-macros?/wasmtime"]
+wit-generation = ["tokio"]
 
 [dependencies]
 anyhow.workspace = true
 either.workspace = true
 frunk.workspace = true
 linera-witty-macros = { workspace = true, optional = true }
+log = { workspace = true, optional = true }
 thiserror.workspace = true
+tokio = { workspace = true, features = ["fs", "io-util"], optional = true }
 wasmer = { workspace = true, optional = true }
 wasmer-vm = { workspace = true, optional = true }
 wasmtime = { workspace = true, optional = true }
