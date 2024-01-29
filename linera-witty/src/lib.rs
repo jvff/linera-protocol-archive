@@ -21,7 +21,10 @@ mod primitive_types;
 mod runtime;
 mod type_traits;
 mod util;
+pub mod wit_generation;
 
+#[cfg(feature = "guest")]
+pub use self::runtime::guest;
 #[cfg(feature = "wasmer")]
 pub use self::runtime::wasmer;
 #[cfg(feature = "wasmtime")]

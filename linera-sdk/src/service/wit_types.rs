@@ -6,9 +6,13 @@
 #![allow(missing_docs)]
 
 // Export the service interface.
-wit_bindgen_guest_rust::export!(
-    export_macro = "export_service"
-    types_path = "service::wit_types"
-    reexported_crate_path = "wit_bindgen_guest_rust"
-    "service.wit"
-);
+wit_bindgen::generate!({
+    path: "linera-sdk/wit",
+    inline:
+        "package linera:app-gen;\
+        world service-entrypoints-only { export linera:app/service-entrypoints; }",
+    world: "service-entrypoints-only",
+    stubs,
+});
+
+pub use self::exports::linera::app::service_entrypoints::*;

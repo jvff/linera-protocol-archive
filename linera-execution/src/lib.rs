@@ -31,7 +31,10 @@ pub use system::{
 #[cfg(all(any(test, feature = "test"), any(with_wasmer, with_wasmtime)))]
 pub use wasm::test as wasm_test;
 #[cfg(any(with_wasmer, with_wasmtime))]
-pub use wasm::{WasmContractModule, WasmExecutionError, WasmServiceModule};
+pub use wasm::{
+    ContractEntrypoints, ContractSystemApi, ServiceEntrypoints, ServiceSystemApi, SystemApiData,
+    ViewSystemApi, WasmContractModule, WasmExecutionError, WasmServiceModule,
+};
 #[cfg(any(test, feature = "test"))]
 pub use {applications::ApplicationRegistry, system::SystemExecutionState};
 
@@ -48,6 +51,7 @@ use linera_base::{
     identifiers::{BytecodeId, ChainId, ChannelName, Destination, MessageId, Owner, SessionId},
 };
 use linera_views::{batch::Batch, views::ViewError};
+use linera_witty::{WitLoad, WitStore, WitType};
 use serde::{Deserialize, Serialize};
 use std::{fmt, io, path::Path, str::FromStr, sync::Arc};
 use thiserror::Error;
@@ -198,7 +202,7 @@ pub trait UserService {
 }
 
 /// The result of calling into a user application.
-#[derive(Default)]
+#[derive(Default, WitLoad, WitType)]
 pub struct ApplicationCallOutcome {
     /// The return value.
     pub value: Vec<u8>,
@@ -223,7 +227,7 @@ impl ApplicationCallOutcome {
 }
 
 /// The result of calling into a session.
-#[derive(Default)]
+#[derive(Default, WitLoad, WitType)]
 pub struct SessionCallOutcome {
     /// The application result.
     pub inner: ApplicationCallOutcome,
@@ -261,7 +265,7 @@ pub trait ExecutionRuntimeContext {
     ) -> Result<UserServiceCode, ExecutionError>;
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, WitStore, WitType)]
 pub struct OperationContext {
     /// The current chain id.
     pub chain_id: ChainId,
@@ -275,7 +279,7 @@ pub struct OperationContext {
     pub next_message_index: u32,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, WitStore, WitType)]
 pub struct MessageContext {
     /// The current chain id.
     pub chain_id: ChainId,
@@ -292,7 +296,7 @@ pub struct MessageContext {
     pub message_id: MessageId,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, WitStore, WitType)]
 pub struct CalleeContext {
     /// The current chain id.
     pub chain_id: ChainId,
@@ -303,19 +307,19 @@ pub struct CalleeContext {
     pub authenticated_caller_id: Option<UserApplicationId>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, WitStore, WitType)]
 pub struct QueryContext {
     /// The current chain id.
     pub chain_id: ChainId,
 }
 
 pub trait BaseRuntime {
-    type Read: fmt::Debug + Send;
-    type ContainsKey: fmt::Debug + Send;
-    type ReadMultiValuesBytes: fmt::Debug + Send;
-    type ReadValueBytes: fmt::Debug + Send;
-    type FindKeysByPrefix: fmt::Debug + Send;
-    type FindKeyValuesByPrefix: fmt::Debug + Send;
+    type Read: fmt::Debug + Send + Sync;
+    type ContainsKey: fmt::Debug + Send + Sync;
+    type ReadMultiValuesBytes: fmt::Debug + Send + Sync;
+    type ReadValueBytes: fmt::Debug + Send + Sync;
+    type FindKeysByPrefix: fmt::Debug + Send + Sync;
+    type FindKeyValuesByPrefix: fmt::Debug + Send + Sync;
 
     /// The current chain id.
     fn chain_id(&mut self) -> Result<ChainId, ExecutionError>;
@@ -438,6 +442,7 @@ pub trait ServiceRuntime: BaseRuntime {
 }
 
 /// The result of calling into an application or a session.
+#[derive(WitStore, WitType)]
 pub struct CallOutcome {
     /// The return value.
     pub value: Vec<u8>,
@@ -529,8 +534,9 @@ pub enum Response {
 }
 
 /// A message together with routing information.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, WitLoad, WitType)]
 #[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
+#[witty_specialize_with(Message = Vec<u8>)]
 pub struct RawOutgoingMessage<Message> {
     /// The destination of the message.
     pub destination: Destination,
@@ -543,7 +549,7 @@ pub struct RawOutgoingMessage<Message> {
 }
 
 /// The kind of outgoing message being sent.
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize, Copy, WitLoad, WitType)]
 pub enum MessageKind {
     /// The message can be skipped or rejected. No receipt is requested.
     Simple,
@@ -559,8 +565,9 @@ pub enum MessageKind {
 
 /// Externally visible results of an execution. These results are meant in the context of
 /// the application that created them.
-#[derive(Debug)]
+#[derive(Debug, WitLoad, WitType)]
 #[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
+#[witty_specialize_with(Message = Vec<u8>)]
 pub struct RawExecutionOutcome<Message> {
     /// The signer who created the messages.
     pub authenticated_signer: Option<Owner>,
