@@ -7,6 +7,11 @@ mod conversions_from_wit;
 mod conversions_to_wit;
 mod runtime;
 mod storage;
+#[cfg(target_arch = "wasm32")]
+pub mod system_api;
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg_attr(not(target_arch = "wasm32"), path = "system_api_stubs.rs")]
+pub mod system_api;
 pub(crate) mod wit_system_api;
 pub mod wit_types;
 
@@ -74,9 +79,9 @@ macro_rules! service {
 
 /// Runs an asynchronous entrypoint in a blocking manner, by repeatedly polling the entrypoint
 /// future.
-pub fn run_async_entrypoint<Entrypoint, Output, Error, RawOutput>(
+pub fn run_async_entrypoint<Entrypoint, Output, Error>(
     entrypoint: Entrypoint,
-) -> Result<RawOutput, String>
+) -> Result<Output, String>
 where
     Entrypoint: Future<Output = Result<Output, Error>>,
     Output: Into<RawOutput> + 'static,
@@ -86,7 +91,6 @@ where
 
     entrypoint
         .blocking_wait()
-        .map(|output| output.into())
         .map_err(|error| error.to_string())
 }
 

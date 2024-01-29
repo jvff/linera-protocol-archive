@@ -56,10 +56,20 @@ impl From<Account> for wit_system_api::Account {
     }
 }
 
+impl From<ChainId> for wit_types::ChainId {
+    fn from(chain_id: ChainId) -> Self {
+        wit_types::ChainId {
+            inner0: chain_id.0.into(),
+        }
+    }
+}
+
 impl From<ApplicationId> for wit_system_api::ApplicationId {
     fn from(application_id: ApplicationId) -> wit_system_api::ApplicationId {
         wit_system_api::ApplicationId {
-            bytecode_id: application_id.bytecode_id.message_id.into(),
+            bytecode_id: wit_system_api::BytecodeId {
+                message_id: application_id.bytecode_id.message_id.into(),
+            },
             creation: application_id.creation.into(),
         }
     }
@@ -68,8 +78,12 @@ impl From<ApplicationId> for wit_system_api::ApplicationId {
 impl From<MessageId> for wit_system_api::MessageId {
     fn from(message_id: MessageId) -> Self {
         wit_system_api::MessageId {
-            chain_id: message_id.chain_id.0.into(),
-            height: message_id.height.0,
+            chain_id: wit_system_api::ChainId {
+                inner0: message_id.chain_id.0.into(),
+            },
+            height: wit_system_api::BlockHeight {
+                inner0: message_id.height.0,
+            },
             index: message_id.index,
         }
     }

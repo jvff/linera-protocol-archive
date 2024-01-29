@@ -18,7 +18,7 @@ impl From<wit_system_api::MessageId> for MessageId {
     fn from(message_id: wit_system_api::MessageId) -> Self {
         MessageId {
             chain_id: message_id.chain_id.into(),
-            height: BlockHeight(message_id.height),
+            height: BlockHeight(message_id.height.inner0),
             index: message_id.index,
         }
     }
@@ -27,21 +27,15 @@ impl From<wit_system_api::MessageId> for MessageId {
 impl From<wit_system_api::ApplicationId> for ApplicationId {
     fn from(application_id: wit_system_api::ApplicationId) -> Self {
         ApplicationId {
-            bytecode_id: BytecodeId::new(application_id.bytecode_id.into()),
+            bytecode_id: BytecodeId::new(application_id.bytecode_id.message_id.into()),
             creation: application_id.creation.into(),
         }
     }
 }
 
-impl From<wit_system_api::CryptoHash> for Owner {
-    fn from(crypto_hash: wit_system_api::CryptoHash) -> Self {
-        Owner(crypto_hash.into())
-    }
-}
-
-impl From<wit_system_api::CryptoHash> for ChainId {
-    fn from(hash_value: wit_system_api::CryptoHash) -> Self {
-        ChainId(hash_value.into())
+impl From<wit_system_api::ChainId> for ChainId {
+    fn from(chain_id: wit_system_api::ChainId) -> Self {
+        ChainId(chain_id.inner0.into())
     }
 }
 
@@ -58,7 +52,8 @@ impl From<wit_system_api::CryptoHash> for CryptoHash {
 
 impl From<wit_system_api::Amount> for Amount {
     fn from(balance: wit_system_api::Amount) -> Self {
-        let value = ((balance.upper_half as u128) << 64) | (balance.lower_half as u128);
+        let (lower_half, upper_half) = balance.inner0;
+        let value = ((upper_half as u128) << 64) | (lower_half as u128);
         Amount::from_attos(value)
     }
 }

@@ -11,17 +11,6 @@ use linera_base::{
 
 use super::wit_system_api;
 
-impl From<wit_system_api::CryptoHash> for CryptoHash {
-    fn from(hash_value: wit_system_api::CryptoHash) -> Self {
-        CryptoHash::from([
-            hash_value.part1,
-            hash_value.part2,
-            hash_value.part3,
-            hash_value.part4,
-        ])
-    }
-}
-
 impl From<wit_system_api::CryptoHash> for ChainId {
     fn from(hash_value: wit_system_api::CryptoHash) -> Self {
         ChainId(hash_value.into())

@@ -10,6 +10,7 @@
 
 #![cfg(with_wasm_runtime)]
 
+mod entrypoints;
 mod module_cache;
 mod sanitizer;
 #[macro_use]
@@ -35,6 +36,10 @@ use wasmer::{WasmerContractInstance, WasmerServiceInstance};
 use wasmtime::{WasmtimeContractInstance, WasmtimeServiceInstance};
 
 use self::sanitizer::sanitize;
+pub use self::{
+    entrypoints::{ContractEntrypoints, ServiceEntrypoints},
+    system_api::{ContractSystemApi, ServiceSystemApi, SystemApiData, ViewSystemApi},
+};
 use crate::{
     Bytecode, ContractSyncRuntime, ExecutionError, ServiceSyncRuntime, UserContractInstance,
     UserContractModule, UserServiceInstance, UserServiceModule, WasmRuntime,
@@ -218,6 +223,9 @@ pub enum WasmExecutionError {
     LoadContractModule(#[source] anyhow::Error),
     #[error("Failed to load service Wasm module: {_0}")]
     LoadServiceModule(#[source] anyhow::Error),
+    #[cfg(with_wasmer)]
+    #[error("Failed to instantiate Wasm module: {_0}")]
+    InstantiateModuleWithWasmer(#[from] ::wasmer::InstantiationError),
     #[cfg(with_wasmtime)]
     #[error("Failed to create and configure Wasmtime runtime")]
     CreateWasmtimeEngine(#[source] anyhow::Error),
@@ -229,6 +237,12 @@ pub enum WasmExecutionError {
     #[cfg(with_wasmtime)]
     #[error("Failed to execute Wasm module in Wasmtime: {0}")]
     ExecuteModuleInWasmtime(#[from] ::wasmtime::Trap),
+    #[error("Failed to execute Wasm module")]
+    ExecuteModule(#[from] linera_witty::RuntimeError),
+    #[error("Attempt to wait for an unknown promise")]
+    UnknownPromise,
+    #[error("Attempt to call incorrect `wait` function for a promise")]
+    IncorrectPromise,
 }
 
 /// This assumes that the current directory is one of the crates.
