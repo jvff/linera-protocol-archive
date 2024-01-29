@@ -6,13 +6,23 @@
 use super::wit;
 use linera_base::{
     crypto::CryptoHash,
-    data_types::Amount,
-    identifiers::{ApplicationId, ChainId, MessageId},
+    data_types::{Amount, Timestamp},
+    identifiers::{ApplicationId, BytecodeId, ChainId, MessageId},
 };
 
-impl From<ChainId> for wit::CryptoHash {
+impl From<Timestamp> for wit::Timestamp {
+    fn from(timestamp: Timestamp) -> Self {
+        wit::Timestamp {
+            inner0: timestamp.micros(),
+        }
+    }
+}
+
+impl From<ChainId> for wit::ChainId {
     fn from(chain_id: ChainId) -> Self {
-        chain_id.0.into()
+        wit::ChainId {
+            inner0: chain_id.0.into(),
+        }
     }
 }
 
@@ -32,8 +42,16 @@ impl From<CryptoHash> for wit::CryptoHash {
 impl From<ApplicationId> for wit::ApplicationId {
     fn from(application_id: ApplicationId) -> Self {
         wit::ApplicationId {
-            bytecode_id: application_id.bytecode_id.message_id.into(),
+            bytecode_id: application_id.bytecode_id.into(),
             creation: application_id.creation.into(),
+        }
+    }
+}
+
+impl From<BytecodeId> for wit::BytecodeId {
+    fn from(bytecode_id: BytecodeId) -> Self {
+        wit::BytecodeId {
+            message_id: bytecode_id.message_id.into(),
         }
     }
 }
@@ -41,8 +59,10 @@ impl From<ApplicationId> for wit::ApplicationId {
 impl From<MessageId> for wit::MessageId {
     fn from(message_id: MessageId) -> Self {
         wit::MessageId {
-            chain_id: message_id.chain_id.0.into(),
-            height: message_id.height.0,
+            chain_id: message_id.chain_id.into(),
+            height: wit::BlockHeight {
+                inner0: message_id.height.0,
+            },
             index: message_id.index,
         }
     }
@@ -51,8 +71,7 @@ impl From<MessageId> for wit::MessageId {
 impl From<Amount> for wit::Amount {
     fn from(balance: Amount) -> Self {
         wit::Amount {
-            lower_half: balance.lower_half(),
-            upper_half: balance.upper_half(),
+            inner0: (balance.lower_half(), balance.upper_half()),
         }
     }
 }

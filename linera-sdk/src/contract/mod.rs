@@ -3,11 +3,12 @@
 
 //! Types and macros useful for writing an application contract.
 
-mod conversions_from_wit;
-mod conversions_to_wit;
 mod storage;
+#[cfg(target_arch = "wasm32")]
 pub mod system_api;
-pub mod wit_types;
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg_attr(not(target_arch = "wasm32"), path = "system_api_stubs.rs")]
+pub mod system_api;
 
 pub use self::storage::ContractStateStorage;
 use super::log::ContractLogger;
@@ -18,7 +19,7 @@ use crate::{
 use std::future::Future;
 
 // Import the system interface.
-wit_bindgen_guest_rust::import!("contract_system_api.wit");
+// wit_bindgen_guest_rust::import!("contract_system_api.wit");
 
 /// Declares an implementation of the [`Contract`][`crate::Contract`] trait, exporting it from the
 /// Wasm module.
@@ -158,20 +159,19 @@ macro_rules! contract {
 
 /// Runs an asynchronous entrypoint in a blocking manner, by repeatedly polling the entrypoint
 /// future.
-pub fn run_async_entrypoint<Application, Entrypoint, Output, Error, RawOutput>(
+pub fn run_async_entrypoint<Application, Entrypoint, Output, Error>(
     entrypoint: impl FnOnce(Application) -> Entrypoint + Send,
-) -> Result<RawOutput, String>
+) -> Result<Output, String>
 where
     Application: Contract,
     Entrypoint: Future<Output = Result<(Application, Output), Error>> + Send,
-    Output: Into<RawOutput> + Send + 'static,
+    Output: Send + 'static,
     Error: ToString + 'static,
 {
     ContractLogger::install();
 
     <Application as Contract>::Storage::execute_with_state(entrypoint)
         .blocking_wait()
-        .map(|output| output.into())
         .map_err(|error| error.to_string())
 }
 

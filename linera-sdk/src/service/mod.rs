@@ -3,18 +3,19 @@
 
 //! Types and macros useful for writing an application service.
 
-mod conversions_from_wit;
-mod conversions_to_wit;
 mod storage;
+#[cfg(target_arch = "wasm32")]
 pub mod system_api;
-pub mod wit_types;
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg_attr(not(target_arch = "wasm32"), path = "system_api_stubs.rs")]
+pub mod system_api;
 
 pub use self::storage::ServiceStateStorage;
 use crate::{util::BlockingWait, QueryContext, ServiceLogger};
 use std::future::Future;
 
 // Import the system interface.
-wit_bindgen_guest_rust::import!("service_system_api.wit");
+// wit_bindgen_guest_rust::import!("service_system_api.wit");
 
 /// Declares an implementation of the [`Service`][`crate::Service`] trait, exporting it from the
 /// Wasm module.
@@ -94,19 +95,18 @@ macro_rules! service {
 
 /// Runs an asynchronous entrypoint in a blocking manner, by repeatedly polling the entrypoint
 /// future.
-pub fn run_async_entrypoint<Entrypoint, Output, Error, RawOutput>(
+pub fn run_async_entrypoint<Entrypoint, Output, Error>(
     entrypoint: Entrypoint,
-) -> Result<RawOutput, String>
+) -> Result<Output, String>
 where
     Entrypoint: Future<Output = Result<Output, Error>> + Send,
-    Output: Into<RawOutput> + Send + 'static,
+    Output: Send + 'static,
     Error: ToString + 'static,
 {
     ServiceLogger::install();
 
     entrypoint
         .blocking_wait()
-        .map(|output| output.into())
         .map_err(|error| error.to_string())
 }
 

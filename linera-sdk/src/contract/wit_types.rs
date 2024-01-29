@@ -6,7 +6,9 @@
 #![allow(missing_docs)]
 
 // Export the contract interface.
-wit_bindgen_guest_rust::export!("contract.wit");
+wit_bindgen::generate!({
+    world: "contract-entrypoints",
+});
 
 pub use self::contract::{
     ApplicationCallOutcome, ApplicationId, BlockHeight, BytecodeId, CalleeContext, ChainId,
@@ -14,6 +16,7 @@ pub use self::contract::{
     OperationContext, OutgoingMessage, Owner, Resources, SessionCallOutcome, SessionId,
     SessionState,
 };
+pub use self::exports::linera::app::contract_entrypoints::*;
 use super::{
     __contract_execute_message, __contract_execute_operation, __contract_handle_application_call,
     __contract_handle_session_call, __contract_initialize,
