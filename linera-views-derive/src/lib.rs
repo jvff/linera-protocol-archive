@@ -415,7 +415,7 @@ pub mod tests {
     pub struct SpecificContextInfo {
         attribute: Option<TokenStream2>,
         context: Type,
-        generics: Option<AngleBracketedGenericArguments>,
+        generics: AngleBracketedGenericArguments,
         where_clause: Option<TokenStream2>,
     }
 
@@ -424,7 +424,7 @@ pub mod tests {
             SpecificContextInfo {
                 attribute: None,
                 context: syn::parse_str("C").unwrap(),
-                generics: Some(parse_quote! { <C> }),
+                generics: parse_quote! { <C> },
                 where_clause: None,
             }
         }
@@ -433,7 +433,7 @@ pub mod tests {
             SpecificContextInfo {
                 attribute: Some(quote! { #[view(context = #context)] }),
                 context: syn::parse_str(context).unwrap(),
-                generics: None,
+                generics: parse_quote! { <> },
                 where_clause: None,
             }
         }
@@ -442,11 +442,7 @@ pub mod tests {
         ///
         /// Also adds a `MyParam` generic type parameter to the `generics` field.
         pub fn with_dummy_where_clause(mut self) -> Self {
-            match &mut self.generics {
-                Some(generics) => generics.args.push(parse_quote! { MyParam }),
-                None => self.generics = Some(parse_quote! { <MyParam> }),
-            }
-
+            self.generics.args.push(parse_quote! { MyParam });
             self.where_clause = Some(quote! {
                 where MyParam: Send + Sync + 'static,
             });
