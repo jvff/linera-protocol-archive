@@ -438,9 +438,10 @@ pub mod tests {
             }
         }
 
-        /// Sets the `where_clause` to a dummy value.
+        /// Sets the `where_clause` to a dummy value for test cases with a where clause.
         ///
-        /// Also adds a `MyParam` generic type parameter to the `generics` field.
+        /// Also adds a `MyParam` generic type parameter to the `generics` field, which is the type
+        /// constrained by the dummy predicate in the `where_clause`.
         pub fn with_dummy_where_clause(mut self) -> Self {
             self.generics.args.push(parse_quote! { MyParam });
             self.where_clause = Some(quote! {
