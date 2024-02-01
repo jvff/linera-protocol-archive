@@ -7,8 +7,8 @@ use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
 use syn::{
-    parse_macro_input, parse_quote, Attribute, ItemStruct, Lit, LitStr, MetaNameValue, Type,
-    TypePath, WhereClause,
+    parse_macro_input, parse_quote, punctuated::Punctuated, Attribute, ItemStruct, Lit, LitStr,
+    MetaNameValue, Token, Type, TypePath, WhereClause,
 };
 
 fn get_seq_parameter(generics: syn::Generics) -> Vec<syn::Ident> {
@@ -58,13 +58,13 @@ fn custom_attribute(attributes: &[Attribute], key: &str) -> Option<LitStr> {
 fn context_and_constraints(
     attributes: &[Attribute],
     template_vect: &[syn::Ident],
-) -> (Type, Option<WhereClause>) {
+) -> (Type, WhereClause) {
     let context;
     let constraints;
 
     if let Some(context_literal) = custom_attribute(attributes, "context") {
         context = context_literal.parse().expect("Invalid context");
-        constraints = None;
+        constraints = empty_where_clause();
     } else {
         context = Type::Path(TypePath {
             qself: None,
@@ -74,40 +74,36 @@ fn context_and_constraints(
                 .clone()
                 .into(),
         });
-        constraints = Some(parse_quote! {
+        constraints = parse_quote! {
             where
                 #context: linera_views::common::Context + Send + Sync + Clone + 'static,
                 linera_views::views::ViewError: From<#context::Error>,
-        });
+        };
     }
 
     (context, constraints)
 }
 
-/// Merges two optional [`WhereClause`]s, returning a new one with all the predicates from both of
-/// them.
-fn merge_where_clauses(
-    first: Option<WhereClause>,
-    second: Option<WhereClause>,
-) -> Option<WhereClause> {
-    match (first, second) {
-        (Some(mut first), Some(second)) => {
-            first.predicates.extend(second.predicates);
-            Some(first)
-        }
-        (None, maybe_second) => maybe_second,
-        (maybe_first, None) => maybe_first,
+/// Returns an empty [`WhereClause`].
+fn empty_where_clause() -> WhereClause {
+    WhereClause {
+        where_token: Token![where](Span::call_site()),
+        predicates: Punctuated::new(),
     }
 }
 
 fn generate_view_code(input: ItemStruct, root: bool) -> TokenStream2 {
     let struct_name = input.ident;
-    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+    let (impl_generics, type_generics, maybe_where_clause) = input.generics.split_for_impl();
     let template_vect = get_seq_parameter(input.generics.clone());
-
     let (context, context_constraints) = context_and_constraints(&input.attrs, &template_vect);
 
-    let where_clause = merge_where_clauses(where_clause.cloned(), context_constraints);
+    let mut where_clause = maybe_where_clause
+        .cloned()
+        .unwrap_or_else(empty_where_clause);
+    where_clause
+        .predicates
+        .extend(context_constraints.predicates);
 
     let mut name_quotes = Vec::new();
     let mut load_future_quotes = Vec::new();
@@ -192,12 +188,16 @@ fn generate_view_code(input: ItemStruct, root: bool) -> TokenStream2 {
 
 fn generate_save_delete_view_code(input: ItemStruct) -> TokenStream2 {
     let struct_name = input.ident;
-    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+    let (impl_generics, type_generics, maybe_where_clause) = input.generics.split_for_impl();
     let template_vect = get_seq_parameter(input.generics.clone());
-
     let (context, context_constraints) = context_and_constraints(&input.attrs, &template_vect);
 
-    let where_clause = merge_where_clauses(where_clause.cloned(), context_constraints);
+    let mut where_clause = maybe_where_clause
+        .cloned()
+        .unwrap_or_else(empty_where_clause);
+    where_clause
+        .predicates
+        .extend(context_constraints.predicates);
 
     let mut flushes = Vec::new();
     let mut deletes = Vec::new();
@@ -230,12 +230,17 @@ fn generate_save_delete_view_code(input: ItemStruct) -> TokenStream2 {
 
 fn generate_hash_view_code(input: ItemStruct) -> TokenStream2 {
     let struct_name = input.ident;
-    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+    let (impl_generics, type_generics, maybe_where_clause) = input.generics.split_for_impl();
     let template_vect = get_seq_parameter(input.generics.clone());
 
     let (context, context_constraints) = context_and_constraints(&input.attrs, &template_vect);
 
-    let where_clause = merge_where_clauses(where_clause.cloned(), context_constraints);
+    let mut where_clause = maybe_where_clause
+        .cloned()
+        .unwrap_or_else(empty_where_clause);
+    where_clause
+        .predicates
+        .extend(context_constraints.predicates);
 
     let mut field_hashes_mut = Vec::new();
     let mut field_hashes = Vec::new();
@@ -273,12 +278,16 @@ fn generate_hash_view_code(input: ItemStruct) -> TokenStream2 {
 
 fn generate_crypto_hash_code(input: ItemStruct) -> TokenStream2 {
     let struct_name = input.ident;
-    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+    let (impl_generics, type_generics, maybe_where_clause) = input.generics.split_for_impl();
     let template_vect = get_seq_parameter(input.generics.clone());
-
     let (context, context_constraints) = context_and_constraints(&input.attrs, &template_vect);
 
-    let where_clause = merge_where_clauses(where_clause.cloned(), context_constraints);
+    let mut where_clause = maybe_where_clause
+        .cloned()
+        .unwrap_or_else(empty_where_clause);
+    where_clause
+        .predicates
+        .extend(context_constraints.predicates);
 
     let hash_type = syn::Ident::new(&format!("{}Hash", struct_name), Span::call_site());
     quote! {
