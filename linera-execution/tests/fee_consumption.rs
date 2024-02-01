@@ -1,6 +1,8 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+//! Tests for how the runtime computes fees based on consumed resources.
+
 #![allow(clippy::items_after_test_module)]
 
 mod utils;
