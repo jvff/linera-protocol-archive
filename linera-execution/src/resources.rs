@@ -100,7 +100,7 @@ where
     }
 
     /// Obtains the amount of fuel that could be spent by consuming the entire balance.
-    pub(crate) fn remaining_fuel(&self) -> u64 {
+    pub fn remaining_fuel(&self) -> u64 {
         self.policy.remaining_fuel(self.balance())
     }
 

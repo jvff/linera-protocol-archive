@@ -72,14 +72,20 @@ async fn test_fee_consumption(spends: Vec<FeeSpend>) -> anyhow::Result<()> {
         });
 
     let mut controller = ResourceController {
-        policy: Arc::new(prices),
+        policy: Arc::new(prices.clone()),
         ..ResourceController::default()
     };
+    let initial_fuel = ResourceController {
+        policy: Arc::new(prices),
+        account: initial_balance,
+        tracker: linera_execution::ResourceTracker::default(),
+    }
+    .remaining_fuel();
 
     application.expect_call(ExpectedCall::execute_operation(
         move |runtime, _context, _operation| {
             for spend in spends {
-                spend.execute(runtime)?;
+                spend.execute(runtime, initial_fuel)?;
             }
             Ok(RawExecutionOutcome::default())
         },
@@ -141,9 +147,13 @@ impl FeeSpend {
     }
 
     /// Executes the operation with the `runtime`
-    pub fn execute(self, runtime: &mut impl ContractRuntime) -> Result<(), ExecutionError> {
+    pub fn execute(
+        self,
+        runtime: &mut impl ContractRuntime,
+        initial_fuel: u64,
+    ) -> Result<(), ExecutionError> {
         match self {
-            FeeSpend::Fuel(units) => runtime.consume_fuel(units),
+            FeeSpend::Fuel(units) => runtime.set_remaining_fuel(initial_fuel - units),
             FeeSpend::Read(key, value) => {
                 let promise = runtime.read_value_bytes_new(key)?;
                 let response = runtime.read_value_bytes_wait(&promise)?;
