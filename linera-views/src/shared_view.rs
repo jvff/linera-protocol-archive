@@ -14,6 +14,10 @@
 //! changes to storage there aren't any more readers for the same view which would have
 //! their internal state become invalid.
 
+#[cfg(test)]
+#[path = "unit_tests/shared_view.rs"]
+mod tests;
+
 use crate::{
     batch::Batch,
     common::Context,
