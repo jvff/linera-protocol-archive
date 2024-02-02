@@ -21,9 +21,7 @@ mod tests;
 use crate::{
     batch::Batch,
     common::Context,
-    increment_counter,
     views::{RootView, View, ViewError},
-    SAVE_VIEW_COUNTER,
 };
 use async_lock::{Semaphore, SemaphoreGuardArc};
 use async_trait::async_trait;
@@ -36,6 +34,9 @@ use std::{
         Arc, Mutex,
     },
 };
+
+#[cfg(not(target_arch = "wasm32"))]
+use crate::{increment_counter, SAVE_VIEW_COUNTER};
 
 /// A wrapper to share a [`View`] among multiple readers and at most one writer while it stages
 /// changes.
