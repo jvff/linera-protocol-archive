@@ -1,19 +1,6 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-//! A way to safely share a [`View`] among multiple readers and at most one writer.
-//!
-//! [`View`]s represent some data persisted in storage, but it also contains some state in
-//! memory that caches the storage state and that queues changes to the persisted state to
-//! be sent later. This means that two views referencing the same data in storage may have
-//! state conflicts in memory, and that's why they can't be trivially shared (using
-//! [`Clone`] for example).
-//!
-//! The [`SharedView`] provides a way to share an inner [`View`] more safely, by ensuring
-//! that only one writer is staging changes to the view, and than when it is writing those
-//! changes to storage there aren't any more readers for the same view which would have
-//! their internal state become invalid.
-
 #[cfg(test)]
 #[path = "unit_tests/shared_view.rs"]
 mod tests;
@@ -38,11 +25,20 @@ use std::{
 #[cfg(not(target_arch = "wasm32"))]
 use crate::{increment_counter, SAVE_VIEW_COUNTER};
 
-/// A wrapper to share a [`View`] among multiple readers and at most one writer while it stages
-/// changes.
+/// A way to safely share a [`View`] among multiple readers and at most one writer.
 ///
-/// The readers are not able to see the changes the writer is staging, and the writer can
-/// only save its staged changes after all readers have finished.
+/// [`View`]s represent some data persisted in storage, but it also contains some state in
+/// memory that caches the storage state and that queues changes to the persisted state to
+/// be sent later. This means that two views referencing the same data in storage may have
+/// state conflicts in memory, and that's why they can't be trivially shared (using
+/// [`Clone`] for example).
+///
+/// The [`SharedView`] provides a way to share an inner [`View`] more safely, by ensuring
+/// that only one writer is staging changes to the view, and than when it is writing those
+/// changes to storage there aren't any more readers for the same view which would have
+/// their internal state become invalid. The readers are not able to see the changes the
+/// writer is staging, and the writer can only save its staged changes after all readers
+/// have finished.
 pub struct SharedView<C, V> {
     view: V,
     reader_count: Arc<AtomicUsize>,
