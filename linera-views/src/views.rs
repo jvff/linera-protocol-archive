@@ -39,7 +39,7 @@ pub trait View<C>: Sized {
     /// Creates a clone of this view, sharing the underlying storage context but prone to
     /// data races which can corrupt the view state.
     ///
-    /// Use [`SharedView`] to share a view safely instead.
+    /// Use [`SharedView`][`crate::shared_view::SharedView`] to share a view safely instead.
     fn share_unchecked(&mut self) -> Result<Self, ViewError>;
 }
 
