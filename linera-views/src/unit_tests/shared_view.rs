@@ -16,7 +16,7 @@ use linera_views::{
 };
 use std::{collections::HashMap, fmt::Debug, marker::PhantomData, mem, time::Duration};
 use test_case::test_case;
-use tokio::time::sleep;
+use tokio::{task, time::sleep};
 
 /// Test if a [`View`] can be shared among multiple readers.
 #[test_case(PhantomData::<ShareCollectionView<_>>; "with CollectionView")]
@@ -158,6 +158,94 @@ where
                 .expect("Read task should not panic")
                 .expect("Reading through read-only view reference should not fail");
             assert_eq!(read_state, initial_state);
+        })
+        .await;
+
+    Ok(())
+}
+
+/// Test if new readers can see the writer's changes.
+#[test_case(PhantomData::<ShareCollectionView<_>>; "with CollectionView")]
+#[test_case(PhantomData::<ShareLogView<_>>; "with LogView")]
+#[test_case(PhantomData::<ShareMapView<_>>; "with MapView")]
+#[test_case(PhantomData::<ShareRegisterView<_>>; "with RegisterView")]
+#[tokio::test(start_paused = true)]
+async fn test_new_readers_can_see_writers_changes<V>(
+    _view_type: PhantomData<V>,
+) -> Result<(), ViewError>
+where
+    V: ShareViewTest,
+{
+    let context = create_memory_context();
+
+    let mut view = V::load(context).await?;
+    let initial_state = view.stage_initial_changes().await?;
+
+    let mut shared_view = SharedView::new(view);
+
+    let old_reader_tasks = FuturesUnordered::new();
+
+    for _ in 0..100 {
+        let reference = shared_view.inner().await?;
+
+        let task = tokio::spawn(async move {
+            sleep(Duration::from_millis(10)).await;
+            reference.read().await
+        });
+
+        old_reader_tasks.push(task);
+    }
+
+    let mut writer_reference = shared_view
+        .inner_mut()
+        .now_or_never()
+        .expect("Read-write reference should be immediately available")?;
+
+    let spawn_new_readers_task = tokio::spawn(async move {
+        let new_reader_tasks = FuturesUnordered::new();
+
+        for _ in 0..100 {
+            let reference = shared_view.inner().await?;
+
+            let task = tokio::spawn(async move {
+                sleep(Duration::from_millis(10)).await;
+                reference.read().await
+            });
+
+            new_reader_tasks.push(task);
+        }
+
+        Ok::<_, ViewError>(new_reader_tasks)
+    });
+
+    sleep(Duration::from_millis(100)).await;
+
+    let new_state = writer_reference.stage_changes_to_be_persisted().await?;
+    writer_reference.save().await?;
+
+    mem::drop(writer_reference);
+    // Allow the `spawn_new_readers_task` to run
+    task::yield_now().await;
+
+    let new_reader_tasks = spawn_new_readers_task
+        .now_or_never()
+        .expect("Spawning new readers should finish immediately after writer has finished")
+        .expect("Task to spawn new readers should not panic")?;
+
+    old_reader_tasks
+        .for_each_concurrent(100, |result| async {
+            let read_state = result
+                .expect("Read task should not panic")
+                .expect("Reading through read-only view reference should not fail");
+            assert_eq!(read_state, initial_state);
+        })
+        .await;
+    new_reader_tasks
+        .for_each_concurrent(100, |result| async {
+            let read_state = result
+                .expect("Read task should not panic")
+                .expect("Reading through read-only view reference should not fail");
+            assert_eq!(read_state, new_state);
         })
         .await;
 
