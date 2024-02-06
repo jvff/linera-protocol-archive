@@ -91,10 +91,14 @@ where
 }
 
 /// Test if a [`View`] stops sharing with new readers when it is shared with one writer.
+#[test_case(PhantomData::<ShareRegisterView<_>>; "with RegisterView")]
 #[tokio::test(start_paused = true)]
-async fn test_writer_blocks_new_readers() -> Result<(), ViewError> {
+async fn test_writer_blocks_new_readers<V>(_view_type: PhantomData<V>) -> Result<(), ViewError>
+where
+    V: ShareViewTest,
+{
     let context = create_memory_context();
-    let dummy_view = SimpleView::load(context).await?;
+    let dummy_view = V::load(context).await?;
     let mut shared_view = SharedView::new(dummy_view);
 
     let _first_reader_reference = shared_view
