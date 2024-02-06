@@ -255,7 +255,7 @@ struct ShareRegisterView<C> {
 impl ShareViewTest for ShareRegisterView<MemoryContext<()>> {
     type State = u8;
 
-    async fn stage_changes(&mut self) -> Result<Self::State, ViewError> {
+    async fn stage_initial_changes(&mut self) -> Result<Self::State, ViewError> {
         let dummy_value = 82;
         self.byte.set(dummy_value);
         Ok(dummy_value)
