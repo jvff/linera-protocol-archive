@@ -164,8 +164,23 @@ trait ShareViewTest: RootView<MemoryContext<()>> + Send + 'static {
     async fn read(&self) -> Result<Self::State, ViewError>;
 }
 
-/// A simple view used to test sharing views.
+/// Wrapper to test sharing a [`RegisterView`].
 #[derive(RootView)]
-struct SimpleView<C> {
+struct ShareRegisterView<C> {
     byte: RegisterView<C, u8>,
+}
+
+#[async_trait]
+impl ShareViewTest for ShareRegisterView<MemoryContext<()>> {
+    type State = u8;
+
+    async fn stage_changes(&mut self) -> Result<Self::State, ViewError> {
+        let dummy_value = 82;
+        self.byte.set(dummy_value);
+        Ok(dummy_value)
+    }
+
+    async fn read(&self) -> Result<Self::State, ViewError> {
+        Ok(*self.byte.get())
+    }
 }
