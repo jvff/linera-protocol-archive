@@ -6,6 +6,7 @@
 use async_trait::async_trait;
 use futures::{stream::FuturesUnordered, FutureExt, StreamExt};
 use linera_views::{
+    collection_view::CollectionView,
     log_view::LogView,
     map_view::MapView,
     memory::{create_memory_context, MemoryContext},
@@ -18,6 +19,7 @@ use test_case::test_case;
 use tokio::time::sleep;
 
 /// Test if a [`View`] can be shared among multiple readers.
+#[test_case(PhantomData::<ShareCollectionView<_>>; "with CollectionView")]
 #[test_case(PhantomData::<ShareLogView<_>>; "with LogView")]
 #[test_case(PhantomData::<ShareMapView<_>>; "with MapView")]
 #[test_case(PhantomData::<ShareRegisterView<_>>; "with RegisterView")]
@@ -62,6 +64,7 @@ where
 }
 
 /// Test if a [`View`] is shared with at most one writer.
+#[test_case(PhantomData::<ShareCollectionView<_>>; "with CollectionView")]
 #[test_case(PhantomData::<ShareLogView<_>>; "with LogView")]
 #[test_case(PhantomData::<ShareMapView<_>>; "with MapView")]
 #[test_case(PhantomData::<ShareRegisterView<_>>; "with RegisterView")]
@@ -97,6 +100,7 @@ where
 }
 
 /// Test if a [`View`] stops sharing with new readers when it is shared with one writer.
+#[test_case(PhantomData::<ShareCollectionView<_>>; "with CollectionView")]
 #[test_case(PhantomData::<ShareLogView<_>>; "with LogView")]
 #[test_case(PhantomData::<ShareMapView<_>>; "with MapView")]
 #[test_case(PhantomData::<ShareRegisterView<_>>; "with RegisterView")]
@@ -138,6 +142,7 @@ where
 }
 
 /// Test if writer waits for readers to finish before saving.
+#[test_case(PhantomData::<ShareCollectionView<_>>; "with CollectionView")]
 #[test_case(PhantomData::<ShareLogView<_>>; "with LogView")]
 #[test_case(PhantomData::<ShareMapView<_>>; "with MapView")]
 #[test_case(PhantomData::<ShareRegisterView<_>>; "with RegisterView")]
@@ -278,6 +283,49 @@ impl ShareViewTest for ShareMapView<MemoryContext<()>> {
                 Ok(())
             })
             .await?;
+        Ok(state)
+    }
+}
+
+/// Wrapper to test sharing a [`CollectionView`].
+#[derive(RootView)]
+struct ShareCollectionView<C> {
+    collection: CollectionView<C, i32, RegisterView<C, String>>,
+}
+
+#[async_trait]
+impl ShareViewTest for ShareCollectionView<MemoryContext<()>> {
+    type State = HashMap<i32, String>;
+
+    async fn stage_changes(&mut self) -> Result<Self::State, ViewError> {
+        let dummy_values = [
+            (0, "zero"),
+            (-1, "minus one"),
+            (2, "two"),
+            (-3, "minus three"),
+            (4, "four"),
+            (-5, "minus five"),
+        ]
+        .into_iter()
+        .map(|(key, value)| (key, value.to_owned()));
+
+        for (key, value) in dummy_values.clone() {
+            self.collection.load_entry_mut(&key).await?.set(value);
+        }
+
+        Ok(dummy_values.collect())
+    }
+
+    async fn read(&self) -> Result<Self::State, ViewError> {
+        let indices = self.collection.indices().await?;
+        let mut state = HashMap::with_capacity(indices.len());
+
+        for index in indices {
+            if let Some(value) = self.collection.try_load_entry(&index).await? {
+                state.insert(index, value.get().clone());
+            }
+        }
+
         Ok(state)
     }
 }
