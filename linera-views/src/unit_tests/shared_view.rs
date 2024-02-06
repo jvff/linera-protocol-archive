@@ -130,10 +130,14 @@ where
 }
 
 /// Test if writer waits for readers to finish before saving.
+#[test_case(PhantomData::<ShareRegisterView<_>>; "with RegisterView")]
 #[tokio::test(start_paused = true)]
-async fn test_writer_waits_for_readers() -> Result<(), ViewError> {
+async fn test_writer_waits_for_readers<V>(_view_type: PhantomData<V>) -> Result<(), ViewError>
+where
+    V: ShareViewTest,
+{
     let context = create_memory_context();
-    let dummy_view = SimpleView::load(context).await?;
+    let dummy_view = ShareRegisterView::load(context).await?;
     let mut shared_view = SharedView::new(dummy_view);
 
     let reader_delays = [100, 300, 250, 200, 150, 400, 200]
