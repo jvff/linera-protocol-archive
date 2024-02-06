@@ -152,7 +152,7 @@ where
     V: ShareViewTest,
 {
     let context = create_memory_context();
-    let dummy_view = ShareRegisterView::load(context).await?;
+    let dummy_view = V::load(context).await?;
     let mut shared_view = SharedView::new(dummy_view);
 
     let reader_delays = [100, 300, 250, 200, 150, 400, 200]
@@ -182,6 +182,51 @@ where
         "Reader tasks should have finished before the writer saved, so collecting the task \
         results should finish immediately"
     );
+
+    Ok(())
+}
+
+/// Test if writer runs in parallel with readers if it doesn't save.
+#[test_case(PhantomData::<ShareCollectionView<_>>; "with CollectionView")]
+#[test_case(PhantomData::<ShareLogView<_>>; "with LogView")]
+#[test_case(PhantomData::<ShareMapView<_>>; "with MapView")]
+#[test_case(PhantomData::<ShareRegisterView<_>>; "with RegisterView")]
+#[tokio::test(start_paused = true)]
+async fn test_readers_run_in_parallel_with_writer_while_its_not_saving<V>(
+    _view_type: PhantomData<V>,
+) -> Result<(), ViewError>
+where
+    V: ShareViewTest,
+{
+    let context = create_memory_context();
+    let view = V::load(context).await?;
+    let mut shared_view = SharedView::new(view);
+
+    let reader_delays = [100, 300, 250, 200, 150, 400, 200]
+        .into_iter()
+        .map(Duration::from_millis);
+
+    let mut reader_tasks = FuturesUnordered::new();
+
+    for delay in reader_delays {
+        let reader_reference = shared_view.inner().await?;
+
+        reader_tasks.push(tokio::spawn(async move {
+            let _reader_reference = reader_reference;
+            sleep(delay).await;
+        }));
+    }
+
+    let _writer_reference = shared_view.inner_mut().await?;
+
+    assert!(
+        reader_tasks.next().now_or_never().is_none(),
+        "Reader tasks should still be executing after a writer starts"
+    );
+
+    while let Some(task_result) = reader_tasks.next().await {
+        assert!(task_result.is_ok());
+    }
 
     Ok(())
 }
