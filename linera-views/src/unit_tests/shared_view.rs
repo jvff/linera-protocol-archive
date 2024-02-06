@@ -31,7 +31,7 @@ where
     let context = create_memory_context();
 
     let mut view = V::load(context).await?;
-    let staged_value = view.stage_changes().await?;
+    let staged_value = view.stage_initial_changes().await?;
 
     let mut shared_view = SharedView::new(view);
 
