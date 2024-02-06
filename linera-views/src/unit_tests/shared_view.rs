@@ -58,10 +58,16 @@ where
 }
 
 /// Test if a [`View`] is shared with at most one writer.
+#[test_case(PhantomData::<ShareRegisterView<_>>; "with RegisterView")]
 #[tokio::test(start_paused = true)]
-async fn test_if_second_writer_waits_for_first_writer() -> Result<(), ViewError> {
+async fn test_if_second_writer_waits_for_first_writer<V>(
+    _view_type: PhantomData<V>,
+) -> Result<(), ViewError>
+where
+    V: ShareViewTest,
+{
     let context = create_memory_context();
-    let dummy_view = SimpleView::load(context).await?;
+    let dummy_view = V::load(context).await?;
     let mut shared_view = SharedView::new(dummy_view);
 
     let writer_reference = shared_view
