@@ -3,14 +3,15 @@
 
 //! Tests the behavior of [`SharedView`].
 
+use async_trait::async_trait;
 use futures::{stream::FuturesUnordered, FutureExt, StreamExt};
 use linera_views::{
-    memory::create_memory_context,
+    memory::{create_memory_context, MemoryContext},
     register_view::RegisterView,
     shared_view::SharedView,
     views::{RootView, View, ViewError},
 };
-use std::{mem, time::Duration};
+use std::{fmt::Debug, mem, time::Duration};
 use tokio::time::sleep;
 
 /// Test if a [`View`] can be shared among multiple readers.
@@ -147,6 +148,20 @@ async fn test_writer_waits_for_readers() -> Result<(), ViewError> {
     );
 
     Ok(())
+}
+
+/// A [`View`] to be used in the [`SharedView`] tests.
+#[async_trait]
+trait ShareViewTest: RootView<MemoryContext<()>> + Send + 'static {
+    /// Representation of the view's state.
+    type State: Debug + Eq + Send;
+
+    /// Performs some changes to the view, staging them, and returning a representation of the
+    /// view's state.
+    async fn stage_changes(&mut self) -> Result<Self::State, ViewError>;
+
+    /// Reads the view's current state.
+    async fn read(&self) -> Result<Self::State, ViewError>;
 }
 
 /// A simple view used to test sharing views.
