@@ -276,7 +276,7 @@ struct ShareLogView<C> {
 impl ShareViewTest for ShareLogView<MemoryContext<()>> {
     type State = Vec<u16>;
 
-    async fn stage_changes(&mut self) -> Result<Self::State, ViewError> {
+    async fn stage_initial_changes(&mut self) -> Result<Self::State, ViewError> {
         let dummy_values = [1, 2, 3, 4, 5];
 
         for value in dummy_values {
