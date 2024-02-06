@@ -301,7 +301,7 @@ struct ShareMapView<C> {
 impl ShareViewTest for ShareMapView<MemoryContext<()>> {
     type State = HashMap<i32, String>;
 
-    async fn stage_changes(&mut self) -> Result<Self::State, ViewError> {
+    async fn stage_initial_changes(&mut self) -> Result<Self::State, ViewError> {
         let dummy_values = [
             (0, "zero"),
             (-1, "minus one"),
