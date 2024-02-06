@@ -237,9 +237,9 @@ trait ShareViewTest: RootView<MemoryContext<()>> + Send + 'static {
     /// Representation of the view's state.
     type State: Debug + Eq + Send;
 
-    /// Performs some changes to the view, staging them, and returning a representation of the
-    /// view's state.
-    async fn stage_changes(&mut self) -> Result<Self::State, ViewError>;
+    /// Performs some initial changes to the view, staging them, and returning a representation of
+    /// the view's state.
+    async fn stage_initial_changes(&mut self) -> Result<Self::State, ViewError>;
 
     /// Reads the view's current state.
     async fn read(&self) -> Result<Self::State, ViewError>;
