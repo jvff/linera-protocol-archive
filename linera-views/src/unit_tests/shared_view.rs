@@ -128,7 +128,7 @@ where
     let context = create_memory_context();
 
     let mut view = V::load(context).await?;
-    let initial_value = view.stage_initial_changes().await?;
+    let initial_state = view.stage_initial_changes().await?;
 
     let mut shared_view = SharedView::new(view);
 
@@ -154,10 +154,10 @@ where
 
     tasks
         .for_each_concurrent(100, |result| async {
-            let read_value = result
+            let read_state = result
                 .expect("Read task should not panic")
                 .expect("Reading through read-only view reference should not fail");
-            assert_eq!(read_value, initial_value);
+            assert_eq!(read_state, initial_state);
         })
         .await;
 
