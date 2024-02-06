@@ -6,6 +6,7 @@
 use async_trait::async_trait;
 use futures::{stream::FuturesUnordered, FutureExt, StreamExt};
 use linera_views::{
+    log_view::LogView,
     memory::{create_memory_context, MemoryContext},
     register_view::RegisterView,
     shared_view::SharedView,
@@ -16,6 +17,7 @@ use test_case::test_case;
 use tokio::time::sleep;
 
 /// Test if a [`View`] can be shared among multiple readers.
+#[test_case(PhantomData::<ShareLogView<_>>; "with LogView")]
 #[test_case(PhantomData::<ShareRegisterView<_>>; "with RegisterView")]
 #[tokio::test(start_paused = true)]
 async fn test_multiple_readers<V>(_view_type: PhantomData<V>) -> Result<(), ViewError>
@@ -58,6 +60,7 @@ where
 }
 
 /// Test if a [`View`] is shared with at most one writer.
+#[test_case(PhantomData::<ShareLogView<_>>; "with LogView")]
 #[test_case(PhantomData::<ShareRegisterView<_>>; "with RegisterView")]
 #[tokio::test(start_paused = true)]
 async fn test_if_second_writer_waits_for_first_writer<V>(
@@ -91,6 +94,7 @@ where
 }
 
 /// Test if a [`View`] stops sharing with new readers when it is shared with one writer.
+#[test_case(PhantomData::<ShareLogView<_>>; "with LogView")]
 #[test_case(PhantomData::<ShareRegisterView<_>>; "with RegisterView")]
 #[tokio::test(start_paused = true)]
 async fn test_writer_blocks_new_readers<V>(_view_type: PhantomData<V>) -> Result<(), ViewError>
@@ -130,6 +134,7 @@ where
 }
 
 /// Test if writer waits for readers to finish before saving.
+#[test_case(PhantomData::<ShareLogView<_>>; "with LogView")]
 #[test_case(PhantomData::<ShareRegisterView<_>>; "with RegisterView")]
 #[tokio::test(start_paused = true)]
 async fn test_writer_waits_for_readers<V>(_view_type: PhantomData<V>) -> Result<(), ViewError>
@@ -203,5 +208,30 @@ impl ShareViewTest for ShareRegisterView<MemoryContext<()>> {
 
     async fn read(&self) -> Result<Self::State, ViewError> {
         Ok(*self.byte.get())
+    }
+}
+
+/// Wrapper to test sharing a [`LogView`].
+#[derive(RootView)]
+struct ShareLogView<C> {
+    log: LogView<C, u16>,
+}
+
+#[async_trait]
+impl ShareViewTest for ShareLogView<MemoryContext<()>> {
+    type State = Vec<u16>;
+
+    async fn stage_changes(&mut self) -> Result<Self::State, ViewError> {
+        let dummy_values = [1, 2, 3, 4, 5];
+
+        for value in dummy_values {
+            self.log.push(value);
+        }
+
+        Ok(dummy_values.to_vec())
+    }
+
+    async fn read(&self) -> Result<Self::State, ViewError> {
+        self.log.read(..).await
     }
 }
