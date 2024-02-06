@@ -63,6 +63,56 @@ where
     Ok(())
 }
 
+/// Test if readers can't see the writer's staged changes.
+#[test_case(PhantomData::<ShareCollectionView<_>>; "with CollectionView")]
+#[test_case(PhantomData::<ShareLogView<_>>; "with LogView")]
+#[test_case(PhantomData::<ShareMapView<_>>; "with MapView")]
+#[test_case(PhantomData::<ShareRegisterView<_>>; "with RegisterView")]
+#[tokio::test(start_paused = true)]
+async fn test_writer_staged_changes_are_private<V>(
+    _view_type: PhantomData<V>,
+) -> Result<(), ViewError>
+where
+    V: ShareViewTest,
+{
+    let context = create_memory_context();
+
+    let mut view = V::load(context).await?;
+    let initial_value = view.stage_initial_changes().await?;
+
+    let mut shared_view = SharedView::new(view);
+
+    let tasks = FuturesUnordered::new();
+
+    for _ in 0..100 {
+        let reference = shared_view.inner().await?;
+
+        let task = tokio::spawn(async move {
+            sleep(Duration::from_millis(10)).await;
+            reference.read().await
+        });
+
+        tasks.push(task);
+    }
+
+    let mut writer_reference = shared_view
+        .inner_mut()
+        .now_or_never()
+        .expect("Read-write reference should be immediately available")?;
+    writer_reference.stage_changes_to_be_discarded().await?;
+
+    tasks
+        .for_each_concurrent(100, |result| async {
+            let read_value = result
+                .expect("Read task should not panic")
+                .expect("Reading through read-only view reference should not fail");
+            assert_eq!(read_value, initial_value);
+        })
+        .await;
+
+    Ok(())
+}
+
 /// Test if a [`View`] is shared with at most one writer.
 #[test_case(PhantomData::<ShareCollectionView<_>>; "with CollectionView")]
 #[test_case(PhantomData::<ShareLogView<_>>; "with LogView")]
@@ -241,6 +291,9 @@ trait ShareViewTest: RootView<MemoryContext<()>> + Send + 'static {
     /// the view's state.
     async fn stage_initial_changes(&mut self) -> Result<Self::State, ViewError>;
 
+    /// Stages some changes to the view that won't be persisted during the test.
+    async fn stage_changes_to_be_discarded(&mut self) -> Result<(), ViewError>;
+
     /// Reads the view's current state.
     async fn read(&self) -> Result<Self::State, ViewError>;
 }
@@ -259,6 +312,11 @@ impl ShareViewTest for ShareRegisterView<MemoryContext<()>> {
         let dummy_value = 82;
         self.byte.set(dummy_value);
         Ok(dummy_value)
+    }
+
+    async fn stage_changes_to_be_discarded(&mut self) -> Result<(), ViewError> {
+        self.byte.set(209);
+        Ok(())
     }
 
     async fn read(&self) -> Result<Self::State, ViewError> {
@@ -284,6 +342,14 @@ impl ShareViewTest for ShareLogView<MemoryContext<()>> {
         }
 
         Ok(dummy_values.to_vec())
+    }
+
+    async fn stage_changes_to_be_discarded(&mut self) -> Result<(), ViewError> {
+        for value in [10_000, 20_000, 30_000] {
+            self.log.push(value);
+        }
+
+        Ok(())
     }
 
     async fn read(&self) -> Result<Self::State, ViewError> {
@@ -318,6 +384,24 @@ impl ShareViewTest for ShareMapView<MemoryContext<()>> {
         }
 
         Ok(dummy_values.collect())
+    }
+
+    async fn stage_changes_to_be_discarded(&mut self) -> Result<(), ViewError> {
+        let new_entries = [(-1_000_000, "foo"), (2_000_000, "bar")]
+            .into_iter()
+            .map(|(key, value)| (key, value.to_owned()));
+
+        let entries_to_remove = [0, -3];
+
+        for (key, value) in new_entries {
+            self.map.insert(&key, value)?;
+        }
+
+        for key in entries_to_remove {
+            self.map.remove(&key)?;
+        }
+
+        Ok(())
     }
 
     async fn read(&self) -> Result<Self::State, ViewError> {
@@ -359,6 +443,24 @@ impl ShareViewTest for ShareCollectionView<MemoryContext<()>> {
         }
 
         Ok(dummy_values.collect())
+    }
+
+    async fn stage_changes_to_be_discarded(&mut self) -> Result<(), ViewError> {
+        let new_entries = [(-1_000_000, "foo"), (2_000_000, "bar")]
+            .into_iter()
+            .map(|(key, value)| (key, value.to_owned()));
+
+        let entries_to_remove = [0, -3];
+
+        for (key, value) in new_entries {
+            self.collection.load_entry_mut(&key).await?.set(value);
+        }
+
+        for key in entries_to_remove {
+            self.collection.remove_entry(&key)?;
+        }
+
+        Ok(())
     }
 
     async fn read(&self) -> Result<Self::State, ViewError> {
