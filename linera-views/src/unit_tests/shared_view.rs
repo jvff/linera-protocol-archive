@@ -11,19 +11,23 @@ use linera_views::{
     shared_view::SharedView,
     views::{RootView, View, ViewError},
 };
-use std::{fmt::Debug, mem, time::Duration};
+use std::{fmt::Debug, marker::PhantomData, mem, time::Duration};
+use test_case::test_case;
 use tokio::time::sleep;
 
 /// Test if a [`View`] can be shared among multiple readers.
+#[test_case(PhantomData::<ShareRegisterView<_>>; "with RegisterView")]
 #[tokio::test(start_paused = true)]
-async fn test_multiple_readers() -> Result<(), ViewError> {
+async fn test_multiple_readers<V>(_view_type: PhantomData<V>) -> Result<(), ViewError>
+where
+    V: ShareViewTest,
+{
     let context = create_memory_context();
 
-    let dummy_value = 82;
-    let mut dummy_view = SimpleView::load(context).await?;
-    dummy_view.byte.set(dummy_value);
+    let mut view = V::load(context).await?;
+    let staged_value = view.stage_changes().await?;
 
-    let mut shared_view = SharedView::new(dummy_view);
+    let mut shared_view = SharedView::new(view);
 
     let tasks = FuturesUnordered::new();
 
@@ -35,15 +39,18 @@ async fn test_multiple_readers() -> Result<(), ViewError> {
 
         let task = tokio::spawn(async move {
             sleep(Duration::from_millis(10)).await;
-            *reference.byte.get()
+            reference.read().await
         });
 
         tasks.push(task);
     }
 
     tasks
-        .for_each_concurrent(100, |read_value| async {
-            assert_eq!(read_value.unwrap(), dummy_value);
+        .for_each_concurrent(100, |result| async {
+            let read_value = result
+                .expect("Read task should not panic")
+                .expect("Reading through read-only view reference should not fail");
+            assert_eq!(read_value, staged_value);
         })
         .await;
 

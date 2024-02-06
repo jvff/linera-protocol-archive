@@ -3574,6 +3574,7 @@ dependencies = [
  "sha3",
  "static_assertions",
  "tempfile",
+ "test-case",
  "thiserror",
  "tokio",
  "tokio-test",
