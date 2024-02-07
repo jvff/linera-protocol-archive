@@ -302,11 +302,11 @@ where
     let dummy_view = V::load(context).await?;
     let mut shared_view = SharedView::new(dummy_view)?;
 
-    let _first_reader_reference = shared_view
+    let first_reader_reference = shared_view
         .inner()
         .now_or_never()
         .expect("Initial read-only references should be immediately available");
-    let _second_reader_reference = shared_view
+    let second_reader_reference = shared_view
         .inner()
         .now_or_never()
         .expect("Initial read-only references should be immediately available");
@@ -322,9 +322,12 @@ where
     );
 
     mem::drop(writer_reference);
+    mem::drop(first_reader_reference);
+    mem::drop(second_reader_reference);
 
     let _third_reader_reference = shared_view.inner().now_or_never().expect(
-        "Third read-only reference should be immediately available after the writer finishes",
+        "Third read-only reference should be immediately available after the writer and the old \
+        readers finish",
     );
 
     Ok(())
