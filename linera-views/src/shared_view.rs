@@ -10,12 +10,15 @@ use crate::{
     common::Context,
     views::{RootView, View, ViewError},
 };
-use async_lock::{Mutex, MutexGuardArc, RwLock, RwLockReadGuardArc};
+use async_lock::{Mutex, MutexGuardArc, RwLock, RwLockReadGuardArc, RwLockWriteGuardArc};
 use async_trait::async_trait;
 use std::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
-    sync::Arc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -38,6 +41,7 @@ use crate::{increment_counter, SAVE_VIEW_COUNTER};
 pub struct SharedView<C, V> {
     shared_view: Arc<RwLock<V>>,
     staging_view: Arc<Mutex<V>>,
+    dirty: Arc<AtomicBool>,
     _context: PhantomData<C>,
 }
 
@@ -50,6 +54,7 @@ where
         Ok(SharedView {
             shared_view: Arc::new(RwLock::new(view.share_unchecked()?)),
             staging_view: Arc::new(Mutex::new(view)),
+            dirty: Arc::new(AtomicBool::new(false)),
             _context: PhantomData,
         })
     }
@@ -58,12 +63,22 @@ where
     ///
     /// If there is a writer with a [`ReadWriteViewReference`] to the inner [`View`], waits
     /// until that writer is finished.
-    pub async fn inner(&self) -> ReadOnlyViewReference<V> {
-        let _no_writer_check = self.staging_view.lock().await;
+    pub async fn inner(&self) -> Result<ReadOnlyViewReference<V>, ViewError> {
+        let mut staging_view = self.staging_view.lock().await;
 
-        ReadOnlyViewReference {
-            view: self.shared_view.read_arc().await,
-        }
+        let view = if self.dirty.load(Ordering::Acquire) {
+            let mut shared_view = self.shared_view.write_arc().await;
+
+            if self.dirty.swap(false, Ordering::AcqRel) {
+                *shared_view = staging_view.share_unchecked()?;
+            }
+
+            RwLockWriteGuardArc::downgrade(shared_view)
+        } else {
+            self.shared_view.read_arc().await
+        };
+
+        Ok(ReadOnlyViewReference { view })
     }
 
     /// Returns a [`ReadWriteViewReference`] to the inner [`View`].
@@ -71,8 +86,12 @@ where
     /// Waits until the previous writer is finished if there is one. There can only be one
     /// [`ReadWriteViewReference`] to the same inner [`View`].
     pub async fn inner_mut(&mut self) -> ReadWriteViewReference<V> {
+        let staging_view = self.staging_view.lock_arc().await;
+
+        self.dirty.store(true, Ordering::Release);
+
         ReadWriteViewReference {
-            staging_view: self.staging_view.lock_arc().await,
+            staging_view,
             shared_view: Arc::clone(&self.shared_view),
         }
     }
@@ -93,8 +112,8 @@ impl<V> Deref for ReadOnlyViewReference<V> {
 
 /// A read-write reference to a [`SharedView`].
 pub struct ReadWriteViewReference<V> {
-    staging_view: MutexGuardArc<V>,
     shared_view: Arc<RwLock<V>>,
+    staging_view: MutexGuardArc<V>,
 }
 
 impl<V> Deref for ReadWriteViewReference<V> {

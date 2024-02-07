@@ -41,7 +41,7 @@ where
         let reference = shared_view
             .inner()
             .now_or_never()
-            .expect("Read-only reference should be immediately available");
+            .expect("Read-only reference should be immediately available")?;
 
         let task = tokio::spawn(async move {
             sleep(Duration::from_millis(10)).await;
@@ -85,7 +85,7 @@ where
     let tasks = FuturesUnordered::new();
 
     for _ in 0..100 {
-        let reference = shared_view.inner().await;
+        let reference = shared_view.inner().await?;
 
         let task = tokio::spawn(async move {
             sleep(Duration::from_millis(10)).await;
@@ -135,7 +135,7 @@ where
     let tasks = FuturesUnordered::new();
 
     for _ in 0..100 {
-        let reference = shared_view.inner().await;
+        let reference = shared_view.inner().await?;
 
         let task = tokio::spawn(async move {
             sleep(Duration::from_millis(10)).await;
@@ -186,7 +186,7 @@ where
     let old_reader_tasks = FuturesUnordered::new();
 
     for _ in 0..100 {
-        let reference = shared_view.inner().await;
+        let reference = shared_view.inner().await?;
 
         let task = tokio::spawn(async move {
             sleep(Duration::from_millis(10)).await;
@@ -205,7 +205,7 @@ where
         let new_reader_tasks = FuturesUnordered::new();
 
         for _ in 0..100 {
-            let reference = shared_view.inner().await;
+            let reference = shared_view.inner().await?;
 
             let task = tokio::spawn(async move {
                 sleep(Duration::from_millis(10)).await;
@@ -305,11 +305,11 @@ where
     let first_reader_reference = shared_view
         .inner()
         .now_or_never()
-        .expect("Initial read-only references should be immediately available");
+        .expect("Initial read-only references should be immediately available")?;
     let second_reader_reference = shared_view
         .inner()
         .now_or_never()
-        .expect("Initial read-only references should be immediately available");
+        .expect("Initial read-only references should be immediately available")?;
 
     let writer_reference = shared_view
         .inner_mut()
@@ -328,7 +328,7 @@ where
     let _third_reader_reference = shared_view.inner().now_or_never().expect(
         "Third read-only reference should be immediately available after the writer and the old \
         readers finish",
-    );
+    )?;
 
     Ok(())
 }
@@ -354,7 +354,7 @@ where
     let reader_tasks = FuturesUnordered::new();
 
     for delay in reader_delays {
-        let reader_reference = shared_view.inner().await;
+        let reader_reference = shared_view.inner().await?;
 
         reader_tasks.push(tokio::spawn(async move {
             let _reader_reference = reader_reference;
@@ -401,7 +401,7 @@ where
     let mut reader_tasks = FuturesUnordered::new();
 
     for delay in reader_delays {
-        let reader_reference = shared_view.inner().await;
+        let reader_reference = shared_view.inner().await?;
 
         reader_tasks.push(tokio::spawn(async move {
             let _reader_reference = reader_reference;
