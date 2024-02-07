@@ -33,7 +33,7 @@ where
     let mut view = V::load(context).await?;
     let staged_state = view.stage_initial_changes().await?;
 
-    let mut shared_view = SharedView::new(view);
+    let shared_view = SharedView::new(view)?;
 
     let tasks = FuturesUnordered::new();
 
@@ -41,7 +41,7 @@ where
         let reference = shared_view
             .inner()
             .now_or_never()
-            .expect("Read-only reference should be immediately available")?;
+            .expect("Read-only reference should be immediately available");
 
         let task = tokio::spawn(async move {
             sleep(Duration::from_millis(10)).await;
@@ -80,12 +80,12 @@ where
     let mut view = V::load(context).await?;
     let initial_state = view.stage_initial_changes().await?;
 
-    let mut shared_view = SharedView::new(view);
+    let mut shared_view = SharedView::new(view)?;
 
     let tasks = FuturesUnordered::new();
 
     for _ in 0..100 {
-        let reference = shared_view.inner().await?;
+        let reference = shared_view.inner().await;
 
         let task = tokio::spawn(async move {
             sleep(Duration::from_millis(10)).await;
@@ -98,7 +98,7 @@ where
     let mut writer_reference = shared_view
         .inner_mut()
         .now_or_never()
-        .expect("Read-write reference should be immediately available")?;
+        .expect("Read-write reference should be immediately available");
     writer_reference.stage_changes_to_be_discarded().await?;
 
     tasks
@@ -130,12 +130,12 @@ where
     let mut view = V::load(context).await?;
     let initial_state = view.stage_initial_changes().await?;
 
-    let mut shared_view = SharedView::new(view);
+    let mut shared_view = SharedView::new(view)?;
 
     let tasks = FuturesUnordered::new();
 
     for _ in 0..100 {
-        let reference = shared_view.inner().await?;
+        let reference = shared_view.inner().await;
 
         let task = tokio::spawn(async move {
             sleep(Duration::from_millis(10)).await;
@@ -148,7 +148,7 @@ where
     let mut writer_reference = shared_view
         .inner_mut()
         .now_or_never()
-        .expect("Read-write reference should be immediately available")?;
+        .expect("Read-write reference should be immediately available");
     writer_reference.stage_changes_to_be_persisted().await?;
     writer_reference.save().await?;
 
@@ -181,12 +181,12 @@ where
     let mut view = V::load(context).await?;
     let initial_state = view.stage_initial_changes().await?;
 
-    let mut shared_view = SharedView::new(view);
+    let mut shared_view = SharedView::new(view)?;
 
     let old_reader_tasks = FuturesUnordered::new();
 
     for _ in 0..100 {
-        let reference = shared_view.inner().await?;
+        let reference = shared_view.inner().await;
 
         let task = tokio::spawn(async move {
             sleep(Duration::from_millis(10)).await;
@@ -199,13 +199,13 @@ where
     let mut writer_reference = shared_view
         .inner_mut()
         .now_or_never()
-        .expect("Read-write reference should be immediately available")?;
+        .expect("Read-write reference should be immediately available");
 
     let spawn_new_readers_task = tokio::spawn(async move {
         let new_reader_tasks = FuturesUnordered::new();
 
         for _ in 0..100 {
-            let reference = shared_view.inner().await?;
+            let reference = shared_view.inner().await;
 
             let task = tokio::spawn(async move {
                 sleep(Duration::from_millis(10)).await;
@@ -266,7 +266,7 @@ where
 {
     let context = create_memory_context();
     let dummy_view = V::load(context).await?;
-    let mut shared_view = SharedView::new(dummy_view);
+    let mut shared_view = SharedView::new(dummy_view)?;
 
     let writer_reference = shared_view
         .inner_mut()
@@ -300,7 +300,7 @@ where
 {
     let context = create_memory_context();
     let dummy_view = V::load(context).await?;
-    let mut shared_view = SharedView::new(dummy_view);
+    let mut shared_view = SharedView::new(dummy_view)?;
 
     let _first_reader_reference = shared_view
         .inner()
@@ -342,7 +342,7 @@ where
 {
     let context = create_memory_context();
     let dummy_view = V::load(context).await?;
-    let mut shared_view = SharedView::new(dummy_view);
+    let mut shared_view = SharedView::new(dummy_view)?;
 
     let reader_delays = [100, 300, 250, 200, 150, 400, 200]
         .into_iter()
@@ -351,7 +351,7 @@ where
     let reader_tasks = FuturesUnordered::new();
 
     for delay in reader_delays {
-        let reader_reference = shared_view.inner().await?;
+        let reader_reference = shared_view.inner().await;
 
         reader_tasks.push(tokio::spawn(async move {
             let _reader_reference = reader_reference;
@@ -359,7 +359,7 @@ where
         }));
     }
 
-    let mut writer_reference = shared_view.inner_mut().await?;
+    let mut writer_reference = shared_view.inner_mut().await;
     writer_reference.save().await?;
 
     let readers_collector =
@@ -389,7 +389,7 @@ where
 {
     let context = create_memory_context();
     let view = V::load(context).await?;
-    let mut shared_view = SharedView::new(view);
+    let mut shared_view = SharedView::new(view)?;
 
     let reader_delays = [100, 300, 250, 200, 150, 400, 200]
         .into_iter()
@@ -398,7 +398,7 @@ where
     let mut reader_tasks = FuturesUnordered::new();
 
     for delay in reader_delays {
-        let reader_reference = shared_view.inner().await?;
+        let reader_reference = shared_view.inner().await;
 
         reader_tasks.push(tokio::spawn(async move {
             let _reader_reference = reader_reference;
@@ -406,7 +406,7 @@ where
         }));
     }
 
-    let _writer_reference = shared_view.inner_mut().await?;
+    let _writer_reference = shared_view.inner_mut().await;
 
     assert!(
         reader_tasks.next().now_or_never().is_none(),
@@ -422,7 +422,7 @@ where
 
 /// A [`View`] to be used in the [`SharedView`] tests.
 #[async_trait]
-trait ShareViewTest: RootView<MemoryContext<()>> + Send + 'static {
+trait ShareViewTest: RootView<MemoryContext<()>> + Send + Sync + 'static {
     /// Representation of the view's state.
     type State: Debug + Eq + Send;
 
