@@ -10,16 +10,12 @@ use crate::{
     common::Context,
     views::{RootView, View, ViewError},
 };
-use async_lock::{Semaphore, SemaphoreGuardArc};
+use async_lock::{Mutex, MutexGuardArc, RwLock, RwLockReadGuardArc};
 use async_trait::async_trait;
-use futures::channel::oneshot;
 use std::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc, Mutex,
-    },
+    sync::Arc,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -41,9 +37,8 @@ use crate::{increment_counter, SAVE_VIEW_COUNTER};
 /// have finished.
 pub struct SharedView<C, V> {
     view: V,
-    reader_count: Arc<AtomicUsize>,
-    writer_semaphore: Arc<Semaphore>,
-    writer_notifier: Arc<Mutex<Option<oneshot::Sender<()>>>>,
+    save_lock: Arc<RwLock<()>>,
+    writer_active: Arc<Mutex<()>>,
     _context: PhantomData<C>,
 }
 
@@ -55,9 +50,8 @@ where
     pub fn new(view: V) -> Self {
         SharedView {
             view,
-            reader_count: Arc::new(AtomicUsize::new(0)),
-            writer_semaphore: Arc::new(Semaphore::new(1)),
-            writer_notifier: Arc::new(Mutex::new(None)),
+            save_lock: Arc::new(RwLock::new(())),
+            writer_active: Arc::new(Mutex::new(())),
             _context: PhantomData,
         }
     }
@@ -67,14 +61,12 @@ where
     /// If there is a writer with a [`ReadWriteViewReference`] to the inner [`View`], waits
     /// until that writer is finished.
     pub async fn inner(&mut self) -> Result<ReadOnlyViewReference<V>, ViewError> {
-        let _no_writer_check = self.writer_semaphore.acquire().await;
-
-        self.reader_count.fetch_add(1, Ordering::SeqCst);
+        let _no_writer_check = self.writer_active.lock().await;
+        let read_lock = self.save_lock.read_arc().await;
 
         Ok(ReadOnlyViewReference {
             view: self.view.share_unchecked()?,
-            reader_count: self.reader_count.clone(),
-            writer_notifier: self.writer_notifier.clone(),
+            _read_lock: read_lock,
         })
     }
 
@@ -83,27 +75,12 @@ where
     /// Waits until the previous writer is finished if there is one. There can only be one
     /// [`ReadWriteViewReference`] to the same inner [`View`].
     pub async fn inner_mut(&mut self) -> Result<ReadWriteViewReference<V>, ViewError> {
-        let writer_permit = self.writer_semaphore.acquire_arc().await;
-        let (sender, receiver) = oneshot::channel();
-        let mut writer_notifier = self
-            .writer_notifier
-            .lock()
-            .expect("No panics should happen while holding the `write_notifier` lock");
-
-        if let Some(notifier) = writer_notifier.take() {
-            assert!(
-                notifier.send(()).is_err(),
-                "`writer_notifier` should either be already used or the receiving writer should \
-                have already finished"
-            );
-        }
-
-        *writer_notifier = Some(sender);
+        let writer_guard = self.writer_active.lock_arc().await;
 
         Ok(ReadWriteViewReference {
             view: self.view.share_unchecked()?,
-            write_barrier: Some(receiver),
-            _writer_permit: writer_permit,
+            save_lock: self.save_lock.clone(),
+            _writer_guard: writer_guard,
         })
     }
 }
@@ -111,8 +88,7 @@ where
 /// A read-only reference to a [`SharedView`].
 pub struct ReadOnlyViewReference<V> {
     view: V,
-    reader_count: Arc<AtomicUsize>,
-    writer_notifier: Arc<Mutex<Option<oneshot::Sender<()>>>>,
+    _read_lock: RwLockReadGuardArc<()>,
 }
 
 impl<V> Deref for ReadOnlyViewReference<V> {
@@ -123,28 +99,11 @@ impl<V> Deref for ReadOnlyViewReference<V> {
     }
 }
 
-impl<V> Drop for ReadOnlyViewReference<V> {
-    fn drop(&mut self) {
-        if self.reader_count.fetch_sub(1, Ordering::SeqCst) == 1 {
-            let mut writer_notifier = self
-                .writer_notifier
-                .lock()
-                .expect("No panics should happen while holding the `write_notifier` lock");
-
-            if self.reader_count.load(Ordering::Acquire) == 0 {
-                if let Some(notifier) = writer_notifier.take() {
-                    let _ = notifier.send(());
-                }
-            }
-        }
-    }
-}
-
 /// A read-write reference to a [`SharedView`].
 pub struct ReadWriteViewReference<V> {
     view: V,
-    write_barrier: Option<oneshot::Receiver<()>>,
-    _writer_permit: SemaphoreGuardArc,
+    save_lock: Arc<RwLock<()>>,
+    _writer_guard: MutexGuardArc<()>,
 }
 
 impl<V> Deref for ReadWriteViewReference<V> {
@@ -203,18 +162,18 @@ where
     ViewError: From<C::Error>,
 {
     async fn save(&mut self) -> Result<(), ViewError> {
-        if let Some(barrier) = self.write_barrier.take() {
-            let () = barrier
-                .await
-                .expect("`writer_notifier` should never be dropped without notifying first");
-        }
+        let _save_guard = self.save_lock.write().await;
 
         #[cfg(not(target_arch = "wasm32"))]
-        increment_counter(&SAVE_VIEW_COUNTER, "SharedView", &self.context().base_key());
+        increment_counter(
+            &SAVE_VIEW_COUNTER,
+            "SharedView",
+            &self.view.context().base_key(),
+        );
 
         let mut batch = Batch::new();
-        self.flush(&mut batch)?;
-        self.context().write_batch(batch).await?;
+        self.view.flush(&mut batch)?;
+        self.view.context().write_batch(batch).await?;
         Ok(())
     }
 }
