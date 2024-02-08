@@ -331,6 +331,35 @@ pub fn derive_hashable_root_view(input: TokenStream) -> TokenStream {
     stream.into()
 }
 
+#[proc_macro_derive(SharableView, attributes(view))]
+pub fn derive_sharable_view(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+
+    let struct_name = input.ident;
+    let generics = input.generics;
+    let template_vect = get_seq_parameter(generics.clone());
+
+    let (context, context_constraints) = context_and_constraints(&input.attrs, &template_vect);
+
+    let share_unchecked_quotes = input.fields.iter().map(|field| {
+        let name = &field.ident;
+        quote! { #name: self.#name.share_unchecked()?, }
+    });
+
+    quote! {
+        impl #generics linera_views::views::SharableView<#context> for #struct_name #generics
+        #context_constraints
+        {
+            fn share_unchecked(&mut self) -> Result<Self, linera_views::views::ViewError> {
+                Ok(Self {
+                    #(#share_unchecked_quotes)*
+                })
+            }
+        }
+    }
+    .into()
+}
+
 #[cfg(test)]
 pub mod tests {
 
