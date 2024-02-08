@@ -425,7 +425,9 @@ where
 
 /// A [`View`] to be used in the [`SharedView`] tests.
 #[async_trait]
-trait ShareViewTest: RootView<MemoryContext<()>> + Send + Sync + 'static {
+trait ShareViewTest:
+    RootView<MemoryContext<()>> + SharableView<MemoryContext<()>> + Send + Sync + 'static
+{
     /// Representation of the view's state.
     type State: Debug + Eq + Send;
 
@@ -447,7 +449,7 @@ trait ShareViewTest: RootView<MemoryContext<()>> + Send + Sync + 'static {
 }
 
 /// Wrapper to test sharing a [`RegisterView`].
-#[derive(RootView)]
+#[derive(RootView, SharableView)]
 struct ShareRegisterView<C> {
     byte: RegisterView<C, u8>,
 }
@@ -479,7 +481,7 @@ impl ShareViewTest for ShareRegisterView<MemoryContext<()>> {
 }
 
 /// Wrapper to test sharing a [`LogView`].
-#[derive(RootView)]
+#[derive(RootView, SharableView)]
 struct ShareLogView<C> {
     log: LogView<C, u16>,
 }
@@ -523,7 +525,7 @@ impl ShareViewTest for ShareLogView<MemoryContext<()>> {
 }
 
 /// Wrapper to test sharing a [`MapView`].
-#[derive(RootView)]
+#[derive(RootView, SharableView)]
 struct ShareMapView<C> {
     map: MapView<C, i32, String>,
 }
@@ -616,7 +618,7 @@ impl ShareViewTest for ShareMapView<MemoryContext<()>> {
 }
 
 /// Wrapper to test sharing a [`CollectionView`].
-#[derive(RootView)]
+#[derive(RootView, SharableView)]
 struct ShareCollectionView<C> {
     collection: CollectionView<C, i32, RegisterView<C, String>>,
 }
