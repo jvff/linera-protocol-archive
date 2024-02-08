@@ -186,7 +186,5 @@ pub trait CryptoHashRootView<C>: RootView<C> + CryptoHashView<C> {}
 pub trait SharableView<C>: View<C> {
     /// Creates a clone of this view, sharing the underlying storage context but prone to
     /// data races which can corrupt the view state.
-    ///
-    /// Use [`SharedView`][`crate::shared_view::SharedView`] to share a view safely instead.
     fn share_unchecked(&mut self) -> Result<Self, ViewError>;
 }
