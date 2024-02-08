@@ -1,7 +1,7 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-//! Some [`View`]s that are easy to use with test cases.
+//! Some [`View`][`crate::views::View`]s that are easy to use with test cases.
 
 use crate::{
     self as linera_views,
@@ -15,7 +15,7 @@ use crate::{
 use async_trait::async_trait;
 use std::{collections::HashMap, fmt::Debug};
 
-/// A [`View`] to be used in test cases.
+/// A [`View`][`crate::views::View`] to be used in test cases.
 #[async_trait]
 pub trait TestView:
     RootView<MemoryContext<()>> + ClonableView<MemoryContext<()>> + Send + Sync + 'static
