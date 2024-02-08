@@ -8,7 +8,7 @@ mod tests;
 use crate::{
     batch::Batch,
     common::Context,
-    views::{RootView, View, ViewError},
+    views::{RootView, SharableView, View, ViewError},
 };
 use async_lock::{Mutex, MutexGuardArc, RwLock, RwLockReadGuardArc, RwLockWriteGuardArc};
 use async_trait::async_trait;
@@ -47,7 +47,7 @@ pub struct SharedView<C, V> {
 
 impl<C, V> SharedView<C, V>
 where
-    V: View<C>,
+    V: SharableView<C>,
 {
     /// Wraps a `view` in a [`SharedView`].
     pub fn new(mut view: V) -> Result<Self, ViewError> {
@@ -155,20 +155,13 @@ where
     fn flush(&mut self, batch: &mut Batch) -> Result<(), ViewError> {
         self.deref_mut().flush(batch)
     }
-
-    fn share_unchecked(&mut self) -> Result<Self, ViewError> {
-        unreachable!(
-            "`ReadWriteViewReference` should not be shared without going through its parent \
-            `SharedView`"
-        );
-    }
 }
 
 #[async_trait]
 impl<C, V> RootView<C> for ReadWriteViewReference<V>
 where
     C: Context + Send + 'static,
-    V: View<C> + Send + Sync,
+    V: SharableView<C> + Send + Sync,
     ViewError: From<C::Error>,
 {
     async fn save(&mut self) -> Result<(), ViewError> {
