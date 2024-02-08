@@ -4,7 +4,7 @@
 use crate::{
     batch::Batch,
     common::{from_bytes_opt, Context, HasherOutput, MIN_VIEW_TAG},
-    views::{HashableView, Hasher, View, ViewError},
+    views::{HashableView, Hasher, SharableView, View, ViewError},
 };
 use async_lock::Mutex;
 use async_trait::async_trait;
@@ -64,7 +64,7 @@ impl<C, T> View<C> for QueueView<C, T>
 where
     C: Context + Send + Sync,
     ViewError: From<C::Error>,
-    T: Clone + Send + Sync + Serialize,
+    T: Send + Sync + Serialize,
 {
     fn context(&self) -> &C {
         &self.context
@@ -145,7 +145,14 @@ where
         self.new_back_values.clear();
         *self.hash.get_mut() = None;
     }
+}
 
+impl<C, T> SharableView<C> for QueueView<C, T>
+where
+    C: Context + Send + Sync,
+    ViewError: From<C::Error>,
+    T: Clone + Send + Sync + Serialize,
+{
     fn share_unchecked(&mut self) -> Result<Self, ViewError> {
         Ok(QueueView {
             context: self.context.clone(),

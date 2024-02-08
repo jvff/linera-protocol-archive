@@ -43,7 +43,7 @@ use crate::{
         contains_key, get_interval, insert_key_prefix, Context, CustomSerialize, HasherOutput,
         KeyIterable, KeyValueIterable, SuffixClosedSetIterator, Update, MIN_VIEW_TAG,
     },
-    views::{HashableView, Hasher, View, ViewError},
+    views::{HashableView, Hasher, SharableView, View, ViewError},
 };
 use async_lock::Mutex;
 use async_trait::async_trait;
@@ -81,7 +81,7 @@ impl<C, V> View<C> for ByteMapView<C, V>
 where
     C: Context + Send + Sync,
     ViewError: From<C::Error>,
-    V: Clone + Send + Sync + Serialize,
+    V: Send + Sync + Serialize,
 {
     fn context(&self) -> &C {
         &self.context
@@ -149,7 +149,14 @@ where
         self.deleted_prefixes.clear();
         *self.hash.get_mut() = None;
     }
+}
 
+impl<C, V> SharableView<C> for ByteMapView<C, V>
+where
+    C: Context + Send + Sync,
+    ViewError: From<C::Error>,
+    V: Clone + Send + Sync + Serialize,
+{
     fn share_unchecked(&mut self) -> Result<Self, ViewError> {
         Ok(ByteMapView {
             context: self.context.clone(),
@@ -839,7 +846,7 @@ where
     C: Context + Send + Sync,
     ViewError: From<C::Error>,
     I: Send + Sync + Serialize,
-    V: Clone + Send + Sync + Serialize,
+    V: Send + Sync + Serialize,
 {
     fn context(&self) -> &C {
         self.map.context()
@@ -864,7 +871,15 @@ where
     fn clear(&mut self) {
         self.map.clear()
     }
+}
 
+impl<C, I, V> SharableView<C> for MapView<C, I, V>
+where
+    C: Context + Send + Sync,
+    ViewError: From<C::Error>,
+    I: Send + Sync + Serialize,
+    V: Clone + Send + Sync + Serialize,
+{
     fn share_unchecked(&mut self) -> Result<Self, ViewError> {
         Ok(MapView {
             map: self.map.share_unchecked()?,
@@ -1270,7 +1285,15 @@ where
     fn clear(&mut self) {
         self.map.clear()
     }
+}
 
+impl<C, I, V> SharableView<C> for CustomMapView<C, I, V>
+where
+    C: Context + Send + Sync,
+    ViewError: From<C::Error>,
+    I: Send + Sync + CustomSerialize,
+    V: Clone + Send + Sync + Serialize,
+{
     fn share_unchecked(&mut self) -> Result<Self, ViewError> {
         Ok(CustomMapView {
             map: self.map.share_unchecked()?,

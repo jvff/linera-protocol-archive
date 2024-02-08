@@ -4,7 +4,7 @@
 use crate::{
     batch::Batch,
     common::{from_bytes_opt, Context, HasherOutput, MIN_VIEW_TAG},
-    views::{HashableView, Hasher, View, ViewError},
+    views::{HashableView, Hasher, SharableView, View, ViewError},
 };
 use async_lock::Mutex;
 use async_trait::async_trait;
@@ -57,7 +57,7 @@ impl<C, T> View<C> for RegisterView<C, T>
 where
     C: Context + Send + Sync,
     ViewError: From<C::Error>,
-    T: Clone + Default + Send + Sync + Serialize + DeserializeOwned,
+    T: Default + Send + Sync + Serialize + DeserializeOwned,
 {
     fn context(&self) -> &C {
         &self.context
@@ -114,7 +114,14 @@ where
         self.update = Some(Box::default());
         *self.hash.get_mut() = None;
     }
+}
 
+impl<C, T> SharableView<C> for RegisterView<C, T>
+where
+    C: Context + Send + Sync,
+    ViewError: From<C::Error>,
+    T: Clone + Default + Send + Sync + Serialize + DeserializeOwned,
+{
     fn share_unchecked(&mut self) -> Result<Self, ViewError> {
         Ok(RegisterView {
             delete_storage_first: self.delete_storage_first,

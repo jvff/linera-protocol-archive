@@ -4,7 +4,7 @@
 use crate::{
     batch::Batch,
     common::{Context, CustomSerialize, HasherOutput, KeyIterable, Update, MIN_VIEW_TAG},
-    views::{HashableView, Hasher, View, ViewError},
+    views::{HashableView, Hasher, SharableView, View, ViewError},
 };
 use async_lock::Mutex;
 use async_trait::async_trait;
@@ -116,7 +116,13 @@ where
         self.updates.clear();
         *self.hash.get_mut() = None;
     }
+}
 
+impl<C> SharableView<C> for ByteSetView<C>
+where
+    C: Context + Send + Sync,
+    ViewError: From<C::Error>,
+{
     fn share_unchecked(&mut self) -> Result<Self, ViewError> {
         Ok(ByteSetView {
             context: self.context.clone(),
@@ -417,7 +423,14 @@ where
     fn clear(&mut self) {
         self.set.clear()
     }
+}
 
+impl<C, I> SharableView<C> for SetView<C, I>
+where
+    C: Context + Send + Sync,
+    ViewError: From<C::Error>,
+    I: Send + Sync + Serialize,
+{
     fn share_unchecked(&mut self) -> Result<Self, ViewError> {
         Ok(SetView {
             set: self.set.share_unchecked()?,
@@ -659,7 +672,14 @@ where
     fn clear(&mut self) {
         self.set.clear()
     }
+}
 
+impl<C, I> SharableView<C> for CustomSetView<C, I>
+where
+    C: Context + Send + Sync,
+    ViewError: From<C::Error>,
+    I: Send + Sync + CustomSerialize,
+{
     fn share_unchecked(&mut self) -> Result<Self, ViewError> {
         Ok(CustomSetView {
             set: self.set.share_unchecked()?,

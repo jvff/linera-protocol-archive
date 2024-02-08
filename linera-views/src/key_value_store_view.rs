@@ -8,7 +8,7 @@ use crate::{
         KeyIterable, KeyValueIterable, SuffixClosedSetIterator, Update, MIN_VIEW_TAG,
     },
     map_view::ByteMapView,
-    views::{HashableView, Hasher, View, ViewError},
+    views::{HashableView, Hasher, SharableView, View, ViewError},
 };
 use async_lock::Mutex;
 use async_trait::async_trait;
@@ -240,7 +240,13 @@ where
         self.sizes.clear();
         *self.hash.get_mut() = None;
     }
+}
 
+impl<C> SharableView<C> for KeyValueStoreView<C>
+where
+    C: Context + Send + Sync,
+    ViewError: From<C::Error>,
+{
     fn share_unchecked(&mut self) -> Result<Self, ViewError> {
         Ok(KeyValueStoreView {
             context: self.context.clone(),

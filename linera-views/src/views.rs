@@ -35,12 +35,6 @@ pub trait View<C>: Sized {
     /// changes in the `batch` variable first. If the view is dropped without calling `flush`, staged
     /// changes are simply lost.
     fn flush(&mut self, batch: &mut Batch) -> Result<(), ViewError>;
-
-    /// Creates a clone of this view, sharing the underlying storage context but prone to
-    /// data races which can corrupt the view state.
-    ///
-    /// Use [`SharedView`][`crate::shared_view::SharedView`] to share a view safely instead.
-    fn share_unchecked(&mut self) -> Result<Self, ViewError>;
 }
 
 /// Main error type for the crate.
@@ -179,3 +173,18 @@ pub trait CryptoHashView<C>: HashableView<C> {
 /// A [`RootView`] that also supports crypto hash
 #[async_trait]
 pub trait CryptoHashRootView<C>: RootView<C> + CryptoHashView<C> {}
+
+/// A [`SharableView`] supports being shared (unsafely) by cloning it.
+///
+/// Sharing is unsafe because by having two view instances for the same data, they may have invalid
+/// state if both are used for writing.
+///
+/// Sharing the view is guaranteed to not cause data races if only one of the shared view instances
+/// is used for writing at any given point in time.
+pub trait SharableView<C>: View<C> {
+    /// Creates a clone of this view, sharing the underlying storage context but prone to
+    /// data races which can corrupt the view state.
+    ///
+    /// Use [`SharedView`][`crate::shared_view::SharedView`] to share a view safely instead.
+    fn share_unchecked(&mut self) -> Result<Self, ViewError>;
+}

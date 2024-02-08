@@ -4,7 +4,7 @@
 use crate::{
     batch::Batch,
     common::{Context, CustomSerialize, HasherOutput, KeyIterable, Update, MIN_VIEW_TAG},
-    views::{HashableView, Hasher, View, ViewError},
+    views::{HashableView, Hasher, SharableView, View, ViewError},
 };
 use async_lock::{Mutex, RwLock, RwLockReadGuardArc, RwLockWriteGuardArc};
 use async_trait::async_trait;
@@ -176,7 +176,14 @@ where
         self.updates.get_mut().clear();
         *self.hash.get_mut() = None;
     }
+}
 
+impl<C, W> SharableView<C> for ReentrantByteCollectionView<C, W>
+where
+    C: Context + Send + Sync,
+    ViewError: From<C::Error>,
+    W: SharableView<C> + Send + Sync,
+{
     fn share_unchecked(&mut self) -> Result<Self, ViewError> {
         let cloned_updates = self
             .updates
@@ -875,7 +882,15 @@ where
     fn clear(&mut self) {
         self.collection.clear()
     }
+}
 
+impl<C, I, W> SharableView<C> for ReentrantCollectionView<C, I, W>
+where
+    C: Context + Send + Sync,
+    ViewError: From<C::Error>,
+    I: Send + Sync + Debug + Serialize + DeserializeOwned,
+    W: SharableView<C> + Send + Sync,
+{
     fn share_unchecked(&mut self) -> Result<Self, ViewError> {
         Ok(ReentrantCollectionView {
             collection: self.collection.share_unchecked()?,
@@ -1295,7 +1310,15 @@ where
     fn clear(&mut self) {
         self.collection.clear()
     }
+}
 
+impl<C, I, W> SharableView<C> for ReentrantCustomCollectionView<C, I, W>
+where
+    C: Context + Send + Sync,
+    ViewError: From<C::Error>,
+    I: Send + Sync + Debug + CustomSerialize,
+    W: SharableView<C> + Send + Sync,
+{
     fn share_unchecked(&mut self) -> Result<Self, ViewError> {
         Ok(ReentrantCustomCollectionView {
             collection: self.collection.share_unchecked()?,
