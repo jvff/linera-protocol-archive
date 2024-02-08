@@ -4,10 +4,11 @@
 //! Derivation of the `WitType` trait.
 
 use crate::util::FieldsInformation;
+use heck::ToKebabCase;
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
 use quote::quote;
-use syn::{Ident, Variant};
+use syn::{Ident, LitStr, Variant};
 
 #[path = "unit_tests/wit_type.rs"]
 mod tests;
@@ -19,27 +20,10 @@ pub fn derive_for_struct<'input>(
     fields: impl Into<FieldsInformation<'input>>,
 ) -> TokenStream {
     let wit_name = LitStr::new(&name.to_string().to_kebab_case(), name.span());
-    let fields_hlist = fields.into().hlist_type();
-
-    let fields = fields
-        .iter()
-        .filter(|field| !is_unit_type(&field.ty) && !should_skip_field(field));
-    let field_wit_names = fields.clone().enumerate().map(|(index, field)| {
-        let field_name = field
-            .ident
-            .as_ref()
-            .map(Ident::to_string)
-            .unwrap_or_else(|| format!("inner{index}"))
-            .to_kebab_case();
-
-        LitStr::new(&field_name, field.span())
-    });
-
-    let field_wit_types = fields.clone().map(|field| {
-        let field_type = &field.ty;
-
-        quote! { <#field_type as linera_witty::WitType>::wit_type_name() }
-    });
+    let fields = fields.into();
+    let fields_hlist = fields.hlist_type();
+    let field_wit_names = fields.wit_names();
+    let field_wit_type_names = fields.wit_type_names();
 
     quote! {
         const SIZE: u32 = <#fields_hlist as linera_witty::WitType>::SIZE;
@@ -58,7 +42,7 @@ pub fn derive_for_struct<'input>(
                 wit_declaration.push_str("        ");
                 wit_declaration.push_str(#field_wit_names);
                 wit_declaration.push_str(": ");
-                wit_declaration.push_str(&*#field_wit_types);
+                wit_declaration.push_str(&*#field_wit_type_names);
                 wit_declaration.push_str(",\n");
             )*
 
@@ -77,8 +61,14 @@ pub fn derive_for_enum<'variants>(
     let wit_name = LitStr::new(&name.to_string().to_kebab_case(), name.span());
 
     let variant_count = variants.clone().count();
-    let variant_hlists =
-        variants.map(|variant| FieldsInformation::from(&variant.fields).hlist_type());
+    let variant_fields: Vec<_> = variants
+        .clone()
+        .map(|variant| FieldsInformation::from(&variant.fields))
+        .collect();
+    let variant_hlists: Vec<_> = variant_fields
+        .iter()
+        .map(FieldsInformation::hlist_type)
+        .collect();
 
     let discriminant_type = if variant_count <= u8::MAX.into() {
         quote! { u8 }
@@ -92,7 +82,7 @@ pub fn derive_for_enum<'variants>(
 
     let discriminant_size = quote! { std::mem::size_of::<#discriminant_type>() as u32 };
 
-    let variant_sizes = variant_hlists.clone().map(|variant_hlist| {
+    let variant_sizes = variant_hlists.iter().map(|variant_hlist| {
         quote! {
             let variant_size =
                 discriminant_size + padding + <#variant_hlist as linera_witty::WitType>::SIZE;
@@ -104,6 +94,7 @@ pub fn derive_for_enum<'variants>(
     });
 
     let variant_layouts = variant_hlists
+        .iter()
         .map(|variant_hlist| quote! { <#variant_hlist as linera_witty::WitType>::Layout })
         .rev()
         .reduce(|current, variant_layout| {
@@ -112,20 +103,7 @@ pub fn derive_for_enum<'variants>(
             }
         });
 
-    let variant_wit_names = variants.clone().map(|variant| {
-        LitStr::new(
-            &variant.ident.to_string().to_kebab_case(),
-            variant.ident.span(),
-        )
-    });
-
-    let variant_field_types = variants.map(|variant| {
-        variant
-            .fields
-            .iter()
-            .filter(|field| !should_skip_field(field))
-            .map(|field| &field.ty)
-    });
+    let variant_field_types = variant_fields.iter().map(FieldsInformation::types);
     let dependencies = variant_field_types.clone().flatten();
 
     let enum_or_variant = if dependencies.clone().count() == 0 {
@@ -133,6 +111,13 @@ pub fn derive_for_enum<'variants>(
     } else {
         LitStr::new("variant", name.span())
     };
+
+    let variant_wit_names = variants.map(|variant| {
+        LitStr::new(
+            &variant.ident.to_string().to_kebab_case(),
+            variant.ident.span(),
+        )
+    });
 
     let variant_wit_payloads = variant_field_types.map(|field_types| {
         let mut field_types = field_types.peekable();

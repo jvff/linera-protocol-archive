@@ -6,7 +6,6 @@
 #[cfg(any(feature = "mock-instance", feature = "wasmer", feature = "wasmtime"))]
 use super::wit_export;
 use super::wit_import;
-use crate::util::is_unit_type;
 use heck::ToKebabCase;
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
@@ -200,4 +199,9 @@ impl<'input> From<&'_ wit_export::FunctionInformation<'input>> for FunctionInfor
 
         FunctionInformation::new(&signature.ident, inputs, output)
     }
+}
+
+/// Returns `true` if `the_type` is the unit `()` type.
+pub fn is_unit_type(the_type: &Type) -> bool {
+    matches!(the_type, Type::Tuple(tuple) if tuple.elems.is_empty())
 }

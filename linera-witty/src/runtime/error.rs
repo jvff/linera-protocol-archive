@@ -49,6 +49,10 @@ pub enum RuntimeError {
     #[error("Unexpected variant discriminant")]
     InvalidVariant,
 
+    /// A custom error reported by one of the Wasm host's function handlers.
+    #[error("Error reported by host function handler: {_0}")]
+    Custom(#[source] anyhow::Error),
+
     /// Wasmer runtime error.
     #[cfg(feature = "wasmer")]
     #[error(transparent)]
@@ -62,7 +66,7 @@ pub enum RuntimeError {
     /// Wasmtime error.
     #[cfg(feature = "wasmtime")]
     #[error(transparent)]
-    Wasmtime(#[from] anyhow::Error),
+    Wasmtime(anyhow::Error),
 
     /// Wasmtime trap during execution.
     #[cfg(feature = "wasmtime")]

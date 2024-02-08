@@ -40,6 +40,7 @@ generic-array.workspace = true
 hex = { workspace = true, optional = true }
 linera-base.workspace = true
 linera-views-derive.workspace = true
+linera-witty.workspace = true
 linked-hash-map.workspace = true
 prometheus.workspace = true
 serde.workspace = true

@@ -13,8 +13,8 @@ use linera_sdk::{
     contract::system_api,
     ensure,
     views::View,
-    ApplicationCallOutcome, CalleeContext, Contract, ExecutionOutcome, MessageContext,
-    OperationContext, OutgoingMessage, Resources, SessionCallOutcome, ViewStateStorage,
+    ApplicationCallOutcome, CalleeContext, Contract, ExecutionOutcome, MessageContext, MessageKind,
+    OperationContext, OutgoingMessage, SessionCallOutcome, ViewStateStorage,
 };
 use state::{CrowdFunding, Status};
 use thiserror::Error;
@@ -167,8 +167,7 @@ impl CrowdFunding {
         outcome.messages.push(OutgoingMessage {
             destination: chain_id.into(),
             authenticated: true,
-            is_tracked: false,
-            resources: Resources::default(),
+            kind: MessageKind::Simple,
             message,
         });
         Ok(())

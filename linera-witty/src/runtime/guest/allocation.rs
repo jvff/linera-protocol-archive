@@ -56,6 +56,7 @@ impl From<AllocationMetadata> for alloc::Layout {
     }
 }
 
+#[no_mangle]
 pub extern "C" fn cabi_realloc(
     old_address: i32,
     old_size: i32,
@@ -96,6 +97,7 @@ pub extern "C" fn cabi_realloc(
     }
 }
 
+#[no_mangle]
 pub extern "C" fn cabi_free(address: i32) {
     let metadata_address = (address - AllocationMetadata::size() as i32) as *mut u8;
     let metadata = AllocationMetadata::read_from(metadata_address);

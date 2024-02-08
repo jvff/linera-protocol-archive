@@ -108,7 +108,7 @@ mod tests {
     use super::{Counter, Error};
     use futures::FutureExt;
     use linera_sdk::{
-        base::{BlockHeight, ChainId, MessageId},
+        base::{BlockHeight, ChainId, CryptoHash, MessageId},
         test::mock_application_parameters,
         ApplicationCallOutcome, CalleeContext, Contract, ExecutionOutcome, MessageContext,
         OperationContext,
@@ -207,6 +207,7 @@ mod tests {
             authenticated_signer: None,
             height: BlockHeight(0),
             index: 0,
+            next_message_index: 0,
         }
     }
 
@@ -216,6 +217,7 @@ mod tests {
             is_bouncing: false,
             authenticated_signer: None,
             height: BlockHeight(0),
+            certificate_hash: CryptoHash::from([0; 4]),
             message_id: MessageId {
                 chain_id: ChainId([1; 4].into()),
                 height: BlockHeight(1),

@@ -149,7 +149,7 @@ fn named_struct_with_skipped_fields() {
             ignored4: Vec<()>,
         }
     };
-    let output = derive_for_struct(&input.fields);
+    let output = derive_for_struct(&input.ident, &input.fields);
 
     let expected = quote! {
         const SIZE: u32 = <linera_witty::HList![u8, CustomType] as linera_witty::WitType>::SIZE;
@@ -175,7 +175,7 @@ fn tuple_struct_with_skipped_fields() {
             i64,
         );
     };
-    let output = derive_for_struct(&input.fields);
+    let output = derive_for_struct(&input.ident, &input.fields);
 
     let expected = quote! {
         const SIZE: u32 =

@@ -37,37 +37,45 @@
 
 #![deny(missing_docs)]
 
+#[macro_use]
+pub mod util;
+
 pub mod base;
 pub mod contract;
 mod extensions;
 pub mod graphql;
 mod log;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod mock_system_api;
 pub mod service;
 #[cfg(feature = "test")]
 #[cfg_attr(not(target_arch = "wasm32"), path = "./test/integration/mod.rs")]
 #[cfg_attr(target_arch = "wasm32", path = "./test/unit/mod.rs")]
 pub mod test;
-pub mod util;
 pub mod views;
 
 use self::contract::ContractStateStorage;
 use async_trait::async_trait;
 use linera_base::{
     abi::{ContractAbi, ServiceAbi, WithContractAbi, WithServiceAbi},
+    crypto::CryptoHash,
     data_types::BlockHeight,
-    identifiers::{ApplicationId, ChainId, ChannelName, Destination, MessageId, Owner, SessionId},
+    identifiers::{ApplicationId, ChainId, ChannelName, Destination, MessageId, Owner},
 };
+use linera_witty::{WitLoad, WitStore, WitType};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{error::Error, fmt::Debug, sync::Arc};
 
+pub use self::extensions::{FromBcsBytes, ToBcsBytes};
+#[cfg(not(target_arch = "wasm32"))]
+pub use self::mock_system_api::MockSystemApi;
 pub use self::{
-    extensions::{FromBcsBytes, ToBcsBytes},
     log::{ContractLogger, ServiceLogger},
     service::ServiceStateStorage,
 };
-pub use linera_base::{abi, data_types::Resources, ensure};
+pub use linera_base::{abi, data_types::Resources, ensure, identifiers::SessionId};
 #[doc(hidden)]
-pub use wit_bindgen_guest_rust;
+pub use linera_witty as witty;
 
 /// A simple state management runtime based on a single byte array.
 pub struct SimpleStateStorage<A>(std::marker::PhantomData<A>);
@@ -319,7 +327,7 @@ pub trait Service: WithServiceAbi + ServiceAbi {
 }
 
 /// The context of the execution of an application's operation.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, WitLoad, WitType)]
 pub struct OperationContext {
     /// The current chain id.
     pub chain_id: ChainId,
@@ -329,10 +337,12 @@ pub struct OperationContext {
     pub height: BlockHeight,
     /// The current index of the operation.
     pub index: u32,
+    /// The index of the next message to be created.
+    pub next_message_index: u32,
 }
 
 /// The context of the execution of an application's message.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, WitLoad, WitType)]
 pub struct MessageContext {
     /// The current chain id.
     pub chain_id: ChainId,
@@ -342,13 +352,15 @@ pub struct MessageContext {
     pub authenticated_signer: Option<Owner>,
     /// The current block height.
     pub height: BlockHeight,
+    /// The hash of the remote certificate that created the message.
+    pub certificate_hash: CryptoHash,
     /// The id of the message (based on the operation height and index in the remote
     /// chain that created the message).
     pub message_id: MessageId,
 }
 
 /// The context of the execution of an application's cross-application call or session call handler.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, WitLoad, WitType)]
 pub struct CalleeContext {
     /// The current chain id.
     pub chain_id: ChainId,
@@ -360,33 +372,63 @@ pub struct CalleeContext {
 }
 
 /// The context of the execution of an application's query.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, WitLoad, WitType)]
 pub struct QueryContext {
     /// The current chain id.
     pub chain_id: ChainId,
 }
 
+/// The kind of outgoing message being sent.
+#[derive(
+    Clone, Copy, Debug, Eq, Hash, PartialEq, Deserialize, Serialize, WitLoad, WitStore, WitType,
+)]
+pub enum MessageKind {
+    /// The message can be skipped or rejected. No receipt is requested.
+    Simple,
+    /// The message cannot be skipped nor rejected. No receipt is requested.
+    /// This only concerns certain system messages that cannot fail.
+    Protected,
+    /// The message cannot be skipped but can be rejected. A receipt must be sent
+    /// when the message is rejected in a block of the receiver.
+    Tracked,
+    /// This event is a receipt automatically created when the original event was rejected.
+    Bouncing,
+}
+
 /// A message together with routing information.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, WitStore, WitType)]
 #[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
+#[witty_specialize_with(Message = Vec<u8>)]
 pub struct OutgoingMessage<Message> {
     /// The destination of the message.
     pub destination: Destination,
     /// Whether the message is authenticated.
     pub authenticated: bool,
-    /// Whether the message is tracked.
-    pub is_tracked: bool,
-    /// Resources to be forwarded with the message.
-    pub resources: Resources,
+    /// The kind of outgoing message being sent.
+    pub kind: MessageKind,
     /// The message itself.
     pub message: Message,
 }
 
+impl<Message: Debug + DeserializeOwned + Serialize> OutgoingMessage<Message> {
+    /// Returns an [`OutgoingMessage`] that's compatible with the WIT types.
+    pub fn into_raw(self) -> OutgoingMessage<Vec<u8>> {
+        OutgoingMessage {
+            destination: self.destination,
+            authenticated: self.authenticated,
+            kind: self.kind,
+            message: bcs::to_bytes(&self.message).expect("Failed to serialize outgoing message"),
+        }
+    }
+}
+
 /// Externally visible results of an execution. These results are meant in the context of
 /// the application that created them.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, WitStore, WitType)]
 #[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
+#[witty_specialize_with(Message = Vec<u8>)]
 pub struct ExecutionOutcome<Message> {
+    authenticated_signer: Option<Owner>,
     /// Sends messages to the given destinations, possibly forwarding the authenticated
     /// signer.
     pub messages: Vec<OutgoingMessage<Message>>,
@@ -399,6 +441,7 @@ pub struct ExecutionOutcome<Message> {
 impl<Message> Default for ExecutionOutcome<Message> {
     fn default() -> Self {
         Self {
+            authenticated_signer: None,
             messages: vec![],
             subscribe: vec![],
             unsubscribe: vec![],
@@ -413,8 +456,7 @@ impl<Message: Serialize + Debug + DeserializeOwned> ExecutionOutcome<Message> {
         self.messages.push(OutgoingMessage {
             destination,
             authenticated: false,
-            is_tracked: false,
-            resources: Resources::default(),
+            kind: MessageKind::Simple,
             message,
         });
         self
@@ -431,8 +473,7 @@ impl<Message: Serialize + Debug + DeserializeOwned> ExecutionOutcome<Message> {
         self.messages.push(OutgoingMessage {
             destination,
             authenticated: true,
-            is_tracked: false,
-            resources: Resources::default(),
+            kind: MessageKind::Simple,
             message,
         });
         self
@@ -450,8 +491,7 @@ impl<Message: Serialize + Debug + DeserializeOwned> ExecutionOutcome<Message> {
         self.messages.push(OutgoingMessage {
             destination,
             authenticated: false,
-            is_tracked: true,
-            resources: Resources::default(),
+            kind: MessageKind::Tracked,
             message,
         });
         self
@@ -470,17 +510,42 @@ impl<Message: Serialize + Debug + DeserializeOwned> ExecutionOutcome<Message> {
         self.messages.push(OutgoingMessage {
             destination,
             authenticated: true,
-            is_tracked: true,
-            resources: Resources::default(),
+            kind: MessageKind::Tracked,
             message,
         });
         self
     }
+
+    /// Returns an [`ExecutionOutcome`] that's compatible with the WIT types.
+    pub fn into_raw(self) -> ExecutionOutcome<Vec<u8>> {
+        let messages = self
+            .messages
+            .into_iter()
+            .map(OutgoingMessage::into_raw)
+            .collect();
+
+        ExecutionOutcome {
+            authenticated_signer: None,
+            messages,
+            subscribe: self.subscribe,
+            unsubscribe: self.unsubscribe,
+        }
+    }
+}
+
+/// The result of calling into an application or a session.
+#[derive(WitLoad, WitType)]
+pub struct CallOutcome {
+    /// The return value.
+    pub value: Vec<u8>,
+    /// The new sessions now visible to the caller.
+    pub sessions: Vec<SessionId>,
 }
 
 /// The result of calling into an application.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, WitStore, WitType)]
 #[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
+#[witty_specialize_with(Message = Vec<u8>, Value = Vec<u8>, SessionState = Vec<u8>)]
 pub struct ApplicationCallOutcome<Message, Value, SessionState> {
     /// The return value, if any.
     pub value: Value,
@@ -503,6 +568,34 @@ where
     }
 }
 
+impl<Message, Value, SessionState> ApplicationCallOutcome<Message, Value, SessionState>
+where
+    Message: Debug + DeserializeOwned + Serialize,
+    Value: Serialize,
+    SessionState: Serialize,
+{
+    /// Returns an [`ApplicationCallOutcome`] that's compatible with the WIT types.
+    pub fn into_raw(self) -> ApplicationCallOutcome<Vec<u8>, Vec<u8>, Vec<u8>> {
+        let value = bcs::to_bytes(&self.value)
+            .expect("Failed to serialize `ApplicationCallOutcome`'s value");
+
+        let create_sessions = self
+            .create_sessions
+            .into_iter()
+            .map(|session| {
+                bcs::to_bytes(&session)
+                    .expect("Failed to serialize `ApplicationCallOutcome`'s created sessions")
+            })
+            .collect();
+
+        ApplicationCallOutcome {
+            value,
+            execution_outcome: self.execution_outcome.into_raw(),
+            create_sessions,
+        }
+    }
+}
+
 /// The result of calling into a session.
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct SessionCallOutcome<Message, Value, SessionState> {
@@ -511,4 +604,38 @@ pub struct SessionCallOutcome<Message, Value, SessionState> {
     /// The new state of the session, if any. `None` means that the session was consumed
     /// by the call.
     pub new_state: Option<SessionState>,
+}
+
+impl<Message, Value, SessionState> SessionCallOutcome<Message, Value, SessionState>
+where
+    Message: Debug + DeserializeOwned + Serialize,
+    Value: Serialize,
+    SessionState: Serialize,
+{
+    /// Returns a [`RawSessionCallOutcome`] and serialized updated session state pair that's
+    /// compatible with the WIT types.
+    pub fn into_raw(self) -> (RawSessionCallOutcome, Vec<u8>) {
+        let session_call_result = RawSessionCallOutcome {
+            inner: self.inner.into_raw(),
+            close_session: self.new_state.is_none(),
+        };
+
+        let session_state = self
+            .new_state
+            .map(|session_state| {
+                bcs::to_bytes(&session_state).expect("Failed to serialize updated session state")
+            })
+            .unwrap_or_default();
+
+        (session_call_result, session_state)
+    }
+}
+
+/// The type used in the WIT interface for the result of calling into a session.
+#[derive(Debug, Default, Deserialize, Serialize, WitStore, WitType)]
+pub struct RawSessionCallOutcome {
+    /// The result of the application call.
+    pub inner: ApplicationCallOutcome<Vec<u8>, Vec<u8>, Vec<u8>>,
+    /// If true, the session should be terminated.
+    pub close_session: bool,
 }

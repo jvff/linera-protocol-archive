@@ -11,8 +11,8 @@ use self::{
     allocation::{cabi_free, cabi_realloc},
     export::Export,
 };
-use super::{Instance, InstanceWithMemory, Runtime, RuntimeError};
-use std::any::TypeId;
+use super::{GuestPointer, Instance, InstanceWithMemory, Runtime, RuntimeError, RuntimeMemory};
+use std::{any::TypeId, borrow::Cow, slice};
 
 /// Representation of the local guest as a runtime and instance.
 #[derive(Clone, Copy, Debug, Default)]
@@ -75,5 +75,31 @@ impl InstanceWithMemory for Guest {
             Export::Memory => Ok(Some(())),
             _ => Err(RuntimeError::NotMemory),
         }
+    }
+}
+
+impl RuntimeMemory<Guest> for () {
+    fn read<'instance>(
+        &self,
+        _: &'instance Guest,
+        location: GuestPointer,
+        length: u32,
+    ) -> Result<Cow<'instance, [u8]>, RuntimeError> {
+        let data = unsafe { slice::from_raw_parts(location.0 as *const u8, length as usize) };
+
+        Ok(Cow::Borrowed(data))
+    }
+
+    fn write(
+        &mut self,
+        _: &mut Guest,
+        location: GuestPointer,
+        bytes: &[u8],
+    ) -> Result<(), RuntimeError> {
+        let destination = unsafe { slice::from_raw_parts_mut(location.0 as *mut u8, bytes.len()) };
+
+        destination.copy_from_slice(bytes);
+
+        Ok(())
     }
 }

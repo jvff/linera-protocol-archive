@@ -3,18 +3,19 @@
 
 //! Types and macros useful for writing an application service.
 
-mod conversions_from_wit;
-mod conversions_to_wit;
 mod storage;
+#[cfg(target_arch = "wasm32")]
 pub mod system_api;
-pub mod wit_types;
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg_attr(not(target_arch = "wasm32"), path = "system_api_stubs.rs")]
+pub mod system_api;
 
 pub use self::storage::ServiceStateStorage;
 use crate::{util::BlockingWait, ServiceLogger};
 use std::future::Future;
 
 // Import the system interface.
-wit_bindgen_guest_rust::import!("service_system_api.wit");
+// wit_bindgen_guest_rust::import!("service_system_api.wit");
 
 /// Declares an implementation of the [`Service`][`crate::Service`] trait, exporting it from the
 /// Wasm module.
@@ -24,21 +25,55 @@ wit_bindgen_guest_rust::import!("service_system_api.wit");
 #[macro_export]
 macro_rules! service {
     ($application:ty) => {
-        // Export the service interface.
-        $crate::export_service!($application);
+        static mut SERVICE_RETURN_AREA: $crate::buffer_type_for!(Result<Vec<u8>, String>) =
+            std::mem::MaybeUninit::uninit();
 
-        /// Marks the service type to be exported.
-        impl $crate::service::wit_types::Service for $application {
-            fn handle_query(
-                context: $crate::service::wit_types::QueryContext,
-                argument: Vec<u8>,
-            ) -> Result<Vec<u8>, String> {
-                $crate::service::run_async_entrypoint(
-                    <
-                        <$application as $crate::Service>::Storage as $crate::ServiceStateStorage
-                    >::handle_query(context, argument),
-                )
-            }
+        // Export the service interface.
+        #[cfg(target_arch = "wasm32")]
+        #[export_name = "linera:app/service-entrypoints#handle-query"]
+        extern "C" fn handle_query(
+            chain_id_part1: i64,
+            chain_id_part2: i64,
+            chain_id_part3: i64,
+            chain_id_part4: i64,
+            argument_address: i32,
+            argument_length: i32,
+        ) -> i32 {
+            use $crate::witty::{guest::Guest, GuestPointer, InstanceWithMemory, WitLoad, WitStore};
+
+            let mut guest = Guest::default();
+            let mut memory = guest
+                .memory()
+                .expect("Failed to create guest `Memory` instance");
+
+            let (context, argument) = <($crate::QueryContext, Vec<u8>) as WitLoad>::lift_from(
+                $crate::witty::hlist![
+                    chain_id_part1,
+                    chain_id_part2,
+                    chain_id_part3,
+                    chain_id_part4,
+                    argument_address,
+                    argument_length,
+                ],
+                &memory,
+            )
+            .expect("Failed to load `handle_query` parameters");
+
+            let result = $crate::service::run_async_entrypoint(
+                <
+                    <$application as $crate::Service>::Storage as $crate::ServiceStateStorage
+                >::handle_query(context, argument),
+            );
+
+
+            let result_address = GuestPointer::from(unsafe { SERVICE_RETURN_AREA.as_mut_ptr() })
+                .after_padding_for::<Result<Vec<u8>, String>>();
+
+            result
+                .store(&mut memory, result_address)
+                .expect("Failed to store `handle_query` result");
+
+            result_address.as_i32()
         }
 
         /// Stub of a `main` entrypoint so that the binary doesn't fail to compile on targets other
@@ -50,18 +85,17 @@ macro_rules! service {
 
 /// Runs an asynchronous entrypoint in a blocking manner, by repeatedly polling the entrypoint
 /// future.
-pub fn run_async_entrypoint<Entrypoint, Output, Error, RawOutput>(
+pub fn run_async_entrypoint<Entrypoint, Output, Error>(
     entrypoint: Entrypoint,
-) -> Result<RawOutput, String>
+) -> Result<Output, String>
 where
     Entrypoint: Future<Output = Result<Output, Error>> + Send,
-    Output: Into<RawOutput> + Send + 'static,
+    Output: Send + 'static,
     Error: ToString + 'static,
 {
     ServiceLogger::install();
 
     entrypoint
         .blocking_wait()
-        .map(|output| output.into())
         .map_err(|error| error.to_string())
 }
