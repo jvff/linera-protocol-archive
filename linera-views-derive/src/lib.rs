@@ -280,7 +280,7 @@ fn generate_crypto_hash_code(input: ItemStruct) -> TokenStream2 {
     }
 }
 
-fn generate_clonable_view_code(input: ItemStruct) -> TokenStream2 {
+fn generate_sharable_view_code(input: ItemStruct) -> TokenStream2 {
     let struct_name = input.ident;
     let generics = input.generics;
     let template_vect = get_seq_parameter(generics.clone());
@@ -404,6 +404,14 @@ pub mod tests {
         for context in SpecificContextInfo::test_cases() {
             let input = context.test_view_input();
             insta::assert_display_snapshot!(pretty(generate_crypto_hash_code(input)));
+        }
+    }
+
+    #[test]
+    fn test_generate_clonable_view_code() {
+        for context in SpecificContextInfo::test_cases() {
+            let input = context.test_view_input();
+            insta::assert_display_snapshot!(pretty(generate_clonable_view_code(input)));
         }
     }
 
