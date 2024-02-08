@@ -4,7 +4,7 @@
 use crate::{
     batch::Batch,
     common::{Context, CustomSerialize, HasherOutput, KeyIterable, Update, MIN_VIEW_TAG},
-    views::{HashableView, Hasher, SharableView, View, ViewError},
+    views::{ClonableView, HashableView, Hasher, View, ViewError},
 };
 use async_lock::{Mutex, RwLock, RwLockReadGuardArc, RwLockWriteGuardArc};
 use async_trait::async_trait;
@@ -178,13 +178,13 @@ where
     }
 }
 
-impl<C, W> SharableView<C> for ReentrantByteCollectionView<C, W>
+impl<C, W> ClonableView<C> for ReentrantByteCollectionView<C, W>
 where
     C: Context + Send + Sync,
     ViewError: From<C::Error>,
-    W: SharableView<C> + Send + Sync,
+    W: ClonableView<C> + Send + Sync,
 {
-    fn share_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
         let cloned_updates = self
             .updates
             .get_mut()
@@ -197,7 +197,7 @@ where
                             .try_write()
                             .ok_or(ViewError::CannotAcquireCollectionEntry)?;
 
-                        Update::Set(Arc::new(RwLock::new(view.share_unchecked()?)))
+                        Update::Set(Arc::new(RwLock::new(view.clone_unchecked()?)))
                     }
                 };
                 Ok((key.clone(), cloned_value))
@@ -884,16 +884,16 @@ where
     }
 }
 
-impl<C, I, W> SharableView<C> for ReentrantCollectionView<C, I, W>
+impl<C, I, W> ClonableView<C> for ReentrantCollectionView<C, I, W>
 where
     C: Context + Send + Sync,
     ViewError: From<C::Error>,
     I: Send + Sync + Debug + Serialize + DeserializeOwned,
-    W: SharableView<C> + Send + Sync,
+    W: ClonableView<C> + Send + Sync,
 {
-    fn share_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
         Ok(ReentrantCollectionView {
-            collection: self.collection.share_unchecked()?,
+            collection: self.collection.clone_unchecked()?,
             _phantom: PhantomData,
         })
     }
@@ -1312,16 +1312,16 @@ where
     }
 }
 
-impl<C, I, W> SharableView<C> for ReentrantCustomCollectionView<C, I, W>
+impl<C, I, W> ClonableView<C> for ReentrantCustomCollectionView<C, I, W>
 where
     C: Context + Send + Sync,
     ViewError: From<C::Error>,
     I: Send + Sync + Debug + CustomSerialize,
-    W: SharableView<C> + Send + Sync,
+    W: ClonableView<C> + Send + Sync,
 {
-    fn share_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
         Ok(ReentrantCustomCollectionView {
-            collection: self.collection.share_unchecked()?,
+            collection: self.collection.clone_unchecked()?,
             _phantom: PhantomData,
         })
     }

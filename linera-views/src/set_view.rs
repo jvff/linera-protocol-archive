@@ -4,7 +4,7 @@
 use crate::{
     batch::Batch,
     common::{Context, CustomSerialize, HasherOutput, KeyIterable, Update, MIN_VIEW_TAG},
-    views::{HashableView, Hasher, SharableView, View, ViewError},
+    views::{ClonableView, HashableView, Hasher, View, ViewError},
 };
 use async_lock::Mutex;
 use async_trait::async_trait;
@@ -118,12 +118,12 @@ where
     }
 }
 
-impl<C> SharableView<C> for ByteSetView<C>
+impl<C> ClonableView<C> for ByteSetView<C>
 where
     C: Context + Send + Sync,
     ViewError: From<C::Error>,
 {
-    fn share_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
         Ok(ByteSetView {
             context: self.context.clone(),
             delete_storage_first: self.delete_storage_first,
@@ -425,15 +425,15 @@ where
     }
 }
 
-impl<C, I> SharableView<C> for SetView<C, I>
+impl<C, I> ClonableView<C> for SetView<C, I>
 where
     C: Context + Send + Sync,
     ViewError: From<C::Error>,
     I: Send + Sync + Serialize,
 {
-    fn share_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
         Ok(SetView {
-            set: self.set.share_unchecked()?,
+            set: self.set.clone_unchecked()?,
             _phantom: PhantomData,
         })
     }
@@ -674,15 +674,15 @@ where
     }
 }
 
-impl<C, I> SharableView<C> for CustomSetView<C, I>
+impl<C, I> ClonableView<C> for CustomSetView<C, I>
 where
     C: Context + Send + Sync,
     ViewError: From<C::Error>,
     I: Send + Sync + CustomSerialize,
 {
-    fn share_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
         Ok(CustomSetView {
-            set: self.set.share_unchecked()?,
+            set: self.set.clone_unchecked()?,
             _phantom: PhantomData,
         })
     }

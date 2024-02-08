@@ -43,7 +43,7 @@ use crate::{
         contains_key, get_interval, insert_key_prefix, Context, CustomSerialize, HasherOutput,
         KeyIterable, KeyValueIterable, SuffixClosedSetIterator, Update, MIN_VIEW_TAG,
     },
-    views::{HashableView, Hasher, SharableView, View, ViewError},
+    views::{ClonableView, HashableView, Hasher, View, ViewError},
 };
 use async_lock::Mutex;
 use async_trait::async_trait;
@@ -151,13 +151,13 @@ where
     }
 }
 
-impl<C, V> SharableView<C> for ByteMapView<C, V>
+impl<C, V> ClonableView<C> for ByteMapView<C, V>
 where
     C: Context + Send + Sync,
     ViewError: From<C::Error>,
     V: Clone + Send + Sync + Serialize,
 {
-    fn share_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
         Ok(ByteMapView {
             context: self.context.clone(),
             delete_storage_first: self.delete_storage_first,
@@ -873,16 +873,16 @@ where
     }
 }
 
-impl<C, I, V> SharableView<C> for MapView<C, I, V>
+impl<C, I, V> ClonableView<C> for MapView<C, I, V>
 where
     C: Context + Send + Sync,
     ViewError: From<C::Error>,
     I: Send + Sync + Serialize,
     V: Clone + Send + Sync + Serialize,
 {
-    fn share_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
         Ok(MapView {
-            map: self.map.share_unchecked()?,
+            map: self.map.clone_unchecked()?,
             _phantom: PhantomData,
         })
     }
@@ -1287,16 +1287,16 @@ where
     }
 }
 
-impl<C, I, V> SharableView<C> for CustomMapView<C, I, V>
+impl<C, I, V> ClonableView<C> for CustomMapView<C, I, V>
 where
     C: Context + Send + Sync,
     ViewError: From<C::Error>,
     I: Send + Sync + CustomSerialize,
     V: Clone + Send + Sync + Serialize,
 {
-    fn share_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
         Ok(CustomMapView {
-            map: self.map.share_unchecked()?,
+            map: self.map.clone_unchecked()?,
             _phantom: PhantomData,
         })
     }

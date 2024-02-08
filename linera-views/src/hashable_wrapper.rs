@@ -4,7 +4,7 @@
 use crate::{
     batch::Batch,
     common::{Context, MIN_VIEW_TAG},
-    views::{HashableView, Hasher, SharableView, View, ViewError},
+    views::{ClonableView, HashableView, Hasher, View, ViewError},
 };
 use async_lock::Mutex;
 use async_trait::async_trait;
@@ -80,20 +80,20 @@ where
     }
 }
 
-impl<C, W, O> SharableView<C> for WrappedHashableContainerView<C, W, O>
+impl<C, W, O> ClonableView<C> for WrappedHashableContainerView<C, W, O>
 where
     C: Context + Send + Sync,
     ViewError: From<C::Error>,
-    W: HashableView<C> + SharableView<C>,
+    W: HashableView<C> + ClonableView<C>,
     O: Serialize + DeserializeOwned + Send + Sync + Copy + PartialEq,
     W::Hasher: Hasher<Output = O>,
 {
-    fn share_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
         Ok(WrappedHashableContainerView {
             context: self.context.clone(),
             stored_hash: self.stored_hash,
             hash: Mutex::new(*self.hash.get_mut()),
-            inner: self.inner.share_unchecked()?,
+            inner: self.inner.clone_unchecked()?,
         })
     }
 }
