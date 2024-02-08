@@ -280,6 +280,31 @@ fn generate_crypto_hash_code(input: ItemStruct) -> TokenStream2 {
     }
 }
 
+fn generate_sharable_view_code(input: ItemStruct) -> TokenStream2 {
+    let struct_name = input.ident;
+    let generics = input.generics;
+    let template_vect = get_seq_parameter(generics.clone());
+
+    let (context, context_constraints) = context_and_constraints(&input.attrs, &template_vect);
+
+    let share_unchecked_quotes = input.fields.iter().map(|field| {
+        let name = &field.ident;
+        quote! { #name: self.#name.share_unchecked()?, }
+    });
+
+    quote! {
+        impl #generics linera_views::views::SharableView<#context> for #struct_name #generics
+        #context_constraints
+        {
+            fn share_unchecked(&mut self) -> Result<Self, linera_views::views::ViewError> {
+                Ok(Self {
+                    #(#share_unchecked_quotes)*
+                })
+            }
+        }
+    }
+}
+
 #[proc_macro_derive(View, attributes(view))]
 pub fn derive_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
@@ -334,30 +359,7 @@ pub fn derive_hashable_root_view(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(SharableView, attributes(view))]
 pub fn derive_sharable_view(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-
-    let struct_name = input.ident;
-    let generics = input.generics;
-    let template_vect = get_seq_parameter(generics.clone());
-
-    let (context, context_constraints) = context_and_constraints(&input.attrs, &template_vect);
-
-    let share_unchecked_quotes = input.fields.iter().map(|field| {
-        let name = &field.ident;
-        quote! { #name: self.#name.share_unchecked()?, }
-    });
-
-    quote! {
-        impl #generics linera_views::views::SharableView<#context> for #struct_name #generics
-        #context_constraints
-        {
-            fn share_unchecked(&mut self) -> Result<Self, linera_views::views::ViewError> {
-                Ok(Self {
-                    #(#share_unchecked_quotes)*
-                })
-            }
-        }
-    }
-    .into()
+    generate_sharable_view_code(input).into()
 }
 
 #[cfg(test)]
@@ -402,6 +404,14 @@ pub mod tests {
         for context in SpecificContextInfo::test_cases() {
             let input = context.test_view_input();
             insta::assert_display_snapshot!(pretty(generate_crypto_hash_code(input)));
+        }
+    }
+
+    #[test]
+    fn test_generate_sharable_view_code() {
+        for context in SpecificContextInfo::test_cases() {
+            let input = context.test_view_input();
+            insta::assert_display_snapshot!(pretty(generate_sharable_view_code(input)));
         }
     }
 
