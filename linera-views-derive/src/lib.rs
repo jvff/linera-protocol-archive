@@ -280,7 +280,7 @@ fn generate_crypto_hash_code(input: ItemStruct) -> TokenStream2 {
     }
 }
 
-fn generate_sharable_view_code(input: ItemStruct) -> TokenStream2 {
+fn generate_clonable_view_code(input: ItemStruct) -> TokenStream2 {
     let struct_name = input.ident;
     let generics = input.generics;
     let template_vect = get_seq_parameter(generics.clone());
