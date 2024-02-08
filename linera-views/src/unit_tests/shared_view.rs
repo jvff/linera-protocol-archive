@@ -12,7 +12,7 @@ use linera_views::{
     memory::{create_memory_context, MemoryContext},
     register_view::RegisterView,
     shared_view::SharedView,
-    views::{RootView, View, ViewError},
+    views::{RootView, SharableView, View, ViewError},
 };
 use std::{collections::HashMap, fmt::Debug, marker::PhantomData, mem, time::Duration};
 use test_case::test_case;
