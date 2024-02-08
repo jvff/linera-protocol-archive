@@ -338,10 +338,10 @@ where
 {
     let context = create_memory_context();
     let mut original = V::load(context).await?;
-    let initial_state = original.stage_initial_changes().await?;
+    original.stage_initial_changes().await?;
 
     let mut first_clone = original.clone_unchecked()?;
-    let mut second_clone = original.clone_unchecked()?;
+    let second_clone = original.clone_unchecked()?;
 
     let original_state = original.stage_changes_to_be_discarded().await?;
     let first_clone_state = first_clone.stage_changes_to_be_persisted().await?;
