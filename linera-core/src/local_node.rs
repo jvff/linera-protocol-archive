@@ -35,8 +35,9 @@ pub struct LocalNode<S> {
 
 /// A client to a local node.
 #[derive(Clone)]
-pub struct LocalNodeClient<S> {
-    node: Arc<Mutex<LocalNode<S>>>,
+pub struct LocalNodeClient<Storage, Rng = rand::rngs::SmallRng> {
+    rng: Rng,
+    node: Arc<Mutex<LocalNode<Storage>>>,
 }
 
 /// Error type for the operations on a local node.
@@ -65,11 +66,15 @@ pub enum LocalNodeError {
 
     #[error("The chain info response received from the local node is invalid")]
     InvalidChainInfoResponse,
+
+    #[error("Random generator error: {0}")]
+    RandError(rand::Error),
 }
 
-impl<S> LocalNodeClient<S>
+impl<S, R> LocalNodeClient<S, R>
 where
     S: Storage + Clone + Send + Sync + 'static,
+    R: rand::Rng,
     ViewError: From<S::ContextError>,
 {
     pub async fn handle_block_proposal(
@@ -80,6 +85,10 @@ where
         // In local nodes, we can trust fully_handle_certificate to carry all actions eventually.
         let (response, _actions) = node.state.handle_block_proposal(proposal).await?;
         Ok(response)
+    }
+
+    pub(crate) fn rng_mut(&mut self) -> &mut R {
+        &mut self.rng
     }
 
     pub async fn handle_lite_certificate(
@@ -142,8 +151,15 @@ where
 
 impl<S> LocalNodeClient<S> {
     pub fn new(state: WorkerState<S>, notifier: Arc<Notifier<Notification>>) -> Self {
+        use rand::SeedableRng as _;
+
+        // The following seed is chosen to have equal numbers of 1s and 0s, as advised by
+        // https://docs.rs/rand/latest/rand/rngs/struct.SmallRng.html
+        // Specifically, it's "01" × 32 in binary
+        const RNG_SEED: u64 = 6148914691236517205;
         let node = LocalNode { state, notifier };
         Self {
+            rng: rand::rngs::SmallRng::seed_from_u64(RNG_SEED),
             node: Arc::new(Mutex::new(node)),
         }
     }
@@ -159,9 +175,10 @@ where
     }
 }
 
-impl<S> LocalNodeClient<S>
+impl<S, R> LocalNodeClient<S, R>
 where
     S: Storage + Clone + Send + Sync + 'static,
+    R: rand::Rng + rand::SeedableRng + Clone,
     ViewError: From<S::ContextError>,
 {
     pub(crate) async fn stage_block_execution(
@@ -270,7 +287,7 @@ where
         A: ValidatorNode + Send + Sync + 'static + Clone,
     {
         // Sequentially try each validator in random order.
-        validators.shuffle(&mut rand::thread_rng());
+        validators.shuffle(&mut self.rng);
         for (name, node) in validators {
             let info = self.local_chain_info(chain_id).await?;
             if target_next_block_height <= info.next_block_height {
@@ -316,8 +333,9 @@ where
             } else {
                 let validators = validators.clone();
                 let storage = node.state.storage_client().clone();
+                let _ = self.rng.next_u64();
                 tasks.push(Self::read_or_download_blob(
-                    storage, validators, chain_id, location,
+                    R::from_rng(&mut self.rng).map_err(LocalNodeError::RandError)?, storage, validators, chain_id, location,
                 ));
             }
         }
@@ -337,6 +355,7 @@ where
     }
 
     pub async fn read_or_download_blob<A>(
+        rng: impl rand::Rng,
         storage: S,
         validators: Vec<(ValidatorName, A)>,
         chain_id: ChainId,
@@ -350,7 +369,7 @@ where
             Err(ViewError::NotFound(..)) => {}
             Err(err) => Err(err)?,
         }
-        match Self::download_blob(validators, chain_id, location).await {
+        match Self::download_blob(rng, validators, chain_id, location).await {
             Some(blob) => {
                 storage.write_value(&blob).await?;
                 Ok(Some(blob))
@@ -500,6 +519,7 @@ where
     }
 
     pub async fn download_blob<A>(
+        mut rng: impl rand::Rng,
         mut validators: Vec<(ValidatorName, A)>,
         chain_id: ChainId,
         location: BytecodeLocation,
@@ -508,7 +528,7 @@ where
         A: ValidatorNode + Send + Sync + 'static + Clone,
     {
         // Sequentially try each validator in random order.
-        validators.shuffle(&mut rand::thread_rng());
+        validators.shuffle(&mut rng);
         for (name, mut node) in validators {
             if let Some(blob) =
                 Self::try_download_blob_from(name, &mut node, chain_id, location).await

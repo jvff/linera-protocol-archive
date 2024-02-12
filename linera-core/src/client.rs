@@ -235,6 +235,9 @@ pub enum ChainClientError {
 
     #[error("Leader timeout certificate does not match the expected one.")]
     UnexpectedLeaderTimeout,
+
+    #[error("Random generator error: {0}")]
+    RandError(rand::Error),
 }
 
 impl From<Infallible> for ChainClientError {
@@ -898,12 +901,22 @@ where
             )) = &err
             {
                 let blobs = future::join_all(locations.iter().map(|location| {
-                    LocalNodeClient::<S>::download_blob(nodes.clone(), block.chain_id, *location)
+                    use rand::SeedableRng as _;
+                    let rng = rand::rngs::SmallRng::from_rng(self.node_client.rng_mut());
+                    async {
+                        match rng {
+                            Ok(rng) => Ok(LocalNodeClient::<S>::download_blob(rng, nodes.clone(), block.chain_id, *location).await),
+                            Err(e) => Err(ChainClientError::RandError(e)),
+                        }
+                    }
                 }))
-                .await
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
+                    .await
+                    .into_iter()
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<HashedValue>>();
+
                 if !blobs.is_empty() {
                     self.process_certificate(certificate.clone(), blobs).await?;
                 }
