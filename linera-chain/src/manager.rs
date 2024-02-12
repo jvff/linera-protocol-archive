@@ -149,7 +149,7 @@ impl ChainManager {
                 .values()
                 .map(|(_, weight)| *weight)
                 .collect();
-            Some(WeightedAliasIndex::new(weights)?)
+            Some(WeightedAliasIndex::new(weights).map_err(ChainError::OwnerWeightError)?)
         } else {
             None
         };

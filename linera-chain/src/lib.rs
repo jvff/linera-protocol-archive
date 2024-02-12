@@ -133,7 +133,7 @@ pub enum ChainError {
     #[error("Insufficient balance to pay the fees")]
     InsufficientBalance,
     #[error("Invalid owner weights: {0}")]
-    OwnerWeightError(#[from] WeightedError),
+    OwnerWeightError(WeightedError),
     #[error("Closed chains cannot have operations, accepted messages or empty blocks")]
     ClosedChain,
 }
