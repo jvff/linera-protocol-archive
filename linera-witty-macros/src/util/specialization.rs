@@ -225,6 +225,7 @@ impl Parse for Specialization {
 impl Specialization {
     /// Creates a new specialization for the `type_parameter`, to specialize it into the
     /// `specialized_type`.
+    #[cfg(any(feature = "mock-instance", feature = "wasmer", feature = "wasmtime"))]
     pub fn new(type_parameter: Ident, specialized_type: Type) -> Self {
         Specialization {
             type_parameter,
