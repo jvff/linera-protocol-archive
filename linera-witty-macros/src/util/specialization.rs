@@ -93,6 +93,7 @@ impl Specializations {
     }
 
     /// Specializes the types in the [`Generics`] representation.
+    #[cfg(any(feature = "mock-instance", feature = "wasmer", feature = "wasmtime"))]
     pub fn apply_to_generics(&self, generics: &mut Generics) {
         for specialization in &self.0 {
             specialization.apply_to_generics(generics);
