@@ -12,6 +12,7 @@ edition = "2021"
 
 [features]
 default = ["macros"]
+guest = []
 log = ["dep:log"]
 macros = ["linera-witty-macros"]
 guest = []
