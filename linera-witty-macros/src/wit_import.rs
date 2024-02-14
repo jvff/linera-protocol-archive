@@ -3,6 +3,7 @@
 
 //! Generation of code to import functions from a Wasm guest module.
 
+use super::wit_interface;
 use crate::util::{AttributeParameters, TokensSetItem};
 use heck::ToKebabCase;
 use proc_macro2::{Span, TokenStream};
@@ -32,8 +33,8 @@ pub struct WitImportGenerator<'input> {
 }
 
 /// Pieces of information extracted from a function's definition.
-struct FunctionInformation<'input> {
-    function: &'input TraitItemFn,
+pub(crate) struct FunctionInformation<'input> {
+    pub(crate) function: &'input TraitItemFn,
     parameter_definitions: TokenStream,
     parameter_bindings: TokenStream,
     return_type: TokenStream,

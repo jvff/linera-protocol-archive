@@ -9,7 +9,10 @@
 mod caller_type_parameter;
 mod function_information;
 
-use self::{caller_type_parameter::CallerTypeParameter, function_information::FunctionInformation};
+pub(crate) use self::function_information::{ok_type_inside_result, FunctionInformation};
+
+use self::caller_type_parameter::CallerTypeParameter;
+use super::wit_interface;
 use crate::util::AttributeParameters;
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
