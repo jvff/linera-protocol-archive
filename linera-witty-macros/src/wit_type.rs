@@ -128,6 +128,7 @@ pub fn derive_for_enum<'variants>(
         match (first_field_type, has_second_field_type) {
             (None, _) => quote! {},
             (Some(only_field_type), false) => quote! {
+<<<<<<< HEAD
                 wit_declaration.push('(');
                 wit_declaration.push_str(
                     &<#only_field_type as linera_witty::WitType>::wit_type_name(),
@@ -148,44 +149,75 @@ pub fn derive_for_enum<'variants>(
                 )*
 
                 wit_declaration.push_str(">)");
+=======
+                wit_name.push('(');
+                wit_name.push_str(&<#only_field_type as linera_witty::WitType>::wit_type_name());
+                wit_name.push(')');
+            },
+            (Some(first_field_type), true) => quote! {
+                wit_name.push_str("(tuple<");
+                wit_name.push_str(&<#first_field_type as linera_witty::WitType>::wit_type_name());
+
+                #(
+                    wit_name.push_str(", ");
+                    wit_name.push_str(&<#field_types as linera_witty::WitType>::wit_type_name());
+                )*
+
+                wit_name.push_str(">)");
+>>>>>>> ac8a32d1aa (WIP)
             },
         }
     });
 
     quote! {
-        const SIZE: u32 = {
-            let discriminant_size = #discriminant_size;
-            let mut size = discriminant_size;
-            let mut variants_alignment = <#variant_layouts as linera_witty::Layout>::ALIGNMENT;
-            let padding = (-(size as i32) & (variants_alignment as i32 - 1)) as u32;
+            const SIZE: u32 = {
+                let discriminant_size = #discriminant_size;
+                let mut size = discriminant_size;
+                let mut variants_alignment = <#variant_layouts as linera_witty::Layout>::ALIGNMENT;
+                let padding = (-(size as i32) & (variants_alignment as i32 - 1)) as u32;
 
-            #(#variant_sizes)*
+                #(#variant_sizes)*
 
-            let end_padding = (-(size as i32) & (variants_alignment as i32 - 1)) as u32;
-            size + end_padding
-        };
+                let end_padding = (-(size as i32) & (variants_alignment as i32 - 1)) as u32;
+                size + end_padding
+            };
 
-        type Layout = linera_witty::HCons<#discriminant_type, #variant_layouts>;
-        type Dependencies = linera_witty::HList![#( #dependencies ),*];
+            type Layout = linera_witty::HCons<#discriminant_type, #variant_layouts>;
+            type Dependencies = linera_witty::HList![#( #dependencies ),*];
 
-        fn wit_type_name() -> std::borrow::Cow<'static, str> {
-            #wit_name.into()
+            fn wit_type_name() -> std::borrow::Cow<'static, str> {
+                #wit_name.into()
+            }
+
+            fn wit_type_declaration() -> std::borrow::Cow<'static, str> {
+    <<<<<<< HEAD
+                let mut wit_declaration = String::from(
+    =======
+                let mut wit_name = String::from(
+    >>>>>>> ac8a32d1aa (WIP)
+                    concat!("    ", #enum_or_variant, " ", #wit_name, " {\n"),
+                );
+
+                #(
+    <<<<<<< HEAD
+                    wit_declaration.push_str("        ");
+                    wit_declaration.push_str(#variant_wit_names);
+                    #variant_wit_payloads
+                    wit_declaration.push_str(",\n");
+                )*
+
+                wit_declaration.push_str("    }\n");
+                wit_declaration.into()
+    =======
+                    wit_name.push_str("        ");
+                    wit_name.push_str(#variant_wit_names);
+                    #variant_wit_payloads
+                    wit_name.push_str(",\n");
+                )*
+
+                wit_name.push_str("    }\n");
+                wit_name.into()
+    >>>>>>> ac8a32d1aa (WIP)
+            }
         }
-
-        fn wit_type_declaration() -> std::borrow::Cow<'static, str> {
-            let mut wit_declaration = String::from(
-                concat!("    ", #enum_or_variant, " ", #wit_name, " {\n"),
-            );
-
-            #(
-                wit_declaration.push_str("        ");
-                wit_declaration.push_str(#variant_wit_names);
-                #variant_wit_payloads
-                wit_declaration.push_str(",\n");
-            )*
-
-            wit_declaration.push_str("    }\n");
-            wit_declaration.into()
-        }
-    }
 }
