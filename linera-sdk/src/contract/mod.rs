@@ -7,6 +7,11 @@ mod conversions_from_wit;
 mod conversions_to_wit;
 mod runtime;
 mod storage;
+#[cfg(target_arch = "wasm32")]
+pub mod system_api;
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg_attr(not(target_arch = "wasm32"), path = "system_api_stubs.rs")]
+pub mod system_api;
 pub(crate) mod wit_system_api;
 pub mod wit_types;
 

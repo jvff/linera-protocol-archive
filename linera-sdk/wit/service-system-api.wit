@@ -1,0 +1,59 @@
+package linera:app;
+
+interface service-system-api {
+    get-chain-id: func() -> chain-id;
+    get-application-id: func() -> application-id;
+    get-application-parameters: func() -> list<u8>;
+    read-chain-balance: func() -> amount;
+    read-system-timestamp: func() -> timestamp;
+    try-query-application: func(application: application-id, argument: list<u8>) -> list<u8>;
+    log: func(message: string, level: log-level);
+
+    record chain-id {
+        inner0: crypto-hash,
+    }
+
+    record block-height {
+        inner0: u64,
+    }
+
+    record timestamp {
+        inner0: u64,
+    }
+
+    type u128 = tuple<u64, u64>;
+
+    record application-id {
+        bytecode-id: bytecode-id,
+        creation: message-id,
+    }
+
+    record amount {
+        inner0: u128,
+    }
+
+    record bytecode-id {
+        message-id: message-id,
+    }
+
+    enum log-level {
+        error,
+        warn,
+        info,
+        debug,
+        trace,
+    }
+
+    record crypto-hash {
+        part1: u64,
+        part2: u64,
+        part3: u64,
+        part4: u64,
+    }
+
+    record message-id {
+        chain-id: chain-id,
+        height: block-height,
+        index: u32,
+    }
+}

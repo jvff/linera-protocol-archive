@@ -6,8 +6,11 @@
 #![allow(missing_docs)]
 
 // Export the service interface.
-wit_bindgen_guest_rust::export!("service.wit");
+wit_bindgen::generate!({
+    world: "service-entrypoints",
+});
 
+pub use self::exports::linera::app::service_entrypoints::{ChainId, CryptoHash, QueryContext};
 use super::__service_handle_query;
 
 /// Implementation of the service WIT entrypoints.

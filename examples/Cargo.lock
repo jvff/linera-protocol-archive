@@ -1305,6 +1305,7 @@ dependencies = [
  "fungible",
  "futures",
  "linera-sdk",
+ "log",
  "serde",
  "serde_json",
  "thiserror",

@@ -22,6 +22,7 @@ members = [
     "linera-witty",
     "linera-witty-macros",
     "linera-witty/test-modules",
+    "linera-tst",
 ]
 exclude = ["examples", "scripts"]
 resolver = "2"
@@ -135,6 +136,7 @@ wasmer-vm = { version = "=3.1.1" }
 wasmparser = "0.101.1"
 wasmtime = "1.0"
 webassembly-test = "0.1.0"
+wit-bindgen = "0.16.0"
 wit-bindgen-guest-rust = { version = "0.2.0", package = "linera-wit-bindgen-guest-rust" }
 wit-bindgen-host-wasmer-rust = { version = "0.2.0", package = "linera-wit-bindgen-host-wasmer-rust" }
 wit-bindgen-host-wasmtime-rust = { version = "0.2.0", package = "linera-wit-bindgen-host-wasmtime-rust" }
@@ -193,3 +195,7 @@ opt-level = 3
 
 [profile.dev.package.wasmtime]
 opt-level = 3
+
+# [patch.crates-io]
+# wit-bindgen-core = { path = "/tmp/wit-bindgen/crates/core" }
+# wit-bindgen = { path = "/tmp/wit-bindgen/crates/guest-rust" }

@@ -1,0 +1,24 @@
+package linera:app;
+
+interface service-entrypoints {
+<<<<<<< HEAD
+    handle-query: func(argument: list<u8>) -> result<list<u8>, string>;
+=======
+    handle-query: func(context: query-context, argument: list<u8>) -> result<list<u8>, string>;
+
+    record query-context {
+        chain-id: chain-id,
+    }
+
+    record chain-id {
+        inner0: crypto-hash,
+    }
+
+    record crypto-hash {
+        part1: u64,
+        part2: u64,
+        part3: u64,
+        part4: u64,
+    }
+>>>>>>> 3e89af2a50 (WIP)
+}
