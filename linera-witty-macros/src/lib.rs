@@ -10,6 +10,7 @@
 mod util;
 mod wit_export;
 mod wit_import;
+mod wit_interface;
 mod wit_load;
 mod wit_store;
 mod wit_type;
@@ -34,7 +35,7 @@ pub fn derive_wit_type(input: TokenStream) -> TokenStream {
     let specializations = apply_specialization_attribute(&mut input);
 
     let body = match &input.data {
-        Data::Struct(struct_item) => wit_type::derive_for_struct(&struct_item.fields),
+        Data::Struct(struct_item) => wit_type::derive_for_struct(&input.ident, &struct_item.fields),
         Data::Enum(enum_item) => wit_type::derive_for_enum(&input.ident, enum_item.variants.iter()),
         Data::Union(_union_item) => {
             abort!(input.ident, "Can't derive `WitType` for `union`s")

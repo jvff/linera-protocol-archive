@@ -6,14 +6,14 @@
 #![cfg(test)]
 
 use super::{derive_for_enum, derive_for_struct};
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::{parse_quote, Fields, ItemEnum, ItemStruct};
 
 /// Check the generated code for the body of the implementation of `WitLoad` for a unit struct.
 #[test]
 fn zero_sized_type() {
     let input = Fields::Unit;
-    let output = derive_for_struct(&input);
+    let output = derive_for_struct(&format_ident!("ZeroSizedType"), &input);
 
     let expected = quote! {
         const SIZE: u32 = <linera_witty::HList![] as linera_witty::WitType>::SIZE;
@@ -33,7 +33,7 @@ fn named_struct() {
             second: CustomType,
         }
     };
-    let output = derive_for_struct(&input.fields);
+    let output = derive_for_struct(&input.ident, &input.fields);
 
     let expected = quote! {
         const SIZE: u32 = <linera_witty::HList![u8, CustomType] as linera_witty::WitType>::SIZE;
@@ -50,7 +50,7 @@ fn tuple_struct() {
     let input: ItemStruct = parse_quote! {
         struct Type(String, Vec<CustomType>, i64);
     };
-    let output = derive_for_struct(&input.fields);
+    let output = derive_for_struct(&input.ident, &input.fields);
 
     let expected = quote! {
         const SIZE: u32 =
@@ -149,7 +149,7 @@ fn named_struct_with_skipped_fields() {
             ignored4: Vec<()>,
         }
     };
-    let output = derive_for_struct(&input.fields);
+    let output = derive_for_struct(&input.ident, &input.fields);
 
     let expected = quote! {
         const SIZE: u32 = <linera_witty::HList![u8, CustomType] as linera_witty::WitType>::SIZE;
@@ -175,7 +175,7 @@ fn tuple_struct_with_skipped_fields() {
             i64,
         );
     };
-    let output = derive_for_struct(&input.fields);
+    let output = derive_for_struct(&input.ident, &input.fields);
 
     let expected = quote! {
         const SIZE: u32 =
