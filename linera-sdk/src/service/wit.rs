@@ -13,13 +13,13 @@ wit_bindgen::generate!({
     },
 });
 
-pub use self::exports::linera::app::service_entrypoints::{ChainId, CryptoHash, QueryContext};
+pub use self::linera::app::{service_system_api, view_system_api};
 use super::__service_handle_query;
 
 /// Implementation of the service WIT entrypoints.
-pub struct Service;
+pub struct ServiceEntrypoints;
 
-impl service::Service for Service {
+impl self::exports::linera::app::service_entrypoints::Guest for ServiceEntrypoints {
     fn handle_query(argument: Vec<u8>) -> Result<Vec<u8>, String> {
         unsafe { __service_handle_query(argument) }
     }
