@@ -17,7 +17,9 @@ use syn::{
     TypePath, TypeTuple,
 };
 
-use self::{caller_type_parameter::CallerTypeParameter, function_information::FunctionInformation};
+use self::caller_type_parameter::CallerTypeParameter;
+pub(crate) use self::function_information::{ok_type_inside_result, FunctionInformation};
+use super::wit_interface;
 use crate::util::AttributeParameters;
 
 /// Returns the code generated for exporting host functions to guest Wasm instances.
