@@ -279,6 +279,6 @@ impl<'input> CallerTypeParameter<'input> {
             }
         };
 
-        Specializations::new(specialization)
+        Specializations::from_iter(specialization)
     }
 }
