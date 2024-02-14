@@ -30,13 +30,16 @@ use syn::{
 #[derive(Debug)]
 pub struct Specializations(Vec<Specialization>);
 
-impl Specializations {
-    /// Creates a new [`Specializations`] instance from the provided list of [`Specialization`]
-    /// instances.
-    pub fn new(specializations: impl IntoIterator<Item = Specialization>) -> Self {
+impl FromIterator<Specialization> for Specializations {
+    fn from_iter<I>(specializations: I) -> Self
+    where
+        I: IntoIterator<Item = Specialization>,
+    {
         Specializations(specializations.into_iter().collect())
     }
+}
 
+impl Specializations {
     /// Changes the [`DeriveInput`] based on the specializations requested through the
     /// `witty_specialize_with` attributes.
     ///
@@ -44,7 +47,7 @@ impl Specializations {
     /// Returns the[`Specializations`] instance created from parsing the `witty_specialize_with`
     /// attributes from the [`DeriveInput`].
     pub fn prepare_derive_input(input: &mut DeriveInput) -> Self {
-        let this = Self::new(Self::parse_specialization_attributes(&input.attrs));
+        let this: Self = Self::parse_specialization_attributes(&input.attrs).collect();
 
         for specialization in &this.0 {
             specialization.apply_to_derive_input(input);
