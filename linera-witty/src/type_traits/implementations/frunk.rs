@@ -8,12 +8,16 @@ use crate::{
     WitLoad, WitStore, WitType,
 };
 use frunk::{HCons, HNil};
-use std::ops::Add;
+use std::{borrow::Cow, ops::Add};
 
 impl WitType for HNil {
     const SIZE: u32 = 0;
 
     type Layout = HNil;
+
+    fn wit_type_name() -> Cow<'static, str> {
+        "hnil".into()
+    }
 }
 
 impl WitLoad for HNil {
@@ -73,6 +77,10 @@ where
     const SIZE: u32 = Self::SIZE_STARTING_AT_BYTE_BOUNDARIES[0];
 
     type Layout = <Head::Layout as Add<Tail::Layout>>::Output;
+
+    fn wit_type_name() -> Cow<'static, str> {
+        format!("hcons-{}-{}", Head::wit_type_name(), Tail::wit_type_name()).into()
+    }
 }
 
 impl<Head, Tail> WitLoad for HCons<Head, Tail>
