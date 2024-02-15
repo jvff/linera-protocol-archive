@@ -33,9 +33,14 @@ pub struct LocalNode<S> {
     notifier: Arc<Notifier<Notification>>,
 }
 
+#[cfg(target_arch = "wasm32")]
+type DefaultRng = rand::rngs::SmallRng;
+#[cfg(not(target_arch = "wasm32"))]
+type DefaultRng = rand::rngs::StdRng;
+
 /// A client to a local node.
 #[derive(Clone)]
-pub struct LocalNodeClient<Storage, Rng = rand::rngs::SmallRng> {
+pub struct LocalNodeClient<Storage, Rng = DefaultRng> {
     rng: Rng,
     node: Arc<Mutex<LocalNode<Storage>>>,
 }
@@ -153,13 +158,22 @@ impl<S> LocalNodeClient<S> {
     pub fn new(state: WorkerState<S>, notifier: Arc<Notifier<Notification>>) -> Self {
         use rand::SeedableRng as _;
 
-        // The following seed is chosen to have equal numbers of 1s and 0s, as advised by
-        // https://docs.rs/rand/latest/rand/rngs/struct.SmallRng.html
-        // Specifically, it's "01" × 32 in binary
-        const RNG_SEED: u64 = 6148914691236517205;
+        #[cfg(target_arch = "wasm32")]
+        let rng = {
+            // The following seed is chosen to have equal numbers of 1s and 0s, as advised by
+            // https://docs.rs/rand/latest/rand/rngs/struct.SmallRng.html
+            // Specifically, it's "01" × 32 in binary
+            const RNG_SEED: u64 = 6148914691236517205;
+
+            rand::rngs::SmallRng::seed_from_u64(RNG_SEED)
+        };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let rng = rand::rngs::StdRng::from_entropy();
+
         let node = LocalNode { state, notifier };
         Self {
-            rng: rand::rngs::SmallRng::seed_from_u64(RNG_SEED),
+            rng,
             node: Arc::new(Mutex::new(node)),
         }
     }

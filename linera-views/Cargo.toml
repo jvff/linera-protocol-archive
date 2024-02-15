@@ -38,10 +38,7 @@ async-trait.workspace = true
 
 aws-config = { workspace = true, optional = true }
 aws-sdk-dynamodb = { workspace = true, optional = true }
-aws-sdk-s3 = { workspace = true, optional = true }
-aws-smithy-http = { workspace = true, optional = true }
 aws-smithy-types = { workspace = true, optional = true }
-aws-types = { workspace = true, optional = true }
 bcs.workspace = true
 convert_case.workspace = true
 futures.workspace = true
@@ -67,6 +64,9 @@ linera-views = { path = ".", features = ["test"] }
 test-case.workspace = true
 tokio-test.workspace = true
 rand.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rand = { workspace = true, features = ["std", "std_rng"] }
 
 [build-dependencies]
 cfg_aliases.workspace = true
