@@ -986,11 +986,7 @@ where
 mod tests {
     use super::*;
     use crate::{ExecutionRuntimeConfig, ExecutionStateView, TestExecutionRuntimeContext};
-    use linera_base::{
-        crypto::BcsSignable,
-        data_types::BlockHeight,
-        identifiers::ApplicationId,
-    };
+    use linera_base::{crypto::BcsSignable, data_types::BlockHeight, identifiers::ApplicationId};
     use linera_views::memory::MemoryContext;
 
     #[derive(Deserialize, Serialize)]

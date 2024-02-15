@@ -349,7 +349,11 @@ where
                 let storage = node.state.storage_client().clone();
                 let _ = self.rng.next_u64();
                 tasks.push(Self::read_or_download_blob(
-                    R::from_rng(&mut self.rng).map_err(LocalNodeError::RandError)?, storage, validators, chain_id, location,
+                    R::from_rng(&mut self.rng).map_err(LocalNodeError::RandError)?,
+                    storage,
+                    validators,
+                    chain_id,
+                    location,
                 ));
             }
         }
