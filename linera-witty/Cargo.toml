@@ -16,7 +16,6 @@ macros = ["linera-witty-macros"]
 test = ["linera-witty-macros?/test"]
 wasmer = ["dep:wasmer", "linera-witty-macros?/wasmer", "wasmer-vm"]
 wasmtime = ["dep:wasmtime", "linera-witty-macros?/wasmtime"]
-wit-generation = ["tokio"]
 
 [dependencies]
 anyhow.workspace = true
@@ -32,3 +31,6 @@ wasmtime = { workspace = true, optional = true }
 linera-witty = { workspace = true, features = ["macros", "test"] }
 test-case.workspace = true
 tracing.workspace = true
+
+[build-dependencies]
+cfg_aliases.workspace = true
