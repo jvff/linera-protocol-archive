@@ -24,7 +24,6 @@ metrics = ["dep:hex", "linera-base/metrics", "linera-views-derive/metrics"]
 dynamodb = [
     "aws-config",
     "aws-sdk-dynamodb",
-    "aws-sdk-s3",
     "aws-smithy-http",
     "aws-smithy-types",
     "aws-types"
