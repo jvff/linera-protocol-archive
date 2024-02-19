@@ -1,7 +1,7 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-#![cfg(with_wasm)]
+#![cfg(with_wasm_runtime)]
 
 #[allow(dead_code)]
 mod utils;
