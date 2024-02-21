@@ -4,11 +4,16 @@
 //! Handle requests from the synchronous execution thread of user applications.
 
 use crate::{
-    util::RespondExt, ExecutionError, ExecutionRuntimeContext, ExecutionStateView,
+    system::OpenChainConfig, util::RespondExt, ExecutionError, ExecutionRuntimeContext,
+    ExecutionStateView, RawOutgoingMessage, SystemExecutionError, SystemMessage,
     UserApplicationDescription, UserApplicationId, UserContractCode, UserServiceCode,
 };
 use futures::channel::mpsc;
-use linera_base::data_types::{Amount, Timestamp};
+use linera_base::{
+    data_types::{Amount, Timestamp},
+    identifiers::{ApplicationId, MessageId},
+    ownership::ChainOwnership,
+};
 
 #[cfg(with_metrics)]
 use linera_base::{
@@ -24,7 +29,10 @@ use linera_views::{
 use oneshot::Sender;
 #[cfg(with_metrics)]
 use prometheus::HistogramVec;
-use std::fmt::{self, Debug, Formatter};
+use std::{
+    collections::BTreeSet,
+    fmt::{self, Debug, Formatter},
+};
 
 #[cfg(with_metrics)]
 /// Histogram of the latency to load a contract bytecode.
@@ -102,6 +110,11 @@ where
                 callback.respond(timestamp);
             }
 
+            ChainOwnership { callback } => {
+                let ownership = self.system.ownership.get().clone();
+                callback.respond(ownership);
+            }
+
             ContainsKey { id, key, callback } => {
                 let view = self.users.try_load_entry_or_insert(&id).await?;
                 let result = view.contains_key(&key).await?;
@@ -149,6 +162,26 @@ where
                 view.write_batch(batch).await?;
                 callback.respond(());
             }
+
+            OpenChain {
+                ownership,
+                balance,
+                callback,
+                next_message_id,
+                authorized_applications,
+            } => {
+                let inactive_err = || SystemExecutionError::InactiveChain;
+                let config = OpenChainConfig {
+                    ownership,
+                    admin_id: self.system.admin_id.get().ok_or_else(inactive_err)?,
+                    epoch: self.system.epoch.get().ok_or_else(inactive_err)?,
+                    committees: self.system.committees.get().clone(),
+                    balance,
+                    authorized_applications,
+                };
+                let messages = self.system.open_chain(config, next_message_id)?;
+                callback.respond(messages)
+            }
         }
 
         Ok(())
@@ -173,6 +206,10 @@ pub enum Request {
 
     SystemTimestamp {
         callback: Sender<Timestamp>,
+    },
+
+    ChainOwnership {
+        callback: Sender<ChainOwnership>,
     },
 
     ReadValueBytes {
@@ -210,6 +247,14 @@ pub enum Request {
         batch: Batch,
         callback: Sender<()>,
     },
+
+    OpenChain {
+        ownership: ChainOwnership,
+        balance: Amount,
+        next_message_id: MessageId,
+        authorized_applications: Option<BTreeSet<ApplicationId>>,
+        callback: Sender<[RawOutgoingMessage<SystemMessage, Amount>; 2]>,
+    },
 }
 
 impl Debug for Request {
@@ -231,6 +276,10 @@ impl Debug for Request {
 
             Request::SystemTimestamp { .. } => formatter
                 .debug_struct("Request::SystemTimestamp")
+                .finish_non_exhaustive(),
+
+            Request::ChainOwnership { .. } => formatter
+                .debug_struct("Request::ChainOwnership")
                 .finish_non_exhaustive(),
 
             Request::ReadValueBytes { id, key, .. } => formatter
@@ -267,6 +316,11 @@ impl Debug for Request {
                 .debug_struct("Request::WriteBatch")
                 .field("id", id)
                 .field("batch", batch)
+                .finish_non_exhaustive(),
+
+            Request::OpenChain { balance, .. } => formatter
+                .debug_struct("Request::OpenChain")
+                .field("balance", balance)
                 .finish_non_exhaustive(),
         }
     }

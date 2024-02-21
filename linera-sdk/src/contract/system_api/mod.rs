@@ -15,6 +15,7 @@ use super::contract_system_api as wit;
 use linera_base::{
     data_types::{Amount, Timestamp},
     identifiers::{ApplicationId, ChainId},
+    ownership::ChainOwnership,
 };
 use std::fmt;
 
@@ -31,6 +32,11 @@ pub fn current_application_id() -> ApplicationId {
 /// Retrieves the current chain balance.
 pub fn current_chain_balance() -> Amount {
     wit::read_chain_balance().into()
+}
+
+/// Retrieves the owner configuration for the current chain.
+pub fn chain_ownership() -> ChainOwnership {
+    wit::chain_ownership().into()
 }
 
 /// Retrieves the current system time, i.e. the timestamp of the block in which this is called.
