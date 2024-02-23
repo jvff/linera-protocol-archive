@@ -33,7 +33,7 @@ pub use system::{
 pub use wasm::test as wasm_test;
 #[cfg(with_wasm_runtime)]
 pub use wasm::{
-    ContractEntrypoints, ContractSystemApi, ServiceEntrypounts, ServiceSystemApi, SystemApiData,
+    ContractEntrypoints, ContractSystemApi, ServiceEntrypoints, ServiceSystemApi, SystemApiData,
     ViewSystemApi, WasmContractModule, WasmExecutionError, WasmServiceModule,
 };
 #[cfg(any(test, feature = "test"))]
@@ -541,7 +541,7 @@ pub enum Response {
 /// A message together with routing information.
 #[derive(Clone, Debug, WitLoad, WitType)]
 #[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
-#[witty_specialize_with(Message = Vec<u8>)]
+#[witty_specialize_with(Message = Vec<u8>, Grant = Resources)]
 pub struct RawOutgoingMessage<Message, Grant = Resources> {
     /// The destination of the message.
     pub destination: Destination,
@@ -574,7 +574,7 @@ pub enum MessageKind {
 /// the application that created them.
 #[derive(Debug, WitLoad, WitType)]
 #[cfg_attr(any(test, feature = "test"), derive(Eq, PartialEq))]
-#[witty_specialize_with(Message = Vec<u8>)]
+#[witty_specialize_with(Message = Vec<u8>, Grant = Resources)]
 pub struct RawExecutionOutcome<Message, Grant = Resources> {
     /// The signer who created the messages.
     pub authenticated_signer: Option<Owner>,

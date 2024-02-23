@@ -404,6 +404,8 @@ pub struct OutgoingMessage<Message> {
     pub destination: Destination,
     /// Whether the message is authenticated.
     pub authenticated: bool,
+    /// The grant needed for message execution, typically specified as an `Amount` or as `Resources`.
+    pub grant: Resources,
     /// The kind of outgoing message being sent.
     pub kind: MessageKind,
     /// The message itself.
@@ -422,7 +424,7 @@ where
             destination: self.destination,
             authenticated: self.authenticated,
             kind: self.kind,
-            resources: self.resources,
+            grant: self.grant,
             message,
         }
     }
@@ -462,6 +464,7 @@ impl<Message: Serialize + Debug + DeserializeOwned> ExecutionOutcome<Message> {
         self.messages.push(OutgoingMessage {
             destination,
             authenticated: false,
+            grant: Resources::default(),
             kind: MessageKind::Simple,
             message,
         });
@@ -479,6 +482,7 @@ impl<Message: Serialize + Debug + DeserializeOwned> ExecutionOutcome<Message> {
         self.messages.push(OutgoingMessage {
             destination,
             authenticated: true,
+            grant: Resources::default(),
             kind: MessageKind::Simple,
             message,
         });
@@ -497,6 +501,7 @@ impl<Message: Serialize + Debug + DeserializeOwned> ExecutionOutcome<Message> {
         self.messages.push(OutgoingMessage {
             destination,
             authenticated: false,
+            grant: Resources::default(),
             kind: MessageKind::Tracked,
             message,
         });
@@ -516,6 +521,7 @@ impl<Message: Serialize + Debug + DeserializeOwned> ExecutionOutcome<Message> {
         self.messages.push(OutgoingMessage {
             destination,
             authenticated: true,
+            grant: Resources::default(),
             kind: MessageKind::Tracked,
             message,
         });

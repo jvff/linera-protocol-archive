@@ -48,7 +48,9 @@ pub enum AccountOwner {
 }
 
 /// A system account.
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
+#[derive(
+    Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize, WitLoad, WitStore, WitType,
+)]
 pub struct Account {
     /// The chain of the account.
     pub chain_id: ChainId,
