@@ -2091,9 +2091,10 @@ dependencies = [
 
 [[package]]
 name = "linera-witty"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
+ "cfg_aliases",
  "either",
  "frunk",
  "linera-witty-macros",
@@ -2107,8 +2108,9 @@ dependencies = [
 
 [[package]]
 name = "linera-witty-macros"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
+ "cfg_aliases",
  "heck 0.4.1",
  "proc-macro-error",
  "proc-macro2",
@@ -3359,6 +3361,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0c014766411e834f7af5b8f4cf46257aab4036ca95e9d2c144a10f59ad6f5b9"
 dependencies = [
  "backtrace",
+ "bytes",
  "num_cpus",
  "parking_lot",
  "pin-project-lite",

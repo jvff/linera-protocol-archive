@@ -174,7 +174,9 @@ impl fmt::Display for Timestamp {
 
 /// Resources that an application may spend during the execution of transaction or an
 /// application call.
-#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, WitStore, WitType)]
+#[derive(
+    Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, WitLoad, WitStore, WitType,
+)]
 pub struct Resources {
     /// An amount of execution fuel.
     pub fuel: u64,
