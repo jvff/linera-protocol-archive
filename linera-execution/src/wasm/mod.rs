@@ -239,7 +239,7 @@ pub enum WasmExecutionError {
     #[cfg(with_wasmtime)]
     #[error("Failed to execute Wasm module in Wasmtime: {0}")]
     ExecuteModuleInWasmtime(#[from] ::wasmtime::Trap),
-    #[error("Failed to execute Wasm module")]
+    #[error("Failed to execute Wasm module: {0}")]
     ExecuteModule(#[from] linera_witty::RuntimeError),
     #[error("Attempt to wait for an unknown promise")]
     UnknownPromise,

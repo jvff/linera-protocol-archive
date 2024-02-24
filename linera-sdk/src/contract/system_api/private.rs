@@ -35,14 +35,25 @@ pub fn call_application(
     argument: &[u8],
     forwarded_sessions: Vec<SessionId>,
 ) -> (Vec<u8>, Vec<SessionId>) {
+    let forwarded_sessions = forwarded_sessions
+        .into_iter()
+        .map(SessionId::into)
+        .collect::<Vec<_>>();
+
     let call_result = wit::try_call_application(
         authenticated,
-        application,
-        argument.to_vec(),
-        forwarded_sessions,
+        application.into(),
+        argument,
+        &forwarded_sessions,
     );
 
-    (call_result.value, call_result.sessions)
+    let received_sessions = call_result
+        .sessions
+        .into_iter()
+        .map(SessionId::from)
+        .collect();
+
+    (call_result.value, received_sessions)
 }
 
 /// Calls another application's session.
@@ -52,12 +63,19 @@ pub fn call_session(
     argument: &[u8],
     forwarded_sessions: Vec<SessionId>,
 ) -> (Vec<u8>, Vec<SessionId>) {
-    let call_result = wit::try_call_session(
-        authenticated,
-        session,
-        argument.to_vec(),
-        forwarded_sessions,
-    );
+    let forwarded_sessions = forwarded_sessions
+        .into_iter()
+        .map(SessionId::into)
+        .collect::<Vec<_>>();
 
-    (call_result.value, call_result.sessions)
+    let call_result =
+        wit::try_call_session(authenticated, session.into(), argument, &forwarded_sessions);
+
+    let received_sessions = call_result
+        .sessions
+        .into_iter()
+        .map(SessionId::from)
+        .collect();
+
+    (call_result.value, received_sessions)
 }

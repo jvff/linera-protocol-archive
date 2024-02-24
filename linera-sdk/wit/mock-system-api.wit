@@ -19,8 +19,12 @@ interface mock-system-api {
     mocked-write-batch: func(operations: list<write-operation>);
     mocked-try-query-application: func(application: application-id, query: list<u8>) -> result<list<u8>, string>;
 
-    record block-height {
+    record timestamp {
         inner0: u64,
+    }
+
+    record chain-id {
+        inner0: crypto-hash,
     }
 
     enum log-level {
@@ -31,10 +35,24 @@ interface mock-system-api {
         trace,
     }
 
-    variant write-operation {
-        delete(list<u8>),
-        delete-prefix(list<u8>),
-        put(tuple<list<u8>, list<u8>>),
+    record crypto-hash {
+        part1: u64,
+        part2: u64,
+        part3: u64,
+        part4: u64,
+    }
+
+    record block-height {
+        inner0: u64,
+    }
+
+    record bytecode-id {
+        message-id: message-id,
+    }
+
+    record application-id {
+        bytecode-id: bytecode-id,
+        creation: message-id,
     }
 
     record amount {
@@ -43,33 +61,15 @@ interface mock-system-api {
 
     type u128 = tuple<u64, u64>;
 
-    record bytecode-id {
-        message-id: message-id,
-    }
-
-    record timestamp {
-        inner0: u64,
-    }
-
-    record crypto-hash {
-        part1: u64,
-        part2: u64,
-        part3: u64,
-        part4: u64,
-    }
-
     record message-id {
         chain-id: chain-id,
         height: block-height,
         index: u32,
     }
 
-    record chain-id {
-        inner0: crypto-hash,
-    }
-
-    record application-id {
-        bytecode-id: bytecode-id,
-        creation: message-id,
+    variant write-operation {
+        delete(list<u8>),
+        delete-prefix(list<u8>),
+        put(tuple<list<u8>, list<u8>>),
     }
 }

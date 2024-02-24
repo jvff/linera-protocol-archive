@@ -23,8 +23,8 @@ mod type_traits;
 mod util;
 pub mod wit_generation;
 
-#[cfg(with_guest)]
-pub use self::runtime::guest;
+// #[cfg(with_guest)]
+// pub use self::runtime::guest;
 #[cfg(with_wasmer)]
 pub use self::runtime::wasmer;
 #[cfg(with_wasmtime)]

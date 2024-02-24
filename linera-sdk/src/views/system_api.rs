@@ -3,8 +3,7 @@
 
 //! Functions and types to interface with the system API available to application views.
 
-use super::wit;
-use crate::util::yield_once;
+use crate::{service::wit::view_system_api as wit, util::yield_once};
 use async_trait::async_trait;
 use linera_base::ensure;
 use linera_views::{
@@ -65,7 +64,7 @@ impl ReadableKeyValueStore<ViewError> for AppStateStore {
         for key in &keys {
             ensure!(key.len() <= Self::MAX_KEY_SIZE, ViewError::KeyTooLong);
         }
-        let promise = wit::read_multi_values_bytes_new(keys);
+        let promise = wit::read_multi_values_bytes_new(&keys);
         yield_once().await;
         Ok(wit::read_multi_values_bytes_wait(promise))
     }
@@ -104,7 +103,14 @@ impl WritableKeyValueStore<ViewError> for AppStateStore {
     const MAX_VALUE_SIZE: usize = usize::MAX;
 
     async fn write_batch(&self, batch: Batch, _base_key: &[u8]) -> Result<(), ViewError> {
-        wit::write_batch(batch.operations);
+        let batch_operations = batch
+            .operations
+            .into_iter()
+            .map(WriteOperation::into)
+            .collect::<Vec<_>>();
+
+        wit::write_batch(&batch_operations);
+
         Ok(())
     }
 
