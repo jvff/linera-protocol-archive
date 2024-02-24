@@ -3,19 +3,19 @@
 
 //! Types and macros useful for writing an application service.
 
+mod conversions_from_wit;
+mod conversions_to_wit;
 mod storage;
 #[cfg(target_arch = "wasm32")]
 pub mod system_api;
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg_attr(not(target_arch = "wasm32"), path = "system_api_stubs.rs")]
 pub mod system_api;
+pub(crate) mod wit;
 
 pub use self::storage::ServiceStateStorage;
 use crate::{util::BlockingWait, QueryContext, ServiceLogger};
 use std::future::Future;
-
-// Import the system interface.
-// wit_bindgen_guest_rust::import!("service_system_api.wit");
 
 /// Declares an implementation of the [`Service`][`crate::Service`] trait, exporting it from the
 /// Wasm module.
@@ -75,7 +75,7 @@ macro_rules! service {
         fn __contract_handle_application_call(
             _: $crate::CalleeContext,
             _: Vec<u8>,
-            _: Vec<$crate::contract::wit_types::SessionId>,
+            _: Vec<$crate::SessionId>,
         ) -> Result<$crate::ApplicationCallOutcome<Vec<u8>, Vec<u8>, Vec<u8>>, String> {
             unreachable!("Contract entrypoint should not be called in service");
         }
@@ -87,7 +87,7 @@ macro_rules! service {
             _: Vec<u8>,
             _: Vec<u8>,
             _: Vec<$crate::SessionId>,
-        ) -> Result<$crate::SessionCallOutcome<Vec<u8>, Vec<u8>, Vec<u8>>, String> {
+        ) -> Result<($crate::RawSessionCallOutcome, Vec<u8>), String> {
             unreachable!("Contract entrypoint should not be called in service");
         }
     };

@@ -4,38 +4,32 @@ interface service-system-api {
     get-chain-id: func() -> chain-id;
     get-application-id: func() -> application-id;
     get-application-parameters: func() -> list<u8>;
-    read-system-balance: func() -> amount;
+    read-chain-balance: func() -> amount;
     read-system-timestamp: func() -> timestamp;
-    load-new: func() -> u32;
-    load-wait: func(promise-id: u32) -> result<list<u8>, string>;
-    lock-new: func() -> u32;
-    lock-wait: func(promise-id: u32) -> result<bool, string>;
-    unlock-new: func() -> u32;
-    unlock-wait: func(promise-id: u32) -> result<bool, string>;
-    try-query-application-new: func(application: application-id, argument: list<u8>) -> u32;
-    try-query-application-wait: func(promise-id: u32) -> result<list<u8>, string>;
+    try-query-application: func(application: application-id, argument: list<u8>) -> list<u8>;
     log: func(message: string, level: log-level);
+
+    record chain-id {
+        inner0: crypto-hash,
+    }
+
+    record block-height {
+        inner0: u64,
+    }
+
+    record timestamp {
+        inner0: u64,
+    }
+
+    type u128 = tuple<u64, u64>;
 
     record application-id {
         bytecode-id: bytecode-id,
         creation: message-id,
     }
 
-    record crypto-hash {
-        part1: u64,
-        part2: u64,
-        part3: u64,
-        part4: u64,
-    }
-
     record amount {
         inner0: u128,
-    }
-
-    record message-id {
-        chain-id: chain-id,
-        height: block-height,
-        index: u32,
     }
 
     record bytecode-id {
@@ -50,17 +44,16 @@ interface service-system-api {
         trace,
     }
 
-    record chain-id {
-        inner0: crypto-hash,
+    record crypto-hash {
+        part1: u64,
+        part2: u64,
+        part3: u64,
+        part4: u64,
     }
 
-    record timestamp {
-        inner0: u64,
+    record message-id {
+        chain-id: chain-id,
+        height: block-height,
+        index: u32,
     }
-
-    record block-height {
-        inner0: u64,
-    }
-
-    type u128 = tuple<u64, u64>;
 }

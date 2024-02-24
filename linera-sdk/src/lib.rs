@@ -60,7 +60,7 @@ use linera_base::{
     abi::{ContractAbi, ServiceAbi, WithContractAbi, WithServiceAbi},
     crypto::CryptoHash,
     data_types::BlockHeight,
-    identifiers::{ApplicationId, ChainId, ChannelName, Destination, MessageId, Owner},
+    identifiers::{Account, ApplicationId, ChainId, ChannelName, Destination, MessageId, Owner},
 };
 use linera_witty::{WitLoad, WitStore, WitType};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -350,6 +350,8 @@ pub struct MessageContext {
     pub is_bouncing: bool,
     /// The authenticated signer of the operation, if any.
     pub authenticated_signer: Option<Owner>,
+    /// Where to send a refund for the unused part of each grant after execution, if any.
+    pub refund_grant_to: Option<Account>,
     /// The current block height.
     pub height: BlockHeight,
     /// The hash of the remote certificate that created the message.
@@ -437,6 +439,8 @@ where
 #[witty_specialize_with(Message = Vec<u8>)]
 pub struct ExecutionOutcome<Message> {
     authenticated_signer: Option<Owner>,
+    /// Where to send a refund for the unused part of each grant after execution, if any.
+    pub refund_grant_to: Option<Account>,
     /// Sends messages to the given destinations, possibly forwarding the authenticated
     /// signer.
     pub messages: Vec<OutgoingMessage<Message>>,
@@ -450,6 +454,7 @@ impl<Message> Default for ExecutionOutcome<Message> {
     fn default() -> Self {
         Self {
             authenticated_signer: None,
+            refund_grant_to: None,
             messages: vec![],
             subscribe: vec![],
             unsubscribe: vec![],
@@ -539,6 +544,7 @@ impl<Message: Serialize + Debug + DeserializeOwned> ExecutionOutcome<Message> {
 
         ExecutionOutcome {
             authenticated_signer: None,
+            refund_grant_to: self.refund_grant_to,
             messages,
             subscribe: self.subscribe,
             unsubscribe: self.unsubscribe,

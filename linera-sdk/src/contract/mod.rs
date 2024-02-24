@@ -3,18 +3,21 @@
 
 //! Types and macros useful for writing an application contract.
 
+mod conversions_from_wit;
+mod conversions_to_wit;
 mod storage;
 #[cfg(target_arch = "wasm32")]
 pub mod system_api;
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg_attr(not(target_arch = "wasm32"), path = "system_api_stubs.rs")]
 pub mod system_api;
+mod wit;
 
 pub use self::storage::ContractStateStorage;
 use super::log::ContractLogger;
 use crate::{
     util::BlockingWait, ApplicationCallOutcome, CalleeContext, Contract, ExecutionOutcome,
-    MessageContext, OperationContext, SessionCallOutcome, SessionId,
+    MessageContext, OperationContext, RawSessionCallOutcome, SessionId,
 };
 use std::future::Future;
 
@@ -35,7 +38,7 @@ macro_rules! contract {
             context: $crate::OperationContext,
             argument: Vec<u8>,
         ) -> Result<$crate::ExecutionOutcome<Vec<u8>>, String> {
-            $crate::contract::run_async_entrypoint::<$application, _, _, _, _>(
+            $crate::contract::run_async_entrypoint::<$application, _, _, _>(
                 move |mut application| async move {
                     let argument = serde_json::from_slice(&argument)?;
 
@@ -53,7 +56,7 @@ macro_rules! contract {
             context: $crate::OperationContext,
             operation: Vec<u8>,
         ) -> Result<$crate::ExecutionOutcome<Vec<u8>>, String> {
-            $crate::contract::run_async_entrypoint::<$application, _, _, _, _>(
+            $crate::contract::run_async_entrypoint::<$application, _, _, _>(
                 move |mut application| async move {
                     let operation: <$application as $crate::abi::ContractAbi>::Operation =
                         bcs::from_bytes(&operation)?;
@@ -72,7 +75,7 @@ macro_rules! contract {
             context: $crate::MessageContext,
             message: Vec<u8>,
         ) -> Result<$crate::ExecutionOutcome<Vec<u8>>, String> {
-            $crate::contract::run_async_entrypoint::<$application, _, _, _, _>(
+            $crate::contract::run_async_entrypoint::<$application, _, _, _>(
                 move |mut application| async move {
                     let message: <$application as $crate::abi::ContractAbi>::Message =
                         bcs::from_bytes(&message)?;
@@ -92,7 +95,7 @@ macro_rules! contract {
             argument: Vec<u8>,
             forwarded_sessions: Vec<$crate::SessionId>,
         ) -> Result<$crate::ApplicationCallOutcome<Vec<u8>, Vec<u8>, Vec<u8>>, String> {
-            $crate::contract::run_async_entrypoint::<$application, _, _, _, _>(
+            $crate::contract::run_async_entrypoint::<$application, _, _, _>(
                 move |mut application| async move {
                     let argument: <$application as $crate::abi::ContractAbi>::ApplicationCall =
                         bcs::from_bytes(&argument)?;
@@ -116,8 +119,8 @@ macro_rules! contract {
             session_state: Vec<u8>,
             argument: Vec<u8>,
             forwarded_sessions: Vec<$crate::SessionId>,
-        ) -> Result<$crate::SessionCallOutcome<Vec<u8>, Vec<u8>, Vec<u8>>, String> {
-            $crate::contract::run_async_entrypoint::<$application, _, _, _, _>(
+        ) -> Result<($crate::RawSessionCallOutcome, Vec<u8>), String> {
+            $crate::contract::run_async_entrypoint::<$application, _, _, _>(
                 move |mut application| async move {
                     let session_state: <$application as $crate::abi::ContractAbi>::SessionState =
                         bcs::from_bytes(&session_state)?;
@@ -203,5 +206,5 @@ extern "Rust" {
         argument: Vec<u8>,
         session_state: Vec<u8>,
         forwarded_sessions: Vec<SessionId>,
-    ) -> Result<SessionCallOutcome<Vec<u8>, Vec<u8>, Vec<u8>>, String>;
+    ) -> Result<(RawSessionCallOutcome, Vec<u8>), String>;
 }

@@ -1,39 +1,40 @@
 package linera:app;
 
 interface contract-entrypoints {
-    initialize: func(context: operation-context, argument: list<u8>) -> result<raw-execution-result, string>;
-    execute-operation: func(context: operation-context, operation: list<u8>) -> result<raw-execution-result, string>;
-    execute-message: func(context: message-context, message: list<u8>) -> result<raw-execution-result, string>;
-    handle-application-call: func(context: callee-context, argument: list<u8>, forwarded-sessions: list<session-id>) -> result<application-call-result, string>;
-    handle-session-call: func(context: callee-context, session-state: list<u8>, argument: list<u8>, forwarded-sessions: list<session-id>) -> result<tuple<session-call-result, list<u8>>, string>;
+    initialize: func(context: operation-context, argument: list<u8>) -> result<raw-execution-outcome, string>;
+    execute-operation: func(context: operation-context, operation: list<u8>) -> result<raw-execution-outcome, string>;
+    execute-message: func(context: message-context, message: list<u8>) -> result<raw-execution-outcome, string>;
+    handle-application-call: func(context: callee-context, argument: list<u8>, forwarded-sessions: list<session-id>) -> result<application-call-outcome, string>;
+    handle-session-call: func(context: callee-context, session-state: list<u8>, argument: list<u8>, forwarded-sessions: list<session-id>) -> result<tuple<session-call-outcome, list<u8>>, string>;
 
-    record raw-execution-result {
+    record message-context {
+        chain-id: chain-id,
+        is-bouncing: bool,
         authenticated-signer: option<owner>,
-        messages: list<raw-outgoing-message>,
-        subscribe: list<tuple<channel-name, chain-id>>,
-        unsubscribe: list<tuple<channel-name, chain-id>>,
-    }
-
-    record bytecode-id {
+        refund-grant-to: option<account>,
+        height: block-height,
+        certificate-hash: crypto-hash,
         message-id: message-id,
     }
 
-    record crypto-hash {
-        part1: u64,
-        part2: u64,
-        part3: u64,
-        part4: u64,
+    record chain-id {
+        inner0: crypto-hash,
     }
 
-    record application-call-result {
-        value: list<u8>,
-        execution-result: raw-execution-result,
-        create-sessions: list<list<u8>>,
+    record account {
+        chain-id: chain-id,
+        owner: option<owner>,
     }
 
-    record session-call-result {
-        inner: application-call-result,
-        close-session: bool,
+    record resources {
+        fuel: u64,
+        read-operations: u32,
+        write-operations: u32,
+        bytes-to-read: u32,
+        bytes-to-write: u32,
+        messages: u32,
+        message-size: u32,
+        storage-size-delta: u32,
     }
 
     record operation-context {
@@ -44,18 +45,42 @@ interface contract-entrypoints {
         next-message-index: u32,
     }
 
-    record block-height {
-        inner0: u64,
+    record channel-name {
+        inner0: list<u8>,
     }
 
-    variant destination {
-        recipient(chain-id),
-        subscribers(channel-name),
+    record session-id {
+        application-id: application-id,
+        index: u64,
+    }
+
+    record raw-outgoing-message {
+        destination: destination,
+        authenticated: bool,
+        grant: resources,
+        kind: message-kind,
+        message: list<u8>,
+    }
+
+    record bytecode-id {
+        message-id: message-id,
+    }
+
+    record session-call-outcome {
+        inner: application-call-outcome,
+        close-session: bool,
     }
 
     record application-id {
         bytecode-id: bytecode-id,
         creation: message-id,
+    }
+
+    record crypto-hash {
+        part1: u64,
+        part2: u64,
+        part3: u64,
+        part4: u64,
     }
 
     record callee-context {
@@ -64,12 +89,27 @@ interface contract-entrypoints {
         authenticated-caller-id: option<application-id>,
     }
 
-    record message-context {
-        chain-id: chain-id,
+    record raw-execution-outcome {
         authenticated-signer: option<owner>,
-        height: block-height,
-        certificate-hash: crypto-hash,
-        message-id: message-id,
+        refund-grant-to: option<account>,
+        messages: list<raw-outgoing-message>,
+        subscribe: list<tuple<channel-name, chain-id>>,
+        unsubscribe: list<tuple<channel-name, chain-id>>,
+    }
+
+    variant destination {
+        recipient(chain-id),
+        subscribers(channel-name),
+    }
+
+    record application-call-outcome {
+        value: list<u8>,
+        execution-outcome: raw-execution-outcome,
+        create-sessions: list<list<u8>>,
+    }
+
+    record owner {
+        inner0: crypto-hash,
     }
 
     record message-id {
@@ -78,27 +118,14 @@ interface contract-entrypoints {
         index: u32,
     }
 
-    record owner {
-        inner0: crypto-hash,
+    enum message-kind {
+        simple,
+        protected,
+        tracked,
+        bouncing,
     }
 
-    record raw-outgoing-message {
-        destination: destination,
-        authenticated: bool,
-        message: list<u8>,
-        is-skippable: bool,
-    }
-
-    record session-id {
-        application-id: application-id,
-        index: u64,
-    }
-
-    record chain-id {
-        inner0: crypto-hash,
-    }
-
-    record channel-name {
-        inner0: list<u8>,
+    record block-height {
+        inner0: u64,
     }
 }
