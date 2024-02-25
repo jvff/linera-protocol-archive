@@ -148,7 +148,12 @@ pub fn derive_for_enum<'variants>(
 
             match discriminant {
                 #( #load_variants )*
-                _ => Err(linera_witty::RuntimeError::InvalidVariant),
+                discriminant => {
+                    panic!("load");
+                    Err(linera_witty::RuntimeError::InvalidVariant {
+                    type_name: ::std::any::type_name::<Self>(),
+                    discriminant: discriminant.into(),
+                })},
             }
         }
 
@@ -169,7 +174,12 @@ pub fn derive_for_enum<'variants>(
 
             match discriminant {
                 #( #lift_variants )*
-                _ => Err(linera_witty::RuntimeError::InvalidVariant),
+                discriminant => {
+                    panic!("lift_from");
+                    Err(linera_witty::RuntimeError::InvalidVariant {
+                    type_name: ::std::any::type_name::<Self>(),
+                    discriminant: discriminant.into(),
+                })},
             }
         }
     }

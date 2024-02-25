@@ -22,6 +22,7 @@ members = [
     "linera-witty",
     "linera-witty-macros",
     "linera-witty/test-modules",
+    "linera-tst",
 ]
 exclude = ["examples", "scripts"]
 resolver = "2"
