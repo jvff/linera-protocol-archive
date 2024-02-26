@@ -109,6 +109,18 @@ where
                 callback.respond(balance);
             }
 
+            AllOwnerBalances { callback } => {
+                let mut balances = Vec::new();
+                self.system
+                    .balances
+                    .for_each_index_value(|owner, amount| {
+                        balances.push((owner, amount));
+                        Ok(())
+                    })
+                    .await?;
+                callback.respond(balances)
+            }
+
             Transfer {
                 source,
                 destination,
@@ -271,6 +283,10 @@ pub enum Request {
         callback: Sender<Amount>,
     },
 
+    AllOwnerBalances {
+        callback: Sender<Vec<(Owner, Amount)>>,
+    },
+
     Transfer {
         source: Option<Owner>,
         destination: Account,
@@ -365,6 +381,10 @@ impl Debug for Request {
             Request::OwnerBalance { owner, .. } => formatter
                 .debug_struct("Request::OwnerBalance")
                 .field("owner", owner)
+                .finish_non_exhaustive(),
+
+            Request::AllOwnerBalances { .. } => formatter
+                .debug_struct("Request::AllOwnerBalances")
                 .finish_non_exhaustive(),
 
             Request::Transfer {

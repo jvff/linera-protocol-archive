@@ -346,6 +346,9 @@ pub trait BaseRuntime {
     /// Reads the owner balance.
     fn read_owner_balance(&mut self, owner: Owner) -> Result<Amount, ExecutionError>;
 
+    /// Reads all the owner balances
+    fn read_all_owner_balances(&mut self) -> Result<Vec<(Owner, Amount)>, ExecutionError>;
+
     /// Reads the system timestamp.
     fn read_system_timestamp(&mut self) -> Result<Timestamp, ExecutionError>;
 
