@@ -927,15 +927,15 @@ async fn test_open_chain() {
         index: context.next_message_index,
     };
 
-    let child_ownership2 = child_ownership.clone();
-    application.expect_call(ExpectedCall::execute_operation(
+    application.expect_call(ExpectedCall::execute_operation({
+        let child_ownership = child_ownership.clone();
         move |runtime, _context, _operation| {
             assert_eq!(runtime.chain_ownership().unwrap(), ownership);
-            let chain_id = runtime.open_chain(child_ownership2, Amount::ONE).unwrap();
+            let chain_id = runtime.open_chain(child_ownership, Amount::ONE).unwrap();
             assert_eq!(chain_id, ChainId::child(message_id));
             Ok(RawExecutionOutcome::default())
-        },
-    ));
+        }
+    }));
     let mut controller = ResourceController::default();
     let operation = Operation::User {
         application_id,
