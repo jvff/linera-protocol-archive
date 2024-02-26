@@ -274,7 +274,7 @@ fn test_invalid_discriminant() {
     assert_matches!(
         &Enum::load(&memory, address),
         Err(RuntimeError::InvalidVariant {
-            type_name: "Enum",
+            type_name: "wit_load::types::Enum",
             discriminant,
         }) if *discriminant == invalid_discriminant as i64
     );
@@ -296,7 +296,7 @@ fn test_invalid_discriminant() {
     assert_matches!(
         &Enum::lift_from(flat_layout, &memory),
         Err(RuntimeError::InvalidVariant {
-            type_name: "Enum",
+            type_name: "wit_load::types::Enum",
             discriminant,
         }) if *discriminant == invalid_discriminant as i64
     );
