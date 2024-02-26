@@ -24,7 +24,7 @@ fn test_simple_bool_wrapper() {
 /// doesn't require any padding.
 #[test]
 fn test_tuple_struct_without_padding() {
-    assert_eq!(TupleWithoutPadding::SIZE, 14);
+    assert_eq!(TupleWithoutPadding::SIZE, 16);
     assert_eq!(<TupleWithoutPadding as WitType>::Layout::ALIGNMENT, 8);
     assert_eq!(
         <<TupleWithoutPadding as WitType>::Layout as Layout>::Flat::LEN,
