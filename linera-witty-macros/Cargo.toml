@@ -19,6 +19,7 @@ wasmer = ["syn/extra-traits"]
 wasmtime = ["syn/extra-traits"]
 
 [dependencies]
+darling.workspace = true
 heck.workspace = true
 proc-macro-error.workspace = true
 proc-macro2.workspace = true

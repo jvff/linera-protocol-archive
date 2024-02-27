@@ -9,6 +9,7 @@ mod specialization;
 #[cfg(with_wit_export)]
 pub use self::specialization::Specialization;
 pub use self::{fields::FieldsInformation, specialization::Specializations};
+use darling::FromMeta;
 use heck::ToKebabCase;
 use proc_macro2::{Span, TokenStream};
 use proc_macro_error::abort;
@@ -26,63 +27,34 @@ pub fn apply_specialization_attribute(input: &mut DeriveInput) -> Specialization
 }
 
 /// A type representing the parameters for an attribute procedural macro.
+#[derive(FromMeta)]
 pub struct AttributeParameters {
-    metadata: Punctuated<MetaNameValue, Token![,]>,
-}
-
-impl Parse for AttributeParameters {
-    fn parse(input: ParseStream) -> parse::Result<Self> {
-        Ok(AttributeParameters {
-            metadata: Punctuated::parse_terminated(input)?,
-        })
-    }
+    package: LitStr,
+    interface: Option<LitStr>,
 }
 
 impl AttributeParameters {
     /// Parses the attribute parameters to the attribute procedural macro.
-    pub fn new(attribute_parameters: proc_macro::TokenStream) -> Self {
-        syn::parse(attribute_parameters.clone()).unwrap_or_else(|_| {
+    pub fn new(attribute_parameters: proc_macro::TokenStream) -> Result<Self, darling::Error> {
+        let meta = syn::parse(attribute_parameters.clone()).unwrap_or_else(|_| {
             abort!(
                 TokenStream::from(attribute_parameters),
-                r#"Failed to parse attribute parameters, expected either `root = true` \
-                or `package = "namespace:package""#
+                "Failed to parse attribute parameters"
             )
-        })
-    }
+        });
 
-    /// Returns the string value of a parameter named `name`, if it exists.
-    pub fn parameter(&self, name: &str) -> Option<&'_ LitStr> {
-        self.metadata
-            .iter()
-            .find(|pair| pair.path.is_ident(name))
-            .map(|pair| {
-                let syn::Expr::Lit(syn::ExprLit {
-                    lit: Lit::Str(lit_str),
-                    ..
-                }) = &pair.value
-                else {
-                    abort!(&pair.value, "Expected a string literal");
-                };
-
-                lit_str
-            })
+        Self::from_meta(&meta)
     }
 
     /// Returns the package name specified through the `package` attribute.
-    pub fn package_name(&self) -> &'_ LitStr {
-        self.parameter("package").unwrap_or_else(|| {
-            abort!(
-                Span::call_site(),
-                r#"Missing package name specifier in attribute parameters \
-                (package = "namespace:package")"#
-            )
-        })
+    pub fn package_name(&self) -> &LitStr {
+        &self.package
     }
 
     /// Returns the interface name specified through the `interface` attribute, or inferred from
     /// the `type_name`
     pub fn interface_name(&self, type_name: &Ident) -> LitStr {
-        self.parameter("interface").cloned().unwrap_or_else(|| {
+        self.interface.clone().unwrap_or_else(|| {
             LitStr::new(&type_name.to_string().to_kebab_case(), type_name.span())
         })
     }

@@ -132,9 +132,11 @@ fn derive_trait(
 #[proc_macro_attribute]
 pub fn wit_import(attribute: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemTrait);
-    let parameters = AttributeParameters::new(attribute);
 
-    wit_import::generate(input, parameters).into()
+    match AttributeParameters::new(attribute) {
+        Ok(parameters) => wit_import::generate(input, parameters).into(),
+        Err(error) => error.write_errors().into(),
+    }
 }
 
 /// Registers an `impl` block's functions as callable host functions exported to guest Wasm
@@ -147,7 +149,9 @@ pub fn wit_import(attribute: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn wit_export(attribute: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemImpl);
-    let parameters = AttributeParameters::new(attribute);
 
-    wit_export::generate(&input, parameters).into()
+    match AttributeParameters::new(attribute) {
+        Ok(parameters) => wit_export::generate(&input, parameters).into(),
+        Err(error) => error.write_errors().into(),
+    }
 }
