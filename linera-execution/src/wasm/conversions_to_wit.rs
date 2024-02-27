@@ -38,8 +38,11 @@ impl From<MessageContext> for contract::MessageContext {
             chain_id: host.chain_id.into(),
             is_bouncing: host.is_bouncing,
             authenticated_signer: host.authenticated_signer.map(|owner| owner.0.into()),
+            refund_grant_to: host.refund_grant_to.map(|account| account.into()),
             height: host.height.0,
+            certificate_hash: host.certificate_hash.into(),
             message_id: host.message_id.into(),
+            next_message_index: host.next_message_index,
         }
     }
 }
@@ -136,6 +139,15 @@ impl From<UserApplicationId> for contract_system_api::ApplicationId {
         contract_system_api::ApplicationId {
             bytecode_id: host.bytecode_id.message_id.into(),
             creation: host.creation.into(),
+        }
+    }
+}
+
+impl From<Account> for contract::Account {
+    fn from(host: Account) -> Self {
+        contract::Account {
+            chain_id: host.chain_id.into(),
+            owner: host.owner.map(|owner| owner.0.into()),
         }
     }
 }
