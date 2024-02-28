@@ -10,13 +10,13 @@
 
 use super::{contract, contract_system_api, service, service_system_api};
 use crate::{
-    CallOutcome, CalleeContext, MessageContext, MessageId, OperationContext, QueryContext,
-    SessionId, UserApplicationId,
+    CallOutcome, CalleeContext, MessageContext, OperationContext, QueryContext, SessionId,
+    UserApplicationId,
 };
 use linera_base::{
     crypto::{CryptoHash, PublicKey},
     data_types::Amount,
-    identifiers::{Account, ChainId, Owner},
+    identifiers::{Account, ChainId, MessageId, Owner},
     ownership::{ChainOwnership, TimeoutConfig},
 };
 

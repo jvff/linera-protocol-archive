@@ -49,9 +49,7 @@ use linera_base::{
     abi::Abi,
     data_types::{Amount, ArithmeticError, Resources, Timestamp},
     doc_scalar, hex_debug,
-    identifiers::{
-        Account, BytecodeId, ChainId, ChannelName, Destination, MessageId, Owner, SessionId,
-    },
+    identifiers::{Account, BytecodeId, ChainId, ChannelName, Destination, Owner, SessionId},
     ownership::ChainOwnership,
 };
 use linera_views::{batch::Batch, views::ViewError};
