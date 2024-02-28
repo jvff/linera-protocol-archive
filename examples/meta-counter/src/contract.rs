@@ -59,6 +59,8 @@ impl Contract for MetaCounter {
             fuel_grant,
             message,
         } = operation;
+        // Formatting the `if-else` makes it more noisy and therefore harder to read
+        #[allow(clippy::obfuscated_if_else)]
         let message = OutgoingMessage {
             destination: recipient_id.into(),
             authenticated,
