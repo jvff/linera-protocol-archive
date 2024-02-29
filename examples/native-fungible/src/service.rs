@@ -55,10 +55,10 @@ impl NativeFungibleToken {
             MapView::load(self.context().clone()).await?;
         let balances = system_api::all_current_owner_balances();
 
-        balances.iter().for_each(|(owner, amount)| {
-            let account_owner = AccountOwner::User(*owner);
+        balances.into_iter().for_each(|(owner, amount)| {
+            let account_owner = AccountOwner::User(owner);
             accounts
-                .insert(&account_owner, *amount)
+                .insert(&account_owner, amount)
                 .expect("Inserting into MapView should not fail");
         });
         Ok(accounts)

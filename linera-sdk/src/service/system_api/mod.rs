@@ -39,8 +39,8 @@ pub fn current_owner_balance(owner: Owner) -> Amount {
 /// Retrieves the current balance for all owners.
 pub fn all_current_owner_balances() -> Vec<(Owner, Amount)> {
     wit::read_all_owner_balances()
-        .iter()
-        .map(|(owner, amount)| ((*owner).into(), (*amount).into()))
+        .into_iter()
+        .map(|(owner, amount)| (owner.into(), amount.into()))
         .collect()
 }
 

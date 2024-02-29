@@ -195,8 +195,8 @@ macro_rules! impl_service_system_api {
             {
                 BaseRuntime::read_all_owner_balances(self).map(|balances| {
                     balances
-                        .iter()
-                        .map(|(owner, amount)| ((*owner).into(), (*amount).into()))
+                        .into_iter()
+                        .map(|(owner, amount)| (owner.into(), amount.into()))
                         .collect()
                 })
             }
