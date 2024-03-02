@@ -619,6 +619,10 @@ impl<UserInstance> BaseRuntime for SyncRuntime<UserInstance> {
         self.inner().chain_id()
     }
 
+    fn block_height(&mut self) -> Result<BlockHeight, ExecutionError> {
+        self.inner().block_height()
+    }
+
     fn application_id(&mut self) -> Result<UserApplicationId, ExecutionError> {
         self.inner().application_id()
     }
@@ -722,6 +726,10 @@ impl<UserInstance> BaseRuntime for SyncRuntimeInternal<UserInstance> {
 
     fn chain_id(&mut self) -> Result<ChainId, ExecutionError> {
         Ok(self.chain_id)
+    }
+
+    fn block_height(&mut self) -> Result<BlockHeight, ExecutionError> {
+        Ok(self.height)
     }
 
     fn application_id(&mut self) -> Result<UserApplicationId, ExecutionError> {
