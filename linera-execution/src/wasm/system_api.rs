@@ -46,6 +46,10 @@ macro_rules! impl_contract_system_api {
                 BaseRuntime::read_system_timestamp(self).map(|timestamp| timestamp.micros())
             }
 
+            fn operation_index(&mut self) -> Result<Option<u32>, Self::Error> {
+                ContractRuntime::operation_index(self)
+            }
+
             fn read_chain_balance(&mut self) -> Result<contract_system_api::Amount, Self::Error> {
                 BaseRuntime::read_chain_balance(self).map(|balance| balance.into())
             }

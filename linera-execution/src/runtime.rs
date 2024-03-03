@@ -1010,6 +1010,10 @@ impl ContractRuntime for ContractSyncRuntime {
         Ok(self.inner().authenticated_signer)
     }
 
+    fn operation_index(&mut self) -> Result<Option<u32>, ExecutionError> {
+        Ok(self.inner().execution_origin.operation_index())
+    }
+
     fn remaining_fuel(&mut self) -> Result<u64, ExecutionError> {
         Ok(self.inner().resource_controller.remaining_fuel())
     }
@@ -1269,6 +1273,16 @@ impl From<&UserAction> for ExecutionOrigin {
                 id: context.message_id,
                 is_bouncing: context.is_bouncing,
             },
+        }
+    }
+}
+
+impl ExecutionOrigin {
+    /// Returns the operation index, if the execution origin is an operation.
+    pub fn operation_index(&self) -> Option<u32> {
+        match self {
+            ExecutionOrigin::Operation { index } => Some(*index),
+            ExecutionOrigin::Message { .. } | ExecutionOrigin::Query => None,
         }
     }
 }
