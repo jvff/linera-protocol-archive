@@ -1014,6 +1014,10 @@ impl ContractRuntime for ContractSyncRuntime {
         Ok(self.inner().execution_origin.operation_index())
     }
 
+    fn message_id(&mut self) -> Result<Option<MessageId>, ExecutionError> {
+        Ok(self.inner().execution_origin.message_id())
+    }
+
     fn remaining_fuel(&mut self) -> Result<u64, ExecutionError> {
         Ok(self.inner().resource_controller.remaining_fuel())
     }
@@ -1283,6 +1287,14 @@ impl ExecutionOrigin {
         match self {
             ExecutionOrigin::Operation { index } => Some(*index),
             ExecutionOrigin::Message { .. } | ExecutionOrigin::Query => None,
+        }
+    }
+
+    /// Returns the message ID, if the execution origin is the execution of an incoming message.
+    pub fn message_id(&self) -> Option<MessageId> {
+        match self {
+            ExecutionOrigin::Message { id, .. } => Some(*id),
+            ExecutionOrigin::Operation { .. } | ExecutionOrigin::Query => None,
         }
     }
 }

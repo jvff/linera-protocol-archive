@@ -475,6 +475,9 @@ pub trait ContractRuntime: BaseRuntime {
     /// The current operation index, if there is one.
     fn operation_index(&mut self) -> Result<Option<u32>, ExecutionError>;
 
+    /// The current message ID, if there is one.
+    fn message_id(&mut self) -> Result<Option<MessageId>, ExecutionError>;
+
     /// Returns the amount of execution fuel remaining before execution is aborted.
     fn remaining_fuel(&mut self) -> Result<u64, ExecutionError>;
 
