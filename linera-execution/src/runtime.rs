@@ -46,6 +46,8 @@ pub struct SyncRuntimeInternal<UserInstance> {
     height: BlockHeight,
     /// The authenticated signer of the operation or message, if any.
     authenticated_signer: Option<Owner>,
+    /// How the current execution started.
+    execution_origin: ExecutionOrigin,
     /// The index of the next message to be created.
     next_message_index: u32,
 
@@ -260,6 +262,7 @@ impl<UserInstance> SyncRuntimeInternal<UserInstance> {
         height: BlockHeight,
         authenticated_signer: Option<Owner>,
         next_message_index: u32,
+        execution_origin: ExecutionOrigin,
         execution_state_sender: ExecutionStateSender,
         refund_grant_to: Option<Account>,
         resource_controller: ResourceController,
@@ -269,6 +272,7 @@ impl<UserInstance> SyncRuntimeInternal<UserInstance> {
             height,
             authenticated_signer,
             next_message_index,
+            execution_origin,
             execution_state_sender,
             loaded_applications: HashMap::new(),
             call_stack: Vec::new(),
@@ -947,6 +951,7 @@ impl ContractSyncRuntime {
             action.height(),
             action.signer(),
             action.next_message_index(),
+            ExecutionOrigin::from(&action),
             execution_state_sender,
             refund_grant_to,
             resource_controller,
@@ -1189,6 +1194,7 @@ impl ServiceSyncRuntime {
             context.next_block_height,
             None,
             0,
+            ExecutionOrigin::Query,
             execution_state_sender,
             None,
             ResourceController::default(),
@@ -1235,5 +1241,34 @@ impl ServiceRuntime for ServiceSyncRuntime {
             .handle_query(query_context, argument)?;
         self.inner().pop_application();
         Ok(response)
+    }
+}
+
+/// The origin of the execution.
+#[derive(Clone, Copy, Debug)]
+enum ExecutionOrigin {
+    /// Execution started for a query.
+    Query,
+
+    /// Execution started for an operation.
+    Operation { index: u32 },
+
+    /// Execution started for receiving a message.
+    Message { id: MessageId, is_bouncing: bool },
+}
+
+impl From<&UserAction> for ExecutionOrigin {
+    fn from(action: &UserAction) -> Self {
+        match action {
+            UserAction::Initialize(context, _) | UserAction::Operation(context, _) => {
+                ExecutionOrigin::Operation {
+                    index: context.index,
+                }
+            }
+            UserAction::Message(context, _) => ExecutionOrigin::Message {
+                id: context.message_id,
+                is_bouncing: context.is_bouncing,
+            },
+        }
     }
 }

@@ -5,7 +5,7 @@
 
 #![cfg(with_tokio_multi_thread)]
 
-use super::{ApplicationStatus, SyncRuntimeInternal};
+use super::{ApplicationStatus, ExecutionOrigin, SyncRuntimeInternal};
 use crate::{
     execution_state_actor::Request, runtime::ResourceController, BaseRuntime, UserContractInstance,
 };
@@ -92,6 +92,7 @@ fn create_contract_runtime() -> (
         BlockHeight(0),
         None,
         0,
+        ExecutionOrigin::Query,
         execution_state_sender,
         None,
         resource_controller,
