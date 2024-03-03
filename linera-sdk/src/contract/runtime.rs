@@ -8,6 +8,7 @@ use linera_base::{
     data_types::BlockHeight,
     identifiers::{ApplicationId, ChainId, Owner},
 };
+use std::ops::{Deref, DerefMut};
 
 /// The common runtime to interface with the host executing the contract.
 ///
@@ -19,6 +20,33 @@ pub struct Runtime {
     authenticated_signer: Option<Option<Owner>>,
     block_height: Option<BlockHeight>,
 }
+
+/// The runtime available during execution of an operation.
+#[derive(Clone, Debug, Default)]
+pub struct OperationRuntime {
+    common: Runtime,
+    index: Option<u32>,
+}
+
+macro_rules! impl_deref_for {
+    ($runtime:ty) => {
+        impl Deref for $runtime {
+            type Target = Runtime;
+
+            fn deref(&self) -> &Self::Target {
+                &self.common
+            }
+        }
+
+        impl DerefMut for $runtime {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.common
+            }
+        }
+    };
+}
+
+impl_deref_for!(OperationRuntime);
 
 impl Runtime {
     /// Returns the ID of the current application.
@@ -45,5 +73,14 @@ impl Runtime {
         *self
             .block_height
             .get_or_insert_with(|| wit::block_height().into())
+    }
+}
+
+impl OperationRuntime {
+    /// Returns the index of the current operation.
+    pub fn operation_index(&mut self) -> u32 {
+        *self.index.get_or_insert_with(|| {
+            wit::operation_index().expect("No operation index available in the current context")
+        })
     }
 }

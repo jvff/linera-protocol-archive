@@ -10,7 +10,10 @@ mod storage;
 pub mod system_api;
 pub mod wit_types;
 
-pub use self::{runtime::Runtime, storage::ContractStateStorage};
+pub use self::{
+    runtime::{OperationRuntime, Runtime},
+    storage::ContractStateStorage,
+};
 use super::log::ContractLogger;
 use crate::{
     util::BlockingWait, ApplicationCallOutcome, CalleeContext, Contract, ExecutionOutcome,
