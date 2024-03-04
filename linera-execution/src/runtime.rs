@@ -1018,6 +1018,10 @@ impl ContractRuntime for ContractSyncRuntime {
         Ok(self.inner().execution_origin.message_id())
     }
 
+    fn message_is_bouncing(&mut self) -> Result<Option<bool>, ExecutionError> {
+        Ok(self.inner().execution_origin.message_is_bouncing())
+    }
+
     fn remaining_fuel(&mut self) -> Result<u64, ExecutionError> {
         Ok(self.inner().resource_controller.remaining_fuel())
     }
@@ -1294,6 +1298,15 @@ impl ExecutionOrigin {
     pub fn message_id(&self) -> Option<MessageId> {
         match self {
             ExecutionOrigin::Message { id, .. } => Some(*id),
+            ExecutionOrigin::Operation { .. } | ExecutionOrigin::Query => None,
+        }
+    }
+
+    /// Returns if the message was rejected at the destination and is now bouncing back, if the
+    /// execution origin is the execution of an incoming message.
+    pub fn message_is_bouncing(&self) -> Option<bool> {
+        match self {
+            ExecutionOrigin::Message { is_bouncing, .. } => Some(*is_bouncing),
             ExecutionOrigin::Operation { .. } | ExecutionOrigin::Query => None,
         }
     }
