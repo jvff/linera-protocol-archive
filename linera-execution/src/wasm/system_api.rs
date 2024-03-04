@@ -61,6 +61,16 @@ macro_rules! impl_contract_system_api {
                 ContractRuntime::message_is_bouncing(self)
             }
 
+            fn authenticated_caller_id(
+                &mut self,
+            ) -> Result<Option<Option<contract_system_api::ApplicationId>>, Self::Error> {
+                match ContractRuntime::authenticated_caller_id(self)? {
+                    Some(Some(caller_id)) => Ok(Some(Some(caller_id.into()))),
+                    Some(None) => Ok(Some(None)),
+                    None => Ok(None),
+                }
+            }
+
             fn read_chain_balance(&mut self) -> Result<contract_system_api::Amount, Self::Error> {
                 BaseRuntime::read_chain_balance(self).map(|balance| balance.into())
             }

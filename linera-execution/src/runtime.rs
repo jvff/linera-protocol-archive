@@ -95,6 +95,8 @@ impl<UserInstance> SyncRuntimeInternal<UserInstance> {
 /// The runtime status of an application.
 #[derive(Debug, Clone)]
 struct ApplicationStatus {
+    /// The caller application ID, if forwarded during the call.
+    caller_id: Option<UserApplicationId>,
     /// The application id.
     id: UserApplicationId,
     /// The parameters from the application description.
@@ -400,6 +402,7 @@ impl SyncRuntimeInternal<UserContractInstance> {
             authenticated_caller_id,
         };
         self.push_application(ApplicationStatus {
+            caller_id: authenticated_caller_id,
             id: callee_id,
             parameters: application.parameters,
             // Allow further nested calls to be authenticated if this one is.
@@ -959,6 +962,7 @@ impl ContractSyncRuntime {
         let (code, description) = runtime.load_contract(application_id)?;
         let signer = action.signer();
         runtime.push_application(ApplicationStatus {
+            caller_id: None,
             id: application_id,
             parameters: description.parameters,
             signer,
@@ -1020,6 +1024,16 @@ impl ContractRuntime for ContractSyncRuntime {
 
     fn message_is_bouncing(&mut self) -> Result<Option<bool>, ExecutionError> {
         Ok(self.inner().execution_origin.message_is_bouncing())
+    }
+
+    fn authenticated_caller_id(
+        &mut self,
+    ) -> Result<Option<Option<UserApplicationId>>, ExecutionError> {
+        let mut this = self.inner();
+        if this.call_stack.len() <= 1 {
+            return Ok(None);
+        }
+        Ok(Some(this.current_application().caller_id))
     }
 
     fn remaining_fuel(&mut self) -> Result<u64, ExecutionError> {
@@ -1241,6 +1255,7 @@ impl ServiceRuntime for ServiceSyncRuntime {
                 next_block_height: this.height,
             };
             this.push_application(ApplicationStatus {
+                caller_id: None,
                 id: queried_id,
                 parameters: application.parameters,
                 signer: None,
