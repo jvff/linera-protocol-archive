@@ -176,7 +176,7 @@ mod tests {
         let mut counter = create_and_initialize_counter(initial_value);
 
         let result = counter
-            .handle_session_call(Default::default(), (), vec![], CalleeRuntime::default())
+            .handle_session_call((), (), vec![], CalleeRuntime::default())
             .now_or_never()
             .expect("Execution of counter operation should not await anything");
 
