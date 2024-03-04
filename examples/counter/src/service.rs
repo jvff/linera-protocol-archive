@@ -8,7 +8,7 @@ mod state;
 use self::state::Counter;
 use async_graphql::{EmptySubscription, Object, Request, Response, Schema};
 use async_trait::async_trait;
-use linera_sdk::{base::WithServiceAbi, QueryContext, Service, SimpleStateStorage};
+use linera_sdk::{base::WithServiceAbi, service::QueryRuntime, Service, SimpleStateStorage};
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -25,8 +25,8 @@ impl Service for Counter {
 
     async fn handle_query(
         self: Arc<Self>,
-        _context: &QueryContext,
         request: Request,
+        _runtime: QueryRuntime,
     ) -> Result<Response, Self::Error> {
         let schema = Schema::build(
             QueryRoot { value: self.value },
@@ -71,10 +71,7 @@ mod tests {
     use super::Counter;
     use async_graphql::{Request, Response, Value};
     use futures::FutureExt;
-    use linera_sdk::{
-        base::{BlockHeight, ChainId},
-        QueryContext, Service,
-    };
+    use linera_sdk::{service::QueryRuntime, Service};
     use serde_json::json;
     use std::sync::Arc;
     use webassembly_test::webassembly_test;
@@ -86,19 +83,12 @@ mod tests {
         let request = Request::new("{ value }");
 
         let result = counter
-            .handle_query(&dummy_query_context(), request)
+            .handle_query(request, QueryRuntime::default())
             .now_or_never()
             .expect("Query should not await anything");
 
         let expected = Response::new(Value::from_json(json!({"value" : 61_098_721})).unwrap());
 
         assert_eq!(result.unwrap(), expected)
-    }
-
-    fn dummy_query_context() -> QueryContext {
-        QueryContext {
-            chain_id: ChainId([0; 4].into()),
-            next_block_height: BlockHeight(0),
-        }
     }
 }

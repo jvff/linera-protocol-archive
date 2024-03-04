@@ -7,11 +7,10 @@ mod state;
 
 use async_trait::async_trait;
 use linera_sdk::{
-    base::{ChannelName, Destination, SessionId, WithContractAbi},
-    contract::system_api,
+    base::{ChannelName, Destination, MessageId, SessionId, WithContractAbi},
+    contract::{system_api, CalleeRuntime, MessageRuntime, OperationRuntime},
     views::ViewError,
-    ApplicationCallOutcome, CalleeContext, Contract, ExecutionOutcome, MessageContext,
-    OperationContext, SessionCallOutcome, ViewStateStorage,
+    ApplicationCallOutcome, Contract, ExecutionOutcome, SessionCallOutcome, ViewStateStorage,
 };
 use social::{Key, Message, Operation, OwnPost};
 use state::Social;
@@ -35,8 +34,8 @@ impl Contract for Social {
 
     async fn initialize(
         &mut self,
-        _context: &OperationContext,
         _argument: (),
+        _runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
         assert!(Self::parameters().is_ok());
@@ -46,8 +45,8 @@ impl Contract for Social {
 
     async fn execute_operation(
         &mut self,
-        _context: &OperationContext,
         operation: Operation,
+        _runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         match operation {
             Operation::Subscribe { chain_id } => {
@@ -62,29 +61,32 @@ impl Contract for Social {
 
     async fn execute_message(
         &mut self,
-        context: &MessageContext,
         message: Message,
+        mut runtime: MessageRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         let mut outcome = ExecutionOutcome::default();
+        let message_id = runtime.message_id();
         match message {
             Message::Subscribe => outcome.subscribe.push((
                 ChannelName::from(POSTS_CHANNEL_NAME.to_vec()),
-                context.message_id.chain_id,
+                message_id.chain_id,
             )),
             Message::Unsubscribe => outcome.unsubscribe.push((
                 ChannelName::from(POSTS_CHANNEL_NAME.to_vec()),
-                context.message_id.chain_id,
+                message_id.chain_id,
             )),
-            Message::Posts { count, posts } => self.execute_posts_message(context, count, posts)?,
+            Message::Posts { count, posts } => {
+                self.execute_posts_message(message_id, count, posts)?
+            }
         }
         Ok(outcome)
     }
 
     async fn handle_application_call(
         &mut self,
-        _context: &CalleeContext,
         _call: (),
         _forwarded_sessions: Vec<SessionId>,
+        _runtime: CalleeRuntime,
     ) -> Result<
         ApplicationCallOutcome<Self::Message, Self::Response, Self::SessionState>,
         Self::Error,
@@ -94,10 +96,10 @@ impl Contract for Social {
 
     async fn handle_session_call(
         &mut self,
-        _context: &CalleeContext,
         _state: Self::SessionState,
         _call: (),
         _forwarded_sessions: Vec<SessionId>,
+        _runtime: CalleeRuntime,
     ) -> Result<SessionCallOutcome<Self::Message, Self::Response, Self::SessionState>, Self::Error>
     {
         Err(Error::SessionsNotSupported)
@@ -126,14 +128,14 @@ impl Social {
 
     fn execute_posts_message(
         &mut self,
-        context: &MessageContext,
+        message_id: MessageId,
         count: u64,
         posts: Vec<OwnPost>,
     ) -> Result<(), Error> {
         for (index, post) in (0..count).rev().zip(posts) {
             let key = Key {
                 timestamp: post.timestamp,
-                author: context.message_id.chain_id,
+                author: message_id.chain_id,
                 index,
             };
             self.received_posts.insert(&key, post.text)?;
