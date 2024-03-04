@@ -7,7 +7,6 @@ use super::{
     contract_system_api::{self as wit_system_api},
     wit_types,
 };
-use crate::{CalleeContext, MessageContext, OperationContext};
 use linera_base::{
     crypto::{CryptoHash, PublicKey},
     data_types::{Amount, BlockHeight},
@@ -16,45 +15,12 @@ use linera_base::{
 };
 use std::time::Duration;
 
-impl From<wit_types::OperationContext> for OperationContext {
-    fn from(context: wit_types::OperationContext) -> Self {
-        OperationContext {
-            chain_id: context.chain_id.into(),
-            authenticated_signer: context.authenticated_signer.map(Owner::from),
-            height: BlockHeight(context.height),
-            index: context.index,
-        }
-    }
-}
-
-impl From<wit_types::MessageContext> for MessageContext {
-    fn from(context: wit_types::MessageContext) -> Self {
-        MessageContext {
-            chain_id: context.chain_id.into(),
-            is_bouncing: context.is_bouncing,
-            authenticated_signer: context.authenticated_signer.map(Owner::from),
-            height: BlockHeight(context.height),
-            message_id: context.message_id.into(),
-        }
-    }
-}
-
 impl From<wit_types::MessageId> for MessageId {
     fn from(message_id: wit_types::MessageId) -> Self {
         MessageId {
             chain_id: message_id.chain_id.into(),
             height: BlockHeight(message_id.height),
             index: message_id.index,
-        }
-    }
-}
-
-impl From<wit_types::CalleeContext> for CalleeContext {
-    fn from(context: wit_types::CalleeContext) -> Self {
-        CalleeContext {
-            chain_id: context.chain_id.into(),
-            authenticated_signer: context.authenticated_signer.map(Owner::from),
-            authenticated_caller_id: context.authenticated_caller_id.map(ApplicationId::from),
         }
     }
 }
