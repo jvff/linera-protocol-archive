@@ -6,7 +6,7 @@
 use super::contract_system_api as wit;
 use linera_base::{
     data_types::BlockHeight,
-    identifiers::{ApplicationId, ChainId, Owner},
+    identifiers::{ApplicationId, ChainId, MessageId, Owner},
 };
 use std::ops::{Deref, DerefMut};
 
@@ -28,6 +28,14 @@ pub struct OperationRuntime {
     index: Option<u32>,
 }
 
+/// The runtime available during execution of an incoming message.
+#[derive(Clone, Debug, Default)]
+pub struct MessageRuntime {
+    common: Runtime,
+    is_bouncing: Option<bool>,
+    message_id: Option<MessageId>,
+}
+
 macro_rules! impl_deref_for {
     ($runtime:ty) => {
         impl Deref for $runtime {
@@ -47,6 +55,7 @@ macro_rules! impl_deref_for {
 }
 
 impl_deref_for!(OperationRuntime);
+impl_deref_for!(MessageRuntime);
 
 impl Runtime {
     /// Returns the ID of the current application.
@@ -81,6 +90,26 @@ impl OperationRuntime {
     pub fn operation_index(&mut self) -> u32 {
         *self.index.get_or_insert_with(|| {
             wit::operation_index().expect("No operation index available in the current context")
+        })
+    }
+}
+
+impl MessageRuntime {
+    /// Returns the ID of the incoming message that is being handled.
+    pub fn message_id(&mut self) -> MessageId {
+        *self.message_id.get_or_insert_with(|| {
+            wit::message_id()
+                .expect("No incoming message ID available in the current context")
+                .into()
+        })
+    }
+
+    /// Returns [`true`] if the incoming message was rejected from the original destination and is
+    /// now bouncing back.
+    pub fn message_is_bouncing(&mut self) -> bool {
+        *self.is_bouncing.get_or_insert_with(|| {
+            wit::message_is_bouncing()
+                .expect("No incoming message information available in the current context")
         })
     }
 }
