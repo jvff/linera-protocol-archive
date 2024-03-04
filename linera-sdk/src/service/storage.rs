@@ -7,10 +7,11 @@
 //! Wasm module's respective endpoint. This module contains the code to forward the call to the
 //! service type that implements [`linera-sdk::Service`].
 
+use super::QueryRuntime;
 use crate::{
     service::system_api,
     views::{AppStateStore, ViewStorageContext},
-    QueryContext, Service, SimpleStateStorage, ViewStateStorage,
+    Service, SimpleStateStorage, ViewStateStorage,
 };
 use async_trait::async_trait;
 use linera_views::{common::ReadableKeyValueStore, views::RootView};
@@ -21,7 +22,7 @@ use std::sync::Arc;
 #[async_trait]
 pub trait ServiceStateStorage {
     /// Loads the application state and run the given query.
-    async fn handle_query(context: QueryContext, argument: Vec<u8>) -> Result<Vec<u8>, String>;
+    async fn handle_query(argument: Vec<u8>) -> Result<Vec<u8>, String>;
 }
 
 #[async_trait]
@@ -29,7 +30,7 @@ impl<Application> ServiceStateStorage for SimpleStateStorage<Application>
 where
     Application: Service + Default + DeserializeOwned + Serialize + Send + Sync,
 {
-    async fn handle_query(context: QueryContext, argument: Vec<u8>) -> Result<Vec<u8>, String> {
+    async fn handle_query(argument: Vec<u8>) -> Result<Vec<u8>, String> {
         let maybe_bytes = AppStateStore
             .read_value_bytes(&[])
             .await
@@ -45,7 +46,7 @@ where
         let argument: Application::Query =
             serde_json::from_slice(&argument).map_err(|e| e.to_string())?;
         let query_response = application
-            .handle_query(&context, argument)
+            .handle_query(argument, QueryRuntime::default())
             .await
             .map_err(|error| error.to_string())?;
         serde_json::to_vec(&query_response).map_err(|e| e.to_string())
@@ -58,11 +59,13 @@ where
     Application: Service + RootView<ViewStorageContext> + Send + Sync,
     Application::Error: Send,
 {
-    async fn handle_query(context: QueryContext, argument: Vec<u8>) -> Result<Vec<u8>, String> {
+    async fn handle_query(argument: Vec<u8>) -> Result<Vec<u8>, String> {
         let application: Arc<Application> = Arc::new(system_api::load_view().await);
         let argument: Application::Query =
             serde_json::from_slice(&argument).map_err(|e| e.to_string())?;
-        let result = application.handle_query(&context, argument).await;
+        let result = application
+            .handle_query(argument, QueryRuntime::default())
+            .await;
         let query_response = result.map_err(|error| error.to_string())?;
         serde_json::to_vec(&query_response).map_err(|e| e.to_string())
     }

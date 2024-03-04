@@ -14,8 +14,8 @@ use fungible::Operation;
 use linera_sdk::{
     base::{AccountOwner, Amount, WithServiceAbi},
     graphql::GraphQLMutationRoot,
-    service::system_api,
-    QueryContext, Service, ViewStateStorage,
+    service::{system_api, QueryRuntime},
+    Service, ViewStateStorage,
 };
 use native_fungible::TICKER_SYMBOL;
 use std::sync::Arc;
@@ -34,8 +34,8 @@ impl Service for NativeFungibleToken {
 
     async fn handle_query(
         self: Arc<Self>,
-        _context: &QueryContext,
         request: Request,
+        _runtime: QueryRuntime,
     ) -> Result<Response, Self::Error> {
         let schema =
             Schema::build(self.clone(), Operation::mutation_root(), EmptySubscription).finish();

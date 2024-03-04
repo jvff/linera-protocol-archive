@@ -11,9 +11,9 @@ use async_trait::async_trait;
 use fungible::{Account, Destination, FungibleTokenAbi};
 use linera_sdk::{
     base::{AccountOwner, Amount, ApplicationId, Owner, SessionId, WithContractAbi},
-    contract::system_api,
-    ensure, ApplicationCallOutcome, CalleeContext, Contract, ExecutionOutcome, MessageContext,
-    OperationContext, OutgoingMessage, Resources, SessionCallOutcome, ViewStateStorage,
+    contract::{system_api, CalleeRuntime, MessageRuntime, OperationRuntime},
+    ensure, ApplicationCallOutcome, Contract, ExecutionOutcome, OutgoingMessage, Resources,
+    SessionCallOutcome, ViewStateStorage,
 };
 use num_bigint::BigUint;
 use num_traits::{cast::FromPrimitive, ToPrimitive};
@@ -31,8 +31,8 @@ impl Contract for Amm {
 
     async fn initialize(
         &mut self,
-        _context: &OperationContext,
         _argument: (),
+        _runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, AmmError> {
         // Validate that the application parameters were configured correctly.
         assert!(Self::parameters().is_ok());
@@ -42,11 +42,11 @@ impl Contract for Amm {
 
     async fn execute_operation(
         &mut self,
-        context: &OperationContext,
         operation: Self::Operation,
+        mut runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, AmmError> {
         let mut outcome = ExecutionOutcome::default();
-        if context.chain_id == system_api::current_application_id().creation.chain_id {
+        if runtime.chain_id() == runtime.application_id().creation.chain_id {
             self.execute_order_local(operation)?;
         } else {
             self.execute_order_remote(&mut outcome, operation)?;
@@ -57,11 +57,11 @@ impl Contract for Amm {
 
     async fn execute_message(
         &mut self,
-        context: &MessageContext,
         message: Self::Message,
+        mut runtime: MessageRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, AmmError> {
         ensure!(
-            context.chain_id == system_api::current_application_id().creation.chain_id,
+            runtime.chain_id() == runtime.application_id().creation.chain_id,
             AmmError::AmmChainOnly
         );
 
@@ -71,7 +71,7 @@ impl Contract for Amm {
                 input_token_idx,
                 input_amount,
             } => {
-                Self::check_account_authentication(None, context.authenticated_signer, owner)?;
+                Self::check_account_authentication(None, runtime.authenticated_signer(), owner)?;
                 self.execute_swap(owner, input_token_idx, input_amount)?;
             }
         }
@@ -81,9 +81,9 @@ impl Contract for Amm {
 
     async fn handle_application_call(
         &mut self,
-        context: &CalleeContext,
         application_call: ApplicationCall,
         _forwarded_sessions: Vec<SessionId>,
+        mut runtime: CalleeRuntime,
     ) -> Result<ApplicationCallOutcome<Self::Message, Self::Response, Self::SessionState>, AmmError>
     {
         let mut outcome = ApplicationCallOutcome::default();
@@ -94,11 +94,11 @@ impl Contract for Amm {
                 input_amount,
             } => {
                 Self::check_account_authentication(
-                    context.authenticated_caller_id,
-                    context.authenticated_signer,
+                    runtime.authenticated_caller_id(),
+                    runtime.authenticated_signer(),
                     owner,
                 )?;
-                if context.chain_id == system_api::current_application_id().creation.chain_id {
+                if runtime.chain_id() == runtime.application_id().creation.chain_id {
                     self.execute_swap(owner, input_token_idx, input_amount)?;
                 } else {
                     self.execute_application_call_remote(
@@ -114,10 +114,10 @@ impl Contract for Amm {
 
     async fn handle_session_call(
         &mut self,
-        _context: &CalleeContext,
         _session: (),
         _argument: (),
         _forwarded_sessions: Vec<SessionId>,
+        _runtime: CalleeRuntime,
     ) -> Result<SessionCallOutcome<Self::Message, Self::Response, Self::SessionState>, AmmError>
     {
         Err(AmmError::SessionsNotSupported)

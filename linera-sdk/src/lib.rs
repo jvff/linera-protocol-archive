@@ -50,7 +50,10 @@ pub mod test;
 pub mod util;
 pub mod views;
 
-use self::contract::ContractStateStorage;
+use self::{
+    contract::{CalleeRuntime, ContractStateStorage, MessageRuntime, OperationRuntime},
+    service::QueryRuntime,
+};
 use async_trait::async_trait;
 use linera_base::{
     abi::{ContractAbi, ServiceAbi, WithContractAbi, WithServiceAbi},
@@ -112,8 +115,8 @@ pub trait Contract: WithContractAbi + ContractAbi + Send + Sized {
     /// to channels and messages to be sent to this application on another chain.
     async fn initialize(
         &mut self,
-        context: &OperationContext,
         argument: Self::InitializationArgument,
+        runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error>;
 
     /// Applies an operation from the current block.
@@ -125,8 +128,8 @@ pub trait Contract: WithContractAbi + ContractAbi + Send + Sized {
     /// to channels and messages to be sent to this application on another chain.
     async fn execute_operation(
         &mut self,
-        context: &OperationContext,
         operation: Self::Operation,
+        runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error>;
 
     /// Applies a message originating from a cross-chain message.
@@ -145,8 +148,8 @@ pub trait Contract: WithContractAbi + ContractAbi + Send + Sized {
     /// on another chain and subscription or unsubscription requests to channels.
     async fn execute_message(
         &mut self,
-        context: &MessageContext,
         message: Self::Message,
+        runtime: MessageRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error>;
 
     /// Handles a call from another application.
@@ -168,9 +171,9 @@ pub trait Contract: WithContractAbi + ContractAbi + Send + Sized {
     /// See [`Self::handle_session_call`] for more information on
     async fn handle_application_call(
         &mut self,
-        context: &CalleeContext,
         argument: Self::ApplicationCall,
         forwarded_sessions: Vec<SessionId>,
+        runtime: CalleeRuntime,
     ) -> Result<
         ApplicationCallOutcome<Self::Message, Self::Response, Self::SessionState>,
         Self::Error,
@@ -212,10 +215,10 @@ pub trait Contract: WithContractAbi + ContractAbi + Send + Sized {
     ///     chains and channel subscription and unsubscription requests.
     async fn handle_session_call(
         &mut self,
-        context: &CalleeContext,
         session: Self::SessionState,
         argument: Self::SessionCall,
         forwarded_sessions: Vec<SessionId>,
+        runtime: CalleeRuntime,
     ) -> Result<SessionCallOutcome<Self::Message, Self::Response, Self::SessionState>, Self::Error>;
 
     /// Calls another application.
@@ -291,8 +294,8 @@ pub trait Service: WithServiceAbi + ServiceAbi {
     /// Executes a read-only query on the state of this application.
     async fn handle_query(
         self: Arc<Self>,
-        context: &QueryContext,
         query: Self::Query,
+        runtime: QueryRuntime,
     ) -> Result<Self::QueryResponse, Self::Error>;
 
     /// Queries another application.

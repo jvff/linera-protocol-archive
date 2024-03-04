@@ -8,8 +8,8 @@ mod state;
 use async_graphql::{EmptySubscription, Request, Response, Schema};
 use async_trait::async_trait;
 use linera_sdk::{
-    base::WithServiceAbi, graphql::GraphQLMutationRoot, views::ViewError, QueryContext, Service,
-    ViewStateStorage,
+    base::WithServiceAbi, graphql::GraphQLMutationRoot, service::QueryRuntime, views::ViewError,
+    Service, ViewStateStorage,
 };
 use social::Operation;
 use state::Social;
@@ -29,8 +29,8 @@ impl Service for Social {
 
     async fn handle_query(
         self: Arc<Self>,
-        _context: &QueryContext,
         request: Request,
+        _runtime: QueryRuntime,
     ) -> Result<Response, Self::Error> {
         let schema =
             Schema::build(self.clone(), Operation::mutation_root(), EmptySubscription).finish();

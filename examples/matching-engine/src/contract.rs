@@ -15,9 +15,9 @@ use async_trait::async_trait;
 use fungible::{Account, Destination, FungibleTokenAbi};
 use linera_sdk::{
     base::{AccountOwner, Amount, ApplicationId, Owner, SessionId, WithContractAbi},
-    contract::system_api,
-    ensure, ApplicationCallOutcome, CalleeContext, Contract, ExecutionOutcome, MessageContext,
-    OperationContext, OutgoingMessage, Resources, SessionCallOutcome, ViewStateStorage,
+    contract::{system_api, CalleeRuntime, MessageRuntime, OperationRuntime},
+    ensure, ApplicationCallOutcome, Contract, ExecutionOutcome, OutgoingMessage, Resources,
+    SessionCallOutcome, ViewStateStorage,
 };
 
 linera_sdk::contract!(MatchingEngine);
@@ -53,8 +53,8 @@ impl Contract for MatchingEngine {
 
     async fn initialize(
         &mut self,
-        _context: &OperationContext,
         _argument: (),
+        _runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
         assert!(Self::parameters().is_ok());
@@ -67,15 +67,15 @@ impl Contract for MatchingEngine {
     /// locally otherwise, it gets transmitted as a message to the chain of the engine.
     async fn execute_operation(
         &mut self,
-        context: &OperationContext,
         operation: Operation,
+        mut runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         let mut outcome = ExecutionOutcome::default();
         match operation {
             Operation::ExecuteOrder { order } => {
                 let owner = Self::get_owner(&order);
-                Self::check_account_authentication(None, context.authenticated_signer, owner)?;
-                if context.chain_id == system_api::current_application_id().creation.chain_id {
+                Self::check_account_authentication(None, runtime.authenticated_signer(), owner)?;
+                if runtime.chain_id() == runtime.application_id().creation.chain_id {
                     self.execute_order_local(order).await?;
                 } else {
                     self.execute_order_remote(&mut outcome, order)?;
@@ -88,17 +88,17 @@ impl Contract for MatchingEngine {
     /// Execution of the order on the creation chain
     async fn execute_message(
         &mut self,
-        context: &MessageContext,
         message: Message,
+        mut runtime: MessageRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         ensure!(
-            context.chain_id == system_api::current_application_id().creation.chain_id,
+            runtime.chain_id() == runtime.application_id().creation.chain_id,
             Self::Error::MatchingEngineChainOnly
         );
         match message {
             Message::ExecuteOrder { order } => {
                 let owner = Self::get_owner(&order);
-                Self::check_account_authentication(None, context.authenticated_signer, owner)?;
+                Self::check_account_authentication(None, runtime.authenticated_signer(), owner)?;
                 self.execute_order_local(order).await?;
             }
         }
@@ -109,9 +109,9 @@ impl Contract for MatchingEngine {
     /// one or a remote one.
     async fn handle_application_call(
         &mut self,
-        context: &CalleeContext,
         argument: ApplicationCall,
         _sessions: Vec<SessionId>,
+        mut runtime: CalleeRuntime,
     ) -> Result<
         ApplicationCallOutcome<Self::Message, Self::Response, Self::SessionState>,
         Self::Error,
@@ -121,11 +121,11 @@ impl Contract for MatchingEngine {
             ApplicationCall::ExecuteOrder { order } => {
                 let owner = Self::get_owner(&order);
                 Self::check_account_authentication(
-                    context.authenticated_caller_id,
-                    context.authenticated_signer,
+                    runtime.authenticated_caller_id(),
+                    runtime.authenticated_signer(),
                     owner,
                 )?;
-                if context.chain_id == system_api::current_application_id().creation.chain_id {
+                if runtime.chain_id() == runtime.application_id().creation.chain_id {
                     self.execute_order_local(order).await?;
                 } else {
                     self.execute_order_remote(&mut outcome.execution_outcome, order)?;
@@ -137,10 +137,10 @@ impl Contract for MatchingEngine {
 
     async fn handle_session_call(
         &mut self,
-        _context: &CalleeContext,
         _state: Self::SessionState,
         _call: (),
         _forwarded_sessions: Vec<SessionId>,
+        _runtime: CalleeRuntime,
     ) -> Result<SessionCallOutcome<Self::Message, Self::Response, Self::SessionState>, Self::Error>
     {
         Err(Self::Error::SessionsNotSupported)
