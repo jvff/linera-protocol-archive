@@ -11,7 +11,7 @@ pub mod system_api;
 pub mod wit_types;
 
 pub use self::{
-    runtime::{MessageRuntime, OperationRuntime, Runtime},
+    runtime::{CalleeRuntime, MessageRuntime, OperationRuntime, Runtime},
     storage::ContractStateStorage,
 };
 use super::log::ContractLogger;

@@ -36,6 +36,13 @@ pub struct MessageRuntime {
     message_id: Option<MessageId>,
 }
 
+/// The runtime available during execution of an cross-application calls.
+#[derive(Clone, Debug, Default)]
+pub struct CalleeRuntime {
+    common: Runtime,
+    authenticated_caller_id: Option<Option<ApplicationId>>,
+}
+
 macro_rules! impl_deref_for {
     ($runtime:ty) => {
         impl Deref for $runtime {
@@ -56,6 +63,7 @@ macro_rules! impl_deref_for {
 
 impl_deref_for!(OperationRuntime);
 impl_deref_for!(MessageRuntime);
+impl_deref_for!(CalleeRuntime);
 
 impl Runtime {
     /// Returns the ID of the current application.
@@ -110,6 +118,17 @@ impl MessageRuntime {
         *self.is_bouncing.get_or_insert_with(|| {
             wit::message_is_bouncing()
                 .expect("No incoming message information available in the current context")
+        })
+    }
+}
+
+impl CalleeRuntime {
+    /// Returns the authenticated caller ID, if the caller configured it.
+    pub fn authenticated_caller_id(&mut self) -> Option<ApplicationId> {
+        *self.authenticated_caller_id.get_or_insert_with(|| {
+            wit::authenticated_caller_id()
+                .expect("No callee information available in the current context")
+                .map(|caller_id| caller_id.into())
         })
     }
 }
