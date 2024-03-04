@@ -109,10 +109,9 @@ mod tests {
     use assert_matches::assert_matches;
     use futures::FutureExt;
     use linera_sdk::{
-        base::{BlockHeight, ChainId, MessageId},
+        contract::{CalleeRuntime, MessageRuntime, OperationRuntime},
         test::mock_application_parameters,
-        ApplicationCallOutcome, CalleeContext, Contract, ExecutionOutcome, MessageContext,
-        OperationContext,
+        ApplicationCallOutcome, Contract, ExecutionOutcome,
     };
     use webassembly_test::webassembly_test;
 

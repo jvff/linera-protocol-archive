@@ -71,10 +71,7 @@ mod tests {
     use super::Counter;
     use async_graphql::{Request, Response, Value};
     use futures::FutureExt;
-    use linera_sdk::{
-        base::{BlockHeight, ChainId},
-        QueryContext, Service,
-    };
+    use linera_sdk::{service::QueryRuntime, Service};
     use serde_json::json;
     use std::sync::Arc;
     use webassembly_test::webassembly_test;
@@ -86,19 +83,12 @@ mod tests {
         let request = Request::new("{ value }");
 
         let result = counter
-            .handle_query(&dummy_query_context(), request)
+            .handle_query(request, QueryRuntime::default())
             .now_or_never()
             .expect("Query should not await anything");
 
         let expected = Response::new(Value::from_json(json!({"value" : 61_098_721})).unwrap());
 
         assert_eq!(result.unwrap(), expected)
-    }
-
-    fn dummy_query_context() -> QueryContext {
-        QueryContext {
-            chain_id: ChainId([0; 4].into()),
-            next_block_height: BlockHeight(0),
-        }
     }
 }
