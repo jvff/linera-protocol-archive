@@ -6,8 +6,8 @@ use self::state::Application;
 use async_trait::async_trait;
 use linera_sdk::{{
     base::{{SessionId, WithContractAbi}},
-    ApplicationCallOutcome, CalleeContext, Contract, ExecutionOutcome, MessageContext,
-    OperationContext, SessionCallOutcome, ViewStateStorage,
+    contract::{{CalleeRuntime, MessageRuntime, OperationRuntime}},
+    ApplicationCallOutcome, Contract, ExecutionOutcome, SessionCallOutcome, ViewStateStorage,
 }};
 use thiserror::Error;
 
@@ -24,33 +24,33 @@ impl Contract for Application {{
 
     async fn initialize(
         &mut self,
-        _context: &OperationContext,
         _argument: Self::InitializationArgument,
+        _runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {{
         Ok(ExecutionOutcome::default())
     }}
 
     async fn execute_operation(
         &mut self,
-        _context: &OperationContext,
         _operation: Self::Operation,
+        _runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {{
         Ok(ExecutionOutcome::default())
     }}
 
     async fn execute_message(
         &mut self,
-        _context: &MessageContext,
         _message: Self::Message,
+        _runtime: MessageRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {{
         Ok(ExecutionOutcome::default())
     }}
 
     async fn handle_application_call(
         &mut self,
-        _context: &CalleeContext,
         _call: Self::ApplicationCall,
         _forwarded_sessions: Vec<SessionId>,
+        _runtime: CalleeRuntime,
     ) -> Result<ApplicationCallOutcome<Self::Message, Self::Response, Self::SessionState>, Self::Error>
     {{
         Ok(ApplicationCallOutcome::default())
@@ -58,10 +58,10 @@ impl Contract for Application {{
 
     async fn handle_session_call(
         &mut self,
-        _context: &CalleeContext,
         _session: Self::SessionState,
         _call: Self::SessionCall,
         _forwarded_sessions: Vec<SessionId>,
+        _runtime: CalleeRuntime,
     ) -> Result<SessionCallOutcome<Self::Message, Self::Response, Self::SessionState>, Self::Error>
     {{
         Ok(SessionCallOutcome::default())
