@@ -1020,7 +1020,10 @@ impl ContractRuntime for ContractSyncRuntime {
     }
 
     fn message_is_bouncing(&mut self) -> Result<Option<bool>, ExecutionError> {
-        Ok(self.inner().execution_origin.message_is_bouncing())
+        Ok(self
+            .inner()
+            .executing_message
+            .map(|metadata| metadata.is_bouncing))
     }
 
     fn authenticated_caller_id(
