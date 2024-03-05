@@ -1016,7 +1016,7 @@ impl ContractRuntime for ContractSyncRuntime {
     }
 
     fn message_id(&mut self) -> Result<Option<MessageId>, ExecutionError> {
-        Ok(self.inner().execution_origin.message_id())
+        Ok(self.inner().executing_message.map(|metadata| metadata.id))
     }
 
     fn message_is_bouncing(&mut self) -> Result<Option<bool>, ExecutionError> {
