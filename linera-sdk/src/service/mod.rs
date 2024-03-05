@@ -10,7 +10,7 @@ mod storage;
 pub mod system_api;
 pub mod wit_types;
 
-pub use self::{runtime::QueryRuntime, storage::ServiceStateStorage};
+pub use self::{runtime::ServiceRuntime, storage::ServiceStateStorage};
 use crate::{util::BlockingWait, ServiceLogger};
 use std::future::Future;
 

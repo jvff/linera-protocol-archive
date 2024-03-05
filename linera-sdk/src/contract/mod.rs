@@ -10,7 +10,7 @@ mod storage;
 pub mod system_api;
 pub mod wit_types;
 
-pub use self::{runtime::Runtime, storage::ContractStateStorage};
+pub use self::{runtime::ContractRuntime, storage::ContractStateStorage};
 use super::log::ContractLogger;
 use crate::{
     util::BlockingWait, ApplicationCallOutcome, Contract, ExecutionOutcome, SessionCallOutcome,
@@ -39,7 +39,7 @@ macro_rules! contract {
                     let argument = serde_json::from_slice(&argument)?;
 
                     application
-                        .initialize(argument, $crate::contract::OperationRuntime::default())
+                        .initialize(&mut $crate::ContractRuntime::default(), argument)
                         .await
                         .map(|outcome| (application, outcome.into_raw()))
                 },
@@ -57,7 +57,7 @@ macro_rules! contract {
                         bcs::from_bytes(&operation)?;
 
                     application
-                        .execute_operation(operation, $crate::contract::OperationRuntime::default())
+                        .execute_operation(&mut $crate::ContractRuntime::default(), operation)
                         .await
                         .map(|outcome| (application, outcome.into_raw()))
                 },
@@ -75,7 +75,7 @@ macro_rules! contract {
                         bcs::from_bytes(&message)?;
 
                     application
-                        .execute_message(message, $crate::contract::MessageRuntime::default())
+                        .execute_message(&mut $crate::ContractRuntime::default(), message)
                         .await
                         .map(|outcome| (application, outcome.into_raw()))
                 },
@@ -99,9 +99,9 @@ macro_rules! contract {
 
                     application
                         .handle_application_call(
+                            &mut $crate::ContractRuntime::default(),
                             argument,
                             forwarded_sessions,
-                            $crate::contract::CalleeRuntime::default(),
                         )
                         .await
                         .map(|outcome| (application, outcome.into_raw()))
@@ -129,10 +129,10 @@ macro_rules! contract {
 
                     application
                         .handle_session_call(
+                            &mut $crate::ContractRuntime::default(),
                             session_state,
                             argument,
                             forwarded_sessions,
-                            $crate::contract::CalleeRuntime::default(),
                         )
                         .await
                         .map(|outcome| (application, outcome.into_raw()))
