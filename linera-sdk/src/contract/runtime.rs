@@ -13,7 +13,7 @@ use linera_base::{
 ///
 /// It automatically caches read-only values received from the host.
 #[derive(Clone, Debug, Default)]
-pub struct Runtime {
+pub struct ContractRuntime {
     application_id: Option<ApplicationId>,
     chain_id: Option<ChainId>,
     authenticated_signer: Option<Option<Owner>>,
@@ -23,7 +23,7 @@ pub struct Runtime {
     authenticated_caller_id: Option<Option<Option<ApplicationId>>>,
 }
 
-impl Runtime {
+impl ContractRuntime {
     /// Returns the ID of the current application.
     pub fn application_id(&mut self) -> ApplicationId {
         *self
