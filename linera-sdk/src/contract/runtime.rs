@@ -19,14 +19,8 @@ pub struct Runtime {
     authenticated_signer: Option<Option<Owner>>,
     block_height: Option<BlockHeight>,
     transaction_index: Option<u32>,
-}
-
-/// The runtime available during execution of an incoming message.
-#[derive(Clone, Debug, Default)]
-pub struct MessageRuntime {
-    common: Runtime,
-    is_bouncing: Option<bool>,
-    message_id: Option<MessageId>,
+    message_is_bouncing: Option<Option<bool>>,
+    message_id: Option<Option<MessageId>>,
 }
 
 /// The runtime available during execution of an cross-application calls.
@@ -70,22 +64,20 @@ impl Runtime {
             .get_or_insert_with(wit::transaction_index)
     }
 
-    /// Returns the ID of the incoming message that is being handled.
-    pub fn message_id(&mut self) -> MessageId {
-        *self.message_id.get_or_insert_with(|| {
-            wit::message_id()
-                .expect("No incoming message ID available in the current context")
-                .into()
-        })
+    /// Returns the ID of the incoming message that is being handled, or [`None`] if not executing
+    /// an incoming message.
+    pub fn message_id(&mut self) -> Option<MessageId> {
+        *self
+            .message_id
+            .get_or_insert_with(|| wit::message_id().map(MessageId::from))
     }
 
     /// Returns [`true`] if the incoming message was rejected from the original destination and is
-    /// now bouncing back.
-    pub fn message_is_bouncing(&mut self) -> bool {
-        *self.is_bouncing.get_or_insert_with(|| {
-            wit::message_is_bouncing()
-                .expect("No incoming message information available in the current context")
-        })
+    /// now bouncing back, or [`None`] if not executing an incoming message.
+    pub fn message_is_bouncing(&mut self) -> Option<bool> {
+        *self
+            .is_bouncing
+            .get_or_insert_with(wit::message_is_bouncing())
     }
 }
 
