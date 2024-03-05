@@ -69,9 +69,7 @@ impl Runtime {
             wit::operation_index().expect("No operation index available in the current context")
         })
     }
-}
 
-impl MessageRuntime {
     /// Returns the ID of the incoming message that is being handled.
     pub fn message_id(&mut self) -> MessageId {
         *self.message_id.get_or_insert_with(|| {
