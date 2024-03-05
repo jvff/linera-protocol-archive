@@ -70,8 +70,8 @@ impl Runtime {
     /// now bouncing back, or [`None`] if not executing an incoming message.
     pub fn message_is_bouncing(&mut self) -> Option<bool> {
         *self
-            .is_bouncing
-            .get_or_insert_with(wit::message_is_bouncing())
+            .message_is_bouncing
+            .get_or_insert_with(wit::message_is_bouncing)
     }
 
     /// Returns the authenticated caller ID, if the caller configured it and if the current context
