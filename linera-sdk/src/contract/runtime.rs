@@ -62,7 +62,6 @@ macro_rules! impl_deref_for {
 }
 
 impl_deref_for!(OperationRuntime);
-impl_deref_for!(MessageRuntime);
 
 impl Runtime {
     /// Returns the ID of the current application.
