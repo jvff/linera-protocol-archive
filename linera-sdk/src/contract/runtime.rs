@@ -18,7 +18,6 @@ pub struct Runtime {
     chain_id: Option<ChainId>,
     authenticated_signer: Option<Option<Owner>>,
     block_height: Option<BlockHeight>,
-    transaction_index: Option<u32>,
     message_is_bouncing: Option<Option<bool>>,
     message_id: Option<Option<MessageId>>,
     authenticated_caller_id: Option<Option<Option<ApplicationId>>>,
@@ -49,13 +48,6 @@ impl Runtime {
         *self
             .block_height
             .get_or_insert_with(|| wit::block_height().into())
-    }
-
-    /// Returns the index of the current transaction.
-    pub fn transaction_index(&mut self) -> u32 {
-        *self
-            .transaction_index
-            .get_or_insert_with(wit::transaction_index)
     }
 
     /// Returns the ID of the incoming message that is being handled, or [`None`] if not executing
