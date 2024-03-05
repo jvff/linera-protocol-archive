@@ -21,13 +21,7 @@ pub struct Runtime {
     transaction_index: Option<u32>,
     message_is_bouncing: Option<Option<bool>>,
     message_id: Option<Option<MessageId>>,
-}
-
-/// The runtime available during execution of an cross-application calls.
-#[derive(Clone, Debug, Default)]
-pub struct CalleeRuntime {
-    common: Runtime,
-    authenticated_caller_id: Option<Option<ApplicationId>>,
+    authenticated_caller_id: Option<Option<Option<ApplicationId>>>,
 }
 
 impl Runtime {
@@ -79,15 +73,12 @@ impl Runtime {
             .is_bouncing
             .get_or_insert_with(wit::message_is_bouncing())
     }
-}
 
-impl CalleeRuntime {
-    /// Returns the authenticated caller ID, if the caller configured it.
-    pub fn authenticated_caller_id(&mut self) -> Option<ApplicationId> {
+    /// Returns the authenticated caller ID, if the caller configured it and if the current context
+    /// is executing a cross-application call.
+    pub fn authenticated_caller_id(&mut self) -> Option<Option<ApplicationId>> {
         *self.authenticated_caller_id.get_or_insert_with(|| {
-            wit::authenticated_caller_id()
-                .expect("No callee information available in the current context")
-                .map(|caller_id| caller_id.into())
+            wit::authenticated_caller_id().map(|caller_id| caller_id.map(ApplicationId::from))
         })
     }
 }
