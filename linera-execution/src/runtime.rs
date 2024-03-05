@@ -8,9 +8,9 @@ use crate::{
     system::ApplicationPermissions,
     util::{ReceiverExt, UnboundedSenderExt},
     ApplicationCallOutcome, BaseRuntime, CallOutcome, CalleeContext, ContractRuntime,
-    ExecutionError, ExecutionOutcome, RawExecutionOutcome, ServiceRuntime, SessionId,
-    UserApplicationDescription, UserApplicationId, UserContractCode, UserContractInstance,
-    UserServiceInstance,
+    ExecutionError, ExecutionOutcome, MessageContext, RawExecutionOutcome, ServiceRuntime,
+    SessionId, UserApplicationDescription, UserApplicationId, UserContractCode,
+    UserContractInstance, UserServiceInstance,
 };
 use custom_debug_derive::Debug;
 use linera_base::{
@@ -46,8 +46,8 @@ pub struct SyncRuntimeInternal<UserInstance> {
     height: BlockHeight,
     /// The authenticated signer of the operation or message, if any.
     authenticated_signer: Option<Owner>,
-    /// How the current execution started.
-    execution_origin: ExecutionOrigin,
+    /// The current message being executed, if there is one.
+    executing_message: Option<ExecutingMessage>,
     /// The index of the next message to be created.
     next_message_index: u32,
 
@@ -265,7 +265,7 @@ impl<UserInstance> SyncRuntimeInternal<UserInstance> {
         height: BlockHeight,
         authenticated_signer: Option<Owner>,
         next_message_index: u32,
-        execution_origin: ExecutionOrigin,
+        executing_message: Option<ExecutingMessage>,
         execution_state_sender: ExecutionStateSender,
         refund_grant_to: Option<Account>,
         resource_controller: ResourceController,
@@ -275,7 +275,7 @@ impl<UserInstance> SyncRuntimeInternal<UserInstance> {
             height,
             authenticated_signer,
             next_message_index,
-            execution_origin,
+            executing_message,
             execution_state_sender,
             loaded_applications: HashMap::new(),
             call_stack: Vec::new(),
@@ -950,12 +950,16 @@ impl ContractSyncRuntime {
         resource_controller: ResourceController,
         action: UserAction,
     ) -> Result<(Vec<ExecutionOutcome>, ResourceController), ExecutionError> {
+        let executing_message = match &action {
+            UserAction::Message(context, _) => Some(context.into()),
+            _ => None,
+        };
         let mut runtime = SyncRuntimeInternal::new(
             chain_id,
             action.height(),
             action.signer(),
             action.next_message_index(),
-            ExecutionOrigin::from(&action),
+            executing_message,
             execution_state_sender,
             refund_grant_to,
             resource_controller,
@@ -1220,7 +1224,7 @@ impl ServiceSyncRuntime {
             context.next_block_height,
             None,
             0,
-            ExecutionOrigin::Query,
+            None,
             execution_state_sender,
             None,
             ResourceController::default(),
@@ -1273,56 +1277,16 @@ impl ServiceRuntime for ServiceSyncRuntime {
 
 /// The origin of the execution.
 #[derive(Clone, Copy, Debug)]
-enum ExecutionOrigin {
-    /// Execution started for a query.
-    Query,
-
-    /// Execution started for an operation.
-    Operation { index: u32 },
-
-    /// Execution started for receiving a message.
-    Message { id: MessageId, is_bouncing: bool },
+struct ExecutingMessage {
+    id: MessageId,
+    is_bouncing: bool,
 }
 
-impl From<&UserAction> for ExecutionOrigin {
-    fn from(action: &UserAction) -> Self {
-        match action {
-            UserAction::Initialize(context, _) | UserAction::Operation(context, _) => {
-                ExecutionOrigin::Operation {
-                    index: context.index,
-                }
-            }
-            UserAction::Message(context, _) => ExecutionOrigin::Message {
-                id: context.message_id,
-                is_bouncing: context.is_bouncing,
-            },
-        }
-    }
-}
-
-impl ExecutionOrigin {
-    /// Returns the operation index, if the execution origin is an operation.
-    pub fn operation_index(&self) -> Option<u32> {
-        match self {
-            ExecutionOrigin::Operation { index } => Some(*index),
-            ExecutionOrigin::Message { .. } | ExecutionOrigin::Query => None,
-        }
-    }
-
-    /// Returns the message ID, if the execution origin is the execution of an incoming message.
-    pub fn message_id(&self) -> Option<MessageId> {
-        match self {
-            ExecutionOrigin::Message { id, .. } => Some(*id),
-            ExecutionOrigin::Operation { .. } | ExecutionOrigin::Query => None,
-        }
-    }
-
-    /// Returns if the message was rejected at the destination and is now bouncing back, if the
-    /// execution origin is the execution of an incoming message.
-    pub fn message_is_bouncing(&self) -> Option<bool> {
-        match self {
-            ExecutionOrigin::Message { is_bouncing, .. } => Some(*is_bouncing),
-            ExecutionOrigin::Operation { .. } | ExecutionOrigin::Query => None,
+impl From<&MessageContext> for ExecutingMessage {
+    fn from(context: &MessageContext) -> Self {
+        ExecutingMessage {
+            id: context.message_id,
+            is_bouncing: context.is_bouncing,
         }
     }
 }
