@@ -5,7 +5,6 @@ authenticated-signer: func() -> option<owner>
 application-parameters: func() -> list<u8>
 read-system-timestamp: func() -> timestamp
 
-operation-index: func() -> option<u32>
 message-id: func() -> option<message-id>
 message-is-bouncing: func() -> option<bool>
 authenticated-caller-id: func() -> option<option<application-id>>

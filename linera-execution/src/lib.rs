@@ -472,9 +472,6 @@ pub trait ContractRuntime: BaseRuntime {
     /// The authenticated signer for this execution, if there is one.
     fn authenticated_signer(&mut self) -> Result<Option<Owner>, ExecutionError>;
 
-    /// The current operation index, if there is one.
-    fn operation_index(&mut self) -> Result<Option<u32>, ExecutionError>;
-
     /// The current message ID, if there is one.
     fn message_id(&mut self) -> Result<Option<MessageId>, ExecutionError>;
 

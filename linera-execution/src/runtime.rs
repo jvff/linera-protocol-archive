@@ -1015,10 +1015,6 @@ impl ContractRuntime for ContractSyncRuntime {
         Ok(self.inner().authenticated_signer)
     }
 
-    fn operation_index(&mut self) -> Result<Option<u32>, ExecutionError> {
-        Ok(self.inner().execution_origin.operation_index())
-    }
-
     fn message_id(&mut self) -> Result<Option<MessageId>, ExecutionError> {
         Ok(self.inner().execution_origin.message_id())
     }

@@ -46,10 +46,6 @@ macro_rules! impl_contract_system_api {
                 BaseRuntime::read_system_timestamp(self).map(|timestamp| timestamp.micros())
             }
 
-            fn operation_index(&mut self) -> Result<Option<u32>, Self::Error> {
-                ContractRuntime::operation_index(self)
-            }
-
             fn message_id(
                 &mut self,
             ) -> Result<Option<contract_system_api::MessageId>, Self::Error> {
