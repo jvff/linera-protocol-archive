@@ -8,12 +8,12 @@ use linera_base::{data_types::BlockHeight, identifiers::ChainId};
 
 /// The runtime available during execution of a query.
 #[derive(Clone, Debug, Default)]
-pub struct QueryRuntime {
+pub struct ServiceRuntime {
     chain_id: Option<ChainId>,
     next_block_height: Option<BlockHeight>,
 }
 
-impl QueryRuntime {
+impl ServiceRuntime {
     /// Returns the ID of the current chain.
     pub fn chain_id(&mut self) -> ChainId {
         *self.chain_id.get_or_insert_with(|| wit::chain_id().into())
