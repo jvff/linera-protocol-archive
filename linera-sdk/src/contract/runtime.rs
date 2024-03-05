@@ -8,7 +8,6 @@ use linera_base::{
     data_types::BlockHeight,
     identifiers::{ApplicationId, ChainId, MessageId, Owner},
 };
-use std::ops::{Deref, DerefMut};
 
 /// The common runtime to interface with the host executing the contract.
 ///
@@ -19,6 +18,7 @@ pub struct Runtime {
     chain_id: Option<ChainId>,
     authenticated_signer: Option<Option<Owner>>,
     block_height: Option<BlockHeight>,
+    transaction_index: Option<u32>,
 }
 
 /// The runtime available during execution of an incoming message.
@@ -63,11 +63,11 @@ impl Runtime {
             .get_or_insert_with(|| wit::block_height().into())
     }
 
-    /// Returns the index of the current operation.
-    pub fn operation_index(&mut self) -> u32 {
-        *self.index.get_or_insert_with(|| {
-            wit::operation_index().expect("No operation index available in the current context")
-        })
+    /// Returns the index of the current transaction.
+    pub fn transaction_index(&mut self) -> u32 {
+        *self
+            .transaction_index
+            .get_or_insert_with(wit::transaction_index)
     }
 
     /// Returns the ID of the incoming message that is being handled.
