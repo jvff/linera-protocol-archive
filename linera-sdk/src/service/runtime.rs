@@ -4,17 +4,56 @@
 //! Runtime types to interface with the host executing the service.
 
 use super::service_system_api as wit;
-use linera_base::{data_types::BlockHeight, identifiers::ChainId};
+use linera_base::{abi::ServiceAbi, data_types::BlockHeight, identifiers::ChainId};
 use std::cell::Cell;
 
 /// The runtime available during execution of a query.
-#[derive(Clone, Debug, Default)]
-pub struct ServiceRuntime {
+pub struct ServiceRuntime<Abi>
+where
+    Abi: ServiceAbi,
+{
     chain_id: Cell<Option<ChainId>>,
     next_block_height: Cell<Option<BlockHeight>>,
+    _abi: std::marker::PhantomData<Abi>,
 }
 
-impl ServiceRuntime {
+impl<Abi> Default for ServiceRuntime<Abi>
+where
+    Abi: ServiceAbi,
+{
+    fn default() -> Self {
+        ServiceRuntime {
+            chain_id: Cell::new(None),
+            next_block_height: Cell::new(None),
+            _abi: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<Abi> Clone for ServiceRuntime<Abi>
+where
+    Abi: ServiceAbi,
+{
+    fn clone(&self) -> Self {
+        fn clone_cell<T: Clone>(cell: &Cell<Option<T>>) -> Cell<Option<T>> {
+            let value = cell.take();
+            let new_cell = Cell::new(value.clone());
+            cell.set(value);
+            new_cell
+        }
+
+        ServiceRuntime {
+            chain_id: clone_cell(&self.chain_id),
+            next_block_height: clone_cell(&self.next_block_height),
+            _abi: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<Abi> ServiceRuntime<Abi>
+where
+    Abi: ServiceAbi,
+{
     /// Returns the ID of the current chain.
     pub fn chain_id(&self) -> ChainId {
         Self::fetch_value_through_cache(&self.chain_id, || wit::chain_id().into())
