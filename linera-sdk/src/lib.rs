@@ -113,7 +113,7 @@ pub trait Contract: WithContractAbi + ContractAbi + Send + Sized {
     /// to channels and messages to be sent to this application on another chain.
     async fn initialize(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Self::Abi>,
         argument: Self::InitializationArgument,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error>;
 
@@ -126,7 +126,7 @@ pub trait Contract: WithContractAbi + ContractAbi + Send + Sized {
     /// to channels and messages to be sent to this application on another chain.
     async fn execute_operation(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Self::Abi>,
         operation: Self::Operation,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error>;
 
@@ -146,7 +146,7 @@ pub trait Contract: WithContractAbi + ContractAbi + Send + Sized {
     /// on another chain and subscription or unsubscription requests to channels.
     async fn execute_message(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Self::Abi>,
         message: Self::Message,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error>;
 
@@ -169,7 +169,7 @@ pub trait Contract: WithContractAbi + ContractAbi + Send + Sized {
     /// See [`Self::handle_session_call`] for more information on
     async fn handle_application_call(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Self::Abi>,
         argument: Self::ApplicationCall,
         forwarded_sessions: Vec<SessionId>,
     ) -> Result<
@@ -213,7 +213,7 @@ pub trait Contract: WithContractAbi + ContractAbi + Send + Sized {
     ///     chains and channel subscription and unsubscription requests.
     async fn handle_session_call(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Self::Abi>,
         session: Self::SessionState,
         argument: Self::SessionCall,
         forwarded_sessions: Vec<SessionId>,
