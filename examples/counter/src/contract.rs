@@ -42,9 +42,6 @@ impl Contract for CounterContract {
         &mut self,
         value: u64,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
-        // Validate that the application parameters were configured correctly.
-        assert!(Self::parameters().is_ok());
-
         self.state.value = value;
 
         Ok(ExecutionOutcome::default())
