@@ -19,6 +19,7 @@ pub struct ContractRuntime<Abi>
 where
     Abi: ContractAbi,
 {
+    application_parameters: Option<Abi::Parameters>,
     application_id: Option<ApplicationId<Abi>>,
     chain_id: Option<ChainId>,
     authenticated_signer: Option<Option<Owner>>,
@@ -35,6 +36,7 @@ where
 {
     fn default() -> Self {
         ContractRuntime {
+            application_parameters: None,
             application_id: None,
             chain_id: None,
             authenticated_signer: None,
@@ -51,6 +53,17 @@ impl<Abi> ContractRuntime<Abi>
 where
     Abi: ContractAbi,
 {
+    /// Returns the application parameters provided when the application was created.
+    pub fn application_parameters(&mut self) -> Abi::Parameters {
+        self.application_parameters
+            .get_or_insert_with(|| {
+                let bytes = wit::application_parameters();
+                serde_json::from_slice(&bytes)
+                    .expect("Application parameters must be deserializable")
+            })
+            .clone()
+    }
+
     /// Returns the ID of the current application.
     pub fn application_id(&mut self) -> ApplicationId<Abi> {
         *self
