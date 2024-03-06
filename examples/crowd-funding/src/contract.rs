@@ -6,7 +6,9 @@
 mod state;
 
 use async_trait::async_trait;
-use crowd_funding::{ApplicationCall, InitializationArgument, Message, Operation};
+use crowd_funding::{
+    ApplicationCall, CrowdFundingAbi as Abi, InitializationArgument, Message, Operation,
+};
 use fungible::{Account, Destination, FungibleResponse, FungibleTokenAbi};
 use linera_sdk::{
     base::{AccountOwner, Amount, ApplicationId, SessionId, WithContractAbi},
@@ -21,7 +23,7 @@ use thiserror::Error;
 linera_sdk::contract!(CrowdFunding);
 
 impl WithContractAbi for CrowdFunding {
-    type Abi = crowd_funding::CrowdFundingAbi;
+    type Abi = Abi;
 }
 
 #[async_trait]
@@ -31,7 +33,7 @@ impl Contract for CrowdFunding {
 
     async fn initialize(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         argument: InitializationArgument,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
@@ -49,7 +51,7 @@ impl Contract for CrowdFunding {
 
     async fn execute_operation(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         operation: Operation,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         let mut outcome = ExecutionOutcome::default();
@@ -72,7 +74,7 @@ impl Contract for CrowdFunding {
 
     async fn execute_message(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         message: Message,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         match message {
@@ -90,7 +92,7 @@ impl Contract for CrowdFunding {
 
     async fn handle_application_call(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         call: ApplicationCall,
         sessions: Vec<SessionId>,
     ) -> Result<
@@ -127,7 +129,7 @@ impl Contract for CrowdFunding {
 
     async fn handle_session_call(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         _state: Self::SessionState,
         _call: (),
         _forwarded_sessions: Vec<SessionId>,
@@ -147,7 +149,7 @@ impl CrowdFunding {
     /// Adds a pledge from a local account to the remote campaign chain.
     fn execute_pledge_with_transfer(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         outcome: &mut ExecutionOutcome<Message>,
         owner: AccountOwner,
         amount: Amount,
@@ -185,7 +187,7 @@ impl CrowdFunding {
     /// Adds a pledge from a local account to the campaign chain.
     async fn execute_pledge_with_account(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         owner: AccountOwner,
         amount: Amount,
     ) -> Result<(), Error> {
@@ -197,7 +199,7 @@ impl CrowdFunding {
     /// Adds a pledge sent from an application using token sessions.
     async fn execute_pledge_with_sessions(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         source: AccountOwner,
         sessions: Vec<SessionId>,
     ) -> Result<(), Error> {
@@ -249,7 +251,7 @@ impl CrowdFunding {
     /// Collects all tokens in the sessions and places them in custody of the campaign.
     fn collect_session_tokens(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         sessions: Vec<SessionId<FungibleTokenAbi>>,
         balances: Vec<Amount>,
     ) -> Result<(), Error> {
@@ -263,7 +265,7 @@ impl CrowdFunding {
     /// cancelled.
     async fn finish_pledge(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         source: AccountOwner,
         amount: Amount,
     ) -> Result<(), Error> {
@@ -284,7 +286,7 @@ impl CrowdFunding {
     }
 
     /// Collects all pledges and completes the campaign if the target has been reached.
-    fn collect_pledges(&mut self, runtime: &mut ContractRuntime) -> Result<(), Error> {
+    fn collect_pledges(&mut self, runtime: &mut ContractRuntime<Abi>) -> Result<(), Error> {
         let total = self.balance(runtime)?;
 
         match self.status.get() {
@@ -306,7 +308,7 @@ impl CrowdFunding {
     }
 
     /// Cancels the campaign if the deadline has passed, refunding all pledges.
-    async fn cancel_campaign(&mut self, runtime: &mut ContractRuntime) -> Result<(), Error> {
+    async fn cancel_campaign(&mut self, runtime: &mut ContractRuntime<Abi>) -> Result<(), Error> {
         ensure!(!self.status.get().is_complete(), Error::Completed);
 
         // TODO(#728): Remove this.
@@ -336,8 +338,8 @@ impl CrowdFunding {
     }
 
     /// Queries the token application to determine the total amount of tokens in custody.
-    fn balance(&mut self, runtime: &mut ContractRuntime) -> Result<Amount, Error> {
-        let owner = AccountOwner::Application(runtime.application_id());
+    fn balance(&mut self, runtime: &mut ContractRuntime<Abi>) -> Result<Amount, Error> {
+        let owner = AccountOwner::Application(runtime.application_id().forget_abi());
         let (response, _) = self.call_application(
             true,
             Self::fungible_id()?,
@@ -353,7 +355,7 @@ impl CrowdFunding {
     /// Transfers `amount` tokens from the funds in custody to the `destination`.
     fn send_to(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         amount: Amount,
         owner: AccountOwner,
     ) -> Result<(), Error> {
@@ -363,7 +365,7 @@ impl CrowdFunding {
         };
         let destination = Destination::Account(account);
         let transfer = fungible::ApplicationCall::Transfer {
-            owner: AccountOwner::Application(runtime.application_id()),
+            owner: AccountOwner::Application(runtime.application_id().forget_abi()),
             amount,
             destination,
         };
@@ -374,13 +376,13 @@ impl CrowdFunding {
     /// Calls into the Fungible Token application to receive tokens from the given account.
     fn receive_from_account(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         owner: AccountOwner,
         amount: Amount,
     ) -> Result<(), Error> {
         let account = Account {
             chain_id: runtime.chain_id(),
-            owner: AccountOwner::Application(runtime.application_id()),
+            owner: AccountOwner::Application(runtime.application_id().forget_abi()),
         };
         let destination = Destination::Account(account);
         let transfer = fungible::ApplicationCall::Transfer {
@@ -395,13 +397,13 @@ impl CrowdFunding {
     /// Calls into the Fungible Token application to receive tokens from the given account.
     fn receive_from_session(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         session: SessionId<FungibleTokenAbi>,
         amount: Amount,
     ) -> Result<(), Error> {
         let account = Account {
             chain_id: runtime.chain_id(),
-            owner: AccountOwner::Application(runtime.application_id()),
+            owner: AccountOwner::Application(runtime.application_id().forget_abi()),
         };
         let destination = Destination::Account(account);
         let transfer = fungible::SessionCall::Transfer {

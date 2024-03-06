@@ -6,7 +6,8 @@
 mod state;
 use crate::state::{KeyBook, OrderEntry};
 use matching_engine::{
-    product_price_amount, ApplicationCall, Message, Operation, Order, OrderId, OrderNature, Price,
+    product_price_amount, ApplicationCall, MatchingEngineAbi as Abi, Message, Operation, Order,
+    OrderId, OrderNature, Price,
 };
 use state::{LevelView, MatchingEngine, MatchingEngineError};
 use std::cmp::min;
@@ -22,7 +23,7 @@ use linera_sdk::{
 linera_sdk::contract!(MatchingEngine);
 
 impl WithContractAbi for MatchingEngine {
-    type Abi = matching_engine::MatchingEngineAbi;
+    type Abi = Abi;
 }
 
 /// An order can be cancelled which removes it totally or
@@ -52,7 +53,7 @@ impl Contract for MatchingEngine {
 
     async fn initialize(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         _argument: (),
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
@@ -67,7 +68,7 @@ impl Contract for MatchingEngine {
     /// locally. Otherwise, it gets transmitted as a message to the chain of the engine.
     async fn execute_operation(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         operation: Operation,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         let mut outcome = ExecutionOutcome::default();
@@ -102,7 +103,7 @@ impl Contract for MatchingEngine {
     /// Execution of the order on the creation chain
     async fn execute_message(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         message: Message,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         ensure!(
@@ -127,7 +128,7 @@ impl Contract for MatchingEngine {
     /// one or a remote one.
     async fn handle_application_call(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         argument: ApplicationCall,
         _sessions: Vec<SessionId>,
     ) -> Result<
@@ -156,7 +157,7 @@ impl Contract for MatchingEngine {
 
     async fn handle_session_call(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         _state: Self::SessionState,
         _call: (),
         _forwarded_sessions: Vec<SessionId>,
@@ -208,7 +209,7 @@ impl MatchingEngine {
     /// Calls into the Fungible Token application to receive tokens from the given account.
     fn receive_from_account(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         owner: &AccountOwner,
         amount: &Amount,
         nature: &OrderNature,
@@ -216,7 +217,7 @@ impl MatchingEngine {
     ) -> Result<(), MatchingEngineError> {
         let account = Account {
             chain_id: runtime.chain_id(),
-            owner: AccountOwner::Application(runtime.application_id()),
+            owner: AccountOwner::Application(runtime.application_id().forget_abi()),
         };
         let destination = Destination::Account(account);
         let (amount, token_idx) = Self::get_amount_idx(nature, price, amount);
@@ -226,11 +227,11 @@ impl MatchingEngine {
     /// Transfers `amount` tokens from the funds in custody to the `destination`.
     fn send_to(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         transfer: Transfer,
     ) -> Result<(), MatchingEngineError> {
         let destination = Destination::Account(transfer.account);
-        let owner_app = AccountOwner::Application(runtime.application_id());
+        let owner_app = AccountOwner::Application(runtime.application_id().forget_abi());
         self.transfer(owner_app, transfer.amount, destination, transfer.token_idx)
     }
 
@@ -263,7 +264,7 @@ impl MatchingEngine {
     ///   - Creation of the corresponding orders and operation of the corresponding transfers
     async fn execute_order_local(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         order: Order,
         chain_id: ChainId,
     ) -> Result<(), MatchingEngineError> {
@@ -325,7 +326,7 @@ impl MatchingEngine {
     ///   engine
     fn execute_order_remote(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         outcome: &mut ExecutionOutcome<Message>,
         order: Order,
     ) -> Result<(), MatchingEngineError> {
@@ -379,7 +380,7 @@ impl MatchingEngine {
     /// * Send the corresponding transfers
     async fn modify_order_check(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         order_id: OrderId,
         cancel_amount: ModifyAmount,
         owner: &AccountOwner,
