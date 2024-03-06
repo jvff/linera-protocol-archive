@@ -62,7 +62,7 @@ pub trait ContractAbi {
 
 // ANCHOR: service_abi
 /// A trait that includes all the types exported by a Linera application service.
-pub trait ServiceAbi {
+pub trait ServiceAbi: Send {
     /// Immutable parameters specific to this application (e.g. the name of a token).
     type Parameters: Serialize + DeserializeOwned + Send + Sync + Debug + 'static;
 
@@ -96,7 +96,7 @@ where
 }
 
 /// Marker trait to help importing service types.
-pub trait WithServiceAbi {
+pub trait WithServiceAbi: Send {
     /// The service types to import.
     type Abi: ServiceAbi;
 }
