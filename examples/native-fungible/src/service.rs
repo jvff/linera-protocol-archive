@@ -10,7 +10,7 @@ use async_graphql::{
     ComplexObject, EmptySubscription, Object, Request, Response, Schema, SimpleObject,
 };
 use async_trait::async_trait;
-use fungible::Operation;
+use fungible::{FungibleTokenAbi as Abi, Operation};
 use linera_sdk::{
     base::{AccountOwner, Amount, WithServiceAbi},
     graphql::GraphQLMutationRoot,
@@ -24,7 +24,7 @@ use thiserror::Error;
 linera_sdk::service!(NativeFungibleToken);
 
 impl WithServiceAbi for NativeFungibleToken {
-    type Abi = fungible::FungibleTokenAbi;
+    type Abi = Abi;
 }
 
 #[async_trait]
@@ -34,7 +34,7 @@ impl Service for NativeFungibleToken {
 
     async fn handle_query(
         self: Arc<Self>,
-        _runtime: &ServiceRuntime,
+        _runtime: &ServiceRuntime<Abi>,
         request: Request,
     ) -> Result<Response, Self::Error> {
         let schema =

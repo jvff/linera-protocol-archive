@@ -242,7 +242,7 @@ pub trait Service: WithServiceAbi + ServiceAbi {
     /// Executes a read-only query on the state of this application.
     async fn handle_query(
         self: Arc<Self>,
-        runtime: &ServiceRuntime,
+        runtime: &ServiceRuntime<Self::Abi>,
         query: Self::Query,
     ) -> Result<Self::QueryResponse, Self::Error>;
 

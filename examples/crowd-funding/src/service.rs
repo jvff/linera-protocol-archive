@@ -7,8 +7,7 @@ mod state;
 
 use async_graphql::{EmptySubscription, Request, Response, Schema};
 use async_trait::async_trait;
-use crowd_funding::Operation;
-
+use crowd_funding::{CrowdFundingAbi as Abi, Operation};
 use linera_sdk::{
     base::WithServiceAbi, graphql::GraphQLMutationRoot, Service, ServiceRuntime, ViewStateStorage,
 };
@@ -19,7 +18,7 @@ use thiserror::Error;
 linera_sdk::service!(CrowdFunding);
 
 impl WithServiceAbi for CrowdFunding {
-    type Abi = crowd_funding::CrowdFundingAbi;
+    type Abi = Abi;
 }
 
 #[async_trait]
@@ -29,7 +28,7 @@ impl Service for CrowdFunding {
 
     async fn handle_query(
         self: Arc<Self>,
-        _runtime: &ServiceRuntime,
+        _runtime: &ServiceRuntime<Abi>,
         request: Request,
     ) -> Result<Response, Self::Error> {
         let schema =

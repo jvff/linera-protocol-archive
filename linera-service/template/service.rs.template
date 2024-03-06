@@ -5,13 +5,14 @@ mod state;
 use self::state::Application;
 use async_trait::async_trait;
 use linera_sdk::{{base::WithServiceAbi, Service, ServiceRuntime, ViewStateStorage}};
+use {project_name}::ApplicationAbi as Abi;
 use std::sync::Arc;
 use thiserror::Error;
 
 linera_sdk::service!(Application);
 
 impl WithServiceAbi for Application {{
-    type Abi = {project_name}::ApplicationAbi;
+    type Abi = Abi;
 }}
 
 #[async_trait]
@@ -21,7 +22,7 @@ impl Service for Application {{
 
     async fn handle_query(
         self: Arc<Self>,
-        _runtime: &ServiceRuntime,
+        _runtime: &ServiceRuntime<Abi>,
         _query: Self::Query,
     ) -> Result<(), Self::Error> {{
         Err(ServiceError::QueriesNotSupported)
