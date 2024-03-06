@@ -6,7 +6,7 @@
 mod state;
 
 use self::state::Amm;
-use amm::{AmmError, ApplicationCall, Message, Operation};
+use amm::{AmmAbi as Abi, AmmError, ApplicationCall, Message, Operation};
 use async_trait::async_trait;
 use fungible::{Account, Destination, FungibleTokenAbi};
 use linera_sdk::{
@@ -20,7 +20,7 @@ use num_traits::{cast::FromPrimitive, ToPrimitive};
 linera_sdk::contract!(Amm);
 
 impl WithContractAbi for Amm {
-    type Abi = amm::AmmAbi;
+    type Abi = Abi;
 }
 
 #[async_trait]
@@ -30,7 +30,7 @@ impl Contract for Amm {
 
     async fn initialize(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         _argument: (),
     ) -> Result<ExecutionOutcome<Self::Message>, AmmError> {
         // Validate that the application parameters were configured correctly.
@@ -41,7 +41,7 @@ impl Contract for Amm {
 
     async fn execute_operation(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         operation: Self::Operation,
     ) -> Result<ExecutionOutcome<Self::Message>, AmmError> {
         let mut outcome = ExecutionOutcome::default();
@@ -56,7 +56,7 @@ impl Contract for Amm {
 
     async fn execute_message(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         message: Self::Message,
     ) -> Result<ExecutionOutcome<Self::Message>, AmmError> {
         ensure!(
@@ -80,7 +80,7 @@ impl Contract for Amm {
 
     async fn handle_application_call(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         application_call: ApplicationCall,
         _forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallOutcome<Self::Message, Self::Response, Self::SessionState>, AmmError>
@@ -114,7 +114,7 @@ impl Contract for Amm {
 
     async fn handle_session_call(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         _session: (),
         _argument: (),
         _forwarded_sessions: Vec<SessionId>,
@@ -140,7 +140,7 @@ impl Amm {
 
     fn execute_order_local(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         operation: Operation,
     ) -> Result<(), AmmError> {
         match operation {
@@ -279,7 +279,7 @@ impl Amm {
 
     fn execute_swap(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         owner: AccountOwner,
         input_token_idx: u32,
         input_amount: Amount,
@@ -307,7 +307,7 @@ impl Amm {
 
     fn execute_order_remote(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         outcome: &mut ExecutionOutcome<Message>,
         operation: Operation,
     ) -> Result<(), AmmError> {
@@ -352,7 +352,7 @@ impl Amm {
 
     fn execute_application_call_remote(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         outcome: &mut ExecutionOutcome<Message>,
         application_call: ApplicationCall,
     ) -> Result<(), AmmError> {
@@ -426,10 +426,10 @@ impl Amm {
 
     fn get_pool_balance(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         token_idx: u32,
     ) -> Result<Amount, AmmError> {
-        let pool_owner = AccountOwner::Application(runtime.application_id());
+        let pool_owner = AccountOwner::Application(runtime.application_id().forget_abi());
         self.balance(&pool_owner, token_idx)
     }
 
@@ -466,14 +466,14 @@ impl Amm {
 
     fn receive_from_account(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         owner: &AccountOwner,
         token_idx: u32,
         amount: Amount,
     ) -> Result<(), AmmError> {
         let account = Account {
             chain_id: runtime.chain_id(),
-            owner: AccountOwner::Application(runtime.application_id()),
+            owner: AccountOwner::Application(runtime.application_id().forget_abi()),
         };
         let destination = Destination::Account(account);
         self.transfer(owner, amount, destination, token_idx)
@@ -481,7 +481,7 @@ impl Amm {
 
     fn send_to(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         owner: &AccountOwner,
         token_idx: u32,
         amount: Amount,
@@ -491,7 +491,7 @@ impl Amm {
             owner: *owner,
         };
         let destination = Destination::Account(account);
-        let owner_app = AccountOwner::Application(runtime.application_id());
+        let owner_app = AccountOwner::Application(runtime.application_id().forget_abi());
         self.transfer(&owner_app, amount, destination, token_idx)
     }
 }

@@ -7,6 +7,7 @@ mod state;
 
 use self::state::Counter;
 use async_trait::async_trait;
+use counter::CounterAbi as Abi;
 use linera_sdk::{
     base::{SessionId, WithContractAbi},
     ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, SessionCallOutcome,
@@ -17,7 +18,7 @@ use thiserror::Error;
 linera_sdk::contract!(Counter);
 
 impl WithContractAbi for Counter {
-    type Abi = counter::CounterAbi;
+    type Abi = Abi;
 }
 
 #[async_trait]
@@ -27,7 +28,7 @@ impl Contract for Counter {
 
     async fn initialize(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         value: u64,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
@@ -40,7 +41,7 @@ impl Contract for Counter {
 
     async fn execute_operation(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         operation: u64,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         self.value += operation;
@@ -49,7 +50,7 @@ impl Contract for Counter {
 
     async fn execute_message(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         _message: (),
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         Err(Error::MessagesNotSupported)
@@ -57,7 +58,7 @@ impl Contract for Counter {
 
     async fn handle_application_call(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         increment: u64,
         _forwarded_sessions: Vec<SessionId>,
     ) -> Result<
@@ -73,7 +74,7 @@ impl Contract for Counter {
 
     async fn handle_session_call(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         _state: Self::SessionState,
         _call: (),
         _forwarded_sessions: Vec<SessionId>,

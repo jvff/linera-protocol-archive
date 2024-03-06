@@ -12,7 +12,7 @@ use linera_sdk::{
     ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, SessionCallOutcome,
     ViewStateStorage,
 };
-use social::{Key, Message, Operation, OwnPost};
+use social::{Key, Message, Operation, OwnPost, SocialAbi as Abi};
 use state::Social;
 use thiserror::Error;
 
@@ -24,7 +24,7 @@ const RECENT_POSTS: usize = 10;
 linera_sdk::contract!(Social);
 
 impl WithContractAbi for Social {
-    type Abi = social::SocialAbi;
+    type Abi = Abi;
 }
 
 #[async_trait]
@@ -34,7 +34,7 @@ impl Contract for Social {
 
     async fn initialize(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         _argument: (),
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
@@ -45,7 +45,7 @@ impl Contract for Social {
 
     async fn execute_operation(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         operation: Operation,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         match operation {
@@ -61,7 +61,7 @@ impl Contract for Social {
 
     async fn execute_message(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         message: Message,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         let mut outcome = ExecutionOutcome::default();
@@ -86,7 +86,7 @@ impl Contract for Social {
 
     async fn handle_application_call(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         _call: (),
         _forwarded_sessions: Vec<SessionId>,
     ) -> Result<
@@ -98,7 +98,7 @@ impl Contract for Social {
 
     async fn handle_session_call(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         _state: Self::SessionState,
         _call: (),
         _forwarded_sessions: Vec<SessionId>,
@@ -111,7 +111,7 @@ impl Contract for Social {
 impl Social {
     async fn execute_post_operation(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         text: String,
     ) -> Result<ExecutionOutcome<Message>, Error> {
         let timestamp = runtime.system_time();

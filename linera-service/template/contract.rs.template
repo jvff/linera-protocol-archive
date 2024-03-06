@@ -9,12 +9,13 @@ use linera_sdk::{{
     ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, SessionCallOutcome,
     ViewStateStorage,
 }};
+use {project_name}::ApplicationAbi as Abi;
 use thiserror::Error;
 
 linera_sdk::contract!(Application);
 
 impl WithContractAbi for Application {{
-    type Abi = {project_name}::ApplicationAbi;
+    type Abi = Abi;
 }}
 
 #[async_trait]
@@ -24,7 +25,7 @@ impl Contract for Application {{
 
     async fn initialize(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         _argument: Self::InitializationArgument,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {{
         Ok(ExecutionOutcome::default())
@@ -32,7 +33,7 @@ impl Contract for Application {{
 
     async fn execute_operation(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         _operation: Self::Operation,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {{
         Ok(ExecutionOutcome::default())
@@ -40,7 +41,7 @@ impl Contract for Application {{
 
     async fn execute_message(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         _message: Self::Message,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {{
         Ok(ExecutionOutcome::default())
@@ -48,7 +49,7 @@ impl Contract for Application {{
 
     async fn handle_application_call(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         _call: Self::ApplicationCall,
         _forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallOutcome<Self::Message, Self::Response, Self::SessionState>, Self::Error>
@@ -58,7 +59,7 @@ impl Contract for Application {{
 
     async fn handle_session_call(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         _session: Self::SessionState,
         _call: Self::SessionCall,
         _forwarded_sessions: Vec<SessionId>,
