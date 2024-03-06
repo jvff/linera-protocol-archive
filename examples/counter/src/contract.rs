@@ -16,6 +16,7 @@ use thiserror::Error;
 
 pub struct CounterContract {
     state: Counter,
+    runtime: ContractRuntime<Self>,
 }
 
 linera_sdk::contract!(CounterContract);
@@ -30,8 +31,8 @@ impl Contract for CounterContract {
     type Storage = SimpleStateStorage<Self>;
     type State = Counter;
 
-    async fn new(state: Counter, _runtime: ContractRuntime<Self>) -> Result<Self, Self::Error> {
-        Ok(CounterContract { state })
+    async fn new(state: Counter, runtime: ContractRuntime<Self>) -> Result<Self, Self::Error> {
+        Ok(CounterContract { state, runtime })
     }
 
     fn state_mut(&mut self) -> &mut Self::State {
@@ -43,7 +44,7 @@ impl Contract for CounterContract {
         value: u64,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
-        assert!(Self::parameters().is_ok());
+        let _ = self.runtime.application_parameters();
 
         self.state.value = value;
 
