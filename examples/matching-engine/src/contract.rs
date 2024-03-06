@@ -15,7 +15,6 @@ use async_trait::async_trait;
 use fungible::{Account, Destination, FungibleTokenAbi};
 use linera_sdk::{
     base::{AccountOwner, Amount, ApplicationId, ChainId, Owner, SessionId, WithContractAbi},
-    contract::system_api,
     ensure, ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, OutgoingMessage,
     Resources, SessionCallOutcome, ViewStateStorage,
 };
@@ -78,9 +77,9 @@ impl Contract for MatchingEngine {
                 let chain_id = runtime.chain_id();
                 Self::check_account_authentication(None, runtime.authenticated_signer(), owner)?;
                 if chain_id == runtime.application_id().creation.chain_id {
-                    self.execute_order_local(order, chain_id).await?;
+                    self.execute_order_local(runtime, order, chain_id).await?;
                 } else {
-                    self.execute_order_remote(&mut outcome, order)?;
+                    self.execute_order_remote(runtime, &mut outcome, order)?;
                 }
             }
             Operation::CloseChain => {
@@ -115,7 +114,8 @@ impl Contract for MatchingEngine {
                     .message_id()
                     .expect("Incoming message ID has to be available when executing a message");
                 Self::check_account_authentication(None, runtime.authenticated_signer(), owner)?;
-                self.execute_order_local(order, message_id.chain_id).await?;
+                self.execute_order_local(runtime, order, message_id.chain_id)
+                    .await?;
             }
         }
         Ok(ExecutionOutcome::default())
@@ -143,9 +143,9 @@ impl Contract for MatchingEngine {
                     owner,
                 )?;
                 if chain_id == runtime.application_id().creation.chain_id {
-                    self.execute_order_local(order, chain_id).await?;
+                    self.execute_order_local(runtime, order, chain_id).await?;
                 } else {
-                    self.execute_order_remote(&mut outcome.execution_outcome, order)?;
+                    self.execute_order_remote(runtime, &mut outcome.execution_outcome, order)?;
                 }
             }
         }
@@ -206,14 +206,15 @@ impl MatchingEngine {
     /// Calls into the Fungible Token application to receive tokens from the given account.
     fn receive_from_account(
         &mut self,
+        runtime: &mut ContractRuntime,
         owner: &AccountOwner,
         amount: &Amount,
         nature: &OrderNature,
         price: &Price,
     ) -> Result<(), MatchingEngineError> {
         let account = Account {
-            chain_id: system_api::current_chain_id(),
-            owner: AccountOwner::Application(system_api::current_application_id()),
+            chain_id: runtime.chain_id(),
+            owner: AccountOwner::Application(runtime.application_id()),
         };
         let destination = Destination::Account(account);
         let (amount, token_idx) = Self::get_amount_idx(nature, price, amount);
@@ -221,9 +222,13 @@ impl MatchingEngine {
     }
 
     /// Transfers `amount` tokens from the funds in custody to the `destination`.
-    fn send_to(&mut self, transfer: Transfer) -> Result<(), MatchingEngineError> {
+    fn send_to(
+        &mut self,
+        runtime: &mut ContractRuntime,
+        transfer: Transfer,
+    ) -> Result<(), MatchingEngineError> {
         let destination = Destination::Account(transfer.account);
-        let owner_app = AccountOwner::Application(system_api::current_application_id());
+        let owner_app = AccountOwner::Application(runtime.application_id());
         self.transfer(owner_app, transfer.amount, destination, transfer.token_idx)
     }
 
@@ -256,6 +261,7 @@ impl MatchingEngine {
     ///   - Creation of the corresponding orders and operation of the corresponding transfers
     async fn execute_order_local(
         &mut self,
+        runtime: &mut ContractRuntime,
         order: Order,
         chain_id: ChainId,
     ) -> Result<(), MatchingEngineError> {
@@ -266,17 +272,17 @@ impl MatchingEngine {
                 nature,
                 price,
             } => {
-                self.receive_from_account(&owner, &amount, &nature, &price)?;
+                self.receive_from_account(runtime, &owner, &amount, &nature, &price)?;
                 let account = Account { chain_id, owner };
                 let transfers = self
                     .insert_and_uncross_market(&account, amount, nature, &price)
                     .await?;
                 for transfer in transfers {
-                    self.send_to(transfer)?;
+                    self.send_to(runtime, transfer)?;
                 }
             }
             Order::Cancel { owner, order_id } => {
-                self.modify_order_check(order_id, ModifyAmount::All, &owner)
+                self.modify_order_check(runtime, order_id, ModifyAmount::All, &owner)
                     .await?;
             }
             Order::Modify {
@@ -284,8 +290,13 @@ impl MatchingEngine {
                 order_id,
                 cancel_amount,
             } => {
-                self.modify_order_check(order_id, ModifyAmount::Partial(cancel_amount), &owner)
-                    .await?;
+                self.modify_order_check(
+                    runtime,
+                    order_id,
+                    ModifyAmount::Partial(cancel_amount),
+                    &owner,
+                )
+                .await?;
             }
         }
         Ok(())
@@ -312,10 +323,11 @@ impl MatchingEngine {
     ///   engine
     fn execute_order_remote(
         &mut self,
+        runtime: &mut ContractRuntime,
         outcome: &mut ExecutionOutcome<Message>,
         order: Order,
     ) -> Result<(), MatchingEngineError> {
-        let chain_id = system_api::current_application_id().creation.chain_id;
+        let chain_id = runtime.application_id().creation.chain_id;
         let message = Message::ExecuteOrder {
             order: order.clone(),
         };
@@ -365,13 +377,14 @@ impl MatchingEngine {
     /// * Send the corresponding transfers
     async fn modify_order_check(
         &mut self,
+        runtime: &mut ContractRuntime,
         order_id: OrderId,
         cancel_amount: ModifyAmount,
         owner: &AccountOwner,
     ) -> Result<(), MatchingEngineError> {
         self.check_order_id(&order_id, owner).await?;
         let transfer = self.modify_order(order_id, cancel_amount).await?;
-        self.send_to(transfer)
+        self.send_to(runtime, transfer)
     }
 
     /// Orders which have length 0 should be removed from the system.
