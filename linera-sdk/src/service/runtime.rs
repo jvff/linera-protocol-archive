@@ -17,23 +17,21 @@ pub struct ServiceRuntime {
 impl ServiceRuntime {
     /// Returns the ID of the current chain.
     pub fn chain_id(&self) -> ChainId {
-        self.fetch_value_through_cache(&self.chain_id, || wit::chain_id().into())
+        Self::fetch_value_through_cache(&self.chain_id, || wit::chain_id().into())
     }
 
     /// Returns the height of the next block that can be added to the current chain.
     pub fn next_block_height(&self) -> BlockHeight {
-        self.fetch_value_through_cache(&self.next_block_height, || wit::next_block_height().into())
+        Self::fetch_value_through_cache(&self.next_block_height, || wit::next_block_height().into())
     }
 
     /// Loads a value from the `cell` cache or fetches it and stores it in the cache.
-    fn fetch_value_through_cache<T>(cell: &Cell<Option<T>>, fetch: impl FnOnce() -> T) -> T {
-        match cell.get() {
-            Some(cached_value) => cached_value,
-            None => {
-                let fetched_value = fetch();
-                cell.set(Some(fetched_value));
-                fetched_value
-            }
-        }
+    fn fetch_value_through_cache<T>(cell: &Cell<Option<T>>, fetch: impl FnOnce() -> T) -> T
+    where
+        T: Clone,
+    {
+        let value = cell.take().unwrap_or_else(fetch);
+        cell.set(Some(value.clone()));
+        value
     }
 }
