@@ -11,7 +11,6 @@ use async_trait::async_trait;
 use fungible::{Account, Destination, FungibleTokenAbi};
 use linera_sdk::{
     base::{AccountOwner, Amount, ApplicationId, Owner, SessionId, WithContractAbi},
-    contract::system_api,
     ensure, ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, OutgoingMessage,
     Resources, SessionCallOutcome, ViewStateStorage,
 };
@@ -47,9 +46,9 @@ impl Contract for Amm {
     ) -> Result<ExecutionOutcome<Self::Message>, AmmError> {
         let mut outcome = ExecutionOutcome::default();
         if runtime.chain_id() == runtime.application_id().creation.chain_id {
-            self.execute_order_local(operation)?;
+            self.execute_order_local(runtime, operation)?;
         } else {
-            self.execute_order_remote(&mut outcome, operation)?;
+            self.execute_order_remote(runtime, &mut outcome, operation)?;
         }
 
         Ok(outcome)
@@ -72,7 +71,7 @@ impl Contract for Amm {
                 input_amount,
             } => {
                 Self::check_account_authentication(None, runtime.authenticated_signer(), owner)?;
-                self.execute_swap(owner, input_token_idx, input_amount)?;
+                self.execute_swap(runtime, owner, input_token_idx, input_amount)?;
             }
         }
 
@@ -99,9 +98,10 @@ impl Contract for Amm {
                     owner,
                 )?;
                 if runtime.chain_id() == runtime.application_id().creation.chain_id {
-                    self.execute_swap(owner, input_token_idx, input_amount)?;
+                    self.execute_swap(runtime, owner, input_token_idx, input_amount)?;
                 } else {
                     self.execute_application_call_remote(
+                        runtime,
                         &mut outcome.execution_outcome,
                         application_call,
                     )?;
@@ -138,7 +138,11 @@ impl Amm {
         }
     }
 
-    fn execute_order_local(&mut self, operation: Operation) -> Result<(), AmmError> {
+    fn execute_order_local(
+        &mut self,
+        runtime: &mut ContractRuntime,
+        operation: Operation,
+    ) -> Result<(), AmmError> {
         match operation {
             Operation::Swap {
                 owner: _,
@@ -154,8 +158,8 @@ impl Amm {
                     return Err(AmmError::NoZeroAmounts);
                 }
 
-                let balance0 = self.get_pool_balance(0)?;
-                let balance1 = self.get_pool_balance(1)?;
+                let balance0 = self.get_pool_balance(runtime, 0)?;
+                let balance1 = self.get_pool_balance(runtime, 1)?;
 
                 let token0_amount;
                 let token1_amount;
@@ -216,8 +220,8 @@ impl Amm {
                     token1_amount = max_token1_amount;
                 }
 
-                self.receive_from_account(&owner, 0, token0_amount)?;
-                self.receive_from_account(&owner, 1, token1_amount)?;
+                self.receive_from_account(runtime, &owner, 0, token0_amount)?;
+                self.receive_from_account(runtime, &owner, 1, token1_amount)?;
 
                 Ok(())
             }
@@ -234,8 +238,8 @@ impl Amm {
                 }
 
                 let other_token_to_remove_idx = 1 - token_to_remove_idx;
-                let balance0 = self.get_pool_balance(0)?;
-                let balance1 = self.get_pool_balance(1)?;
+                let balance0 = self.get_pool_balance(runtime, 0)?;
+                let balance1 = self.get_pool_balance(runtime, 1)?;
 
                 if token_to_remove_idx == 0 && token_to_remove_amount > balance0 {
                     token_to_remove_amount = balance0;
@@ -266,8 +270,8 @@ impl Amm {
                     )
                 };
 
-                self.send_to(&owner, token_to_remove_idx, token_to_remove_amount)?;
-                self.send_to(&owner, other_token_to_remove_idx, other_amount)?;
+                self.send_to(runtime, &owner, token_to_remove_idx, token_to_remove_amount)?;
+                self.send_to(runtime, &owner, other_token_to_remove_idx, other_amount)?;
                 Ok(())
             }
         }
@@ -275,6 +279,7 @@ impl Amm {
 
     fn execute_swap(
         &mut self,
+        runtime: &mut ContractRuntime,
         owner: AccountOwner,
         input_token_idx: u32,
         input_amount: Amount,
@@ -288,20 +293,21 @@ impl Amm {
         }
 
         let output_token_idx = 1 - input_token_idx;
-        let input_pool_balance = self.get_pool_balance(input_token_idx)?;
-        let output_pool_balance = self.get_pool_balance(output_token_idx)?;
+        let input_pool_balance = self.get_pool_balance(runtime, input_token_idx)?;
+        let output_pool_balance = self.get_pool_balance(runtime, output_token_idx)?;
 
         let output_amount =
             self.calculate_output_amount(input_amount, input_pool_balance, output_pool_balance)?;
 
-        self.receive_from_account(&owner, input_token_idx, input_amount)?;
-        self.send_to(&owner, output_token_idx, output_amount)?;
+        self.receive_from_account(runtime, &owner, input_token_idx, input_amount)?;
+        self.send_to(runtime, &owner, output_token_idx, output_amount)?;
 
         Ok(())
     }
 
     fn execute_order_remote(
         &mut self,
+        runtime: &mut ContractRuntime,
         outcome: &mut ExecutionOutcome<Message>,
         operation: Operation,
     ) -> Result<(), AmmError> {
@@ -311,7 +317,7 @@ impl Amm {
                 input_token_idx,
                 input_amount,
             } => {
-                let chain_id = system_api::current_application_id().creation.chain_id;
+                let chain_id = runtime.application_id().creation.chain_id;
                 let message = Message::Swap {
                     owner,
                     input_token_idx,
@@ -346,6 +352,7 @@ impl Amm {
 
     fn execute_application_call_remote(
         &mut self,
+        runtime: &mut ContractRuntime,
         outcome: &mut ExecutionOutcome<Message>,
         application_call: ApplicationCall,
     ) -> Result<(), AmmError> {
@@ -355,7 +362,7 @@ impl Amm {
                 input_token_idx,
                 input_amount,
             } => {
-                let chain_id = system_api::current_application_id().creation.chain_id;
+                let chain_id = runtime.application_id().creation.chain_id;
                 let message = Message::Swap {
                     owner,
                     input_token_idx,
@@ -417,8 +424,12 @@ impl Amm {
         Ok(output_amount)
     }
 
-    fn get_pool_balance(&mut self, token_idx: u32) -> Result<Amount, AmmError> {
-        let pool_owner = AccountOwner::Application(system_api::current_application_id());
+    fn get_pool_balance(
+        &mut self,
+        runtime: &mut ContractRuntime,
+        token_idx: u32,
+    ) -> Result<Amount, AmmError> {
+        let pool_owner = AccountOwner::Application(runtime.application_id());
         self.balance(&pool_owner, token_idx)
     }
 
@@ -455,13 +466,14 @@ impl Amm {
 
     fn receive_from_account(
         &mut self,
+        runtime: &mut ContractRuntime,
         owner: &AccountOwner,
         token_idx: u32,
         amount: Amount,
     ) -> Result<(), AmmError> {
         let account = Account {
-            chain_id: system_api::current_chain_id(),
-            owner: AccountOwner::Application(system_api::current_application_id()),
+            chain_id: runtime.chain_id(),
+            owner: AccountOwner::Application(runtime.application_id()),
         };
         let destination = Destination::Account(account);
         self.transfer(owner, amount, destination, token_idx)
@@ -469,16 +481,17 @@ impl Amm {
 
     fn send_to(
         &mut self,
+        runtime: &mut ContractRuntime,
         owner: &AccountOwner,
         token_idx: u32,
         amount: Amount,
     ) -> Result<(), AmmError> {
         let account = Account {
-            chain_id: system_api::current_chain_id(),
+            chain_id: runtime.chain_id(),
             owner: *owner,
         };
         let destination = Destination::Account(account);
-        let owner_app = AccountOwner::Application(system_api::current_application_id());
+        let owner_app = AccountOwner::Application(runtime.application_id());
         self.transfer(&owner_app, amount, destination, token_idx)
     }
 }
