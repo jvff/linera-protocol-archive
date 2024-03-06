@@ -21,7 +21,7 @@ impl Service for Application {{
 
     async fn handle_query(
         self: Arc<Self>,
-        _runtime: &mut ServiceRuntime,
+        _runtime: &ServiceRuntime,
         _query: Self::Query,
     ) -> Result<(), Self::Error> {{
         Err(ServiceError::QueriesNotSupported)
