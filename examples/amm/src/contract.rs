@@ -220,8 +220,8 @@ impl Amm {
                     token1_amount = max_token1_amount;
                 }
 
-                self.receive_from_account(runtime, &owner, 0, token0_amount)?;
-                self.receive_from_account(runtime, &owner, 1, token1_amount)?;
+                self.receive_from_account(runtime, &owner, 0, token0_amount);
+                self.receive_from_account(runtime, &owner, 1, token1_amount);
 
                 Ok(())
             }
@@ -270,8 +270,8 @@ impl Amm {
                     )
                 };
 
-                self.send_to(runtime, &owner, token_to_remove_idx, token_to_remove_amount)?;
-                self.send_to(runtime, &owner, other_token_to_remove_idx, other_amount)?;
+                self.send_to(runtime, &owner, token_to_remove_idx, token_to_remove_amount);
+                self.send_to(runtime, &owner, other_token_to_remove_idx, other_amount);
                 Ok(())
             }
         }
@@ -299,8 +299,8 @@ impl Amm {
         let output_amount =
             self.calculate_output_amount(input_amount, input_pool_balance, output_pool_balance)?;
 
-        self.receive_from_account(runtime, &owner, input_token_idx, input_amount)?;
-        self.send_to(runtime, &owner, output_token_idx, output_amount)?;
+        self.receive_from_account(runtime, &owner, input_token_idx, input_amount);
+        self.send_to(runtime, &owner, output_token_idx, output_amount);
 
         Ok(())
     }
@@ -447,15 +447,14 @@ impl Amm {
         amount: Amount,
         destination: Destination,
         token_idx: u32,
-    ) -> Result<(), AmmError> {
+    ) {
         let transfer = fungible::ApplicationCall::Transfer {
             owner: *owner,
             amount,
             destination,
         };
         let token = Self::fungible_id(runtime, token_idx);
-        self.call_application(true, token, &transfer, vec![])?;
-        Ok(())
+        runtime.call_application(true, token, &transfer, vec![]);
     }
 
     fn balance(
@@ -466,7 +465,7 @@ impl Amm {
     ) -> Result<Amount, AmmError> {
         let balance = fungible::ApplicationCall::Balance { owner: *owner };
         let token = Self::fungible_id(runtime, token_idx);
-        match self.call_application(true, token, &balance, vec![])?.0 {
+        match runtime.call_application(true, token, &balance, vec![]).0 {
             fungible::FungibleResponse::Balance(balance) => Ok(balance),
             response => Err(AmmError::UnexpectedFungibleResponse(response)),
         }
@@ -478,13 +477,13 @@ impl Amm {
         owner: &AccountOwner,
         token_idx: u32,
         amount: Amount,
-    ) -> Result<(), AmmError> {
+    ) {
         let account = Account {
             chain_id: runtime.chain_id(),
             owner: AccountOwner::Application(runtime.application_id().forget_abi()),
         };
         let destination = Destination::Account(account);
-        self.transfer(runtime, owner, amount, destination, token_idx)
+        self.transfer(runtime, owner, amount, destination, token_idx);
     }
 
     fn send_to(
@@ -493,13 +492,13 @@ impl Amm {
         owner: &AccountOwner,
         token_idx: u32,
         amount: Amount,
-    ) -> Result<(), AmmError> {
+    ) {
         let account = Account {
             chain_id: runtime.chain_id(),
             owner: *owner,
         };
         let destination = Destination::Account(account);
         let owner_app = AccountOwner::Application(runtime.application_id().forget_abi());
-        self.transfer(runtime, &owner_app, amount, destination, token_idx)
+        self.transfer(runtime, &owner_app, amount, destination, token_idx);
     }
 }
