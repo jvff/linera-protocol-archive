@@ -42,7 +42,8 @@ impl Service for FungibleToken {
 #[ComplexObject]
 impl FungibleToken {
     async fn ticker_symbol(&self) -> Result<String, async_graphql::Error> {
-        Ok(FungibleToken::parameters()?.ticker_symbol)
+        let runtime = ServiceRuntime::<Abi>::default();
+        Ok(runtime.application_parameters().ticker_symbol)
     }
 }
 

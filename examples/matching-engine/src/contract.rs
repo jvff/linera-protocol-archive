@@ -53,11 +53,11 @@ impl Contract for MatchingEngine {
 
     async fn initialize(
         &mut self,
-        _runtime: &mut ContractRuntime<Abi>,
+        runtime: &mut ContractRuntime<Abi>,
         _argument: (),
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
-        assert!(Self::parameters().is_ok());
+        let _ = runtime.application_parameters();
 
         Ok(ExecutionOutcome::default())
     }
@@ -199,9 +199,11 @@ impl MatchingEngine {
 
     /// The application engine is trading between two tokens. Those tokens are the parameters of the
     /// construction of the exchange and are accessed by index in the system.
-    fn fungible_id(token_idx: u32) -> Result<ApplicationId<FungibleTokenAbi>, MatchingEngineError> {
-        let parameter = Self::parameters()?;
-        Ok(parameter.tokens[token_idx as usize])
+    fn fungible_id(
+        runtime: &mut ContractRuntime<Abi>,
+        token_idx: u32,
+    ) -> ApplicationId<FungibleTokenAbi> {
+        runtime.application_parameters().tokens[token_idx as usize]
     }
 
     /// Calls into the Fungible Token application to receive tokens from the given account.
@@ -219,7 +221,7 @@ impl MatchingEngine {
         };
         let destination = Destination::Account(account);
         let (amount, token_idx) = Self::get_amount_idx(nature, price, amount);
-        self.transfer(*owner, amount, destination, token_idx)
+        self.transfer(runtime, *owner, amount, destination, token_idx)
     }
 
     /// Transfers `amount` tokens from the funds in custody to the `destination`.
@@ -230,12 +232,19 @@ impl MatchingEngine {
     ) -> Result<(), MatchingEngineError> {
         let destination = Destination::Account(transfer.account);
         let owner_app = AccountOwner::Application(runtime.application_id().forget_abi());
-        self.transfer(owner_app, transfer.amount, destination, transfer.token_idx)
+        self.transfer(
+            runtime,
+            owner_app,
+            transfer.amount,
+            destination,
+            transfer.token_idx,
+        )
     }
 
     /// Transfers tokens from the owner to the destination
     fn transfer(
         &mut self,
+        runtime: &mut ContractRuntime<Abi>,
         owner: AccountOwner,
         amount: Amount,
         destination: Destination,
@@ -246,7 +255,7 @@ impl MatchingEngine {
             amount,
             destination,
         };
-        let token = Self::fungible_id(token_idx).expect("failed to get the token");
+        let token = Self::fungible_id(runtime, token_idx);
         self.call_application(true, token, &transfer, vec![])?;
         Ok(())
     }
@@ -342,7 +351,7 @@ impl MatchingEngine {
             // First, move the funds to the matching engine chain (under the same owner).
             let destination = fungible::Destination::Account(Account { chain_id, owner });
             let (amount, token_idx) = Self::get_amount_idx(&nature, &price, &amount);
-            self.transfer(owner, amount, destination, token_idx)?;
+            self.transfer(runtime, owner, amount, destination, token_idx)?;
         }
         outcome.messages.push(OutgoingMessage {
             destination: chain_id.into(),

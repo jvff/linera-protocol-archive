@@ -34,7 +34,7 @@ impl Contract for NativeFungibleToken {
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
         assert!(
-            Self::parameters().is_ok_and(|param| param.ticker_symbol == "NAT"),
+            runtime.application_parameters().ticker_symbol == "NAT",
             "Only NAT is accepted as ticker symbol"
         );
         for (owner, amount) in state.accounts {
