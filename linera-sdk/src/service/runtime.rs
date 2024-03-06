@@ -12,9 +12,9 @@ pub struct ServiceRuntime<Abi>
 where
     Abi: ServiceAbi,
 {
+    application_parameters: Cell<Option<Abi::Parameters>>,
     chain_id: Cell<Option<ChainId>>,
     next_block_height: Cell<Option<BlockHeight>>,
-    _abi: std::marker::PhantomData<Abi>,
 }
 
 impl<Abi> Default for ServiceRuntime<Abi>
@@ -23,9 +23,9 @@ where
 {
     fn default() -> Self {
         ServiceRuntime {
+            application_parameters: Cell::new(None),
             chain_id: Cell::new(None),
             next_block_height: Cell::new(None),
-            _abi: std::marker::PhantomData,
         }
     }
 }
@@ -43,9 +43,9 @@ where
         }
 
         ServiceRuntime {
+            application_parameters: clone_cell(&self.application_parameters),
             chain_id: clone_cell(&self.chain_id),
             next_block_height: clone_cell(&self.next_block_height),
-            _abi: std::marker::PhantomData,
         }
     }
 }
@@ -54,6 +54,14 @@ impl<Abi> ServiceRuntime<Abi>
 where
     Abi: ServiceAbi,
 {
+    /// Returns the application parameters provided when the application was created.
+    pub fn application_parameters(&self) -> Abi::Parameters {
+        Self::fetch_value_through_cache(&self.application_parameters, || {
+            let bytes = wit::application_parameters();
+            serde_json::from_slice(&bytes).expect("Application parameters must be deserializable")
+        })
+    }
+
     /// Returns the ID of the current chain.
     pub fn chain_id(&self) -> ChainId {
         Self::fetch_value_through_cache(&self.chain_id, || wit::chain_id().into())
