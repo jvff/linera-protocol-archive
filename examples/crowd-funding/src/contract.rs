@@ -206,12 +206,12 @@ impl CrowdFunding {
     ) -> Result<(), Error> {
         let sessions = self.check_session_tokens(runtime, sessions)?;
 
-        let session_balances = self.query_session_balances(&sessions)?;
+        let session_balances = self.query_session_balances(runtime, &sessions)?;
         let amount = session_balances.iter().sum();
 
         ensure!(amount > Amount::ZERO, Error::EmptyPledge);
 
-        self.collect_session_tokens(runtime, sessions, session_balances)?;
+        self.collect_session_tokens(runtime, sessions, session_balances);
         self.finish_pledge(runtime, source, amount).await
     }
 
@@ -236,12 +236,13 @@ impl CrowdFunding {
     /// Gathers the balances in all the pledged sessions.
     fn query_session_balances(
         &mut self,
+        runtime: &mut ContractRuntime<Abi>,
         sessions: &[SessionId<FungibleTokenAbi>],
     ) -> Result<Vec<Amount>, Error> {
         let mut balances = Vec::with_capacity(sessions.len());
         for session in sessions {
             let (response, _) =
-                self.call_session(false, *session, &fungible::SessionCall::Balance, vec![])?;
+                runtime.call_session(false, *session, &fungible::SessionCall::Balance, vec![]);
             match response {
                 FungibleResponse::Balance(balance) => balances.push(balance),
                 response => return Err(Error::UnexpectedFungibleResponse(response)),
@@ -256,11 +257,10 @@ impl CrowdFunding {
         runtime: &mut ContractRuntime<Abi>,
         sessions: Vec<SessionId<FungibleTokenAbi>>,
         balances: Vec<Amount>,
-    ) -> Result<(), Error> {
+    ) {
         for (session, balance) in sessions.into_iter().zip(balances) {
-            self.receive_from_session(runtime, session, balance)?;
+            self.receive_from_session(runtime, session, balance);
         }
-        Ok(())
     }
 
     /// Marks a pledge in the application state, so that it can be returned if the campaign is
@@ -399,7 +399,7 @@ impl CrowdFunding {
         runtime: &mut ContractRuntime<Abi>,
         session: SessionId<FungibleTokenAbi>,
         amount: Amount,
-    ) -> Result<(), Error> {
+    ) {
         let account = Account {
             chain_id: runtime.chain_id(),
             owner: AccountOwner::Application(runtime.application_id().forget_abi()),
@@ -409,8 +409,7 @@ impl CrowdFunding {
             amount,
             destination,
         };
-        self.call_session(false, session, &transfer, vec![])?;
-        Ok(())
+        runtime.call_session(false, session, &transfer, vec![]);
     }
 
     // Trailing underscore to avoid conflict with the generated GraphQL function.
