@@ -30,11 +30,11 @@ impl Contract for Amm {
 
     async fn initialize(
         &mut self,
-        _runtime: &mut ContractRuntime<Abi>,
+        runtime: &mut ContractRuntime<Abi>,
         _argument: (),
     ) -> Result<ExecutionOutcome<Self::Message>, AmmError> {
         // Validate that the application parameters were configured correctly.
-        assert!(Self::parameters().is_ok());
+        let _ = runtime.application_parameters();
 
         Ok(ExecutionOutcome::default())
     }
@@ -430,16 +430,19 @@ impl Amm {
         token_idx: u32,
     ) -> Result<Amount, AmmError> {
         let pool_owner = AccountOwner::Application(runtime.application_id().forget_abi());
-        self.balance(&pool_owner, token_idx)
+        self.balance(runtime, &pool_owner, token_idx)
     }
 
-    fn fungible_id(token_idx: u32) -> Result<ApplicationId<FungibleTokenAbi>, AmmError> {
-        let parameter = Self::parameters()?;
-        Ok(parameter.tokens[token_idx as usize])
+    fn fungible_id(
+        runtime: &mut ContractRuntime<Abi>,
+        token_idx: u32,
+    ) -> ApplicationId<FungibleTokenAbi> {
+        runtime.application_parameters().tokens[token_idx as usize]
     }
 
     fn transfer(
         &mut self,
+        runtime: &mut ContractRuntime<Abi>,
         owner: &AccountOwner,
         amount: Amount,
         destination: Destination,
@@ -450,14 +453,19 @@ impl Amm {
             amount,
             destination,
         };
-        let token = Self::fungible_id(token_idx).expect("failed to get the token");
+        let token = Self::fungible_id(runtime, token_idx);
         self.call_application(true, token, &transfer, vec![])?;
         Ok(())
     }
 
-    fn balance(&mut self, owner: &AccountOwner, token_idx: u32) -> Result<Amount, AmmError> {
+    fn balance(
+        &mut self,
+        runtime: &mut ContractRuntime<Abi>,
+        owner: &AccountOwner,
+        token_idx: u32,
+    ) -> Result<Amount, AmmError> {
         let balance = fungible::ApplicationCall::Balance { owner: *owner };
-        let token = Self::fungible_id(token_idx).expect("failed to get the token");
+        let token = Self::fungible_id(runtime, token_idx);
         match self.call_application(true, token, &balance, vec![])?.0 {
             fungible::FungibleResponse::Balance(balance) => Ok(balance),
             response => Err(AmmError::UnexpectedFungibleResponse(response)),
@@ -476,7 +484,7 @@ impl Amm {
             owner: AccountOwner::Application(runtime.application_id().forget_abi()),
         };
         let destination = Destination::Account(account);
-        self.transfer(owner, amount, destination, token_idx)
+        self.transfer(runtime, owner, amount, destination, token_idx)
     }
 
     fn send_to(
@@ -492,6 +500,6 @@ impl Amm {
         };
         let destination = Destination::Account(account);
         let owner_app = AccountOwner::Application(runtime.application_id().forget_abi());
-        self.transfer(&owner_app, amount, destination, token_idx)
+        self.transfer(runtime, &owner_app, amount, destination, token_idx)
     }
 }

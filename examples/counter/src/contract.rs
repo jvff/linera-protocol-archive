@@ -28,11 +28,11 @@ impl Contract for Counter {
 
     async fn initialize(
         &mut self,
-        _runtime: &mut ContractRuntime<Abi>,
+        runtime: &mut ContractRuntime<Abi>,
         value: u64,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
-        assert!(Self::parameters().is_ok());
+        let _ = runtime.application_parameters();
 
         self.value = value;
 
