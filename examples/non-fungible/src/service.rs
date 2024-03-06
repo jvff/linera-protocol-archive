@@ -35,7 +35,10 @@ impl Service for NonFungibleTokenService {
     type Storage = ViewStateStorage<Self>;
     type State = NonFungibleToken;
 
-    async fn new(state: Self::State, _runtime: ServiceRuntime) -> Result<Self, Self::Error> {
+    async fn new(
+        state: Self::State,
+        _runtime: ServiceRuntime<Self::Abi>,
+    ) -> Result<Self, Self::Error> {
         Ok(NonFungibleTokenService {
             state: Arc::new(state),
         })

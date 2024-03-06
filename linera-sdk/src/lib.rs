@@ -214,7 +214,10 @@ pub trait Service: WithServiceAbi + ServiceAbi + Sized {
     type Storage: ServiceStateStorage;
 
     /// Creates a in-memory instance of the service handler from the application's `state`.
-    async fn new(state: Self::State, runtime: ServiceRuntime) -> Result<Self, Self::Error>;
+    async fn new(
+        state: Self::State,
+        runtime: ServiceRuntime<Self::Abi>,
+    ) -> Result<Self, Self::Error>;
 
     /// Executes a read-only query on the state of this application.
     async fn handle_query(&self, query: Self::Query) -> Result<Self::QueryResponse, Self::Error>;
