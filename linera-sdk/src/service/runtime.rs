@@ -5,24 +5,35 @@
 
 use super::service_system_api as wit;
 use linera_base::{data_types::BlockHeight, identifiers::ChainId};
+use std::cell::Cell;
 
 /// The runtime available during execution of a query.
 #[derive(Clone, Debug, Default)]
 pub struct ServiceRuntime {
-    chain_id: Option<ChainId>,
-    next_block_height: Option<BlockHeight>,
+    chain_id: Cell<Option<ChainId>>,
+    next_block_height: Cell<Option<BlockHeight>>,
 }
 
 impl ServiceRuntime {
     /// Returns the ID of the current chain.
-    pub fn chain_id(&mut self) -> ChainId {
-        *self.chain_id.get_or_insert_with(|| wit::chain_id().into())
+    pub fn chain_id(&self) -> ChainId {
+        self.fetch_value_through_cache(&self.chain_id, || wit::chain_id().into())
     }
 
     /// Returns the height of the next block that can be added to the current chain.
-    pub fn next_block_height(&mut self) -> BlockHeight {
-        *self
-            .next_block_height
-            .get_or_insert_with(|| wit::next_block_height().into())
+    pub fn next_block_height(&self) -> BlockHeight {
+        self.fetch_value_through_cache(&self.next_block_height, || wit::next_block_height().into())
+    }
+
+    /// Loads a value from the `cell` cache or fetches it and stores it in the cache.
+    fn fetch_value_through_cache<T>(cell: &Cell<Option<T>>, fetch: impl FnOnce() -> T) -> T {
+        match cell.get() {
+            Some(cached_value) => cached_value,
+            None => {
+                let fetched_value = fetch();
+                cell.set(Some(fetched_value));
+                fetched_value
+            }
+        }
     }
 }
