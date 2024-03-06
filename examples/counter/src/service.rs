@@ -8,6 +8,7 @@ mod state;
 use self::state::Counter;
 use async_graphql::{EmptySubscription, Object, Request, Response, Schema};
 use async_trait::async_trait;
+use counter::CounterAbi as Abi;
 use linera_sdk::{base::WithServiceAbi, Service, ServiceRuntime, SimpleStateStorage};
 use std::sync::Arc;
 use thiserror::Error;
@@ -15,7 +16,7 @@ use thiserror::Error;
 linera_sdk::service!(Counter);
 
 impl WithServiceAbi for Counter {
-    type Abi = counter::CounterAbi;
+    type Abi = Abi;
 }
 
 #[async_trait]
@@ -25,7 +26,7 @@ impl Service for Counter {
 
     async fn handle_query(
         self: Arc<Self>,
-        _runtime: &ServiceRuntime,
+        _runtime: &ServiceRuntime<Abi>,
         request: Request,
     ) -> Result<Response, Self::Error> {
         let schema = Schema::build(
