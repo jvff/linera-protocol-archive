@@ -157,6 +157,7 @@ impl CrowdFunding {
         ensure!(amount > Amount::ZERO, Error::EmptyPledge);
         // The campaign chain.
         let chain_id = runtime.application_id().creation.chain_id;
+        let fungible_id = Self::fungible_id(runtime);
         // First, move the funds to the campaign chain (under the same owner).
         // TODO(#589): Simplify this when the messaging system guarantees atomic delivery
         // of all messages created in the same operation/message.
@@ -166,12 +167,12 @@ impl CrowdFunding {
             amount,
             destination,
         };
-        self.call_application(
+        runtime.call_application(
             /* authenticated by owner */ true,
-            Self::fungible_id(runtime),
+            fungible_id,
             &call,
             vec![],
-        )?;
+        );
         // Second, schedule the attribution of the funds to the (remote) campaign.
         let message = Message::PledgeWithAccount { owner, amount };
         outcome.messages.push(OutgoingMessage {
@@ -192,7 +193,7 @@ impl CrowdFunding {
         amount: Amount,
     ) -> Result<(), Error> {
         ensure!(amount > Amount::ZERO, Error::EmptyPledge);
-        self.receive_from_account(runtime, owner, amount)?;
+        self.receive_from_account(runtime, owner, amount);
         self.finish_pledge(runtime, owner, amount).await
     }
 
@@ -280,7 +281,8 @@ impl CrowdFunding {
                 Ok(())
             }
             Status::Complete => {
-                self.send_to(runtime, amount, self.initialization_argument_().owner)
+                self.send_to(runtime, amount, self.initialization_argument_().owner);
+                Ok(())
             }
             Status::Cancelled => Err(Error::Cancelled),
         }
@@ -301,7 +303,7 @@ impl CrowdFunding {
             Status::Cancelled => return Err(Error::Cancelled),
         }
 
-        self.send_to(runtime, total, self.initialization_argument_().owner)?;
+        self.send_to(runtime, total, self.initialization_argument_().owner);
         self.pledges.clear();
         self.status.set(Status::Complete);
 
@@ -328,11 +330,11 @@ impl CrowdFunding {
             .await
             .expect("view iteration should not fail");
         for (pledger, amount) in pledges {
-            self.send_to(runtime, amount, pledger)?;
+            self.send_to(runtime, amount, pledger);
         }
 
         let balance = self.balance(runtime)?;
-        self.send_to(runtime, balance, self.initialization_argument_().owner)?;
+        self.send_to(runtime, balance, self.initialization_argument_().owner);
         self.status.set(Status::Cancelled);
 
         Ok(())
@@ -341,12 +343,13 @@ impl CrowdFunding {
     /// Queries the token application to determine the total amount of tokens in custody.
     fn balance(&mut self, runtime: &mut ContractRuntime<Abi>) -> Result<Amount, Error> {
         let owner = AccountOwner::Application(runtime.application_id().forget_abi());
-        let (response, _) = self.call_application(
+        let fungible_id = Self::fungible_id(runtime);
+        let (response, _) = runtime.call_application(
             true,
-            Self::fungible_id(runtime),
+            fungible_id,
             &fungible::ApplicationCall::Balance { owner },
             vec![],
-        )?;
+        );
         match response {
             fungible::FungibleResponse::Balance(balance) => Ok(balance),
             response => Err(Error::UnexpectedFungibleResponse(response)),
@@ -354,12 +357,8 @@ impl CrowdFunding {
     }
 
     /// Transfers `amount` tokens from the funds in custody to the `destination`.
-    fn send_to(
-        &mut self,
-        runtime: &mut ContractRuntime<Abi>,
-        amount: Amount,
-        owner: AccountOwner,
-    ) -> Result<(), Error> {
+    fn send_to(&mut self, runtime: &mut ContractRuntime<Abi>, amount: Amount, owner: AccountOwner) {
+        let fungible_id = Self::fungible_id(runtime);
         let account = Account {
             chain_id: runtime.chain_id(),
             owner,
@@ -370,8 +369,7 @@ impl CrowdFunding {
             amount,
             destination,
         };
-        self.call_application(true, Self::fungible_id(runtime), &transfer, vec![])?;
-        Ok(())
+        runtime.call_application(true, fungible_id, &transfer, vec![]);
     }
 
     /// Calls into the Fungible Token application to receive tokens from the given account.
@@ -380,7 +378,8 @@ impl CrowdFunding {
         runtime: &mut ContractRuntime<Abi>,
         owner: AccountOwner,
         amount: Amount,
-    ) -> Result<(), Error> {
+    ) {
+        let fungible_id = Self::fungible_id(runtime);
         let account = Account {
             chain_id: runtime.chain_id(),
             owner: AccountOwner::Application(runtime.application_id().forget_abi()),
@@ -391,8 +390,7 @@ impl CrowdFunding {
             amount,
             destination,
         };
-        self.call_application(true, Self::fungible_id(runtime), &transfer, vec![])?;
-        Ok(())
+        runtime.call_application(true, fungible_id, &transfer, vec![]);
     }
 
     /// Calls into the Fungible Token application to receive tokens from the given account.
