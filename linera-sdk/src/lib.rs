@@ -218,56 +218,6 @@ pub trait Contract: WithContractAbi + ContractAbi + Send + Sized {
         argument: Self::SessionCall,
         forwarded_sessions: Vec<SessionId>,
     ) -> Result<SessionCallOutcome<Self::Message, Self::Response, Self::SessionState>, Self::Error>;
-
-    /// Calls another application.
-    fn call_application<A: ContractAbi + Send>(
-        &mut self,
-        authenticated: bool,
-        application: ApplicationId<A>,
-        call: &A::ApplicationCall,
-        forwarded_sessions: Vec<SessionId>,
-    ) -> Result<(A::Response, Vec<SessionId>), Self::Error> {
-        let call_bytes = bcs::to_bytes(call)?;
-        let (response_bytes, ids) = crate::contract::system_api::call_application(
-            authenticated,
-            application.forget_abi(),
-            &call_bytes,
-            forwarded_sessions,
-        );
-        let response = bcs::from_bytes(&response_bytes)?;
-        Ok((response, ids))
-    }
-
-    /// Calls a session from another application.
-    fn call_session<A: ContractAbi + Send>(
-        &mut self,
-        authenticated: bool,
-        session: SessionId<A>,
-        call: &A::SessionCall,
-        forwarded_sessions: Vec<SessionId>,
-    ) -> Result<(A::Response, Vec<SessionId>), Self::Error> {
-        let call_bytes = bcs::to_bytes(call)?;
-        let (response_bytes, ids) = crate::contract::system_api::call_session(
-            authenticated,
-            session.forget_abi(),
-            &call_bytes,
-            forwarded_sessions,
-        );
-        let response = bcs::from_bytes(&response_bytes)?;
-        Ok((response, ids))
-    }
-
-    /// Retrieves the parameters of the application.
-    fn parameters() -> Result<Self::Parameters, Self::Error> {
-        let bytes = crate::contract::system_api::current_application_parameters();
-        let parameters = serde_json::from_slice(&bytes)?;
-        Ok(parameters)
-    }
-
-    /// Retrieves the current application ID.
-    fn current_application_id() -> ApplicationId<Self::Abi> {
-        crate::contract::system_api::current_application_id().with_abi()
-    }
 }
 
 /// The service interface of a Linera application.
