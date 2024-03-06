@@ -11,13 +11,13 @@ use async_trait::async_trait;
 use linera_sdk::{
     base::WithServiceAbi, graphql::GraphQLMutationRoot, Service, ServiceRuntime, ViewStateStorage,
 };
-use matching_engine::Operation;
+use matching_engine::{MatchingEngineAbi as Abi, Operation};
 use std::sync::Arc;
 
 linera_sdk::service!(MatchingEngine);
 
 impl WithServiceAbi for MatchingEngine {
-    type Abi = matching_engine::MatchingEngineAbi;
+    type Abi = Abi;
 }
 
 #[async_trait]
@@ -27,7 +27,7 @@ impl Service for MatchingEngine {
 
     async fn handle_query(
         self: Arc<Self>,
-        _runtime: &ServiceRuntime,
+        _runtime: &ServiceRuntime<Abi>,
         request: Request,
     ) -> Result<Response, Self::Error> {
         let schema =

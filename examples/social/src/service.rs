@@ -11,7 +11,7 @@ use linera_sdk::{
     base::WithServiceAbi, graphql::GraphQLMutationRoot, views::ViewError, Service, ServiceRuntime,
     ViewStateStorage,
 };
-use social::Operation;
+use social::{Operation, SocialAbi as Abi};
 use state::Social;
 use std::sync::Arc;
 use thiserror::Error;
@@ -19,7 +19,7 @@ use thiserror::Error;
 linera_sdk::service!(Social);
 
 impl WithServiceAbi for Social {
-    type Abi = social::SocialAbi;
+    type Abi = Abi;
 }
 
 #[async_trait]
@@ -29,7 +29,7 @@ impl Service for Social {
 
     async fn handle_query(
         self: Arc<Self>,
-        _runtime: &ServiceRuntime,
+        _runtime: &ServiceRuntime<Abi>,
         request: Request,
     ) -> Result<Response, Self::Error> {
         let schema =
