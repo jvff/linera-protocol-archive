@@ -10,8 +10,7 @@ use async_graphql::{ComplexObject, EmptySubscription, Request, Response, Schema}
 use async_trait::async_trait;
 use fungible::Operation;
 use linera_sdk::{
-    base::WithServiceAbi, graphql::GraphQLMutationRoot, service::QueryRuntime, Service,
-    ViewStateStorage,
+    base::WithServiceAbi, graphql::GraphQLMutationRoot, Service, ServiceRuntime, ViewStateStorage,
 };
 use std::sync::Arc;
 use thiserror::Error;
@@ -29,8 +28,8 @@ impl Service for FungibleToken {
 
     async fn handle_query(
         self: Arc<Self>,
+        _runtime: &mut ServiceRuntime,
         request: Request,
-        _runtime: QueryRuntime,
     ) -> Result<Response, Self::Error> {
         let schema =
             Schema::build(self.clone(), Operation::mutation_root(), EmptySubscription).finish();

@@ -12,8 +12,9 @@ use fungible::{
 };
 use linera_sdk::{
     base::{AccountOwner, Amount, ApplicationId, Owner, SessionId, WithContractAbi},
-    contract::{system_api, CalleeRuntime, MessageRuntime, OperationRuntime},
-    ApplicationCallOutcome, Contract, ExecutionOutcome, SessionCallOutcome, ViewStateStorage,
+    contract::system_api,
+    ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, SessionCallOutcome,
+    ViewStateStorage,
 };
 use std::str::FromStr;
 use thiserror::Error;
@@ -31,8 +32,8 @@ impl Contract for FungibleToken {
 
     async fn initialize(
         &mut self,
+        runtime: &mut ContractRuntime,
         mut state: Self::InitializationArgument,
-        mut runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
         assert!(Self::parameters().is_ok());
@@ -53,8 +54,8 @@ impl Contract for FungibleToken {
 
     async fn execute_operation(
         &mut self,
+        runtime: &mut ContractRuntime,
         operation: Self::Operation,
-        mut runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         match operation {
             Operation::Transfer {
@@ -86,8 +87,8 @@ impl Contract for FungibleToken {
 
     async fn execute_message(
         &mut self,
+        runtime: &mut ContractRuntime,
         message: Message,
-        mut runtime: MessageRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         match message {
             Message::Credit {
@@ -95,11 +96,10 @@ impl Contract for FungibleToken {
                 target,
                 source,
             } => {
-                let receiver = if runtime.message_is_bouncing() {
-                    source
-                } else {
-                    target
-                };
+                let is_bouncing = runtime
+                    .message_is_bouncing()
+                    .expect("Message delivery status has to be available when executing a message");
+                let receiver = if is_bouncing { source } else { target };
                 self.credit(receiver, amount).await;
                 Ok(ExecutionOutcome::default())
             }
@@ -119,9 +119,9 @@ impl Contract for FungibleToken {
 
     async fn handle_application_call(
         &mut self,
+        runtime: &mut ContractRuntime,
         call: ApplicationCall,
         _forwarded_sessions: Vec<SessionId>,
-        mut runtime: CalleeRuntime,
     ) -> Result<
         ApplicationCallOutcome<Self::Message, Self::Response, Self::SessionState>,
         Self::Error,
@@ -187,10 +187,10 @@ impl Contract for FungibleToken {
 
     async fn handle_session_call(
         &mut self,
+        _runtime: &mut ContractRuntime,
         state: Self::SessionState,
         request: SessionCall,
         _forwarded_sessions: Vec<SessionId>,
-        _runtime: CalleeRuntime,
     ) -> Result<SessionCallOutcome<Self::Message, Self::Response, Self::SessionState>, Self::Error>
     {
         match request {

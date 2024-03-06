@@ -15,9 +15,9 @@ use async_trait::async_trait;
 use fungible::{Account, Destination, FungibleTokenAbi};
 use linera_sdk::{
     base::{AccountOwner, Amount, ApplicationId, Owner, SessionId, WithContractAbi},
-    contract::{system_api, CalleeRuntime, MessageRuntime, OperationRuntime},
-    ensure, ApplicationCallOutcome, Contract, ExecutionOutcome, OutgoingMessage, Resources,
-    SessionCallOutcome, ViewStateStorage,
+    contract::system_api,
+    ensure, ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, OutgoingMessage,
+    Resources, SessionCallOutcome, ViewStateStorage,
 };
 
 linera_sdk::contract!(MatchingEngine);
@@ -53,8 +53,8 @@ impl Contract for MatchingEngine {
 
     async fn initialize(
         &mut self,
+        _runtime: &mut ContractRuntime,
         _argument: (),
-        _runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
         assert!(Self::parameters().is_ok());
@@ -67,8 +67,8 @@ impl Contract for MatchingEngine {
     /// locally otherwise, it gets transmitted as a message to the chain of the engine.
     async fn execute_operation(
         &mut self,
+        runtime: &mut ContractRuntime,
         operation: Operation,
-        mut runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         let mut outcome = ExecutionOutcome::default();
         match operation {
@@ -88,8 +88,8 @@ impl Contract for MatchingEngine {
     /// Execution of the order on the creation chain
     async fn execute_message(
         &mut self,
+        runtime: &mut ContractRuntime,
         message: Message,
-        mut runtime: MessageRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         ensure!(
             runtime.chain_id() == runtime.application_id().creation.chain_id,
@@ -109,9 +109,9 @@ impl Contract for MatchingEngine {
     /// one or a remote one.
     async fn handle_application_call(
         &mut self,
+        runtime: &mut ContractRuntime,
         argument: ApplicationCall,
         _sessions: Vec<SessionId>,
-        mut runtime: CalleeRuntime,
     ) -> Result<
         ApplicationCallOutcome<Self::Message, Self::Response, Self::SessionState>,
         Self::Error,
@@ -137,10 +137,10 @@ impl Contract for MatchingEngine {
 
     async fn handle_session_call(
         &mut self,
+        _runtime: &mut ContractRuntime,
         _state: Self::SessionState,
         _call: (),
         _forwarded_sessions: Vec<SessionId>,
-        _runtime: CalleeRuntime,
     ) -> Result<SessionCallOutcome<Self::Message, Self::Response, Self::SessionState>, Self::Error>
     {
         Err(Self::Error::SessionsNotSupported)

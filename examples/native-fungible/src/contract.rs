@@ -10,8 +10,9 @@ use async_trait::async_trait;
 use fungible::{ApplicationCall, FungibleResponse, Message, Operation};
 use linera_sdk::{
     base::{Account, AccountOwner, Amount, Owner, SessionId, WithContractAbi},
-    contract::{system_api, CalleeRuntime, MessageRuntime, OperationRuntime},
-    ApplicationCallOutcome, Contract, ExecutionOutcome, SessionCallOutcome, ViewStateStorage,
+    contract::system_api,
+    ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, SessionCallOutcome,
+    ViewStateStorage,
 };
 use native_fungible::TICKER_SYMBOL;
 use thiserror::Error;
@@ -29,8 +30,8 @@ impl Contract for NativeFungibleToken {
 
     async fn initialize(
         &mut self,
+        _runtime: &mut ContractRuntime,
         state: Self::InitializationArgument,
-        _runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
         assert!(
@@ -50,8 +51,8 @@ impl Contract for NativeFungibleToken {
 
     async fn execute_operation(
         &mut self,
+        runtime: &mut ContractRuntime,
         operation: Self::Operation,
-        mut runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         match operation {
             Operation::Transfer {
@@ -103,8 +104,8 @@ impl Contract for NativeFungibleToken {
     // to be the only message used here, simple message (no authentication, not tracked)
     async fn execute_message(
         &mut self,
+        runtime: &mut ContractRuntime,
         message: Self::Message,
-        mut runtime: MessageRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Messages for now don't do anything, just pass messages around
         match message {
@@ -130,9 +131,9 @@ impl Contract for NativeFungibleToken {
 
     async fn handle_application_call(
         &mut self,
+        runtime: &mut ContractRuntime,
         call: ApplicationCall,
         _forwarded_sessions: Vec<SessionId>,
-        mut runtime: CalleeRuntime,
     ) -> Result<
         ApplicationCallOutcome<Self::Message, Self::Response, Self::SessionState>,
         Self::Error,
@@ -208,10 +209,10 @@ impl Contract for NativeFungibleToken {
 
     async fn handle_session_call(
         &mut self,
+        _runtime: &mut ContractRuntime,
         _state: Self::SessionState,
         _request: Self::SessionCall,
         _forwarded_sessions: Vec<SessionId>,
-        _runtime: CalleeRuntime,
     ) -> Result<SessionCallOutcome<Self::Message, Self::Response, Self::SessionState>, Self::Error>
     {
         Err(Error::SessionsNotSupported)

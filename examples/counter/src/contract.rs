@@ -9,8 +9,8 @@ use self::state::Counter;
 use async_trait::async_trait;
 use linera_sdk::{
     base::{SessionId, WithContractAbi},
-    contract::{CalleeRuntime, MessageRuntime, OperationRuntime},
-    ApplicationCallOutcome, Contract, ExecutionOutcome, SessionCallOutcome, SimpleStateStorage,
+    ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, SessionCallOutcome,
+    SimpleStateStorage,
 };
 use thiserror::Error;
 
@@ -27,8 +27,8 @@ impl Contract for Counter {
 
     async fn initialize(
         &mut self,
+        _runtime: &mut ContractRuntime,
         value: u64,
-        _runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
         assert!(Self::parameters().is_ok());
@@ -40,8 +40,8 @@ impl Contract for Counter {
 
     async fn execute_operation(
         &mut self,
+        _runtime: &mut ContractRuntime,
         operation: u64,
-        _runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         self.value += operation;
         Ok(ExecutionOutcome::default())
@@ -49,17 +49,17 @@ impl Contract for Counter {
 
     async fn execute_message(
         &mut self,
+        _runtime: &mut ContractRuntime,
         _message: (),
-        _runtime: MessageRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         Err(Error::MessagesNotSupported)
     }
 
     async fn handle_application_call(
         &mut self,
+        _runtime: &mut ContractRuntime,
         increment: u64,
         _forwarded_sessions: Vec<SessionId>,
-        _runtime: CalleeRuntime,
     ) -> Result<
         ApplicationCallOutcome<Self::Message, Self::Response, Self::SessionState>,
         Self::Error,
@@ -73,10 +73,10 @@ impl Contract for Counter {
 
     async fn handle_session_call(
         &mut self,
+        _runtime: &mut ContractRuntime,
         _state: Self::SessionState,
         _call: (),
         _forwarded_sessions: Vec<SessionId>,
-        _runtime: CalleeRuntime,
     ) -> Result<SessionCallOutcome<Self::Message, Self::Response, Self::SessionState>, Self::Error>
     {
         Err(Error::SessionsNotSupported)
@@ -109,9 +109,8 @@ mod tests {
     use assert_matches::assert_matches;
     use futures::FutureExt;
     use linera_sdk::{
-        contract::{CalleeRuntime, MessageRuntime, OperationRuntime},
-        test::mock_application_parameters,
-        ApplicationCallOutcome, Contract, ExecutionOutcome,
+        test::mock_application_parameters, ApplicationCallOutcome, Contract, ContractRuntime,
+        ExecutionOutcome,
     };
     use webassembly_test::webassembly_test;
 
@@ -123,7 +122,7 @@ mod tests {
         let increment = 42_308_u64;
 
         let result = counter
-            .execute_operation(increment, OperationRuntime::default())
+            .execute_operation(&mut ContractRuntime::default(), increment)
             .now_or_never()
             .expect("Execution of counter operation should not await anything");
 
@@ -138,7 +137,7 @@ mod tests {
         let mut counter = create_and_initialize_counter(initial_value);
 
         let result = counter
-            .execute_message((), MessageRuntime::default())
+            .execute_message(&mut ContractRuntime::default(), ())
             .now_or_never()
             .expect("Execution of counter operation should not await anything");
 
@@ -154,7 +153,7 @@ mod tests {
         let increment = 8_u64;
 
         let result = counter
-            .handle_application_call(increment, vec![], CalleeRuntime::default())
+            .handle_application_call(&mut ContractRuntime::default(), increment, vec![])
             .now_or_never()
             .expect("Execution of counter operation should not await anything");
 
@@ -176,7 +175,7 @@ mod tests {
         let mut counter = create_and_initialize_counter(initial_value);
 
         let result = counter
-            .handle_session_call((), (), vec![], CalleeRuntime::default())
+            .handle_session_call(&mut ContractRuntime::default(), (), (), vec![])
             .now_or_never()
             .expect("Execution of counter operation should not await anything");
 
@@ -190,7 +189,7 @@ mod tests {
         mock_application_parameters(&());
 
         let result = counter
-            .initialize(initial_value, OperationRuntime::default())
+            .initialize(&mut ContractRuntime::default(), initial_value)
             .now_or_never()
             .expect("Initialization of counter state should not await anything");
 

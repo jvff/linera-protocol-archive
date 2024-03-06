@@ -8,9 +8,10 @@ mod state;
 use async_trait::async_trait;
 use linera_sdk::{
     base::{ChannelName, Destination, MessageId, SessionId, WithContractAbi},
-    contract::{system_api, CalleeRuntime, MessageRuntime, OperationRuntime},
+    contract::system_api,
     views::ViewError,
-    ApplicationCallOutcome, Contract, ExecutionOutcome, SessionCallOutcome, ViewStateStorage,
+    ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, SessionCallOutcome,
+    ViewStateStorage,
 };
 use social::{Key, Message, Operation, OwnPost};
 use state::Social;
@@ -34,8 +35,8 @@ impl Contract for Social {
 
     async fn initialize(
         &mut self,
+        _runtime: &mut ContractRuntime,
         _argument: (),
-        _runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
         assert!(Self::parameters().is_ok());
@@ -45,8 +46,8 @@ impl Contract for Social {
 
     async fn execute_operation(
         &mut self,
+        _runtime: &mut ContractRuntime,
         operation: Operation,
-        _runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         match operation {
             Operation::Subscribe { chain_id } => {
@@ -61,11 +62,13 @@ impl Contract for Social {
 
     async fn execute_message(
         &mut self,
+        runtime: &mut ContractRuntime,
         message: Message,
-        mut runtime: MessageRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         let mut outcome = ExecutionOutcome::default();
-        let message_id = runtime.message_id();
+        let message_id = runtime
+            .message_id()
+            .expect("Message ID has to be available when executing a message");
         match message {
             Message::Subscribe => outcome.subscribe.push((
                 ChannelName::from(POSTS_CHANNEL_NAME.to_vec()),
@@ -84,9 +87,9 @@ impl Contract for Social {
 
     async fn handle_application_call(
         &mut self,
+        _runtime: &mut ContractRuntime,
         _call: (),
         _forwarded_sessions: Vec<SessionId>,
-        _runtime: CalleeRuntime,
     ) -> Result<
         ApplicationCallOutcome<Self::Message, Self::Response, Self::SessionState>,
         Self::Error,
@@ -96,10 +99,10 @@ impl Contract for Social {
 
     async fn handle_session_call(
         &mut self,
+        _runtime: &mut ContractRuntime,
         _state: Self::SessionState,
         _call: (),
         _forwarded_sessions: Vec<SessionId>,
-        _runtime: CalleeRuntime,
     ) -> Result<SessionCallOutcome<Self::Message, Self::Response, Self::SessionState>, Self::Error>
     {
         Err(Error::SessionsNotSupported)

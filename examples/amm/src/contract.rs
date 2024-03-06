@@ -11,9 +11,9 @@ use async_trait::async_trait;
 use fungible::{Account, Destination, FungibleTokenAbi};
 use linera_sdk::{
     base::{AccountOwner, Amount, ApplicationId, Owner, SessionId, WithContractAbi},
-    contract::{system_api, CalleeRuntime, MessageRuntime, OperationRuntime},
-    ensure, ApplicationCallOutcome, Contract, ExecutionOutcome, OutgoingMessage, Resources,
-    SessionCallOutcome, ViewStateStorage,
+    contract::system_api,
+    ensure, ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, OutgoingMessage,
+    Resources, SessionCallOutcome, ViewStateStorage,
 };
 use num_bigint::BigUint;
 use num_traits::{cast::FromPrimitive, ToPrimitive};
@@ -31,8 +31,8 @@ impl Contract for Amm {
 
     async fn initialize(
         &mut self,
+        _runtime: &mut ContractRuntime,
         _argument: (),
-        _runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, AmmError> {
         // Validate that the application parameters were configured correctly.
         assert!(Self::parameters().is_ok());
@@ -42,8 +42,8 @@ impl Contract for Amm {
 
     async fn execute_operation(
         &mut self,
+        runtime: &mut ContractRuntime,
         operation: Self::Operation,
-        mut runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, AmmError> {
         let mut outcome = ExecutionOutcome::default();
         if runtime.chain_id() == runtime.application_id().creation.chain_id {
@@ -57,8 +57,8 @@ impl Contract for Amm {
 
     async fn execute_message(
         &mut self,
+        runtime: &mut ContractRuntime,
         message: Self::Message,
-        mut runtime: MessageRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, AmmError> {
         ensure!(
             runtime.chain_id() == runtime.application_id().creation.chain_id,
@@ -81,9 +81,9 @@ impl Contract for Amm {
 
     async fn handle_application_call(
         &mut self,
+        runtime: &mut ContractRuntime,
         application_call: ApplicationCall,
         _forwarded_sessions: Vec<SessionId>,
-        mut runtime: CalleeRuntime,
     ) -> Result<ApplicationCallOutcome<Self::Message, Self::Response, Self::SessionState>, AmmError>
     {
         let mut outcome = ApplicationCallOutcome::default();
@@ -114,10 +114,10 @@ impl Contract for Amm {
 
     async fn handle_session_call(
         &mut self,
+        _runtime: &mut ContractRuntime,
         _session: (),
         _argument: (),
         _forwarded_sessions: Vec<SessionId>,
-        _runtime: CalleeRuntime,
     ) -> Result<SessionCallOutcome<Self::Message, Self::Response, Self::SessionState>, AmmError>
     {
         Err(AmmError::SessionsNotSupported)

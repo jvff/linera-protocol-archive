@@ -10,11 +10,11 @@ use crowd_funding::{ApplicationCall, InitializationArgument, Message, Operation}
 use fungible::{Account, Destination, FungibleResponse, FungibleTokenAbi};
 use linera_sdk::{
     base::{AccountOwner, Amount, ApplicationId, SessionId, WithContractAbi},
-    contract::{system_api, CalleeRuntime, MessageRuntime, OperationRuntime},
+    contract::system_api,
     ensure,
     views::View,
-    ApplicationCallOutcome, Contract, ExecutionOutcome, OutgoingMessage, Resources,
-    SessionCallOutcome, ViewStateStorage,
+    ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, OutgoingMessage,
+    Resources, SessionCallOutcome, ViewStateStorage,
 };
 use state::{CrowdFunding, Status};
 use thiserror::Error;
@@ -32,8 +32,8 @@ impl Contract for CrowdFunding {
 
     async fn initialize(
         &mut self,
+        _runtime: &mut ContractRuntime,
         argument: InitializationArgument,
-        _runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
         assert!(Self::parameters().is_ok());
@@ -50,8 +50,8 @@ impl Contract for CrowdFunding {
 
     async fn execute_operation(
         &mut self,
+        runtime: &mut ContractRuntime,
         operation: Operation,
-        mut runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         let mut outcome = ExecutionOutcome::default();
 
@@ -72,8 +72,8 @@ impl Contract for CrowdFunding {
 
     async fn execute_message(
         &mut self,
+        runtime: &mut ContractRuntime,
         message: Message,
-        mut runtime: MessageRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         match message {
             Message::PledgeWithAccount { owner, amount } => {
@@ -89,9 +89,9 @@ impl Contract for CrowdFunding {
 
     async fn handle_application_call(
         &mut self,
+        runtime: &mut ContractRuntime,
         call: ApplicationCall,
         sessions: Vec<SessionId>,
-        mut runtime: CalleeRuntime,
     ) -> Result<
         ApplicationCallOutcome<Self::Message, Self::Response, Self::SessionState>,
         Self::Error,
@@ -120,10 +120,10 @@ impl Contract for CrowdFunding {
 
     async fn handle_session_call(
         &mut self,
+        _runtime: &mut ContractRuntime,
         _state: Self::SessionState,
         _call: (),
         _forwarded_sessions: Vec<SessionId>,
-        _runtime: CalleeRuntime,
     ) -> Result<SessionCallOutcome<Self::Message, Self::Response, Self::SessionState>, Self::Error>
     {
         Err(Error::SessionsNotSupported)

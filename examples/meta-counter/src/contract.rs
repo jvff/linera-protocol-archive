@@ -9,9 +9,8 @@ use self::state::MetaCounter;
 use async_trait::async_trait;
 use linera_sdk::{
     base::{ApplicationId, SessionId, WithContractAbi},
-    contract::{CalleeRuntime, MessageRuntime, OperationRuntime},
-    ApplicationCallOutcome, Contract, ExecutionOutcome, OutgoingMessage, Resources,
-    SessionCallOutcome, SimpleStateStorage,
+    ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, OutgoingMessage,
+    Resources, SessionCallOutcome, SimpleStateStorage,
 };
 use meta_counter::{Message, Operation};
 use thiserror::Error;
@@ -35,8 +34,8 @@ impl Contract for MetaCounter {
 
     async fn initialize(
         &mut self,
+        runtime: &mut ContractRuntime,
         _argument: (),
-        mut runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
         assert!(Self::parameters().is_ok());
@@ -49,8 +48,8 @@ impl Contract for MetaCounter {
 
     async fn execute_operation(
         &mut self,
+        _runtime: &mut ContractRuntime,
         operation: Operation,
-        _runtime: OperationRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         log::trace!("operation: {:?}", operation);
         let Operation {
@@ -77,10 +76,13 @@ impl Contract for MetaCounter {
 
     async fn execute_message(
         &mut self,
+        runtime: &mut ContractRuntime,
         message: Message,
-        mut runtime: MessageRuntime,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
-        if runtime.message_is_bouncing() {
+        let is_bouncing = runtime
+            .message_is_bouncing()
+            .expect("Message delivery status has to be available when executing a message");
+        if is_bouncing {
             log::trace!("receiving a bouncing message {message:?}");
             return Ok(ExecutionOutcome::default());
         }
@@ -99,9 +101,9 @@ impl Contract for MetaCounter {
 
     async fn handle_application_call(
         &mut self,
+        _runtime: &mut ContractRuntime,
         _call: (),
         _forwarded_sessions: Vec<SessionId>,
-        _runtime: CalleeRuntime,
     ) -> Result<
         ApplicationCallOutcome<Self::Message, Self::Response, Self::SessionState>,
         Self::Error,
@@ -111,10 +113,10 @@ impl Contract for MetaCounter {
 
     async fn handle_session_call(
         &mut self,
+        _runtime: &mut ContractRuntime,
         _state: Self::SessionState,
         _call: (),
         _forwarded_sessions: Vec<SessionId>,
-        _runtime: CalleeRuntime,
     ) -> Result<SessionCallOutcome<Self::Message, Self::Response, Self::SessionState>, Self::Error>
     {
         Err(Error::SessionsNotSupported)
