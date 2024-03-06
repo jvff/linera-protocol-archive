@@ -8,7 +8,6 @@ mod state;
 use async_trait::async_trait;
 use linera_sdk::{
     base::{ChannelName, Destination, MessageId, SessionId, WithContractAbi},
-    contract::system_api,
     views::ViewError,
     ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, SessionCallOutcome,
     ViewStateStorage,
@@ -46,7 +45,7 @@ impl Contract for Social {
 
     async fn execute_operation(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime,
         operation: Operation,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         match operation {
@@ -56,7 +55,7 @@ impl Contract for Social {
             Operation::Unsubscribe { chain_id } => {
                 Ok(ExecutionOutcome::default().with_message(chain_id, Message::Unsubscribe))
             }
-            Operation::Post { text } => self.execute_post_operation(text).await,
+            Operation::Post { text } => self.execute_post_operation(runtime, text).await,
         }
     }
 
@@ -112,9 +111,10 @@ impl Contract for Social {
 impl Social {
     async fn execute_post_operation(
         &mut self,
+        runtime: &mut ContractRuntime,
         text: String,
     ) -> Result<ExecutionOutcome<Message>, Error> {
-        let timestamp = system_api::current_system_time();
+        let timestamp = runtime.system_time();
         self.own_posts.push(OwnPost { timestamp, text });
         let count = self.own_posts.count();
         let mut posts = vec![];
