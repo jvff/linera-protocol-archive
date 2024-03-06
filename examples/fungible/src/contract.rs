@@ -36,7 +36,7 @@ impl Contract for FungibleToken {
         mut state: Self::InitializationArgument,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
-        assert!(Self::parameters().is_ok());
+        let _ = runtime.application_parameters();
 
         // If initial accounts are empty, creator gets 1M tokens to act like a faucet.
         if state.accounts.is_empty() {
@@ -181,7 +181,7 @@ impl Contract for FungibleToken {
 
             ApplicationCall::TickerSymbol => {
                 let mut outcome = ApplicationCallOutcome::default();
-                let params = Self::parameters()?;
+                let params = runtime.application_parameters();
                 outcome.value = FungibleResponse::TickerSymbol(params.ticker_symbol);
                 Ok(outcome)
             }

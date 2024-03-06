@@ -37,7 +37,7 @@ impl Contract for CrowdFunding {
         argument: InitializationArgument,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
-        assert!(Self::parameters().is_ok());
+        let _ = runtime.application_parameters();
 
         self.initialization_argument.set(Some(argument));
 
@@ -140,10 +140,10 @@ impl Contract for CrowdFunding {
 }
 
 impl CrowdFunding {
-    fn fungible_id() -> Result<ApplicationId<FungibleTokenAbi>, Error> {
+    fn fungible_id(runtime: &mut ContractRuntime<Abi>) -> ApplicationId<FungibleTokenAbi> {
         // TODO(#723): We should be able to pull the fungible ID from the
         // `required_application_ids` of the application description.
-        Self::parameters()
+        runtime.application_parameters()
     }
 
     /// Adds a pledge from a local account to the remote campaign chain.
@@ -168,7 +168,7 @@ impl CrowdFunding {
         };
         self.call_application(
             /* authenticated by owner */ true,
-            Self::fungible_id()?,
+            Self::fungible_id(runtime),
             &call,
             vec![],
         )?;
@@ -203,7 +203,7 @@ impl CrowdFunding {
         source: AccountOwner,
         sessions: Vec<SessionId>,
     ) -> Result<(), Error> {
-        let sessions = self.check_session_tokens(sessions)?;
+        let sessions = self.check_session_tokens(runtime, sessions)?;
 
         let session_balances = self.query_session_balances(&sessions)?;
         let amount = session_balances.iter().sum();
@@ -218,9 +218,10 @@ impl CrowdFunding {
     /// with the correct Abi.
     fn check_session_tokens(
         &self,
+        runtime: &mut ContractRuntime<Abi>,
         sessions: Vec<SessionId>,
     ) -> Result<Vec<SessionId<FungibleTokenAbi>>, Error> {
-        let fungible_id = Self::fungible_id()?.forget_abi();
+        let fungible_id = Self::fungible_id(runtime).forget_abi();
         ensure!(
             sessions
                 .iter()
@@ -342,7 +343,7 @@ impl CrowdFunding {
         let owner = AccountOwner::Application(runtime.application_id().forget_abi());
         let (response, _) = self.call_application(
             true,
-            Self::fungible_id()?,
+            Self::fungible_id(runtime),
             &fungible::ApplicationCall::Balance { owner },
             vec![],
         )?;
@@ -369,7 +370,7 @@ impl CrowdFunding {
             amount,
             destination,
         };
-        self.call_application(true, Self::fungible_id()?, &transfer, vec![])?;
+        self.call_application(true, Self::fungible_id(runtime), &transfer, vec![])?;
         Ok(())
     }
 
@@ -390,7 +391,7 @@ impl CrowdFunding {
             amount,
             destination,
         };
-        self.call_application(true, Self::fungible_id()?, &transfer, vec![])?;
+        self.call_application(true, Self::fungible_id(runtime), &transfer, vec![])?;
         Ok(())
     }
 

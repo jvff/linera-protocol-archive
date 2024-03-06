@@ -18,8 +18,8 @@ use thiserror::Error;
 linera_sdk::contract!(MetaCounter);
 
 impl MetaCounter {
-    fn counter_id() -> Result<ApplicationId<counter::CounterAbi>, Error> {
-        Self::parameters()
+    fn counter_id(runtime: &mut ContractRuntime<Abi>) -> ApplicationId<counter::CounterAbi> {
+        runtime.application_parameters()
     }
 }
 
@@ -38,9 +38,9 @@ impl Contract for MetaCounter {
         _argument: (),
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
-        assert!(Self::parameters().is_ok());
+        let _ = runtime.application_parameters();
 
-        Self::counter_id()?;
+        Self::counter_id(runtime);
         // Send a no-op message to ourselves. This is only for testing contracts that send messages
         // on initialization. Since the value is 0 it does not change the counter value.
         Ok(ExecutionOutcome::default().with_message(runtime.chain_id(), Message::Increment(0)))
@@ -92,8 +92,8 @@ impl Contract for MetaCounter {
                 Err(Error::MessageFailed)
             }
             Message::Increment(value) => {
-                log::trace!("executing {} via {:?}", value, Self::counter_id()?);
-                self.call_application(true, Self::counter_id()?, &value, vec![])?;
+                log::trace!("executing {} via {:?}", value, Self::counter_id(runtime));
+                self.call_application(true, Self::counter_id(runtime), &value, vec![])?;
                 Ok(ExecutionOutcome::default())
             }
         }
