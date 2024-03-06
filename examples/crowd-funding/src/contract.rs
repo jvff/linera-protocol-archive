@@ -51,7 +51,7 @@ impl Contract for CrowdFundingContract {
         argument: InitializationArgument,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
-        assert!(Self::parameters().is_ok());
+        let _ = self.runtime.application_parameters();
 
         self.state.initialization_argument.set(Some(argument));
 
@@ -119,10 +119,10 @@ impl Contract for CrowdFundingContract {
 }
 
 impl CrowdFundingContract {
-    fn fungible_id() -> Result<ApplicationId<FungibleTokenAbi>, Error> {
+    fn fungible_id(&mut self) -> ApplicationId<FungibleTokenAbi> {
         // TODO(#723): We should be able to pull the fungible ID from the
         // `required_application_ids` of the application description.
-        Self::parameters()
+        self.runtime.application_parameters()
     }
 
     /// Adds a pledge from a local account to the remote campaign chain.
@@ -144,11 +144,8 @@ impl CrowdFundingContract {
             amount,
             destination,
         };
-        self.call_application(
-            /* authenticated by owner */ true,
-            Self::fungible_id()?,
-            &call,
-        )?;
+        let fungible_id = self.fungible_id();
+        self.call_application(/* authenticated by owner */ true, fungible_id, &call)?;
         // Second, schedule the attribution of the funds to the (remote) campaign.
         let message = Message::PledgeWithAccount { owner, amount };
         outcome.messages.push(OutgoingMessage {
@@ -246,9 +243,10 @@ impl CrowdFundingContract {
     /// Queries the token application to determine the total amount of tokens in custody.
     fn balance(&mut self) -> Result<Amount, Error> {
         let owner = AccountOwner::Application(self.runtime.application_id().forget_abi());
+        let fungible_id = self.fungible_id();
         let response = self.call_application(
             true,
-            Self::fungible_id()?,
+            fungible_id,
             &fungible::ApplicationCall::Balance { owner },
         )?;
         match response {
@@ -268,7 +266,8 @@ impl CrowdFundingContract {
             amount,
             destination,
         };
-        self.call_application(true, Self::fungible_id()?, &transfer)?;
+        let fungible_id = self.fungible_id();
+        self.call_application(true, fungible_id, &transfer)?;
         Ok(())
     }
 
@@ -283,7 +282,8 @@ impl CrowdFundingContract {
             amount,
             destination,
         };
-        self.call_application(true, Self::fungible_id()?, &transfer)?;
+        let fungible_id = self.fungible_id();
+        self.call_application(true, fungible_id, &transfer)?;
         Ok(())
     }
 
