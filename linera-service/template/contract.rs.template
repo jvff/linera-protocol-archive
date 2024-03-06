@@ -12,7 +12,7 @@ use thiserror::Error;
 
 pub struct ApplicationContract {{
     state: Application,
-    runtime: ContractRuntime,
+    runtime: ContractRuntime<{project_name}::ApplicationAbi>,
 }}
 
 linera_sdk::contract!(ApplicationContract);

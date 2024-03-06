@@ -5,6 +5,7 @@
 
 use super::{wit_system_api as wit, CloseChainError};
 use linera_base::{
+    abi::ContractAbi,
     data_types::{Amount, BlockHeight, Timestamp},
     identifiers::{Account, ApplicationId, ChainId, MessageId, Owner},
     ownership::ChainOwnership,
@@ -14,8 +15,11 @@ use linera_base::{
 ///
 /// It automatically caches read-only values received from the host.
 #[derive(Debug)]
-pub struct ContractRuntime {
-    application_id: Option<ApplicationId>,
+pub struct ContractRuntime<Abi>
+where
+    Abi: ContractAbi,
+{
+    application_id: Option<ApplicationId<Abi>>,
     chain_id: Option<ChainId>,
     authenticated_signer: Option<Option<Owner>>,
     block_height: Option<BlockHeight>,
@@ -25,7 +29,10 @@ pub struct ContractRuntime {
     timestamp: Option<Timestamp>,
 }
 
-impl ContractRuntime {
+impl<Abi> ContractRuntime<Abi>
+where
+    Abi: ContractAbi,
+{
     /// Creates a new [`ContractRuntime`] instance for a contract.
     pub(crate) fn new() -> Self {
         ContractRuntime {
@@ -41,10 +48,10 @@ impl ContractRuntime {
     }
 
     /// Returns the ID of the current application.
-    pub fn application_id(&mut self) -> ApplicationId {
+    pub fn application_id(&mut self) -> ApplicationId<Abi> {
         *self
             .application_id
-            .get_or_insert_with(|| wit::application_id().into())
+            .get_or_insert_with(|| ApplicationId::from(wit::application_id()).with_abi())
     }
 
     /// Returns the ID of the current chain.
