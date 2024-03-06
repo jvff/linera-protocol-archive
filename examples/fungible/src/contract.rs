@@ -12,7 +12,6 @@ use fungible::{
 };
 use linera_sdk::{
     base::{AccountOwner, Amount, ApplicationId, Owner, SessionId, WithContractAbi},
-    contract::system_api,
     ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, SessionCallOutcome,
     ViewStateStorage,
 };
@@ -66,7 +65,7 @@ impl Contract for FungibleToken {
                 Self::check_account_authentication(None, runtime.authenticated_signer(), owner)?;
                 self.debit(owner, amount).await?;
                 Ok(self
-                    .finish_transfer_to_account(amount, target_account, owner)
+                    .finish_transfer_to_account(runtime, amount, target_account, owner)
                     .await)
             }
 
@@ -80,7 +79,8 @@ impl Contract for FungibleToken {
                     runtime.authenticated_signer(),
                     source_account.owner,
                 )?;
-                self.claim(source_account, amount, target_account).await
+                self.claim(runtime, source_account, amount, target_account)
+                    .await
             }
         }
     }
@@ -111,7 +111,7 @@ impl Contract for FungibleToken {
                 Self::check_account_authentication(None, runtime.authenticated_signer(), owner)?;
                 self.debit(owner, amount).await?;
                 Ok(self
-                    .finish_transfer_to_account(amount, target_account, owner)
+                    .finish_transfer_to_account(runtime, amount, target_account, owner)
                     .await)
             }
         }
@@ -149,7 +149,7 @@ impl Contract for FungibleToken {
                 match destination {
                     Destination::Account(account) => {
                         outcome.execution_outcome = self
-                            .finish_transfer_to_account(amount, account, owner)
+                            .finish_transfer_to_account(runtime, amount, account, owner)
                             .await;
                     }
                     Destination::NewSession => {
@@ -169,7 +169,9 @@ impl Contract for FungibleToken {
                     runtime.authenticated_signer(),
                     source_account.owner,
                 )?;
-                let execution_outcome = self.claim(source_account, amount, target_account).await?;
+                let execution_outcome = self
+                    .claim(runtime, source_account, amount, target_account)
+                    .await?;
                 Ok(ApplicationCallOutcome {
                     execution_outcome,
                     ..Default::default()
@@ -187,7 +189,7 @@ impl Contract for FungibleToken {
 
     async fn handle_session_call(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime,
         state: Self::SessionState,
         request: SessionCall,
         _forwarded_sessions: Vec<SessionId>,
@@ -199,7 +201,7 @@ impl Contract for FungibleToken {
                 amount,
                 destination,
             } => {
-                self.handle_session_transfer(state, amount, destination)
+                self.handle_session_transfer(runtime, state, amount, destination)
                     .await
             }
         }
@@ -240,6 +242,7 @@ impl FungibleToken {
     /// Handles a transfer from a session.
     async fn handle_session_transfer(
         &mut self,
+        runtime: &mut ContractRuntime,
         mut balance: Amount,
         amount: Amount,
         destination: Destination,
@@ -254,7 +257,7 @@ impl FungibleToken {
         match destination {
             Destination::Account(account) => {
                 outcome.execution_outcome = self
-                    .finish_transfer_to_account(amount, account, account.owner)
+                    .finish_transfer_to_account(runtime, amount, account, account.owner)
                     .await;
             }
             Destination::NewSession => {
@@ -270,14 +273,15 @@ impl FungibleToken {
 
     async fn claim(
         &mut self,
+        runtime: &mut ContractRuntime,
         source_account: Account,
         amount: Amount,
         target_account: Account,
     ) -> Result<ExecutionOutcome<Message>, Error> {
-        if source_account.chain_id == system_api::current_chain_id() {
+        if source_account.chain_id == runtime.chain_id() {
             self.debit(source_account.owner, amount).await?;
             Ok(self
-                .finish_transfer_to_account(amount, target_account, source_account.owner)
+                .finish_transfer_to_account(runtime, amount, target_account, source_account.owner)
                 .await)
         } else {
             let message = Message::Withdraw {
@@ -293,11 +297,12 @@ impl FungibleToken {
     /// Executes the final step of a transfer where the tokens are sent to the destination.
     async fn finish_transfer_to_account(
         &mut self,
+        runtime: &mut ContractRuntime,
         amount: Amount,
         target_account: Account,
         source: AccountOwner,
     ) -> ExecutionOutcome<Message> {
-        if target_account.chain_id == system_api::current_chain_id() {
+        if target_account.chain_id == runtime.chain_id() {
             self.credit(target_account.owner, amount).await;
             ExecutionOutcome::default()
         } else {

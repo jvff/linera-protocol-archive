@@ -10,7 +10,6 @@ use async_trait::async_trait;
 use fungible::{ApplicationCall, FungibleResponse, Message, Operation};
 use linera_sdk::{
     base::{Account, AccountOwner, Amount, Owner, SessionId, WithContractAbi},
-    contract::system_api,
     ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, SessionCallOutcome,
     ViewStateStorage,
 };
@@ -30,7 +29,7 @@ impl Contract for NativeFungibleToken {
 
     async fn initialize(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime,
         state: Self::InitializationArgument,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
@@ -41,10 +40,10 @@ impl Contract for NativeFungibleToken {
         for (owner, amount) in state.accounts {
             let owner = self.normalize_owner(owner);
             let account = Account {
-                chain_id: system_api::current_chain_id(),
+                chain_id: runtime.chain_id(),
                 owner: Some(owner),
             };
-            system_api::transfer(None, account, amount);
+            runtime.transfer(None, account, amount);
         }
         Ok(ExecutionOutcome::default())
     }
@@ -67,9 +66,14 @@ impl Contract for NativeFungibleToken {
                 let fungible_target_account = target_account;
                 let target_account = self.normalize_account(target_account);
 
-                system_api::transfer(Some(owner), target_account, amount);
+                runtime.transfer(Some(owner), target_account, amount);
 
-                Ok(self.get_transfer_outcome(account_owner, fungible_target_account, amount))
+                Ok(self.get_transfer_outcome(
+                    runtime,
+                    account_owner,
+                    fungible_target_account,
+                    amount,
+                ))
             }
 
             Operation::Claim {
@@ -88,14 +92,13 @@ impl Contract for NativeFungibleToken {
                 let source_account = self.normalize_account(source_account);
                 let target_account = self.normalize_account(target_account);
 
-                system_api::claim(source_account, target_account, amount);
-                Ok(
-                    self.get_claim_outcome(
-                        fungible_source_account,
-                        fungible_target_account,
-                        amount,
-                    ),
-                )
+                runtime.claim(source_account, target_account, amount);
+                Ok(self.get_claim_outcome(
+                    runtime,
+                    fungible_source_account,
+                    fungible_target_account,
+                    amount,
+                ))
             }
         }
     }
@@ -124,7 +127,7 @@ impl Contract for NativeFungibleToken {
                 target_account,
             } => {
                 Self::check_account_authentication(runtime.authenticated_signer(), owner)?;
-                Ok(self.get_transfer_outcome(owner, target_account, amount))
+                Ok(self.get_transfer_outcome(runtime, owner, target_account, amount))
             }
         }
     }
@@ -143,7 +146,7 @@ impl Contract for NativeFungibleToken {
                 let owner = self.normalize_owner(owner);
 
                 let mut outcome = ApplicationCallOutcome::default();
-                let balance = system_api::current_owner_balance(owner);
+                let balance = runtime.owner_balance(owner);
                 outcome.value = FungibleResponse::Balance(balance);
                 Ok(outcome)
             }
@@ -160,9 +163,13 @@ impl Contract for NativeFungibleToken {
                 let fungible_target_account = self.destination_to_account(destination);
                 let target_account = self.normalize_account(fungible_target_account);
 
-                system_api::transfer(Some(owner), target_account, amount);
-                let execution_outcome =
-                    self.get_transfer_outcome(account_owner, fungible_target_account, amount);
+                runtime.transfer(Some(owner), target_account, amount);
+                let execution_outcome = self.get_transfer_outcome(
+                    runtime,
+                    account_owner,
+                    fungible_target_account,
+                    amount,
+                );
                 Ok(ApplicationCallOutcome {
                     execution_outcome,
                     ..Default::default()
@@ -185,8 +192,9 @@ impl Contract for NativeFungibleToken {
                 let source_account = self.normalize_account(source_account);
                 let target_account = self.normalize_account(target_account);
 
-                system_api::claim(source_account, target_account, amount);
+                runtime.claim(source_account, target_account, amount);
                 let execution_outcome = self.get_claim_outcome(
+                    runtime,
                     fungible_source_account,
                     fungible_target_account,
                     amount,
@@ -222,11 +230,12 @@ impl Contract for NativeFungibleToken {
 impl NativeFungibleToken {
     fn get_transfer_outcome(
         &self,
+        runtime: &mut ContractRuntime,
         source: AccountOwner,
         target: fungible::Account,
         amount: Amount,
     ) -> ExecutionOutcome<Message> {
-        if target.chain_id == system_api::current_chain_id() {
+        if target.chain_id == runtime.chain_id() {
             ExecutionOutcome::default()
         } else {
             let message = Message::Credit {
@@ -241,12 +250,13 @@ impl NativeFungibleToken {
 
     fn get_claim_outcome(
         &self,
+        runtime: &mut ContractRuntime,
         source: fungible::Account,
         target: fungible::Account,
         amount: Amount,
     ) -> ExecutionOutcome<Message> {
-        if source.chain_id == system_api::current_chain_id() {
-            self.get_transfer_outcome(source.owner, target, amount)
+        if source.chain_id == runtime.chain_id() {
+            self.get_transfer_outcome(runtime, source.owner, target, amount)
         } else {
             // If different chain, send message that will be ignored so the app gets auto-deployed
             let message = Message::Withdraw {
