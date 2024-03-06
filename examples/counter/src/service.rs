@@ -25,7 +25,7 @@ impl Service for Counter {
 
     async fn handle_query(
         self: Arc<Self>,
-        _runtime: &mut ServiceRuntime,
+        _runtime: &ServiceRuntime,
         request: Request,
     ) -> Result<Response, Self::Error> {
         let schema = Schema::build(
@@ -83,7 +83,7 @@ mod tests {
         let request = Request::new("{ value }");
 
         let result = counter
-            .handle_query(&mut ServiceRuntime::default(), request)
+            .handle_query(&ServiceRuntime::default(), request)
             .now_or_never()
             .expect("Query should not await anything");
 

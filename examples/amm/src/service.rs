@@ -25,7 +25,7 @@ impl Service for Amm {
 
     async fn handle_query(
         self: Arc<Self>,
-        _runtime: &mut ServiceRuntime,
+        _runtime: &ServiceRuntime,
         request: Request,
     ) -> Result<Response, AmmError> {
         let schema = Schema::build(self.clone(), MutationRoot, EmptySubscription).finish();

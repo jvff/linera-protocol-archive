@@ -25,7 +25,7 @@ impl Service for MetaCounter {
 
     async fn handle_query(
         self: Arc<Self>,
-        _runtime: &mut ServiceRuntime,
+        _runtime: &ServiceRuntime,
         request: Request,
     ) -> Result<Response, Self::Error> {
         let counter_id = Self::parameters()?;

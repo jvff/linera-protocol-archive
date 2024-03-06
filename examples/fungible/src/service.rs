@@ -28,7 +28,7 @@ impl Service for FungibleToken {
 
     async fn handle_query(
         self: Arc<Self>,
-        _runtime: &mut ServiceRuntime,
+        _runtime: &ServiceRuntime,
         request: Request,
     ) -> Result<Response, Self::Error> {
         let schema =
