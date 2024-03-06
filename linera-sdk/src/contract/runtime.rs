@@ -7,7 +7,7 @@ use super::{wit_system_api as wit, CloseChainError};
 use linera_base::{
     abi::ContractAbi,
     data_types::{Amount, BlockHeight, Timestamp},
-    identifiers::{Account, ApplicationId, ChainId, MessageId, Owner},
+    identifiers::{Account, ApplicationId, ChainId, MessageId, Owner, SessionId},
     ownership::ChainOwnership,
 };
 
@@ -155,5 +155,33 @@ where
     /// permission to do so.
     pub fn close_chain(&mut self) -> Result<(), CloseChainError> {
         wit::close_chain()
+    }
+
+    /// Calls another application.
+    pub fn call_application<A: ContractAbi + Send>(
+        &mut self,
+        authenticated: bool,
+        application: ApplicationId<A>,
+        call: &A::ApplicationCall,
+        forwarded_sessions: Vec<SessionId>,
+    ) -> (A::Response, Vec<SessionId>) {
+        let call_bytes = bcs::to_bytes(call)
+            .expect("Failed to serialize `ApplicationCall` type for a cross-application call");
+        let forwarded_sessions = forwarded_sessions
+            .into_iter()
+            .map(wit::SessionId::from)
+            .collect::<Vec<_>>();
+
+        let (response_bytes, session_ids) = wit::try_call_application(
+            authenticated,
+            application.forget_abi().into(),
+            &call_bytes,
+            &forwarded_sessions,
+        )
+        .into();
+
+        let response = bcs::from_bytes(&response_bytes)
+            .expect("Failed to deserialize `Response` type from cross-application call");
+        (response, session_ids)
     }
 }
