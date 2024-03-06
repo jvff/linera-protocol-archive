@@ -12,7 +12,7 @@ use linera_sdk::{
     ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, OutgoingMessage,
     Resources, SessionCallOutcome, SimpleStateStorage,
 };
-use meta_counter::{Message, Operation};
+use meta_counter::{Message, MetaCounterAbi as Abi, Operation};
 use thiserror::Error;
 
 linera_sdk::contract!(MetaCounter);
@@ -24,7 +24,7 @@ impl MetaCounter {
 }
 
 impl WithContractAbi for MetaCounter {
-    type Abi = meta_counter::MetaCounterAbi;
+    type Abi = Abi;
 }
 
 #[async_trait]
@@ -34,7 +34,7 @@ impl Contract for MetaCounter {
 
     async fn initialize(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         _argument: (),
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
@@ -48,7 +48,7 @@ impl Contract for MetaCounter {
 
     async fn execute_operation(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         operation: Operation,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         log::trace!("operation: {:?}", operation);
@@ -76,7 +76,7 @@ impl Contract for MetaCounter {
 
     async fn execute_message(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         message: Message,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         let is_bouncing = runtime
@@ -101,7 +101,7 @@ impl Contract for MetaCounter {
 
     async fn handle_application_call(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         _call: (),
         _forwarded_sessions: Vec<SessionId>,
     ) -> Result<
@@ -113,7 +113,7 @@ impl Contract for MetaCounter {
 
     async fn handle_session_call(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         _state: Self::SessionState,
         _call: (),
         _forwarded_sessions: Vec<SessionId>,

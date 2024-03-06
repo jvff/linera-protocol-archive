@@ -7,7 +7,7 @@ mod state;
 
 use self::state::NativeFungibleToken;
 use async_trait::async_trait;
-use fungible::{ApplicationCall, FungibleResponse, Message, Operation};
+use fungible::{ApplicationCall, FungibleResponse, FungibleTokenAbi as Abi, Message, Operation};
 use linera_sdk::{
     base::{Account, AccountOwner, Amount, Owner, SessionId, WithContractAbi},
     ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, SessionCallOutcome,
@@ -19,7 +19,7 @@ use thiserror::Error;
 linera_sdk::contract!(NativeFungibleToken);
 
 impl WithContractAbi for NativeFungibleToken {
-    type Abi = fungible::FungibleTokenAbi;
+    type Abi = Abi;
 }
 
 #[async_trait]
@@ -29,7 +29,7 @@ impl Contract for NativeFungibleToken {
 
     async fn initialize(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         state: Self::InitializationArgument,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
@@ -50,7 +50,7 @@ impl Contract for NativeFungibleToken {
 
     async fn execute_operation(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         operation: Self::Operation,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         match operation {
@@ -107,7 +107,7 @@ impl Contract for NativeFungibleToken {
     // to be the only message used here, simple message (no authentication, not tracked)
     async fn execute_message(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         message: Self::Message,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Messages for now don't do anything, just pass messages around
@@ -134,7 +134,7 @@ impl Contract for NativeFungibleToken {
 
     async fn handle_application_call(
         &mut self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         call: ApplicationCall,
         _forwarded_sessions: Vec<SessionId>,
     ) -> Result<
@@ -217,7 +217,7 @@ impl Contract for NativeFungibleToken {
 
     async fn handle_session_call(
         &mut self,
-        _runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime<Abi>,
         _state: Self::SessionState,
         _request: Self::SessionCall,
         _forwarded_sessions: Vec<SessionId>,
@@ -230,7 +230,7 @@ impl Contract for NativeFungibleToken {
 impl NativeFungibleToken {
     fn get_transfer_outcome(
         &self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         source: AccountOwner,
         target: fungible::Account,
         amount: Amount,
@@ -250,7 +250,7 @@ impl NativeFungibleToken {
 
     fn get_claim_outcome(
         &self,
-        runtime: &mut ContractRuntime,
+        runtime: &mut ContractRuntime<Abi>,
         source: fungible::Account,
         target: fungible::Account,
         amount: Amount,
