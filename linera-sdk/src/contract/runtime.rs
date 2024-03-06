@@ -20,7 +20,7 @@ pub struct ContractRuntime {
     block_height: Option<BlockHeight>,
     message_is_bouncing: Option<Option<bool>>,
     message_id: Option<Option<MessageId>>,
-    authenticated_caller_id: Option<Option<Option<ApplicationId>>>,
+    authenticated_caller_id: Option<Option<ApplicationId>>,
 }
 
 impl ContractRuntime {
@@ -68,9 +68,9 @@ impl ContractRuntime {
 
     /// Returns the authenticated caller ID, if the caller configured it and if the current context
     /// is executing a cross-application call.
-    pub fn authenticated_caller_id(&mut self) -> Option<Option<ApplicationId>> {
-        *self.authenticated_caller_id.get_or_insert_with(|| {
-            wit::authenticated_caller_id().map(|caller_id| caller_id.map(ApplicationId::from))
-        })
+    pub fn authenticated_caller_id(&mut self) -> Option<ApplicationId> {
+        *self
+            .authenticated_caller_id
+            .get_or_insert_with(|| wit::authenticated_caller_id().map(ApplicationId::from))
     }
 }

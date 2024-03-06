@@ -481,9 +481,7 @@ pub trait ContractRuntime: BaseRuntime {
 
     /// The optional authenticated caller application ID, if it was provided and if there is one
     /// based on the execution context.
-    fn authenticated_caller_id(
-        &mut self,
-    ) -> Result<Option<Option<UserApplicationId>>, ExecutionError>;
+    fn authenticated_caller_id(&mut self) -> Result<Option<UserApplicationId>, ExecutionError>;
 
     /// Returns the amount of execution fuel remaining before execution is aborted.
     fn remaining_fuel(&mut self) -> Result<u64, ExecutionError>;

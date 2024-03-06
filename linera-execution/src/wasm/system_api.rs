@@ -59,12 +59,9 @@ macro_rules! impl_contract_system_api {
 
             fn authenticated_caller_id(
                 &mut self,
-            ) -> Result<Option<Option<contract_system_api::ApplicationId>>, Self::Error> {
-                match ContractRuntime::authenticated_caller_id(self)? {
-                    Some(Some(caller_id)) => Ok(Some(Some(caller_id.into()))),
-                    Some(None) => Ok(Some(None)),
-                    None => Ok(None),
-                }
+            ) -> Result<Option<contract_system_api::ApplicationId>, Self::Error> {
+                let maybe_caller_id = ContractRuntime::authenticated_caller_id(self)?;
+                Ok(maybe_caller_id.map(|caller_id| caller_id.into()))
             }
 
             fn read_chain_balance(&mut self) -> Result<contract_system_api::Amount, Self::Error> {

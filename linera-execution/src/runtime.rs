@@ -1030,14 +1030,12 @@ impl ContractRuntime for ContractSyncRuntime {
             .map(|metadata| metadata.is_bouncing))
     }
 
-    fn authenticated_caller_id(
-        &mut self,
-    ) -> Result<Option<Option<UserApplicationId>>, ExecutionError> {
+    fn authenticated_caller_id(&mut self) -> Result<Option<UserApplicationId>, ExecutionError> {
         let mut this = self.inner();
         if this.call_stack.len() <= 1 {
             return Ok(None);
         }
-        Ok(Some(this.current_application().caller_id))
+        Ok(this.current_application().caller_id)
     }
 
     fn remaining_fuel(&mut self) -> Result<u64, ExecutionError> {
