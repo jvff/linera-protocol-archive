@@ -12,19 +12,17 @@ use crate::{
     views::{AppStateStore, ViewStorageContext},
     Service, ServiceRuntime, SimpleStateStorage, ViewStateStorage,
 };
-use async_trait::async_trait;
 use linera_views::{common::ReadableKeyValueStore, views::RootView};
 use serde::{de::DeserializeOwned, Serialize};
 use std::sync::Arc;
 
 /// The storage APIs used by a service.
-#[async_trait]
 pub trait ServiceStateStorage {
     /// Loads the application state and run the given query.
+    #[allow(async_fn_in_trait)]
     async fn handle_query(argument: Vec<u8>) -> Result<Vec<u8>, String>;
 }
 
-#[async_trait]
 impl<Application> ServiceStateStorage for SimpleStateStorage<Application>
 where
     Application: Service + Default + DeserializeOwned + Serialize + Send + Sync,
@@ -52,7 +50,6 @@ where
     }
 }
 
-#[async_trait]
 impl<Application> ServiceStateStorage for ViewStateStorage<Application>
 where
     Application: Service + RootView<ViewStorageContext> + Send + Sync,
