@@ -6,7 +6,7 @@
 use super::service_system_api as wit;
 use linera_base::{
     abi::ServiceAbi,
-    data_types::BlockHeight,
+    data_types::{BlockHeight, Timestamp},
     identifiers::{ApplicationId, ChainId},
 };
 use std::cell::Cell;
@@ -20,6 +20,7 @@ where
     application_id: Cell<Option<ApplicationId<Abi>>>,
     chain_id: Cell<Option<ChainId>>,
     next_block_height: Cell<Option<BlockHeight>>,
+    timestamp: Cell<Option<Timestamp>>,
 }
 
 impl<Abi> Default for ServiceRuntime<Abi>
@@ -32,6 +33,7 @@ where
             application_id: Cell::new(None),
             chain_id: Cell::new(None),
             next_block_height: Cell::new(None),
+            timestamp: Cell::new(None),
         }
     }
 }
@@ -53,6 +55,7 @@ where
             application_id: clone_cell(&self.application_id),
             chain_id: clone_cell(&self.chain_id),
             next_block_height: clone_cell(&self.next_block_height),
+            timestamp: clone_cell(&self.timestamp),
         }
     }
 }
@@ -84,6 +87,11 @@ where
     /// Returns the height of the next block that can be added to the current chain.
     pub fn next_block_height(&self) -> BlockHeight {
         Self::fetch_value_through_cache(&self.next_block_height, || wit::next_block_height().into())
+    }
+
+    /// Retrieves the current system time, i.e. the timestamp of the block in which this is called.
+    pub fn system_time(&self) -> Timestamp {
+        Self::fetch_value_through_cache(&self.timestamp, || wit::read_system_timestamp().into())
     }
 
     /// Loads a value from the `cell` cache or fetches it and stores it in the cache.
