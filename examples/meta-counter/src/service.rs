@@ -28,7 +28,7 @@ impl Service for MetaCounter {
         request: Request,
     ) -> Result<Response, Self::Error> {
         let counter_id = runtime.application_parameters();
-        Self::query_application(counter_id, &request)
+        Ok(runtime.query_application(counter_id, &request))
     }
 }
 
