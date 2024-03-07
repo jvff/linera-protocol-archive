@@ -24,10 +24,10 @@ impl Service for MetaCounter {
 
     async fn handle_query(
         self: Arc<Self>,
-        _runtime: &ServiceRuntime<Abi>,
+        runtime: &ServiceRuntime<Abi>,
         request: Request,
     ) -> Result<Response, Self::Error> {
-        let counter_id = Self::parameters()?;
+        let counter_id = runtime.application_parameters();
         Self::query_application(counter_id, &request)
     }
 }
@@ -37,9 +37,6 @@ impl Service for MetaCounter {
 pub enum Error {
     #[error("Internal query failed: {0}")]
     InternalQuery(String),
-
-    #[error("Invalid application parameters")]
-    Parameters,
 
     /// Invalid query argument in meta-counter app: could not deserialize GraphQL request.
     #[error("Invalid query argument in meta-counter app: could not deserialize GraphQL request.")]
