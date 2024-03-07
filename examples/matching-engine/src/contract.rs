@@ -86,13 +86,15 @@ impl Contract for MatchingEngine {
             Operation::CloseChain => {
                 for order_id in self.orders.indices().await? {
                     match self.modify_order(order_id, ModifyAmount::All).await {
-                        Ok(transfer) => self.send_to(transfer)?,
+                        Ok(transfer) => self.send_to(runtime, transfer),
                         // Orders with amount zero may have been cleared in an earlier iteration.
                         Err(MatchingEngineError::OrderNotPresent) => continue,
                         Err(error) => return Err(error),
                     }
                 }
-                system_api::close_chain().map_err(|_| MatchingEngineError::CloseChainError)?;
+                runtime
+                    .close_chain()
+                    .map_err(|_| MatchingEngineError::CloseChainError)?;
             }
         }
         Ok(outcome)
