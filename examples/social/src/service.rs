@@ -6,7 +6,6 @@
 mod state;
 
 use async_graphql::{EmptySubscription, Request, Response, Schema};
-use async_trait::async_trait;
 use linera_sdk::{
     base::WithServiceAbi, graphql::GraphQLMutationRoot, views::ViewError, Service, ServiceRuntime,
     ViewStateStorage,
@@ -22,7 +21,6 @@ impl WithServiceAbi for Social {
     type Abi = Abi;
 }
 
-#[async_trait]
 impl Service for Social {
     type Error = Error;
     type Storage = ViewStateStorage<Self>;

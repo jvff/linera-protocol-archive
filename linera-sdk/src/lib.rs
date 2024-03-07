@@ -225,7 +225,7 @@ pub trait Contract: WithContractAbi + ContractAbi + Send + Sized {
 /// As opposed to the [`Contract`] interface of an application, service entry points
 /// are triggered by JSON queries (typically GraphQL). Their execution cannot modify
 /// storage and is not gas-metered.
-#[async_trait]
+#[allow(async_fn_in_trait)]
 pub trait Service: WithServiceAbi + ServiceAbi {
     /// Type used to report errors to the execution environment.
     ///

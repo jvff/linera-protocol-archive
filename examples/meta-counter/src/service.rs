@@ -7,7 +7,6 @@ mod state;
 
 use self::state::MetaCounter;
 use async_graphql::{Request, Response};
-use async_trait::async_trait;
 use linera_sdk::{base::WithServiceAbi, Service, ServiceRuntime, SimpleStateStorage};
 use meta_counter::MetaCounterAbi as Abi;
 use std::sync::Arc;
@@ -19,7 +18,6 @@ impl WithServiceAbi for MetaCounter {
     type Abi = Abi;
 }
 
-#[async_trait]
 impl Service for MetaCounter {
     type Error = Error;
     type Storage = SimpleStateStorage<Self>;
