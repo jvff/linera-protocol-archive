@@ -6,7 +6,6 @@
 mod state;
 
 use async_graphql::{EmptySubscription, Request, Response, Schema};
-use async_trait::async_trait;
 use crowd_funding::{CrowdFundingAbi as Abi, Operation};
 use linera_sdk::{
     base::WithServiceAbi, graphql::GraphQLMutationRoot, Service, ServiceRuntime, ViewStateStorage,
@@ -21,7 +20,6 @@ impl WithServiceAbi for CrowdFunding {
     type Abi = Abi;
 }
 
-#[async_trait]
 impl Service for CrowdFunding {
     type Error = Error;
     type Storage = ViewStateStorage<Self>;
