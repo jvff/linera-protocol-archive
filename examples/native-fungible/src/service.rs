@@ -13,7 +13,6 @@ use fungible::{FungibleTokenAbi as Abi, Operation};
 use linera_sdk::{
     base::{AccountOwner, Amount, WithServiceAbi},
     graphql::GraphQLMutationRoot,
-    service::system_api,
     Service, ServiceRuntime, ViewStateStorage,
 };
 use native_fungible::TICKER_SYMBOL;
@@ -59,7 +58,8 @@ impl Accounts {
             AccountOwner::Application(_) => return Err(Error::ApplicationsNotSupported),
         };
 
-        let balance = system_api::current_owner_balance(owner);
+        let runtime = ServiceRuntime::<Abi>::default();
+        let balance = runtime.owner_balance(owner);
         Ok(AccountEntry { value: balance })
     }
 }
