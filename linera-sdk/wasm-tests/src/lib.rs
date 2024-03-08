@@ -9,11 +9,12 @@
 #![cfg(target_arch = "wasm32")]
 
 use linera_sdk::{
+    abi::ContractAbi,
     base::{Amount, ApplicationId, BlockHeight, BytecodeId, ChainId, MessageId, Timestamp},
-    contract, service, test,
+    service, test,
     util::BlockingWait,
     views::ViewStorageContext,
-    ContractLogger, ServiceLogger,
+    ContractLogger, ContractRuntime, ServiceLogger,
 };
 use linera_views::{
     map_view::MapView,
@@ -29,7 +30,7 @@ fn mock_chain_id() {
 
     test::mock_chain_id(chain_id);
 
-    assert_eq!(contract::system_api::current_chain_id(), chain_id);
+    assert_eq!(ContractRuntime::<Abi>::default().chain_id(), chain_id);
     assert_eq!(service::system_api::current_chain_id(), chain_id);
 }
 
@@ -52,8 +53,8 @@ fn mock_application_id() {
     test::mock_application_id(application_id);
 
     assert_eq!(
-        contract::system_api::current_application_id(),
-        application_id
+        ContractRuntime::<Abi>::default().application_id(),
+        application_id.with_abi()
     );
     assert_eq!(
         service::system_api::current_application_id(),
@@ -72,8 +73,8 @@ fn mock_application_parameters() {
         serde_json::to_vec(&parameters).expect("Failed to serialize parameters");
 
     assert_eq!(
-        contract::system_api::private::current_application_parameters(),
-        serialized_parameters
+        ContractRuntime::<Abi>::default().application_parameters(),
+        parameters
     );
     assert_eq!(
         service::system_api::private::current_application_parameters(),
@@ -88,7 +89,7 @@ fn mock_chain_balance() {
 
     test::mock_chain_balance(balance);
 
-    assert_eq!(contract::system_api::current_chain_balance(), balance);
+    assert_eq!(ContractRuntime::<Abi>::default().chain_balance(), balance);
     assert_eq!(service::system_api::current_chain_balance(), balance);
 }
 
@@ -99,7 +100,7 @@ fn mock_system_timestamp() {
 
     test::mock_system_timestamp(timestamp);
 
-    assert_eq!(contract::system_api::current_system_time(), timestamp);
+    assert_eq!(ContractRuntime::<Abi>::default().system_time(), timestamp);
     assert_eq!(service::system_api::current_system_time(), timestamp);
 }
 
@@ -374,4 +375,19 @@ fn mock_query() {
     assert_eq!(unsafe { INTERCEPTED_ARGUMENT.take() }, Some(query));
 
     assert_eq!(response, expected_response);
+}
+
+/// An application ABI to use in the tests.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct Abi;
+
+impl ContractAbi for Abi {
+    type Parameters = Vec<u8>;
+    type InitializationArgument = Vec<u8>;
+    type Operation = Vec<u8>;
+    type Message = Vec<u8>;
+    type ApplicationCall = Vec<u8>;
+    type SessionCall = Vec<u8>;
+    type SessionState = Vec<u8>;
+    type Response = Vec<u8>;
 }
