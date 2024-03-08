@@ -24,6 +24,8 @@ enum log-level {
     error,
 }
 
+set-transaction-may-succeed: func(may-succeed: bool)
+
 try-call-application: func(
     authenticated: bool,
     application: application-id,

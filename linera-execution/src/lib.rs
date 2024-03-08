@@ -117,6 +117,8 @@ pub enum ExecutionError {
     },
     #[error("Session {0} is still opened at the end of a transaction")]
     SessionWasNotClosed(SessionId),
+    #[error("Execution was prevented from completing by the following application(s): {0}")]
+    ApplicationsHeldCompletion(String),
 
     #[error("Attempted to perform a reentrant call to application {0}")]
     ReentrantCall(UserApplicationId),
@@ -504,6 +506,12 @@ pub trait ContractRuntime: BaseRuntime {
         destination: Account,
         amount: Amount,
     ) -> Result<(), ExecutionError>;
+
+    /// Configures if the current application allows the current transaction to succeed or not.
+    ///
+    /// The transaction fails if there is one or more applications that set this to `true` and did
+    /// not set it to `false` before the transaction ended.
+    fn set_transaction_may_succeed(&mut self, may_succeed: bool) -> Result<(), ExecutionError>;
 
     /// Calls another application. Forwarded sessions will now be visible to
     /// `callee_id` (but not to the caller any more).
