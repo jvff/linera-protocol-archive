@@ -9,12 +9,12 @@
 #![cfg(target_arch = "wasm32")]
 
 use linera_sdk::{
-    abi::ContractAbi,
+    abi::{ContractAbi, ServiceAbi},
     base::{Amount, ApplicationId, BlockHeight, BytecodeId, ChainId, MessageId, Timestamp},
-    service, test,
+    test,
     util::BlockingWait,
     views::ViewStorageContext,
-    ContractLogger, ContractRuntime, ServiceLogger,
+    ContractLogger, ContractRuntime, ServiceLogger, ServiceRuntime,
 };
 use linera_views::{
     map_view::MapView,
@@ -31,7 +31,7 @@ fn mock_chain_id() {
     test::mock_chain_id(chain_id);
 
     assert_eq!(ContractRuntime::<Abi>::default().chain_id(), chain_id);
-    assert_eq!(service::system_api::current_chain_id(), chain_id);
+    assert_eq!(ServiceRuntime::<Abi>::default().chain_id(), chain_id);
 }
 
 /// Test if the application ID getter API is mocked successfully.
@@ -57,8 +57,8 @@ fn mock_application_id() {
         application_id.with_abi()
     );
     assert_eq!(
-        service::system_api::current_application_id(),
-        application_id
+        ServiceRuntime::<Abi>::default().application_id(),
+        application_id.with_abi()
     );
 }
 
@@ -69,16 +69,13 @@ fn mock_application_parameters() {
 
     test::mock_application_parameters(&parameters);
 
-    let serialized_parameters =
-        serde_json::to_vec(&parameters).expect("Failed to serialize parameters");
-
     assert_eq!(
         ContractRuntime::<Abi>::default().application_parameters(),
         parameters
     );
     assert_eq!(
-        service::system_api::private::current_application_parameters(),
-        serialized_parameters
+        ServiceRuntime::<Abi>::default().application_parameters(),
+        parameters
     );
 }
 
@@ -90,7 +87,7 @@ fn mock_chain_balance() {
     test::mock_chain_balance(balance);
 
     assert_eq!(ContractRuntime::<Abi>::default().chain_balance(), balance);
-    assert_eq!(service::system_api::current_chain_balance(), balance);
+    assert_eq!(ServiceRuntime::<Abi>::default().chain_balance(), balance);
 }
 
 /// Test if the system timestamp getter API is mocked successfully.
@@ -101,7 +98,7 @@ fn mock_system_timestamp() {
     test::mock_system_timestamp(timestamp);
 
     assert_eq!(ContractRuntime::<Abi>::default().system_time(), timestamp);
-    assert_eq!(service::system_api::current_system_time(), timestamp);
+    assert_eq!(ServiceRuntime::<Abi>::default().system_time(), timestamp);
 }
 
 /// Test if messages logged by a contract can be inspected.
@@ -344,12 +341,13 @@ fn mock_query() {
     let expected_response = response.clone();
 
     test::mock_try_query_application(move |application_id, query| {
+        assert_eq!(query, b"[17,23,31,37]");
         unsafe {
             INTERCEPTED_APPLICATION_ID = Some(application_id);
             INTERCEPTED_ARGUMENT = Some(query);
         }
 
-        response.clone()
+        serde_json::to_vec(&response).expect("Failed to serialize query response")
     });
 
     let application_id = ApplicationId {
@@ -365,14 +363,16 @@ fn mock_query() {
         },
     };
     let query = vec![17, 23, 31, 37];
+    let expected_query = serde_json::to_vec(&query).expect("Failed to serialize query");
 
-    let response = service::system_api::private::query_application(application_id, &query);
+    let response = ServiceRuntime::<Abi>::default()
+        .query_application(application_id.with_abi::<Abi>(), &query);
 
     assert_eq!(
         unsafe { INTERCEPTED_APPLICATION_ID.take() },
         Some(application_id)
     );
-    assert_eq!(unsafe { INTERCEPTED_ARGUMENT.take() }, Some(query));
+    assert_eq!(unsafe { INTERCEPTED_ARGUMENT.take() }, Some(expected_query));
 
     assert_eq!(response, expected_response);
 }
@@ -390,4 +390,10 @@ impl ContractAbi for Abi {
     type SessionCall = Vec<u8>;
     type SessionState = Vec<u8>;
     type Response = Vec<u8>;
+}
+
+impl ServiceAbi for Abi {
+    type Parameters = Vec<u8>;
+    type Query = Vec<u8>;
+    type QueryResponse = Vec<u8>;
 }
