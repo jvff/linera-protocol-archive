@@ -253,7 +253,7 @@ impl MatchingEngine {
             destination,
         };
         let token = Self::fungible_id(runtime, token_idx);
-        runtime.call_application(true, token, &transfer, vec![]);
+        runtime.call_application(true, token, &transfer);
     }
 
     /// Execution of orders. There are three kinds:

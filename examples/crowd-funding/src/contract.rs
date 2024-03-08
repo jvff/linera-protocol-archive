@@ -156,12 +156,7 @@ impl CrowdFunding {
             amount,
             destination,
         };
-        runtime.call_application(
-            /* authenticated by owner */ true,
-            fungible_id,
-            &call,
-            vec![],
-        );
+        runtime.call_application(/* authenticated by owner */ true, fungible_id, &call);
         // Second, schedule the attribution of the funds to the (remote) campaign.
         let message = Message::PledgeWithAccount { owner, amount };
         outcome.messages.push(OutgoingMessage {
@@ -267,11 +262,10 @@ impl CrowdFunding {
     fn balance(&mut self, runtime: &mut ContractRuntime<Abi>) -> Result<Amount, Error> {
         let owner = AccountOwner::Application(runtime.application_id().forget_abi());
         let fungible_id = Self::fungible_id(runtime);
-        let (response, _) = runtime.call_application(
+        let response = runtime.call_application(
             true,
             fungible_id,
             &fungible::ApplicationCall::Balance { owner },
-            vec![],
         );
         match response {
             fungible::FungibleResponse::Balance(balance) => Ok(balance),
@@ -291,7 +285,7 @@ impl CrowdFunding {
             amount,
             destination,
         };
-        runtime.call_application(true, fungible_id, &transfer, vec![]);
+        runtime.call_application(true, fungible_id, &transfer);
     }
 
     /// Calls into the Fungible Token application to receive tokens from the given account.
@@ -311,7 +305,7 @@ impl CrowdFunding {
             amount,
             destination,
         };
-        runtime.call_application(true, fungible_id, &transfer, vec![]);
+        runtime.call_application(true, fungible_id, &transfer);
     }
 
     // Trailing underscore to avoid conflict with the generated GraphQL function.

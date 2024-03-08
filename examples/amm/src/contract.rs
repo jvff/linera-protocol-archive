@@ -454,7 +454,7 @@ impl Amm {
             destination,
         };
         let token = Self::fungible_id(runtime, token_idx);
-        runtime.call_application(true, token, &transfer, vec![]);
+        runtime.call_application(true, token, &transfer);
     }
 
     fn balance(
@@ -465,7 +465,7 @@ impl Amm {
     ) -> Result<Amount, AmmError> {
         let balance = fungible::ApplicationCall::Balance { owner: *owner };
         let token = Self::fungible_id(runtime, token_idx);
-        match runtime.call_application(true, token, &balance, vec![]).0 {
+        match runtime.call_application(true, token, &balance) {
             fungible::FungibleResponse::Balance(balance) => Ok(balance),
             response => Err(AmmError::UnexpectedFungibleResponse(response)),
         }
