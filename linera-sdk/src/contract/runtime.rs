@@ -157,6 +157,11 @@ where
         wit::close_chain()
     }
 
+    /// Configures if the current application allows the current transaction to succeed.
+    pub fn set_transaction_may_succeed(&mut self, may_succeed: bool) {
+        wit::set_transaction_may_succeed(may_succeed)
+    }
+
     /// Calls another application.
     pub fn call_application<A: ContractAbi + Send>(
         &mut self,
