@@ -95,10 +95,7 @@ impl Contract for CrowdFunding {
         runtime: &mut ContractRuntime<Abi>,
         call: ApplicationCall,
         _sessions: Vec<SessionId>,
-    ) -> Result<
-        ApplicationCallOutcome<Self::Message, Self::Response, Self::SessionState>,
-        Self::Error,
-    > {
+    ) -> Result<ApplicationCallOutcome<Self::Message, Self::Response>, Self::Error> {
         let mut outcome = ApplicationCallOutcome::default();
         match call {
             ApplicationCall::Pledge { owner, amount } => {
