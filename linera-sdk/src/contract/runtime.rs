@@ -189,32 +189,4 @@ where
             .expect("Failed to deserialize `Response` type from cross-application call");
         (response, session_ids)
     }
-
-    /// Calls a session from another application.
-    pub fn call_session<A: ContractAbi + Send>(
-        &mut self,
-        authenticated: bool,
-        session: SessionId<A>,
-        call: &A::SessionCall,
-        forwarded_sessions: Vec<SessionId>,
-    ) -> (A::Response, Vec<SessionId>) {
-        let call_bytes =
-            bcs::to_bytes(call).expect("Failed to serialize `SessionCall` type for session call");
-        let forwarded_sessions = forwarded_sessions
-            .into_iter()
-            .map(wit::SessionId::from)
-            .collect::<Vec<_>>();
-
-        let (response_bytes, ids) = wit::try_call_session(
-            authenticated,
-            session.forget_abi().into(),
-            &call_bytes,
-            &forwarded_sessions,
-        )
-        .into();
-
-        let response = bcs::from_bytes(&response_bytes)
-            .expect("Failed to deserialize `Response` type from session call");
-        (response, ids)
-    }
 }
