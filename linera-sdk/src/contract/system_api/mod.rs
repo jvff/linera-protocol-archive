@@ -70,6 +70,11 @@ pub fn current_system_time() -> Timestamp {
     wit::read_system_timestamp().into()
 }
 
+/// Configures if the current application allows the current transaction to succeed.
+pub fn set_transaction_may_succeed(may_succeed: bool) {
+    wit::set_transaction_may_succeed(may_succeed)
+}
+
 /// Requests the host to log a message.
 ///
 /// Useful for debugging locally, but may be ignored by validators.
