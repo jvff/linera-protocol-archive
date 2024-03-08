@@ -8,8 +8,7 @@ mod state;
 use self::state::FungibleToken;
 use async_trait::async_trait;
 use fungible::{
-    Account, ApplicationCall, Destination, FungibleResponse, FungibleTokenAbi as Abi, Message,
-    Operation, SessionCall,
+    Account, ApplicationCall, FungibleResponse, FungibleTokenAbi as Abi, Message, Operation,
 };
 use linera_sdk::{
     base::{AccountOwner, Amount, ApplicationId, Owner, SessionId, WithContractAbi},
@@ -146,18 +145,13 @@ impl Contract for FungibleToken {
                     owner,
                 )?;
                 self.debit(owner, amount).await?;
-                let mut outcome = ApplicationCallOutcome::default();
-                match destination {
-                    Destination::Account(account) => {
-                        outcome.execution_outcome = self
-                            .finish_transfer_to_account(runtime, amount, account, owner)
-                            .await;
-                    }
-                    Destination::NewSession => {
-                        outcome.create_sessions.push(amount);
-                    }
-                }
-                Ok(outcome)
+                let execution_outcome = self
+                    .finish_transfer_to_account(runtime, amount, destination, owner)
+                    .await;
+                Ok(ApplicationCallOutcome {
+                    execution_outcome,
+                    ..ApplicationCallOutcome::default()
+                })
             }
 
             ApplicationCall::Claim {
@@ -190,22 +184,13 @@ impl Contract for FungibleToken {
 
     async fn handle_session_call(
         &mut self,
-        runtime: &mut ContractRuntime<Abi>,
-        state: Self::SessionState,
-        request: SessionCall,
+        _runtime: &mut ContractRuntime<Abi>,
+        _state: Self::SessionState,
+        _request: (),
         _forwarded_sessions: Vec<SessionId>,
     ) -> Result<SessionCallOutcome<Self::Message, Self::Response, Self::SessionState>, Self::Error>
     {
-        match request {
-            SessionCall::Balance => self.handle_session_balance(state),
-            SessionCall::Transfer {
-                amount,
-                destination,
-            } => {
-                self.handle_session_transfer(runtime, state, amount, destination)
-                    .await
-            }
-        }
+        Err(Error::SessionsNotSupported)
     }
 }
 
@@ -221,55 +206,6 @@ impl FungibleToken {
             AccountOwner::Application(id) if authenticated_application_id == Some(id) => Ok(()),
             _ => Err(Error::IncorrectAuthentication),
         }
-    }
-
-    /// Handles a session balance request sent by an application.
-    fn handle_session_balance(
-        &self,
-        balance: Amount,
-    ) -> Result<SessionCallOutcome<Message, FungibleResponse, Amount>, Error> {
-        let application_call_outcome = ApplicationCallOutcome {
-            value: FungibleResponse::Balance(balance),
-            execution_outcome: ExecutionOutcome::default(),
-            create_sessions: vec![],
-        };
-        let session_call_outcome = SessionCallOutcome {
-            inner: application_call_outcome,
-            new_state: Some(balance),
-        };
-        Ok(session_call_outcome)
-    }
-
-    /// Handles a transfer from a session.
-    async fn handle_session_transfer(
-        &mut self,
-        runtime: &mut ContractRuntime<Abi>,
-        mut balance: Amount,
-        amount: Amount,
-        destination: Destination,
-    ) -> Result<SessionCallOutcome<Message, FungibleResponse, Amount>, Error> {
-        balance
-            .try_sub_assign(amount)
-            .map_err(|_| Error::InsufficientSessionBalance)?;
-
-        let updated_session = (balance > Amount::ZERO).then_some(balance);
-
-        let mut outcome = ApplicationCallOutcome::default();
-        match destination {
-            Destination::Account(account) => {
-                outcome.execution_outcome = self
-                    .finish_transfer_to_account(runtime, amount, account, account.owner)
-                    .await;
-            }
-            Destination::NewSession => {
-                outcome.create_sessions.push(amount);
-            }
-        }
-
-        Ok(SessionCallOutcome {
-            inner: outcome,
-            new_state: updated_session,
-        })
     }
 
     async fn claim(
@@ -328,13 +264,12 @@ pub enum Error {
     #[error("Source account does not have sufficient balance for transfer")]
     InsufficientBalance(#[from] state::InsufficientBalanceError),
 
-    /// Insufficient balance in session.
-    #[error("Session does not have sufficient balance for transfer")]
-    InsufficientSessionBalance,
-
     /// Requested transfer does not have permission on this account.
     #[error("The requested transfer is not correctly authenticated.")]
     IncorrectAuthentication,
+
+    #[error("Fungible Token application doesn't support any cross-application sessions")]
+    SessionsNotSupported,
 
     /// Failed to deserialize BCS bytes
     #[error("Failed to deserialize BCS bytes")]

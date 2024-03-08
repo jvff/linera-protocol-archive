@@ -13,7 +13,7 @@ use state::{LevelView, MatchingEngine, MatchingEngineError};
 use std::cmp::min;
 
 use async_trait::async_trait;
-use fungible::{Account, Destination, FungibleTokenAbi};
+use fungible::{Account, FungibleTokenAbi};
 use linera_sdk::{
     base::{AccountOwner, Amount, ApplicationId, ChainId, Owner, SessionId, WithContractAbi},
     ensure, ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, OutgoingMessage,
@@ -217,18 +217,17 @@ impl MatchingEngine {
         nature: &OrderNature,
         price: &Price,
     ) {
-        let account = Account {
+        let destination = Account {
             chain_id: runtime.chain_id(),
             owner: AccountOwner::Application(runtime.application_id().forget_abi()),
         };
-        let destination = Destination::Account(account);
         let (amount, token_idx) = Self::get_amount_idx(nature, price, amount);
         self.transfer(runtime, *owner, amount, destination, token_idx);
     }
 
     /// Transfers `amount` tokens from the funds in custody to the `destination`.
     fn send_to(&mut self, runtime: &mut ContractRuntime<Abi>, transfer: Transfer) {
-        let destination = Destination::Account(transfer.account);
+        let destination = transfer.account;
         let owner_app = AccountOwner::Application(runtime.application_id().forget_abi());
         self.transfer(
             runtime,
@@ -245,7 +244,7 @@ impl MatchingEngine {
         runtime: &mut ContractRuntime<Abi>,
         owner: AccountOwner,
         amount: Amount,
-        destination: Destination,
+        destination: Account,
         token_idx: u32,
     ) {
         let transfer = fungible::ApplicationCall::Transfer {
@@ -346,7 +345,7 @@ impl MatchingEngine {
         } = order
         {
             // First, move the funds to the matching engine chain (under the same owner).
-            let destination = fungible::Destination::Account(Account { chain_id, owner });
+            let destination = Account { chain_id, owner };
             let (amount, token_idx) = Self::get_amount_idx(&nature, &price, &amount);
             self.transfer(runtime, owner, amount, destination, token_idx);
         }

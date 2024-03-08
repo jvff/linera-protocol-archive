@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use crowd_funding::{
     ApplicationCall, CrowdFundingAbi as Abi, InitializationArgument, Message, Operation,
 };
-use fungible::{Account, Destination, FungibleResponse, FungibleTokenAbi};
+use fungible::{Account, FungibleResponse, FungibleTokenAbi};
 use linera_sdk::{
     base::{AccountOwner, Amount, ApplicationId, SessionId, WithContractAbi},
     ensure,
@@ -150,7 +150,7 @@ impl CrowdFunding {
         // First, move the funds to the campaign chain (under the same owner).
         // TODO(#589): Simplify this when the messaging system guarantees atomic delivery
         // of all messages created in the same operation/message.
-        let destination = fungible::Destination::Account(Account { chain_id, owner });
+        let destination = Account { chain_id, owner };
         let call = fungible::ApplicationCall::Transfer {
             owner,
             amount,
@@ -282,11 +282,10 @@ impl CrowdFunding {
     /// Transfers `amount` tokens from the funds in custody to the `destination`.
     fn send_to(&mut self, runtime: &mut ContractRuntime<Abi>, amount: Amount, owner: AccountOwner) {
         let fungible_id = Self::fungible_id(runtime);
-        let account = Account {
+        let destination = Account {
             chain_id: runtime.chain_id(),
             owner,
         };
-        let destination = Destination::Account(account);
         let transfer = fungible::ApplicationCall::Transfer {
             owner: AccountOwner::Application(runtime.application_id().forget_abi()),
             amount,
@@ -303,11 +302,10 @@ impl CrowdFunding {
         amount: Amount,
     ) {
         let fungible_id = Self::fungible_id(runtime);
-        let account = Account {
+        let destination = Account {
             chain_id: runtime.chain_id(),
             owner: AccountOwner::Application(runtime.application_id().forget_abi()),
         };
-        let destination = Destination::Account(account);
         let transfer = fungible::ApplicationCall::Transfer {
             owner,
             amount,
