@@ -84,7 +84,7 @@ macro_rules! contract {
         fn __contract_handle_application_call(
             argument: Vec<u8>,
             forwarded_sessions: Vec<$crate::SessionId>,
-        ) -> Result<$crate::ApplicationCallOutcome<Vec<u8>, Vec<u8>, Vec<u8>>, String> {
+        ) -> Result<$crate::ApplicationCallOutcome<Vec<u8>, Vec<u8>>, String> {
             $crate::contract::run_async_entrypoint::<$application, _, _, _, _>(
                 move |mut application| async move {
                     let argument: <$application as $crate::abi::ContractAbi>::ApplicationCall =
@@ -181,7 +181,7 @@ extern "Rust" {
     fn __contract_handle_application_call(
         argument: Vec<u8>,
         forwarded_sessions: Vec<SessionId>,
-    ) -> Result<ApplicationCallOutcome<Vec<u8>, Vec<u8>, Vec<u8>>, String>;
+    ) -> Result<ApplicationCallOutcome<Vec<u8>, Vec<u8>>, String>;
 
     fn __contract_handle_session_call(
         session_state: Vec<u8>,
