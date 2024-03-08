@@ -173,19 +173,21 @@ fn mock_load_view() {
         .blocking_wait()
         .expect("Failed to persist view state");
 
-    let contract_view = DummyView::load(ViewStorageContext::default())
+    let first_view = DummyView::load(ViewStorageContext::default())
         .blocking_wait()
         .expect("Failed to load `DummyView` using the view APIs");
 
-    assert_eq!(initial_view.one.get(), contract_view.one.get());
-    assert_eq!(initial_view.two.get(), contract_view.two.get());
-    assert_eq!(initial_view.three.get(), contract_view.three.get());
+    assert_eq!(initial_view.one.get(), first_view.one.get());
+    assert_eq!(initial_view.two.get(), first_view.two.get());
+    assert_eq!(initial_view.three.get(), first_view.three.get());
 
-    let service_view = service::system_api::private::load_view::<DummyView<_>>().blocking_wait();
+    let second_view = DummyView::load(ViewStorageContext::default())
+        .blocking_wait()
+        .expect("Failed to load `DummyView` using the view APIs");
 
-    assert_eq!(initial_view.one.get(), service_view.one.get());
-    assert_eq!(initial_view.two.get(), service_view.two.get());
-    assert_eq!(initial_view.three.get(), service_view.three.get());
+    assert_eq!(initial_view.one.get(), second_view.one.get());
+    assert_eq!(initial_view.two.get(), second_view.two.get());
+    assert_eq!(initial_view.three.get(), second_view.three.get());
 }
 
 /// Test if key prefix search works in the mocked key-value store.
@@ -210,27 +212,17 @@ fn mock_find_keys() {
         .blocking_wait()
         .expect("Failed to persist view state");
 
-    let contract_view = DummyView::load(ViewStorageContext::default())
+    let test_view = DummyView::load(ViewStorageContext::default())
         .blocking_wait()
         .expect("Failed to load `DummyView` using the view APIs");
 
-    let contract_keys = contract_view
+    let found_keys = test_view
         .map
         .indices()
         .blocking_wait()
         .expect("Failed to load keys of dummy map view");
 
-    assert_eq!(contract_keys, keys);
-
-    let service_view = service::system_api::private::load_view::<DummyView<_>>().blocking_wait();
-
-    let service_keys = service_view
-        .map
-        .indices()
-        .blocking_wait()
-        .expect("Failed to load keys of dummy map view");
-
-    assert_eq!(service_keys, keys);
+    assert_eq!(found_keys, keys);
 }
 
 /// Test if key prefix search works in the mocked key-value store.
@@ -260,37 +252,22 @@ fn mock_find_key_value_pairs() {
         .blocking_wait()
         .expect("Failed to persist view state");
 
-    let contract_view = DummyView::load(ViewStorageContext::default())
+    let test_view = DummyView::load(ViewStorageContext::default())
         .blocking_wait()
-        .expect("Failed to load key value pairs of dummy map view");
+        .expect("Failed to load `DummyView` using the view APIs");
 
-    let mut contract_pairs = Vec::new();
+    let mut pairs = Vec::new();
 
-    contract_view
+    test_view
         .map
         .for_each_index_value(|key, value| {
-            contract_pairs.push((key, value));
+            pairs.push((key, value));
             Ok(())
         })
         .blocking_wait()
         .expect("Failed to load key value pairs of dummy map view");
 
-    assert_eq!(contract_pairs, expected_pairs);
-
-    let service_view = service::system_api::private::load_view::<DummyView<_>>().blocking_wait();
-
-    let mut service_pairs = Vec::new();
-
-    service_view
-        .map
-        .for_each_index_value(|key, value| {
-            service_pairs.push((key, value));
-            Ok(())
-        })
-        .blocking_wait()
-        .expect("Failed to load key value pairs of dummy map view");
-
-    assert_eq!(service_pairs, expected_pairs);
+    assert_eq!(pairs, expected_pairs);
 }
 
 /// Test the write operations of the key-value store.
