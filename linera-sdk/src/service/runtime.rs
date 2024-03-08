@@ -120,7 +120,7 @@ where
             wit::try_query_application(application.forget_abi().into(), &query_bytes);
 
         serde_json::from_slice(&response_bytes)
-            .expect("Failed to deserialize query re;sponse from application")
+            .expect("Failed to deserialize query response from application")
     }
 
     /// Loads a value from the `cell` cache or fetches it and stores it in the cache.
