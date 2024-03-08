@@ -55,6 +55,8 @@ pub struct SyncRuntimeInternal<UserInstance> {
 
     /// Application instances loaded in this transaction.
     loaded_applications: HashMap<UserApplicationId, LoadedApplication<UserInstance>>,
+    /// Applications that are currently preventing the transaction from completing successfully.
+    completion_holders: HashSet<UserApplicationId>,
     /// The current stack of application descriptions.
     call_stack: Vec<ApplicationStatus>,
     /// The set of the IDs of the applications that are in the `call_stack`.
@@ -277,6 +279,7 @@ impl<UserInstance> SyncRuntimeInternal<UserInstance> {
             executing_message,
             execution_state_sender,
             loaded_applications: HashMap::new(),
+            completion_holders: HashSet::new(),
             call_stack: Vec::new(),
             active_applications: HashSet::new(),
             execution_outcomes: Vec::default(),
@@ -997,6 +1000,17 @@ impl ContractSyncRuntime {
         if let Some(session_id) = runtime.session_manager.states.keys().next() {
             return Err(ExecutionError::SessionWasNotClosed(*session_id));
         }
+        ensure!(
+            runtime.completion_holders.is_empty(),
+            ExecutionError::ApplicationsHeldCompletion(
+                runtime
+                    .completion_holders
+                    .into_iter()
+                    .map(|id| id.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        );
         // Charge for the message grants and add the results of the last call to the
         // execution results.
         let outcome = execution_outcome
@@ -1092,6 +1106,19 @@ impl ContractRuntime for ContractSyncRuntime {
         self.inner()
             .execution_outcomes
             .push(ExecutionOutcome::System(execution_outcome));
+        Ok(())
+    }
+
+    fn set_transaction_may_succeed(&mut self, may_succeed: bool) -> Result<(), ExecutionError> {
+        let mut this = self.inner();
+        let id = this.current_application().id;
+
+        if may_succeed {
+            this.completion_holders.remove(&id);
+        } else {
+            this.completion_holders.insert(id);
+        }
+
         Ok(())
     }
 

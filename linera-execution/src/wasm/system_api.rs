@@ -129,6 +129,13 @@ macro_rules! impl_contract_system_api {
                 }
             }
 
+            fn set_transaction_may_succeed(
+                &mut self,
+                may_succeed: bool,
+            ) -> Result<(), Self::Error> {
+                ContractRuntime::set_transaction_may_succeed(self, may_succeed)
+            }
+
             fn try_call_application(
                 &mut self,
                 authenticated: bool,
