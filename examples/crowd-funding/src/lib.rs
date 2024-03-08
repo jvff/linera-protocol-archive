@@ -331,7 +331,7 @@ impl std::fmt::Display for InitializationArgument {
 #[allow(clippy::large_enum_variant)]
 pub enum Operation {
     /// Pledge some tokens to the campaign (from an account on the current chain to the campaign chain).
-    PledgeWithTransfer { owner: AccountOwner, amount: Amount },
+    Pledge { owner: AccountOwner, amount: Amount },
     /// Collect the pledges after the campaign has reached its target (campaign chain only).
     Collect,
     /// Cancel the campaign and refund all pledges after the campaign has reached its deadline (campaign chain only).
@@ -351,9 +351,7 @@ pub enum Message {
 #[allow(clippy::large_enum_variant)]
 pub enum ApplicationCall {
     /// Pledge some tokens to the campaign (from an account on the current chain).
-    PledgeWithTransfer { owner: AccountOwner, amount: Amount },
-    /// Pledge some tokens to the campaign from a session (for now, campaign chain only).
-    PledgeWithSessions { source: AccountOwner },
+    Pledge { owner: AccountOwner, amount: Amount },
     /// Collect the pledges after the campaign has reached its target (campaign chain only).
     Collect,
     /// Cancel the campaign and refund all pledges after the campaign has reached its deadline (campaign chain only).
