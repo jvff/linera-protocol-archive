@@ -37,8 +37,7 @@ use super::{module_cache::ModuleCache, WasmExecutionError};
 use crate::{
     wasm::{WasmContractModule, WasmServiceModule},
     ApplicationCallOutcome, BaseRuntime, Bytecode, CalleeContext, ContractRuntime, ExecutionError,
-    MessageContext, OperationContext, QueryContext, RawExecutionOutcome, ServiceRuntime,
-    SessionCallOutcome, SessionId,
+    MessageContext, OperationContext, QueryContext, RawExecutionOutcome, ServiceRuntime, SessionId,
 };
 use once_cell::sync::Lazy;
 use std::error::Error;
@@ -336,16 +335,6 @@ where
         .map(|inner| inner.map(ApplicationCallOutcome::from));
         self.persist_remaining_fuel()?;
         result?.map_err(ExecutionError::UserError)
-    }
-
-    fn handle_session_call(
-        &mut self,
-        _context: CalleeContext,
-        _session: Vec<u8>,
-        _argument: Vec<u8>,
-        _forwarded_sessions: Vec<SessionId>,
-    ) -> Result<(SessionCallOutcome, Vec<u8>), ExecutionError> {
-        Ok(Default::default())
     }
 }
 
