@@ -9,8 +9,8 @@ use self::state::Counter;
 use async_trait::async_trait;
 use counter::CounterAbi as Abi;
 use linera_sdk::{
-    base::{SessionId, WithContractAbi},
-    ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, SimpleStateStorage,
+    base::WithContractAbi, ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome,
+    SimpleStateStorage,
 };
 use thiserror::Error;
 
@@ -59,7 +59,6 @@ impl Contract for Counter {
         &mut self,
         _runtime: &mut ContractRuntime<Abi>,
         increment: u64,
-        _forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallOutcome<Self::Message, Self::Response>, Self::Error> {
         self.value += increment;
         Ok(ApplicationCallOutcome {
@@ -135,7 +134,7 @@ mod tests {
         let increment = 8_u64;
 
         let result = counter
-            .handle_application_call(&mut ContractRuntime::default(), increment, vec![])
+            .handle_application_call(&mut ContractRuntime::default(), increment)
             .now_or_never()
             .expect("Execution of counter operation should not await anything");
 

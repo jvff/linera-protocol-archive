@@ -7,7 +7,7 @@ mod state;
 
 use async_trait::async_trait;
 use linera_sdk::{
-    base::{ChannelName, Destination, MessageId, SessionId, WithContractAbi},
+    base::{ChannelName, Destination, MessageId, WithContractAbi},
     views::ViewError,
     ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, ViewStateStorage,
 };
@@ -87,7 +87,6 @@ impl Contract for Social {
         &mut self,
         _runtime: &mut ContractRuntime<Abi>,
         _call: (),
-        _forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallOutcome<Self::Message, Self::Response>, Self::Error> {
         Err(Error::ApplicationCallsNotSupported)
     }

@@ -9,7 +9,7 @@ use self::state::NativeFungibleToken;
 use async_trait::async_trait;
 use fungible::{ApplicationCall, FungibleResponse, FungibleTokenAbi as Abi, Message, Operation};
 use linera_sdk::{
-    base::{Account, AccountOwner, Amount, Owner, SessionId, WithContractAbi},
+    base::{Account, AccountOwner, Amount, Owner, WithContractAbi},
     ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, ViewStateStorage,
 };
 use native_fungible::TICKER_SYMBOL;
@@ -135,7 +135,6 @@ impl Contract for NativeFungibleToken {
         &mut self,
         runtime: &mut ContractRuntime<Abi>,
         call: ApplicationCall,
-        _forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallOutcome<Self::Message, Self::Response>, Self::Error> {
         match call {
             ApplicationCall::Balance { owner } => {

@@ -167,7 +167,6 @@ pub trait Contract: WithContractAbi + ContractAbi + Send + Sized {
         &mut self,
         runtime: &mut ContractRuntime<Self::Abi>,
         argument: Self::ApplicationCall,
-        forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallOutcome<Self::Message, Self::Response>, Self::Error>;
 }
 

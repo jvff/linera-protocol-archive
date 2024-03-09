@@ -11,7 +11,7 @@ use fungible::{
     Account, ApplicationCall, FungibleResponse, FungibleTokenAbi as Abi, Message, Operation,
 };
 use linera_sdk::{
-    base::{AccountOwner, Amount, ApplicationId, Owner, SessionId, WithContractAbi},
+    base::{AccountOwner, Amount, ApplicationId, Owner, WithContractAbi},
     ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, ViewStateStorage,
 };
 use std::str::FromStr;
@@ -120,7 +120,6 @@ impl Contract for FungibleToken {
         &mut self,
         runtime: &mut ContractRuntime<Abi>,
         call: ApplicationCall,
-        _forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallOutcome<Self::Message, Self::Response>, Self::Error> {
         match call {
             ApplicationCall::Balance { owner } => {

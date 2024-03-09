@@ -11,7 +11,7 @@ use crowd_funding::{
 };
 use fungible::{Account, FungibleResponse, FungibleTokenAbi};
 use linera_sdk::{
-    base::{AccountOwner, Amount, ApplicationId, SessionId, WithContractAbi},
+    base::{AccountOwner, Amount, ApplicationId, WithContractAbi},
     ensure,
     views::View,
     ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, OutgoingMessage,
@@ -94,7 +94,6 @@ impl Contract for CrowdFunding {
         &mut self,
         runtime: &mut ContractRuntime<Abi>,
         call: ApplicationCall,
-        _sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallOutcome<Self::Message, Self::Response>, Self::Error> {
         let mut outcome = ApplicationCallOutcome::default();
         match call {
