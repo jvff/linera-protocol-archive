@@ -7,8 +7,8 @@
 
 use crate::{
     ApplicationCallOutcome, CalleeContext, ContractSyncRuntime, ExecutionError, MessageContext,
-    OperationContext, QueryContext, RawExecutionOutcome, ServiceSyncRuntime, SessionCallOutcome,
-    UserContract, UserContractModule, UserService, UserServiceModule,
+    OperationContext, QueryContext, RawExecutionOutcome, ServiceSyncRuntime, UserContract,
+    UserContractModule, UserService, UserServiceModule,
 };
 use linera_base::identifiers::SessionId;
 use std::{
@@ -93,17 +93,6 @@ type HandleApplicationCallHandler = Box<
         + Send
         + Sync,
 >;
-type HandleSessionCallHandler = Box<
-    dyn FnOnce(
-            &mut ContractSyncRuntime,
-            CalleeContext,
-            Vec<u8>,
-            Vec<u8>,
-            Vec<SessionId>,
-        ) -> Result<(SessionCallOutcome, Vec<u8>), ExecutionError>
-        + Send
-        + Sync,
->;
 type HandleQueryHandler = Box<
     dyn FnOnce(&mut ServiceSyncRuntime, QueryContext, Vec<u8>) -> Result<Vec<u8>, ExecutionError>
         + Send
@@ -120,8 +109,6 @@ pub enum ExpectedCall {
     ExecuteMessage(ExecuteMessageHandler),
     /// An expected call to [`UserContract::handle_application_call`].
     HandleApplicationCall(HandleApplicationCallHandler),
-    /// An expected call to [`UserContract::handle_session_call`].
-    HandleSessionCall(HandleSessionCallHandler),
     /// An expected call to [`UserService::handle_query`].
     HandleQuery(HandleQueryHandler),
 }
@@ -133,7 +120,6 @@ impl Display for ExpectedCall {
             ExpectedCall::ExecuteOperation(_) => "execute_operation",
             ExpectedCall::ExecuteMessage(_) => "execute_message",
             ExpectedCall::HandleApplicationCall(_) => "handle_application_call",
-            ExpectedCall::HandleSessionCall(_) => "handle_session_call",
             ExpectedCall::HandleQuery(_) => "handle_query",
         };
 
@@ -204,24 +190,6 @@ impl ExpectedCall {
             + 'static,
     ) -> Self {
         ExpectedCall::HandleApplicationCall(Box::new(handler))
-    }
-
-    /// Creates an [`ExpectedCall`] to the [`MockApplicationInstance`]'s
-    /// [`UserContract::handle_session_call`] implementation, which is handled by the provided
-    /// `handler`.
-    pub fn handle_session_call(
-        handler: impl FnOnce(
-                &mut ContractSyncRuntime,
-                CalleeContext,
-                Vec<u8>,
-                Vec<u8>,
-                Vec<SessionId>,
-            ) -> Result<(SessionCallOutcome, Vec<u8>), ExecutionError>
-            + Send
-            + Sync
-            + 'static,
-    ) -> Self {
-        ExpectedCall::HandleSessionCall(Box::new(handler))
     }
 
     /// Creates an [`ExpectedCall`] to the [`MockApplicationInstance`]'s
@@ -328,24 +296,6 @@ impl UserContract for MockApplicationInstance<ContractSyncRuntime> {
                 "Expected a call to `handle_application_call`, got a call to `{unexpected_call}` instead."
             ),
             None => panic!("Unexpected call to `handle_application_call`"),
-        }
-    }
-
-    fn handle_session_call(
-        &mut self,
-        context: CalleeContext,
-        session_state: Vec<u8>,
-        argument: Vec<u8>,
-        forwarded_sessions: Vec<SessionId>,
-    ) -> Result<(SessionCallOutcome, Vec<u8>), ExecutionError> {
-        match self.next_expected_call() {
-            Some(ExpectedCall::HandleSessionCall(handler)) => {
-                handler(&mut self.runtime, context, session_state, argument, forwarded_sessions)
-            }
-            Some(unexpected_call) => panic!(
-                "Expected a call to `handle_session_call`, got a call to `{unexpected_call}` instead."
-            ),
-            None => panic!("Unexpected call to `handle_session_call`"),
         }
     }
 }
