@@ -37,7 +37,7 @@ use super::{module_cache::ModuleCache, WasmExecutionError};
 use crate::{
     wasm::{WasmContractModule, WasmServiceModule},
     ApplicationCallOutcome, BaseRuntime, Bytecode, CalleeContext, ContractRuntime, ExecutionError,
-    MessageContext, OperationContext, QueryContext, RawExecutionOutcome, ServiceRuntime, SessionId,
+    MessageContext, OperationContext, QueryContext, RawExecutionOutcome, ServiceRuntime,
 };
 use once_cell::sync::Lazy;
 use std::error::Error;
@@ -324,7 +324,6 @@ where
         &mut self,
         _context: CalleeContext,
         argument: Vec<u8>,
-        _forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallOutcome, ExecutionError> {
         self.configure_initial_fuel()?;
         let result = contract::Contract::handle_application_call(
