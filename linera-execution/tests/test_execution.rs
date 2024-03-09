@@ -19,7 +19,7 @@ use linera_execution::{
     },
     ApplicationCallOutcome, BaseRuntime, ContractRuntime, ExecutionError, ExecutionOutcome,
     MessageKind, Operation, OperationContext, Query, QueryContext, RawExecutionOutcome,
-    RawOutgoingMessage, ResourceController, Response, SessionCallOutcome, SystemOperation,
+    RawOutgoingMessage, ResourceController, Response, SystemOperation,
 };
 use linera_views::batch::Batch;
 use std::{collections::BTreeMap, vec};
@@ -32,6 +32,16 @@ fn make_operation_context() -> OperationContext {
         authenticated_signer: None,
         next_message_index: 0,
     }
+}
+
+/// A cross-application call to start or end a session.
+///
+/// Here a session is a test scenario where the transaction is prevented from succeeding while
+/// there in an open session.
+#[repr(u8)]
+enum SessionCall {
+    StartSession,
+    EndSession,
 }
 
 #[tokio::test]
@@ -100,49 +110,40 @@ async fn test_simple_user_operation() -> anyhow::Result<()> {
             let call_outcome = runtime.try_call_application(
                 /* authenticated */ true,
                 target_id,
-                vec![],
+                vec![SessionCall::StartSession as u8],
                 vec![],
             )?;
             assert!(call_outcome.value.is_empty());
-            assert_eq!(call_outcome.sessions.len(), 1);
 
-            // Call the session to close it.
-            let session_id = call_outcome.sessions[0];
-            runtime.try_call_session(/* authenticated */ false, session_id, vec![], vec![])?;
+            // Call the target application to end the session
+            let call_outcome = runtime.try_call_application(
+                /* authenticated */ false,
+                target_id,
+                vec![SessionCall::EndSession as u8],
+                vec![],
+            )?;
+            assert!(call_outcome.value.is_empty());
 
             Ok(RawExecutionOutcome::default())
         })
     });
 
-    let dummy_session_state = vec![1];
-
-    target_application.expect_call({
-        let dummy_session_state = dummy_session_state.clone();
-        ExpectedCall::handle_application_call(
-            move |_runtime, context, argument, forwarded_sessions| {
-                assert_eq!(context.authenticated_signer, Some(owner));
-                assert!(argument.is_empty());
-                assert!(forwarded_sessions.is_empty());
-                Ok(ApplicationCallOutcome {
-                    create_sessions: vec![dummy_session_state],
-                    ..ApplicationCallOutcome::default()
-                })
-            },
-        )
-    });
-    target_application.expect_call(ExpectedCall::handle_session_call(
-        move |_runtime, context, session_state, argument, forwarded_sessions| {
-            assert_eq!(context.authenticated_signer, None);
-            assert_eq!(session_state, dummy_session_state);
-            assert!(argument.is_empty());
+    target_application.expect_call(ExpectedCall::handle_application_call(
+        move |runtime, context, argument, forwarded_sessions| {
+            assert_eq!(context.authenticated_signer, Some(owner));
+            assert_eq!(&argument, &[SessionCall::StartSession as u8]);
             assert!(forwarded_sessions.is_empty());
-            Ok((
-                SessionCallOutcome {
-                    inner: ApplicationCallOutcome::default(),
-                    close_session: true,
-                },
-                session_state,
-            ))
+            runtime.set_transaction_may_succeed(false)?;
+            Ok(ApplicationCallOutcome::default())
+        },
+    ));
+    target_application.expect_call(ExpectedCall::handle_application_call(
+        move |runtime, context, argument, forwarded_sessions| {
+            assert_eq!(context.authenticated_signer, None);
+            assert_eq!(&argument, &[SessionCall::EndSession as u8]);
+            assert!(forwarded_sessions.is_empty());
+            runtime.set_transaction_may_succeed(true)?;
+            Ok(ApplicationCallOutcome::default())
         },
     ));
 
@@ -212,9 +213,9 @@ async fn test_simple_user_operation() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Tests if execution fails if a session is created and leaked by its owner.
+/// Tests if execution fails if the transaction is not allowed to succeed by the application.
 #[tokio::test]
-async fn test_leaking_session() -> anyhow::Result<()> {
+async fn test_preventing_transaction_success() -> anyhow::Result<()> {
     let mut state = SystemExecutionState::default();
     state.description = Some(ChainDescription::Root(0));
     let mut view = state.into_view().await;
@@ -229,15 +230,20 @@ async fn test_leaking_session() -> anyhow::Result<()> {
 
     caller_application.expect_call(ExpectedCall::execute_operation(
         move |runtime, _context, _operation| {
-            runtime.try_call_application(false, target_id, vec![], vec![])?;
+            runtime.try_call_application(
+                false,
+                target_id,
+                vec![SessionCall::StartSession as u8],
+                vec![],
+            )?;
             Ok(RawExecutionOutcome::default())
         },
     ));
 
     target_application.expect_call(ExpectedCall::handle_application_call(
-        |_runtime, _context, _argument, _forwarded_sessions| {
+        |runtime, _context, _argument, _forwarded_sessions| {
+            runtime.set_transaction_may_succeed(false)?;
             Ok(ApplicationCallOutcome {
-                create_sessions: vec![vec![]],
                 ..ApplicationCallOutcome::default()
             })
         },
@@ -256,13 +262,17 @@ async fn test_leaking_session() -> anyhow::Result<()> {
         )
         .await;
 
-    assert_matches!(result, Err(ExecutionError::SessionWasNotClosed(_)));
+    assert_matches!(
+        result,
+        Err(ExecutionError::ApplicationsHeldCompletion(applications))
+            if applications == target_id.to_string()
+    );
     Ok(())
 }
 
 /// Tests if a session is called correctly during execution.
 #[tokio::test]
-async fn test_simple_session() -> anyhow::Result<()> {
+async fn test_allowing_transaction_success() -> anyhow::Result<()> {
     let mut state = SystemExecutionState::default();
     state.description = Some(ChainDescription::Root(0));
     let mut view = state.into_view().await;
@@ -277,30 +287,35 @@ async fn test_simple_session() -> anyhow::Result<()> {
 
     caller_application.expect_call(ExpectedCall::execute_operation(
         move |runtime, _context, _operation| {
-            let outcome = runtime.try_call_application(false, target_id, vec![], vec![])?;
-            runtime.try_call_session(false, outcome.sessions[0], vec![], vec![])?;
+            runtime.try_call_application(
+                false,
+                target_id,
+                vec![SessionCall::StartSession as u8],
+                vec![],
+            )?;
+            runtime.try_call_application(
+                false,
+                target_id,
+                vec![SessionCall::EndSession as u8],
+                vec![],
+            )?;
             Ok(RawExecutionOutcome::default())
         },
     ));
 
     target_application.expect_call(ExpectedCall::handle_application_call(
-        |_runtime, _context, _argument, _forwarded_sessions| {
-            Ok(ApplicationCallOutcome {
-                create_sessions: vec![vec![]],
-                ..ApplicationCallOutcome::default()
-            })
+        |runtime, _context, argument, _forwarded_sessions| {
+            assert_eq!(&argument, &[SessionCall::StartSession as u8]);
+            runtime.set_transaction_may_succeed(false)?;
+            Ok(ApplicationCallOutcome::default())
         },
     ));
 
-    target_application.expect_call(ExpectedCall::handle_session_call(
-        |_runtime, _context, _session_state, _argument, _forwarded_sessions| {
-            Ok((
-                SessionCallOutcome {
-                    close_session: true,
-                    ..SessionCallOutcome::default()
-                },
-                vec![],
-            ))
+    target_application.expect_call(ExpectedCall::handle_application_call(
+        |runtime, _context, argument, _forwarded_sessions| {
+            assert_eq!(&argument, &[SessionCall::EndSession as u8]);
+            runtime.set_transaction_may_succeed(true)?;
+            Ok(ApplicationCallOutcome::default())
         },
     ));
 
