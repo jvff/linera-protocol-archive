@@ -147,7 +147,6 @@ macro_rules! impl_contract_system_api {
                     authenticated,
                     application.into(),
                     argument.to_vec(),
-                    vec![],
                 )
             }
 
