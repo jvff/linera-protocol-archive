@@ -39,7 +39,7 @@ use crate::{
     MessageContext, OperationContext, QueryContext, RawExecutionOutcome, ServiceRuntime,
 };
 use bytes::Bytes;
-use linera_base::{identifiers::SessionId, sync::Lazy};
+use linera_base::sync::Lazy;
 use std::{marker::Unpin, sync::Arc};
 use tokio::sync::Mutex;
 use wasmer::{
@@ -262,7 +262,6 @@ where
         &mut self,
         _context: CalleeContext,
         argument: Vec<u8>,
-        _forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallOutcome, ExecutionError> {
         self.configure_initial_fuel()?;
         let result = contract::Contract::handle_application_call(
