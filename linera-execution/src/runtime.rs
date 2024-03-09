@@ -7,7 +7,7 @@ use crate::{
     resources::ResourceController,
     util::{ReceiverExt, UnboundedSenderExt},
     ApplicationCallOutcome, BaseRuntime, CalleeContext, ContractRuntime, ExecutionError,
-    ExecutionOutcome, MessageContext, RawExecutionOutcome, ServiceRuntime, SessionId,
+    ExecutionOutcome, MessageContext, RawExecutionOutcome, ServiceRuntime,
     UserApplicationDescription, UserApplicationId, UserContractCode, UserContractInstance,
     UserServiceInstance,
 };
@@ -360,7 +360,6 @@ impl SyncRuntimeInternal<UserContractInstance> {
         this: Arc<Mutex<Self>>,
         authenticated: bool,
         callee_id: UserApplicationId,
-        _forwarded_sessions: &[SessionId],
     ) -> Result<(Arc<Mutex<UserContractInstance>>, CalleeContext), ExecutionError> {
         self.check_for_reentrancy(callee_id)?;
 
@@ -969,20 +968,16 @@ impl ContractRuntime for ContractSyncRuntime {
         authenticated: bool,
         callee_id: UserApplicationId,
         argument: Vec<u8>,
-        forwarded_sessions: Vec<SessionId>,
     ) -> Result<Vec<u8>, ExecutionError> {
         let cloned_self = self.clone().0;
-        let (contract, callee_context) = self.inner().prepare_for_call(
-            cloned_self,
-            authenticated,
-            callee_id,
-            &forwarded_sessions,
-        )?;
+        let (contract, callee_context) =
+            self.inner()
+                .prepare_for_call(cloned_self, authenticated, callee_id)?;
 
         let raw_outcome = contract
             .try_lock()
             .expect("Applications should not have reentrant calls")
-            .handle_application_call(callee_context, argument, forwarded_sessions)?;
+            .handle_application_call(callee_context, argument, vec![])?;
 
         self.inner().finish_call(raw_outcome)
     }
