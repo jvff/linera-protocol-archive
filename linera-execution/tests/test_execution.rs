@@ -534,7 +534,6 @@ async fn test_message_from_cross_application_call() -> anyhow::Result<()> {
             Ok(ApplicationCallOutcome {
                 value: vec![],
                 execution_outcome: RawExecutionOutcome::default().with_message(dummy_message),
-                create_sessions: vec![],
             })
         }
     }));
@@ -786,7 +785,6 @@ async fn test_multiple_messages_from_different_applications() -> anyhow::Result<
                 execution_outcome: RawExecutionOutcome::default()
                     .with_message(first_message)
                     .with_message(second_message),
-                create_sessions: vec![],
             })
         }
     }));
