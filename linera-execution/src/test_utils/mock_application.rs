@@ -10,7 +10,6 @@ use crate::{
     OperationContext, QueryContext, RawExecutionOutcome, ServiceSyncRuntime, UserContract,
     UserContractModule, UserService, UserServiceModule,
 };
-use linera_base::identifiers::SessionId;
 use std::{
     collections::VecDeque,
     fmt::{self, Display, Formatter},
@@ -88,7 +87,6 @@ type HandleApplicationCallHandler = Box<
             &mut ContractSyncRuntime,
             CalleeContext,
             Vec<u8>,
-            Vec<SessionId>,
         ) -> Result<ApplicationCallOutcome, ExecutionError>
         + Send
         + Sync,
@@ -183,7 +181,6 @@ impl ExpectedCall {
                 &mut ContractSyncRuntime,
                 CalleeContext,
                 Vec<u8>,
-                Vec<SessionId>,
             ) -> Result<ApplicationCallOutcome, ExecutionError>
             + Send
             + Sync
@@ -286,11 +283,10 @@ impl UserContract for MockApplicationInstance<ContractSyncRuntime> {
         &mut self,
         context: CalleeContext,
         argument: Vec<u8>,
-        forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallOutcome, ExecutionError> {
         match self.next_expected_call() {
             Some(ExpectedCall::HandleApplicationCall(handler)) => {
-                handler(&mut self.runtime, context, argument, forwarded_sessions)
+                handler(&mut self.runtime, context, argument)
             }
             Some(unexpected_call) => panic!(
                 "Expected a call to `handle_application_call`, got a call to `{unexpected_call}` instead."
