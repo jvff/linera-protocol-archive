@@ -9,8 +9,7 @@ use async_trait::async_trait;
 use linera_sdk::{
     base::{ChannelName, Destination, MessageId, SessionId, WithContractAbi},
     views::ViewError,
-    ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, SessionCallOutcome,
-    ViewStateStorage,
+    ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, ViewStateStorage,
 };
 use social::{Key, Message, Operation, OwnPost, SocialAbi as Abi};
 use state::Social;
@@ -92,17 +91,6 @@ impl Contract for Social {
     ) -> Result<ApplicationCallOutcome<Self::Message, Self::Response>, Self::Error> {
         Err(Error::ApplicationCallsNotSupported)
     }
-
-    async fn handle_session_call(
-        &mut self,
-        _runtime: &mut ContractRuntime<Abi>,
-        _state: Self::SessionState,
-        _call: (),
-        _forwarded_sessions: Vec<SessionId>,
-    ) -> Result<SessionCallOutcome<Self::Message, Self::Response, Self::SessionState>, Self::Error>
-    {
-        Err(Error::SessionsNotSupported)
-    }
 }
 
 impl Social {
@@ -147,11 +135,7 @@ impl Social {
 /// An error that can occur during the contract execution.
 #[derive(Debug, Error)]
 pub enum Error {
-    /// Social application doesn't support any cross-application sessions.
-    #[error("Social application doesn't support any cross-application sessions")]
-    SessionsNotSupported,
-
-    /// Social application doesn't support any cross-application sessions.
+    /// Social application doesn't support any cross-application calls.
     #[error("Social application doesn't support any application calls")]
     ApplicationCallsNotSupported,
 

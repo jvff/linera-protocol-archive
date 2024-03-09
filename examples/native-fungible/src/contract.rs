@@ -10,8 +10,7 @@ use async_trait::async_trait;
 use fungible::{ApplicationCall, FungibleResponse, FungibleTokenAbi as Abi, Message, Operation};
 use linera_sdk::{
     base::{Account, AccountOwner, Amount, Owner, SessionId, WithContractAbi},
-    ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, SessionCallOutcome,
-    ViewStateStorage,
+    ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, ViewStateStorage,
 };
 use native_fungible::TICKER_SYMBOL;
 use thiserror::Error;
@@ -206,17 +205,6 @@ impl Contract for NativeFungibleToken {
             }
         }
     }
-
-    async fn handle_session_call(
-        &mut self,
-        _runtime: &mut ContractRuntime<Abi>,
-        _state: Self::SessionState,
-        _request: Self::SessionCall,
-        _forwarded_sessions: Vec<SessionId>,
-    ) -> Result<SessionCallOutcome<Self::Message, Self::Response, Self::SessionState>, Self::Error>
-    {
-        Err(Error::SessionsNotSupported)
-    }
 }
 
 impl NativeFungibleToken {
@@ -299,10 +287,6 @@ pub enum Error {
     #[error("Source account does not have sufficient balance for transfer")]
     InsufficientBalance(#[from] state::InsufficientBalanceError),
 
-    /// Insufficient balance in session.
-    #[error("Session does not have sufficient balance for transfer")]
-    InsufficientSessionBalance,
-
     /// Requested transfer does not have permission on this account.
     #[error("The requested transfer is not correctly authenticated.")]
     IncorrectAuthentication,
@@ -314,9 +298,6 @@ pub enum Error {
     /// Failed to deserialize JSON string
     #[error("Failed to deserialize JSON string")]
     JsonError(#[from] serde_json::Error),
-
-    #[error("Native Fungible application doesn't support any cross-application sessions")]
-    SessionsNotSupported,
 
     #[error("Applications not supported yet")]
     ApplicationsNotSupported,

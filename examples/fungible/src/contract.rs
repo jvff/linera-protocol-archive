@@ -12,8 +12,7 @@ use fungible::{
 };
 use linera_sdk::{
     base::{AccountOwner, Amount, ApplicationId, Owner, SessionId, WithContractAbi},
-    ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, SessionCallOutcome,
-    ViewStateStorage,
+    ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, ViewStateStorage,
 };
 use std::str::FromStr;
 use thiserror::Error;
@@ -178,17 +177,6 @@ impl Contract for FungibleToken {
             }
         }
     }
-
-    async fn handle_session_call(
-        &mut self,
-        _runtime: &mut ContractRuntime<Abi>,
-        _state: Self::SessionState,
-        _request: (),
-        _forwarded_sessions: Vec<SessionId>,
-    ) -> Result<SessionCallOutcome<Self::Message, Self::Response, Self::SessionState>, Self::Error>
-    {
-        Err(Error::SessionsNotSupported)
-    }
 }
 
 impl FungibleToken {
@@ -264,9 +252,6 @@ pub enum Error {
     /// Requested transfer does not have permission on this account.
     #[error("The requested transfer is not correctly authenticated.")]
     IncorrectAuthentication,
-
-    #[error("Fungible Token application doesn't support any cross-application sessions")]
-    SessionsNotSupported,
 
     /// Failed to deserialize BCS bytes
     #[error("Failed to deserialize BCS bytes")]

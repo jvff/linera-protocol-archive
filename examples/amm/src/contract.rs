@@ -12,7 +12,7 @@ use fungible::{Account, FungibleTokenAbi};
 use linera_sdk::{
     base::{AccountOwner, Amount, ApplicationId, Owner, SessionId, WithContractAbi},
     ensure, ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, OutgoingMessage,
-    Resources, SessionCallOutcome, ViewStateStorage,
+    Resources, ViewStateStorage,
 };
 use num_bigint::BigUint;
 use num_traits::{cast::FromPrimitive, ToPrimitive};
@@ -109,17 +109,6 @@ impl Contract for Amm {
         }
 
         Ok(outcome)
-    }
-
-    async fn handle_session_call(
-        &mut self,
-        _runtime: &mut ContractRuntime<Abi>,
-        _session: (),
-        _argument: (),
-        _forwarded_sessions: Vec<SessionId>,
-    ) -> Result<SessionCallOutcome<Self::Message, Self::Response, Self::SessionState>, AmmError>
-    {
-        Err(AmmError::SessionsNotSupported)
     }
 }
 
