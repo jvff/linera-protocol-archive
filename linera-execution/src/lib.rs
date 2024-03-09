@@ -408,14 +408,6 @@ pub trait ServiceRuntime: BaseRuntime {
     ) -> Result<Vec<u8>, ExecutionError>;
 }
 
-/// The result of calling into an application or a session.
-pub struct CallOutcome {
-    /// The return value.
-    pub value: Vec<u8>,
-    /// The new sessions now visible to the caller.
-    pub sessions: Vec<SessionId>,
-}
-
 pub trait ContractRuntime: BaseRuntime {
     /// The authenticated signer for this execution, if there is one.
     fn authenticated_signer(&mut self) -> Result<Option<Owner>, ExecutionError>;
@@ -467,7 +459,7 @@ pub trait ContractRuntime: BaseRuntime {
         callee_id: UserApplicationId,
         argument: Vec<u8>,
         forwarded_sessions: Vec<SessionId>,
-    ) -> Result<CallOutcome, ExecutionError>;
+    ) -> Result<Vec<u8>, ExecutionError>;
 
     /// Opens a new chain.
     fn open_chain(

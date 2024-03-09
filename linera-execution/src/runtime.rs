@@ -6,10 +6,10 @@ use crate::{
     execution_state_actor::{ExecutionStateSender, Request},
     resources::ResourceController,
     util::{ReceiverExt, UnboundedSenderExt},
-    ApplicationCallOutcome, BaseRuntime, CallOutcome, CalleeContext, ContractRuntime,
-    ExecutionError, ExecutionOutcome, MessageContext, RawExecutionOutcome, ServiceRuntime,
-    SessionId, UserApplicationDescription, UserApplicationId, UserContractCode,
-    UserContractInstance, UserServiceInstance,
+    ApplicationCallOutcome, BaseRuntime, CalleeContext, ContractRuntime, ExecutionError,
+    ExecutionOutcome, MessageContext, RawExecutionOutcome, ServiceRuntime, SessionId,
+    UserApplicationDescription, UserApplicationId, UserContractCode, UserContractInstance,
+    UserServiceInstance,
 };
 use custom_debug_derive::Debug;
 use linera_base::{
@@ -395,7 +395,7 @@ impl SyncRuntimeInternal<UserContractInstance> {
     fn finish_call(
         &mut self,
         raw_outcome: ApplicationCallOutcome,
-    ) -> Result<CallOutcome, ExecutionError> {
+    ) -> Result<Vec<u8>, ExecutionError> {
         let ApplicationStatus {
             id: callee_id,
             signer,
@@ -413,11 +413,7 @@ impl SyncRuntimeInternal<UserContractInstance> {
         }
         self.execution_outcomes
             .push(ExecutionOutcome::User(callee_id, outcome));
-        let outcome = CallOutcome {
-            value: raw_outcome.value,
-            sessions: vec![],
-        };
-        Ok(outcome)
+        Ok(raw_outcome.value)
     }
 }
 
@@ -974,7 +970,7 @@ impl ContractRuntime for ContractSyncRuntime {
         callee_id: UserApplicationId,
         argument: Vec<u8>,
         forwarded_sessions: Vec<SessionId>,
-    ) -> Result<CallOutcome, ExecutionError> {
+    ) -> Result<Vec<u8>, ExecutionError> {
         let cloned_self = self.clone().0;
         let (contract, callee_context) = self.inner().prepare_for_call(
             cloned_self,
