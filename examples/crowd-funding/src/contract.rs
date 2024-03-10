@@ -49,7 +49,6 @@ impl Contract for CrowdFundingContract {
 
     async fn initialize(
         &mut self,
-        _runtime: &mut ContractRuntime,
         argument: InitializationArgument,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
@@ -67,7 +66,6 @@ impl Contract for CrowdFundingContract {
 
     async fn execute_operation(
         &mut self,
-        _runtime: &mut ContractRuntime,
         operation: Operation,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         let mut outcome = ExecutionOutcome::default();
@@ -90,7 +88,6 @@ impl Contract for CrowdFundingContract {
 
     async fn execute_message(
         &mut self,
-        _runtime: &mut ContractRuntime,
         message: Message,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         match message {
@@ -108,7 +105,6 @@ impl Contract for CrowdFundingContract {
 
     async fn handle_application_call(
         &mut self,
-        _runtime: &mut ContractRuntime,
         call: ApplicationCall,
         sessions: Vec<SessionId>,
     ) -> Result<
@@ -140,7 +136,6 @@ impl Contract for CrowdFundingContract {
 
     async fn handle_session_call(
         &mut self,
-        _runtime: &mut ContractRuntime,
         _state: Self::SessionState,
         _call: (),
         _forwarded_sessions: Vec<SessionId>,
