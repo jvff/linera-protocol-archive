@@ -18,6 +18,7 @@ use thiserror::Error;
 
 pub struct FungibleTokenContract {
     state: FungibleToken,
+    runtime: ContractRuntime,
 }
 
 linera_sdk::contract!(FungibleTokenContract);
@@ -33,7 +34,10 @@ impl Contract for FungibleTokenContract {
     type State = FungibleToken;
 
     async fn new(state: FungibleToken) -> Result<Self, Self::Error> {
-        Ok(FungibleTokenContract { state })
+        Ok(FungibleTokenContract {
+            state,
+            runtime: ContractRuntime::default(),
+        })
     }
 
     fn state_mut(&mut self) -> &mut Self::State {
@@ -42,7 +46,7 @@ impl Contract for FungibleTokenContract {
 
     async fn initialize(
         &mut self,
-        runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime,
         mut state: Self::InitializationArgument,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
@@ -50,7 +54,7 @@ impl Contract for FungibleTokenContract {
 
         // If initial accounts are empty, creator gets 1M tokens to act like a faucet.
         if state.accounts.is_empty() {
-            if let Some(owner) = runtime.authenticated_signer() {
+            if let Some(owner) = self.runtime.authenticated_signer() {
                 state.accounts.insert(
                     AccountOwner::User(owner),
                     Amount::from_str("1000000").unwrap(),
@@ -64,7 +68,7 @@ impl Contract for FungibleTokenContract {
 
     async fn execute_operation(
         &mut self,
-        runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime,
         operation: Self::Operation,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         match operation {
@@ -73,7 +77,11 @@ impl Contract for FungibleTokenContract {
                 amount,
                 target_account,
             } => {
-                Self::check_account_authentication(None, runtime.authenticated_signer(), owner)?;
+                Self::check_account_authentication(
+                    None,
+                    self.runtime.authenticated_signer(),
+                    owner,
+                )?;
                 self.state.debit(owner, amount).await?;
                 Ok(self
                     .finish_transfer_to_account(amount, target_account, owner)
@@ -87,7 +95,7 @@ impl Contract for FungibleTokenContract {
             } => {
                 Self::check_account_authentication(
                     None,
-                    runtime.authenticated_signer(),
+                    self.runtime.authenticated_signer(),
                     source_account.owner,
                 )?;
                 self.claim(source_account, amount, target_account).await
@@ -97,7 +105,7 @@ impl Contract for FungibleTokenContract {
 
     async fn execute_message(
         &mut self,
-        runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime,
         message: Message,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         match message {
@@ -106,7 +114,8 @@ impl Contract for FungibleTokenContract {
                 target,
                 source,
             } => {
-                let is_bouncing = runtime
+                let is_bouncing = self
+                    .runtime
                     .message_is_bouncing()
                     .expect("Message delivery status has to be available when executing a message");
                 let receiver = if is_bouncing { source } else { target };
@@ -118,7 +127,11 @@ impl Contract for FungibleTokenContract {
                 amount,
                 target_account,
             } => {
-                Self::check_account_authentication(None, runtime.authenticated_signer(), owner)?;
+                Self::check_account_authentication(
+                    None,
+                    self.runtime.authenticated_signer(),
+                    owner,
+                )?;
                 self.state.debit(owner, amount).await?;
                 Ok(self
                     .finish_transfer_to_account(amount, target_account, owner)
@@ -129,7 +142,7 @@ impl Contract for FungibleTokenContract {
 
     async fn handle_application_call(
         &mut self,
-        runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime,
         call: ApplicationCall,
     ) -> Result<ApplicationCallOutcome<Self::Message, Self::Response>, Self::Error> {
         match call {
@@ -146,8 +159,8 @@ impl Contract for FungibleTokenContract {
                 destination,
             } => {
                 Self::check_account_authentication(
-                    runtime.authenticated_caller_id(),
-                    runtime.authenticated_signer(),
+                    self.runtime.authenticated_caller_id(),
+                    self.runtime.authenticated_signer(),
                     owner,
                 )?;
                 self.state.debit(owner, amount).await?;
@@ -167,7 +180,7 @@ impl Contract for FungibleTokenContract {
             } => {
                 Self::check_account_authentication(
                     None,
-                    runtime.authenticated_signer(),
+                    self.runtime.authenticated_signer(),
                     source_account.owner,
                 )?;
                 let execution_outcome = self.claim(source_account, amount, target_account).await?;

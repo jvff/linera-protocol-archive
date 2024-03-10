@@ -19,6 +19,7 @@ use thiserror::Error;
 
 pub struct NonFungibleTokenContract {
     state: NonFungibleToken,
+    runtime: ContractRuntime,
 }
 
 linera_sdk::contract!(NonFungibleTokenContract);
@@ -34,7 +35,10 @@ impl Contract for NonFungibleTokenContract {
     type State = NonFungibleToken;
 
     async fn new(state: NonFungibleToken) -> Result<Self, Self::Error> {
-        Ok(NonFungibleTokenContract { state })
+        Ok(NonFungibleTokenContract {
+            state,
+            runtime: ContractRuntime::default(),
+        })
     }
 
     fn state_mut(&mut self) -> &mut Self::State {
@@ -53,17 +57,14 @@ impl Contract for NonFungibleTokenContract {
 
     async fn execute_operation(
         &mut self,
-        runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime,
         operation: Self::Operation,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         match operation {
-            Operation::Mint { name, payload } => Ok(self
-                .mint(
-                    AccountOwner::User(runtime.authenticated_signer().unwrap()),
-                    name,
-                    payload,
-                )
-                .await),
+            Operation::Mint { name, payload } => {
+                let signer = self.runtime.authenticated_signer().unwrap();
+                Ok(self.mint(AccountOwner::User(signer), name, payload).await)
+            }
 
             Operation::Transfer {
                 source_owner,
@@ -72,14 +73,14 @@ impl Contract for NonFungibleTokenContract {
             } => {
                 Self::check_account_authentication(
                     None,
-                    runtime.authenticated_signer(),
+                    self.runtime.authenticated_signer(),
                     source_owner,
                 )?;
 
                 let nft = self.get_nft(&token_id).await;
                 Self::check_account_authentication(
                     None,
-                    runtime.authenticated_signer(),
+                    self.runtime.authenticated_signer(),
                     nft.owner,
                 )?;
 
@@ -93,7 +94,7 @@ impl Contract for NonFungibleTokenContract {
             } => {
                 Self::check_account_authentication(
                     None,
-                    runtime.authenticated_signer(),
+                    self.runtime.authenticated_signer(),
                     source_account.owner,
                 )?;
 
@@ -101,7 +102,7 @@ impl Contract for NonFungibleTokenContract {
                     let nft = self.get_nft(&token_id).await;
                     Self::check_account_authentication(
                         None,
-                        runtime.authenticated_signer(),
+                        self.runtime.authenticated_signer(),
                         nft.owner,
                     )?;
 
@@ -115,7 +116,7 @@ impl Contract for NonFungibleTokenContract {
 
     async fn execute_message(
         &mut self,
-        runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime,
         message: Message,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         match message {
@@ -123,7 +124,8 @@ impl Contract for NonFungibleTokenContract {
                 mut nft,
                 target_account,
             } => {
-                let is_bouncing = runtime
+                let is_bouncing = self
+                    .runtime
                     .message_is_bouncing()
                     .expect("Message delivery status has to be available when executing a message");
                 if !is_bouncing {
@@ -141,14 +143,14 @@ impl Contract for NonFungibleTokenContract {
             } => {
                 Self::check_account_authentication(
                     None,
-                    runtime.authenticated_signer(),
+                    self.runtime.authenticated_signer(),
                     source_account.owner,
                 )?;
 
                 let nft = self.get_nft(&token_id).await;
                 Self::check_account_authentication(
                     None,
-                    runtime.authenticated_signer(),
+                    self.runtime.authenticated_signer(),
                     nft.owner,
                 )?;
 
@@ -159,17 +161,14 @@ impl Contract for NonFungibleTokenContract {
 
     async fn handle_application_call(
         &mut self,
-        runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime,
         call: Self::ApplicationCall,
     ) -> Result<ApplicationCallOutcome<Self::Message, Self::Response>, Self::Error> {
         match call {
             Self::ApplicationCall::Mint { name, payload } => {
+                let signer = self.runtime.authenticated_caller_id().unwrap();
                 let execution_outcome = self
-                    .mint(
-                        AccountOwner::Application(runtime.authenticated_caller_id().unwrap()),
-                        name,
-                        payload,
-                    )
+                    .mint(AccountOwner::Application(signer), name, payload)
                     .await;
 
                 Ok(ApplicationCallOutcome {
@@ -184,15 +183,15 @@ impl Contract for NonFungibleTokenContract {
                 target_account,
             } => {
                 Self::check_account_authentication(
-                    runtime.authenticated_caller_id(),
-                    runtime.authenticated_signer(),
+                    self.runtime.authenticated_caller_id(),
+                    self.runtime.authenticated_signer(),
                     source_owner,
                 )?;
 
                 let nft = self.get_nft(&token_id).await;
                 Self::check_account_authentication(
-                    runtime.authenticated_caller_id(),
-                    runtime.authenticated_signer(),
+                    self.runtime.authenticated_caller_id(),
+                    self.runtime.authenticated_signer(),
                     nft.owner,
                 )?;
 
@@ -209,8 +208,8 @@ impl Contract for NonFungibleTokenContract {
                 target_account,
             } => {
                 Self::check_account_authentication(
-                    runtime.authenticated_caller_id(),
-                    runtime.authenticated_signer(),
+                    self.runtime.authenticated_caller_id(),
+                    self.runtime.authenticated_signer(),
                     source_account.owner,
                 )?;
 
@@ -218,8 +217,8 @@ impl Contract for NonFungibleTokenContract {
                 {
                     let nft = self.get_nft(&token_id).await;
                     Self::check_account_authentication(
-                        runtime.authenticated_caller_id(),
-                        runtime.authenticated_signer(),
+                        self.runtime.authenticated_caller_id(),
+                        self.runtime.authenticated_signer(),
                         nft.owner,
                     )?;
 

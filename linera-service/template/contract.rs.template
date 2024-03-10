@@ -12,6 +12,7 @@ use thiserror::Error;
 
 pub struct ApplicationContract {{
     state: Application,
+    runtime: ContractRuntime,
 }}
 
 linera_sdk::contract!(ApplicationContract);
@@ -27,7 +28,10 @@ impl Contract for ApplicationContract {{
     type State = Application;
 
     async fn new(state: Self::State) -> Result<Self, Self::Error> {{
-        Ok(ApplicationContract {{ state }})
+        Ok(ApplicationContract {{
+            state,
+            runtime: ContractRuntime::default(),
+        }})
     }}
 
     fn state_mut(&mut self) -> &mut Self::State {{
