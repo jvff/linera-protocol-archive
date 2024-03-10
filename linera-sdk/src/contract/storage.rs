@@ -16,19 +16,22 @@ use futures::TryFutureExt;
 use linera_views::{
     batch::Batch,
     common::{ReadableKeyValueStore, WritableKeyValueStore},
-    views::RootView,
+    views::{RootView, View},
 };
 use serde::{de::DeserializeOwned, Serialize};
 use std::future::Future;
 
 /// The storage APIs used by a contract.
 #[async_trait]
-pub trait ContractStateStorage<Application> {
+pub trait ContractStateStorage<Application>
+where
+    Application: Contract,
+{
     /// Loads the `Application` state.
-    async fn load() -> Application;
+    async fn load() -> Application::State;
 
     /// Stores the `Application` state.
-    async fn store(state: Application);
+    async fn store(state: &mut Application::State);
 
     /// Executes an `operation` with the `Application` state.
     ///
@@ -45,11 +48,14 @@ pub trait ContractStateStorage<Application> {
         Success: Send + 'static,
         Error: ToString + 'static,
     {
-        let application = Self::load().await;
+        let state = Self::load().await;
+        let application = Application::new(state)
+            .await
+            .map_err(|error| error.to_string())?;
 
         operation(application)
-            .and_then(|(application, result)| async move {
-                Self::store(application).await;
+            .and_then(|(mut application, result)| async move {
+                Self::store(application.state_mut()).await;
                 Ok(result)
             })
             .await
@@ -60,9 +66,10 @@ pub trait ContractStateStorage<Application> {
 #[async_trait]
 impl<Application> ContractStateStorage<Application> for SimpleStateStorage<Application>
 where
-    Application: Contract + Default + DeserializeOwned + Serialize + Send + 'static,
+    Application: Contract,
+    Application::State: Default + DeserializeOwned + Serialize + Send + 'static,
 {
-    async fn load() -> Application {
+    async fn load() -> Application::State {
         let maybe_bytes = AppStateStore
             .read_value_bytes(&[])
             .await
@@ -71,11 +78,11 @@ where
         if let Some(bytes) = maybe_bytes {
             bcs::from_bytes(&bytes).expect("Failed to deserialize application state")
         } else {
-            Application::default()
+            Application::State::default()
         }
     }
 
-    async fn store(state: Application) {
+    async fn store(state: &mut Application::State) {
         let mut batch = Batch::new();
 
         batch
@@ -92,15 +99,16 @@ where
 #[async_trait]
 impl<Application> ContractStateStorage<Application> for ViewStateStorage<Application>
 where
-    Application: Contract + RootView<ViewStorageContext> + Send + 'static,
+    Application: Contract,
+    Application::State: RootView<ViewStorageContext> + Send + 'static,
 {
-    async fn load() -> Application {
-        Application::load(ViewStorageContext::default())
+    async fn load() -> Application::State {
+        Application::State::load(ViewStorageContext::default())
             .await
             .expect("Failed to load application state")
     }
 
-    async fn store(mut state: Application) {
+    async fn store(state: &mut Application::State) {
         state
             .save()
             .await

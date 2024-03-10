@@ -19,16 +19,29 @@ use linera_sdk::{
 use std::str::FromStr;
 use thiserror::Error;
 
-linera_sdk::contract!(FungibleToken);
+pub struct FungibleTokenContract {
+    state: FungibleToken,
+}
 
-impl WithContractAbi for FungibleToken {
+linera_sdk::contract!(FungibleTokenContract);
+
+impl WithContractAbi for FungibleTokenContract {
     type Abi = fungible::FungibleTokenAbi;
 }
 
 #[async_trait]
-impl Contract for FungibleToken {
+impl Contract for FungibleTokenContract {
     type Error = Error;
     type Storage = ViewStateStorage<Self>;
+    type State = FungibleToken;
+
+    async fn new(state: FungibleToken) -> Result<Self, Self::Error> {
+        Ok(FungibleTokenContract { state })
+    }
+
+    fn state_mut(&mut self) -> &mut Self::State {
+        &mut self.state
+    }
 
     async fn initialize(
         &mut self,
@@ -47,7 +60,7 @@ impl Contract for FungibleToken {
                 );
             }
         }
-        self.initialize_accounts(state).await;
+        self.state.initialize_accounts(state).await;
 
         Ok(ExecutionOutcome::default())
     }
@@ -64,7 +77,7 @@ impl Contract for FungibleToken {
                 target_account,
             } => {
                 Self::check_account_authentication(None, runtime.authenticated_signer(), owner)?;
-                self.debit(owner, amount).await?;
+                self.state.debit(owner, amount).await?;
                 Ok(self
                     .finish_transfer_to_account(amount, target_account, owner)
                     .await)
@@ -100,7 +113,7 @@ impl Contract for FungibleToken {
                     .message_is_bouncing()
                     .expect("Message delivery status has to be available when executing a message");
                 let receiver = if is_bouncing { source } else { target };
-                self.credit(receiver, amount).await;
+                self.state.credit(receiver, amount).await;
                 Ok(ExecutionOutcome::default())
             }
             Message::Withdraw {
@@ -109,7 +122,7 @@ impl Contract for FungibleToken {
                 target_account,
             } => {
                 Self::check_account_authentication(None, runtime.authenticated_signer(), owner)?;
-                self.debit(owner, amount).await?;
+                self.state.debit(owner, amount).await?;
                 Ok(self
                     .finish_transfer_to_account(amount, target_account, owner)
                     .await)
@@ -129,7 +142,7 @@ impl Contract for FungibleToken {
         match call {
             ApplicationCall::Balance { owner } => {
                 let mut outcome = ApplicationCallOutcome::default();
-                let balance = self.balance_or_default(&owner).await;
+                let balance = self.state.balance_or_default(&owner).await;
                 outcome.value = FungibleResponse::Balance(balance);
                 Ok(outcome)
             }
@@ -144,7 +157,7 @@ impl Contract for FungibleToken {
                     runtime.authenticated_signer(),
                     owner,
                 )?;
-                self.debit(owner, amount).await?;
+                self.state.debit(owner, amount).await?;
                 let mut outcome = ApplicationCallOutcome::default();
                 match destination {
                     Destination::Account(account) => {
@@ -206,7 +219,7 @@ impl Contract for FungibleToken {
     }
 }
 
-impl FungibleToken {
+impl FungibleTokenContract {
     /// Verifies that a transfer is authenticated for this local account.
     fn check_account_authentication(
         authenticated_application_id: Option<ApplicationId>,
@@ -275,7 +288,7 @@ impl FungibleToken {
         target_account: Account,
     ) -> Result<ExecutionOutcome<Message>, Error> {
         if source_account.chain_id == system_api::current_chain_id() {
-            self.debit(source_account.owner, amount).await?;
+            self.state.debit(source_account.owner, amount).await?;
             Ok(self
                 .finish_transfer_to_account(amount, target_account, source_account.owner)
                 .await)
@@ -298,7 +311,7 @@ impl FungibleToken {
         source: AccountOwner,
     ) -> ExecutionOutcome<Message> {
         if target_account.chain_id == system_api::current_chain_id() {
-            self.credit(target_account.owner, amount).await;
+            self.state.credit(target_account.owner, amount).await;
             ExecutionOutcome::default()
         } else {
             let message = Message::Credit {
