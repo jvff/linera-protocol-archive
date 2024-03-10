@@ -46,7 +46,6 @@ impl Contract for FungibleTokenContract {
 
     async fn initialize(
         &mut self,
-        _runtime: &mut ContractRuntime,
         mut state: Self::InitializationArgument,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
@@ -68,7 +67,6 @@ impl Contract for FungibleTokenContract {
 
     async fn execute_operation(
         &mut self,
-        _runtime: &mut ContractRuntime,
         operation: Self::Operation,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         match operation {
@@ -105,7 +103,6 @@ impl Contract for FungibleTokenContract {
 
     async fn execute_message(
         &mut self,
-        _runtime: &mut ContractRuntime,
         message: Message,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         match message {
@@ -142,7 +139,6 @@ impl Contract for FungibleTokenContract {
 
     async fn handle_application_call(
         &mut self,
-        _runtime: &mut ContractRuntime,
         call: ApplicationCall,
     ) -> Result<ApplicationCallOutcome<Self::Message, Self::Response>, Self::Error> {
         match call {

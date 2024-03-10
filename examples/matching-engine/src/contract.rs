@@ -70,7 +70,6 @@ impl Contract for MatchingEngineContract {
 
     async fn initialize(
         &mut self,
-        _runtime: &mut ContractRuntime,
         _argument: (),
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
@@ -85,7 +84,6 @@ impl Contract for MatchingEngineContract {
     /// locally. Otherwise, it gets transmitted as a message to the chain of the engine.
     async fn execute_operation(
         &mut self,
-        _runtime: &mut ContractRuntime,
         operation: Operation,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         let mut outcome = ExecutionOutcome::default();
@@ -122,7 +120,6 @@ impl Contract for MatchingEngineContract {
     /// Execution of the order on the creation chain
     async fn execute_message(
         &mut self,
-        _runtime: &mut ContractRuntime,
         message: Message,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         ensure!(
@@ -151,7 +148,6 @@ impl Contract for MatchingEngineContract {
     /// one or a remote one.
     async fn handle_application_call(
         &mut self,
-        _runtime: &mut ContractRuntime,
         argument: ApplicationCall,
     ) -> Result<ApplicationCallOutcome<Self::Message, Self::Response>, Self::Error> {
         let mut outcome = ApplicationCallOutcome::default();
