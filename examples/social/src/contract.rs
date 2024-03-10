@@ -13,7 +13,7 @@ use linera_sdk::{
     ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, SessionCallOutcome,
     ViewStateStorage,
 };
-use social::{Key, Message, Operation, OwnPost, SocialAbi};
+use social::{Key, Message, Operation, OwnPost};
 use state::Social;
 use thiserror::Error;
 
@@ -30,7 +30,7 @@ pub struct SocialContract {
 linera_sdk::contract!(SocialContract);
 
 impl WithContractAbi for SocialContract {
-    type Abi = SocialAbi;
+    type Abi = social::SocialAbi;
 }
 
 #[async_trait]

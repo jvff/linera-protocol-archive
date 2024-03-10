@@ -12,7 +12,7 @@ use linera_sdk::{
     ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, OutgoingMessage,
     Resources, SessionCallOutcome, SimpleStateStorage,
 };
-use meta_counter::{Message, MetaCounterAbi, Operation};
+use meta_counter::{Message, Operation};
 use thiserror::Error;
 
 pub struct MetaCounterContract {
@@ -29,7 +29,7 @@ impl MetaCounterContract {
 }
 
 impl WithContractAbi for MetaCounterContract {
-    type Abi = MetaCounterAbi;
+    type Abi = meta_counter::MetaCounterAbi;
 }
 
 #[async_trait]

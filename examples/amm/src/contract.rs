@@ -6,7 +6,7 @@
 mod state;
 
 use self::state::Amm;
-use amm::{AmmAbi, AmmError, ApplicationCall, Message, Operation};
+use amm::{AmmError, ApplicationCall, Message, Operation};
 use async_trait::async_trait;
 use fungible::{Account, Destination, FungibleTokenAbi};
 use linera_sdk::{
@@ -26,7 +26,7 @@ pub struct AmmContract {
 linera_sdk::contract!(AmmContract);
 
 impl WithContractAbi for AmmContract {
-    type Abi = AmmAbi;
+    type Abi = amm::AmmAbi;
 }
 
 #[async_trait]
