@@ -19,6 +19,7 @@ use thiserror::Error;
 
 pub struct NativeFungibleTokenContract {
     state: NativeFungibleToken,
+    runtime: ContractRuntime,
 }
 
 linera_sdk::contract!(NativeFungibleTokenContract);
@@ -34,7 +35,10 @@ impl Contract for NativeFungibleTokenContract {
     type State = NativeFungibleToken;
 
     async fn new(state: NativeFungibleToken) -> Result<Self, Self::Error> {
-        Ok(NativeFungibleTokenContract { state })
+        Ok(NativeFungibleTokenContract {
+            state,
+            runtime: ContractRuntime::default(),
+        })
     }
 
     fn state_mut(&mut self) -> &mut Self::State {
@@ -64,7 +68,7 @@ impl Contract for NativeFungibleTokenContract {
 
     async fn execute_operation(
         &mut self,
-        runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime,
         operation: Self::Operation,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         match operation {
@@ -73,7 +77,7 @@ impl Contract for NativeFungibleTokenContract {
                 amount,
                 target_account,
             } => {
-                Self::check_account_authentication(runtime.authenticated_signer(), owner)?;
+                Self::check_account_authentication(self.runtime.authenticated_signer(), owner)?;
                 let account_owner = owner;
                 let owner = self.normalize_owner(owner);
 
@@ -91,7 +95,7 @@ impl Contract for NativeFungibleTokenContract {
                 target_account,
             } => {
                 Self::check_account_authentication(
-                    runtime.authenticated_signer(),
+                    self.runtime.authenticated_signer(),
                     source_account.owner,
                 )?;
 
@@ -117,7 +121,7 @@ impl Contract for NativeFungibleTokenContract {
     // to be the only message used here, simple message (no authentication, not tracked)
     async fn execute_message(
         &mut self,
-        runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime,
         message: Self::Message,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Messages for now don't do anything, just pass messages around
@@ -136,7 +140,7 @@ impl Contract for NativeFungibleTokenContract {
                 amount,
                 target_account,
             } => {
-                Self::check_account_authentication(runtime.authenticated_signer(), owner)?;
+                Self::check_account_authentication(self.runtime.authenticated_signer(), owner)?;
                 Ok(self.get_transfer_outcome(owner, target_account, amount))
             }
         }
@@ -144,7 +148,7 @@ impl Contract for NativeFungibleTokenContract {
 
     async fn handle_application_call(
         &mut self,
-        runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime,
         call: ApplicationCall,
         _forwarded_sessions: Vec<SessionId>,
     ) -> Result<
@@ -166,7 +170,7 @@ impl Contract for NativeFungibleTokenContract {
                 amount,
                 destination,
             } => {
-                Self::check_account_authentication(runtime.authenticated_signer(), owner)?;
+                Self::check_account_authentication(self.runtime.authenticated_signer(), owner)?;
                 let account_owner = owner;
                 let owner = self.normalize_owner(owner);
 
@@ -188,7 +192,7 @@ impl Contract for NativeFungibleTokenContract {
                 target_account,
             } => {
                 Self::check_account_authentication(
-                    runtime.authenticated_signer(),
+                    self.runtime.authenticated_signer(),
                     source_account.owner,
                 )?;
 
