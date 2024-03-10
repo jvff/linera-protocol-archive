@@ -36,7 +36,7 @@ macro_rules! contract {
                     let argument = serde_json::from_slice(&argument)?;
 
                     application
-                        .initialize(&mut $crate::ContractRuntime::default(), argument)
+                        .initialize(argument)
                         .await
                         .map(|outcome| (application, outcome.into_raw()))
                 },
@@ -54,7 +54,7 @@ macro_rules! contract {
                         bcs::from_bytes(&operation)?;
 
                     application
-                        .execute_operation(&mut $crate::ContractRuntime::default(), operation)
+                        .execute_operation(operation)
                         .await
                         .map(|outcome| (application, outcome.into_raw()))
                 },
@@ -72,7 +72,7 @@ macro_rules! contract {
                         bcs::from_bytes(&message)?;
 
                     application
-                        .execute_message(&mut $crate::ContractRuntime::default(), message)
+                        .execute_message(message)
                         .await
                         .map(|outcome| (application, outcome.into_raw()))
                 },
@@ -95,11 +95,7 @@ macro_rules! contract {
                         .collect();
 
                     application
-                        .handle_application_call(
-                            &mut $crate::ContractRuntime::default(),
-                            argument,
-                            forwarded_sessions,
-                        )
+                        .handle_application_call(argument, forwarded_sessions)
                         .await
                         .map(|outcome| (application, outcome.into_raw()))
                 },
@@ -125,12 +121,7 @@ macro_rules! contract {
                         .collect();
 
                     application
-                        .handle_session_call(
-                            &mut $crate::ContractRuntime::default(),
-                            session_state,
-                            argument,
-                            forwarded_sessions,
-                        )
+                        .handle_session_call(session_state, argument, forwarded_sessions)
                         .await
                         .map(|outcome| (application, outcome.into_raw()))
                 },

@@ -48,7 +48,6 @@ impl Contract for AmmContract {
 
     async fn initialize(
         &mut self,
-        _runtime: &mut ContractRuntime,
         _argument: (),
     ) -> Result<ExecutionOutcome<Self::Message>, AmmError> {
         // Validate that the application parameters were configured correctly.
@@ -59,7 +58,6 @@ impl Contract for AmmContract {
 
     async fn execute_operation(
         &mut self,
-        _runtime: &mut ContractRuntime,
         operation: Self::Operation,
     ) -> Result<ExecutionOutcome<Self::Message>, AmmError> {
         let mut outcome = ExecutionOutcome::default();
@@ -74,7 +72,6 @@ impl Contract for AmmContract {
 
     async fn execute_message(
         &mut self,
-        _runtime: &mut ContractRuntime,
         message: Self::Message,
     ) -> Result<ExecutionOutcome<Self::Message>, AmmError> {
         ensure!(
@@ -102,7 +99,6 @@ impl Contract for AmmContract {
 
     async fn handle_application_call(
         &mut self,
-        _runtime: &mut ContractRuntime,
         application_call: ApplicationCall,
         _forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallOutcome<Self::Message, Self::Response, Self::SessionState>, AmmError>
@@ -135,7 +131,6 @@ impl Contract for AmmContract {
 
     async fn handle_session_call(
         &mut self,
-        _runtime: &mut ContractRuntime,
         _session: (),
         _argument: (),
         _forwarded_sessions: Vec<SessionId>,
