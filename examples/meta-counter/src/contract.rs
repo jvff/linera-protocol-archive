@@ -12,11 +12,12 @@ use linera_sdk::{
     ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, OutgoingMessage,
     Resources, SessionCallOutcome, SimpleStateStorage,
 };
-use meta_counter::{Message, Operation};
+use meta_counter::{Message, MetaCounterAbi, Operation};
 use thiserror::Error;
 
 pub struct MetaCounterContract {
     state: MetaCounter,
+    runtime: ContractRuntime,
 }
 
 linera_sdk::contract!(MetaCounterContract);
@@ -28,7 +29,7 @@ impl MetaCounterContract {
 }
 
 impl WithContractAbi for MetaCounterContract {
-    type Abi = meta_counter::MetaCounterAbi;
+    type Abi = MetaCounterAbi;
 }
 
 #[async_trait]
@@ -38,7 +39,10 @@ impl Contract for MetaCounterContract {
     type State = MetaCounter;
 
     async fn new(state: MetaCounter) -> Result<Self, Self::Error> {
-        Ok(MetaCounterContract { state })
+        Ok(MetaCounterContract {
+            state,
+            runtime: ContractRuntime::default(),
+        })
     }
 
     fn state_mut(&mut self) -> &mut Self::State {
@@ -47,7 +51,7 @@ impl Contract for MetaCounterContract {
 
     async fn initialize(
         &mut self,
-        runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime,
         _argument: (),
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         // Validate that the application parameters were configured correctly.
@@ -56,7 +60,10 @@ impl Contract for MetaCounterContract {
         Self::counter_id()?;
         // Send a no-op message to ourselves. This is only for testing contracts that send messages
         // on initialization. Since the value is 0 it does not change the counter value.
-        Ok(ExecutionOutcome::default().with_message(runtime.chain_id(), Message::Increment(0)))
+        Ok(
+            ExecutionOutcome::default()
+                .with_message(self.runtime.chain_id(), Message::Increment(0)),
+        )
     }
 
     async fn execute_operation(
@@ -89,10 +96,11 @@ impl Contract for MetaCounterContract {
 
     async fn execute_message(
         &mut self,
-        runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime,
         message: Message,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
-        let is_bouncing = runtime
+        let is_bouncing = self
+            .runtime
             .message_is_bouncing()
             .expect("Message delivery status has to be available when executing a message");
         if is_bouncing {

@@ -13,7 +13,7 @@ use linera_sdk::{
     ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, SessionCallOutcome,
     ViewStateStorage,
 };
-use social::{Key, Message, Operation, OwnPost};
+use social::{Key, Message, Operation, OwnPost, SocialAbi};
 use state::Social;
 use thiserror::Error;
 
@@ -24,12 +24,13 @@ const RECENT_POSTS: usize = 10;
 
 pub struct SocialContract {
     state: Social,
+    runtime: ContractRuntime,
 }
 
 linera_sdk::contract!(SocialContract);
 
 impl WithContractAbi for SocialContract {
-    type Abi = social::SocialAbi;
+    type Abi = SocialAbi;
 }
 
 #[async_trait]
@@ -39,7 +40,10 @@ impl Contract for SocialContract {
     type State = Social;
 
     async fn new(state: Social) -> Result<Self, Self::Error> {
-        Ok(SocialContract { state })
+        Ok(SocialContract {
+            state,
+            runtime: ContractRuntime::default(),
+        })
     }
 
     fn state_mut(&mut self) -> &mut Self::State {
@@ -75,11 +79,12 @@ impl Contract for SocialContract {
 
     async fn execute_message(
         &mut self,
-        runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime,
         message: Message,
     ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
         let mut outcome = ExecutionOutcome::default();
-        let message_id = runtime
+        let message_id = self
+            .runtime
             .message_id()
             .expect("Message ID has to be available when executing a message");
         match message {

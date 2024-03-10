@@ -6,7 +6,7 @@
 mod state;
 
 use self::state::Amm;
-use amm::{AmmError, ApplicationCall, Message, Operation};
+use amm::{AmmAbi, AmmError, ApplicationCall, Message, Operation};
 use async_trait::async_trait;
 use fungible::{Account, Destination, FungibleTokenAbi};
 use linera_sdk::{
@@ -20,12 +20,13 @@ use num_traits::{cast::FromPrimitive, ToPrimitive};
 
 pub struct AmmContract {
     state: Amm,
+    runtime: ContractRuntime,
 }
 
 linera_sdk::contract!(AmmContract);
 
 impl WithContractAbi for AmmContract {
-    type Abi = amm::AmmAbi;
+    type Abi = AmmAbi;
 }
 
 #[async_trait]
@@ -35,7 +36,10 @@ impl Contract for AmmContract {
     type State = Amm;
 
     async fn new(state: Amm) -> Result<Self, Self::Error> {
-        Ok(AmmContract { state })
+        Ok(AmmContract {
+            state,
+            runtime: ContractRuntime::default(),
+        })
     }
 
     fn state_mut(&mut self) -> &mut Self::State {
@@ -55,11 +59,11 @@ impl Contract for AmmContract {
 
     async fn execute_operation(
         &mut self,
-        runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime,
         operation: Self::Operation,
     ) -> Result<ExecutionOutcome<Self::Message>, AmmError> {
         let mut outcome = ExecutionOutcome::default();
-        if runtime.chain_id() == runtime.application_id().creation.chain_id {
+        if self.runtime.chain_id() == self.runtime.application_id().creation.chain_id {
             self.execute_order_local(operation)?;
         } else {
             self.execute_order_remote(&mut outcome, operation)?;
@@ -70,11 +74,11 @@ impl Contract for AmmContract {
 
     async fn execute_message(
         &mut self,
-        runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime,
         message: Self::Message,
     ) -> Result<ExecutionOutcome<Self::Message>, AmmError> {
         ensure!(
-            runtime.chain_id() == runtime.application_id().creation.chain_id,
+            self.runtime.chain_id() == self.runtime.application_id().creation.chain_id,
             AmmError::AmmChainOnly
         );
 
@@ -84,7 +88,11 @@ impl Contract for AmmContract {
                 input_token_idx,
                 input_amount,
             } => {
-                Self::check_account_authentication(None, runtime.authenticated_signer(), owner)?;
+                Self::check_account_authentication(
+                    None,
+                    self.runtime.authenticated_signer(),
+                    owner,
+                )?;
                 self.execute_swap(owner, input_token_idx, input_amount)?;
             }
         }
@@ -94,7 +102,7 @@ impl Contract for AmmContract {
 
     async fn handle_application_call(
         &mut self,
-        runtime: &mut ContractRuntime,
+        _runtime: &mut ContractRuntime,
         application_call: ApplicationCall,
         _forwarded_sessions: Vec<SessionId>,
     ) -> Result<ApplicationCallOutcome<Self::Message, Self::Response, Self::SessionState>, AmmError>
@@ -107,11 +115,11 @@ impl Contract for AmmContract {
                 input_amount,
             } => {
                 Self::check_account_authentication(
-                    runtime.authenticated_caller_id(),
-                    runtime.authenticated_signer(),
+                    self.runtime.authenticated_caller_id(),
+                    self.runtime.authenticated_signer(),
                     owner,
                 )?;
-                if runtime.chain_id() == runtime.application_id().creation.chain_id {
+                if self.runtime.chain_id() == self.runtime.application_id().creation.chain_id {
                     self.execute_swap(owner, input_token_idx, input_amount)?;
                 } else {
                     self.execute_application_call_remote(
