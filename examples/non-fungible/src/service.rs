@@ -50,16 +50,14 @@ impl NonFungibleToken {
         let mut result = BTreeMap::new();
         let owned_token_ids = self.owners.get(&owner).await?;
 
-        if let Some(owned_token_ids) = owned_token_ids {
-            for token_id in owned_token_ids {
-                result.insert(
-                    token_id.clone(),
-                    self.nfts
-                        .get(&token_id)
-                        .await?
-                        .expect("Token Id should be present here!"),
-                );
-            }
+        for token_id in owned_token_ids.into_iter().flatten() {
+            result.insert(
+                token_id.clone(),
+                self.nfts
+                    .get(&token_id)
+                    .await?
+                    .expect("Token Id should be present here!"),
+            );
         }
 
         Ok(result)
