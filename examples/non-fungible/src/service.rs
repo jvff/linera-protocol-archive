@@ -108,19 +108,18 @@ impl QueryRoot {
     async fn owned_token_ids_by_owner(&self, owner: AccountOwner) -> BTreeSet<String> {
         use base64::engine::{general_purpose::STANDARD_NO_PAD, Engine as _};
 
-        let mut new_token_ids = BTreeSet::new();
         let token_ids = self
             .non_fungible_token
             .owned_token_ids
             .get(&owner)
             .await
             .unwrap();
-        for token_id in token_ids.into_iter().flatten() {
-            let new_token_id = STANDARD_NO_PAD.encode(token_id.id);
-            new_token_ids.insert(new_token_id);
-        }
 
-        new_token_ids
+        token_ids
+            .into_iter()
+            .flatten()
+            .map(|token_id| STANDARD_NO_PAD.encode(token_id.id))
+            .collect()
     }
 
     async fn owned_token_ids(&self) -> BTreeMap<AccountOwner, BTreeSet<String>> {
@@ -130,11 +129,10 @@ impl QueryRoot {
         self.non_fungible_token
             .owned_token_ids
             .for_each_index_value(|owner, token_ids| {
-                let mut new_token_ids = BTreeSet::new();
-
-                for token_id in token_ids {
-                    new_token_ids.insert(STANDARD_NO_PAD.encode(token_id.id));
-                }
+                let new_token_ids = token_ids
+                    .into_iter()
+                    .map(|token_id| STANDARD_NO_PAD.encode(token_id.id))
+                    .collect::<BTreeSet<_>>();
 
                 owners.insert(owner, new_token_ids);
                 Ok(())
