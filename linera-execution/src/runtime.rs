@@ -389,7 +389,10 @@ impl SyncRuntimeInternal<UserContractInstance> {
 
         ensure!(
             !self.is_finalizing,
-            ExecutionError::CrossApplicationCallInFinalize(callee_id)
+            ExecutionError::CrossApplicationCallInFinalize {
+                caller_id: self.current_application().id,
+                callee_id,
+            }
         );
 
         // Load the application.

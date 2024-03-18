@@ -120,8 +120,14 @@ pub enum ExecutionError {
 
     #[error("Attempted to perform a reentrant call to application {0}")]
     ReentrantCall(UserApplicationId),
-    #[error("Application {0} attempted to perform a cross-application call from `finalize`")]
-    CrossApplicationCallInFinalize(UserApplicationId),
+    #[error(
+        "Application {callee_id} attempted to perform a cross-application to {callee_id} call \
+        from `finalize`"
+    )]
+    CrossApplicationCallInFinalize {
+        caller_id: UserApplicationId,
+        callee_id: UserApplicationId,
+    },
     #[error("Failed to load bytecode from storage {0:?}")]
     ApplicationBytecodeNotFound(Box<UserApplicationDescription>),
 
