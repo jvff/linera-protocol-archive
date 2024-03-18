@@ -125,8 +125,8 @@ pub enum ExecutionError {
         from `finalize`"
     )]
     CrossApplicationCallInFinalize {
-        caller_id: UserApplicationId,
-        callee_id: UserApplicationId,
+        caller_id: Box<UserApplicationId>,
+        callee_id: Box<UserApplicationId>,
     },
     #[error("Failed to load bytecode from storage {0:?}")]
     ApplicationBytecodeNotFound(Box<UserApplicationDescription>),

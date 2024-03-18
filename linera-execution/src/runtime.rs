@@ -390,8 +390,8 @@ impl SyncRuntimeInternal<UserContractInstance> {
         ensure!(
             !self.is_finalizing,
             ExecutionError::CrossApplicationCallInFinalize {
-                caller_id: self.current_application().id,
-                callee_id,
+                caller_id: Box::new(self.current_application().id),
+                callee_id: Box::new(callee_id),
             }
         );
 
