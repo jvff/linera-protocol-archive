@@ -224,6 +224,9 @@ pub trait Contract: WithContractAbi + ContractAbi + Send + Sized {
     /// This is called once before a transaction ends, to allow all applications that participated
     /// in the transaction to perform any final operations, and optionally it may also cancel the
     /// transaction if there are any pendencies.
+    ///
+    /// The default implementation persists the state, so if this method is overriden, care must be
+    /// taken to persist the state manually.
     async fn finalize(
         &mut self,
         _runtime: &mut ContractRuntime,
