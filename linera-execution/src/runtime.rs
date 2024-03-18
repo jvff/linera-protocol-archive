@@ -1021,6 +1021,8 @@ impl ContractSyncRuntime {
             .into_iter()
             .rev();
 
+        self.inner().is_finalizing = true;
+
         for application in applications {
             self.execute(application, context.authenticated_signer, |contract| {
                 contract.finalize(context)
