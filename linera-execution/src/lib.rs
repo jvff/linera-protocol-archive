@@ -121,7 +121,7 @@ pub enum ExecutionError {
     #[error("Attempted to perform a reentrant call to application {0}")]
     ReentrantCall(UserApplicationId),
     #[error(
-        "Application {callee_id} attempted to perform a cross-application to {callee_id} call \
+        "Application {caller_id} attempted to perform a cross-application to {callee_id} call \
         from `finalize`"
     )]
     CrossApplicationCallInFinalize {
