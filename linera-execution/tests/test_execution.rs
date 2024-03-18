@@ -603,8 +603,7 @@ async fn test_cross_application_call_from_finalize() -> anyhow::Result<()> {
     assert_matches!(
         result,
         Err(ExecutionError::CrossApplicationCallInFinalize { caller_id, callee_id })
-            if caller_id == expected_caller_id
-            && callee_id == expected_callee_id
+            if *caller_id == expected_caller_id && *callee_id == expected_callee_id
     );
 
     Ok(())
