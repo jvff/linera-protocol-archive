@@ -21,10 +21,9 @@ use linera_base::{
     ownership::ChainOwnership,
 };
 use linera_views::batch::Batch;
-use linked_hash_map::LinkedHashMap;
 use oneshot::Receiver;
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::{hash_map, BTreeMap, HashMap, HashSet},
     sync::{Arc, Mutex},
 };
 
@@ -62,7 +61,7 @@ pub struct SyncRuntimeInternal<UserInstance> {
     is_finalizing: bool,
 
     /// Application instances loaded in this transaction.
-    loaded_applications: LinkedHashMap<UserApplicationId, LoadedApplication<UserInstance>>,
+    loaded_applications: HashMap<UserApplicationId, LoadedApplication<UserInstance>>,
     /// The current stack of application descriptions.
     call_stack: Vec<ApplicationStatus>,
     /// The set of the IDs of the applications that are in the `call_stack`.
@@ -285,7 +284,7 @@ impl<UserInstance> SyncRuntimeInternal<UserInstance> {
             executing_message,
             execution_state_sender,
             is_finalizing: false,
-            loaded_applications: LinkedHashMap::new(),
+            loaded_applications: HashMap::new(),
             call_stack: Vec::new(),
             active_applications: HashSet::new(),
             execution_outcomes: Vec::default(),
@@ -357,7 +356,7 @@ impl SyncRuntimeInternal<UserContractInstance> {
         id: UserApplicationId,
     ) -> Result<LoadedApplication<UserContractInstance>, ExecutionError> {
         match self.loaded_applications.entry(id) {
-            linked_hash_map::Entry::Vacant(entry) => {
+            hash_map::Entry::Vacant(entry) => {
                 let (code, description) = self
                     .execution_state_sender
                     .send_request(|callback| Request::LoadContract { id, callback })?
@@ -368,7 +367,7 @@ impl SyncRuntimeInternal<UserContractInstance> {
                     .insert(LoadedApplication::new(instance, description))
                     .clone())
             }
-            linked_hash_map::Entry::Occupied(entry) => Ok(entry.get().clone()),
+            hash_map::Entry::Occupied(entry) => Ok(entry.get().clone()),
         }
     }
 
@@ -596,7 +595,7 @@ impl SyncRuntimeInternal<UserServiceInstance> {
         id: UserApplicationId,
     ) -> Result<LoadedApplication<UserServiceInstance>, ExecutionError> {
         match self.loaded_applications.entry(id) {
-            linked_hash_map::Entry::Vacant(entry) => {
+            hash_map::Entry::Vacant(entry) => {
                 let (code, description) = self
                     .execution_state_sender
                     .send_request(|callback| Request::LoadService { id, callback })?
@@ -607,7 +606,7 @@ impl SyncRuntimeInternal<UserServiceInstance> {
                     .insert(LoadedApplication::new(instance, description))
                     .clone())
             }
-            linked_hash_map::Entry::Occupied(entry) => Ok(entry.get().clone()),
+            hash_map::Entry::Occupied(entry) => Ok(entry.get().clone()),
         }
     }
 }
