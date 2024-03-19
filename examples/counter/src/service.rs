@@ -7,7 +7,7 @@ mod state;
 
 use self::state::Counter;
 use async_graphql::{EmptySubscription, Object, Request, Response, Schema};
-use linera_sdk::{base::WithServiceAbi, Service, ServiceRuntime, SimpleStateStorage};
+use linera_sdk::{base::WithServiceAbi, Service, SimpleStateStorage};
 use thiserror::Error;
 
 pub struct CounterService {
@@ -29,11 +29,7 @@ impl Service for CounterService {
         Ok(CounterService { state })
     }
 
-    async fn handle_query(
-        &self,
-        _runtime: &ServiceRuntime,
-        request: Request,
-    ) -> Result<Response, Self::Error> {
+    async fn handle_query(&self, request: Request) -> Result<Response, Self::Error> {
         let schema = Schema::build(
             QueryRoot {
                 value: self.state.value,
@@ -79,7 +75,7 @@ mod tests {
     use super::{Counter, CounterService};
     use async_graphql::{Request, Response, Value};
     use futures::FutureExt;
-    use linera_sdk::{Service, ServiceRuntime};
+    use linera_sdk::Service;
     use serde_json::json;
     use webassembly_test::webassembly_test;
 
@@ -94,7 +90,7 @@ mod tests {
         let request = Request::new("{ value }");
 
         let result = service
-            .handle_query(&ServiceRuntime::default(), request)
+            .handle_query(request)
             .now_or_never()
             .expect("Query should not await anything");
 

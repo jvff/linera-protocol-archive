@@ -7,9 +7,7 @@ mod state;
 
 use crate::state::{MatchingEngine, MatchingEngineError};
 use async_graphql::{EmptySubscription, Request, Response, Schema};
-use linera_sdk::{
-    base::WithServiceAbi, graphql::GraphQLMutationRoot, Service, ServiceRuntime, ViewStateStorage,
-};
+use linera_sdk::{base::WithServiceAbi, graphql::GraphQLMutationRoot, Service, ViewStateStorage};
 use matching_engine::Operation;
 use std::sync::Arc;
 
@@ -34,11 +32,7 @@ impl Service for MatchingEngineService {
         })
     }
 
-    async fn handle_query(
-        &self,
-        _runtime: &ServiceRuntime,
-        request: Request,
-    ) -> Result<Response, Self::Error> {
+    async fn handle_query(&self, request: Request) -> Result<Response, Self::Error> {
         let schema = Schema::build(
             self.state.clone(),
             Operation::mutation_root(),

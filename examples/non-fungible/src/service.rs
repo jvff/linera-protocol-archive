@@ -11,7 +11,7 @@ use base64::engine::{general_purpose::STANDARD_NO_PAD, Engine as _};
 use fungible::Account;
 use linera_sdk::{
     base::{AccountOwner, WithServiceAbi},
-    Service, ServiceRuntime, ViewStateStorage,
+    Service, ViewStateStorage,
 };
 use non_fungible::{NftOutput, Operation, TokenId};
 use std::{
@@ -41,11 +41,7 @@ impl Service for NonFungibleTokenService {
         })
     }
 
-    async fn handle_query(
-        &self,
-        _runtime: &ServiceRuntime,
-        request: Request,
-    ) -> Result<Response, Self::Error> {
+    async fn handle_query(&self, request: Request) -> Result<Response, Self::Error> {
         let schema = Schema::build(
             QueryRoot {
                 non_fungible_token: self.state.clone(),
