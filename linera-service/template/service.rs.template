@@ -7,8 +7,8 @@ use linera_sdk::{{base::WithServiceAbi, Service, ServiceRuntime, ViewStateStorag
 use thiserror::Error;
 
 pub struct ApplicationService {{
-    state: Application,
-    runtime: ServiceRuntime,
+    _state: Application,
+    _runtime: ServiceRuntime,
 }}
 
 linera_sdk::service!(ApplicationService);
@@ -24,8 +24,8 @@ impl Service for ApplicationService {{
 
     async fn new(state: Self::State) -> Result<Self, Self::Error> {{
         Ok(ApplicationService {{
-            state,
-            runtime: ServiceRuntime::default(),
+            _state: state,
+            _runtime: ServiceRuntime::default(),
         }})
     }}
 
