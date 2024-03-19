@@ -8,9 +8,7 @@ mod state;
 use async_graphql::{EmptySubscription, Request, Response, Schema};
 use crowd_funding::Operation;
 
-use linera_sdk::{
-    base::WithServiceAbi, graphql::GraphQLMutationRoot, Service, ServiceRuntime, ViewStateStorage,
-};
+use linera_sdk::{base::WithServiceAbi, graphql::GraphQLMutationRoot, Service, ViewStateStorage};
 use state::CrowdFunding;
 use std::sync::Arc;
 use thiserror::Error;
@@ -36,11 +34,7 @@ impl Service for CrowdFundingService {
         })
     }
 
-    async fn handle_query(
-        &self,
-        _runtime: &ServiceRuntime,
-        request: Request,
-    ) -> Result<Response, Self::Error> {
+    async fn handle_query(&self, request: Request) -> Result<Response, Self::Error> {
         let schema = Schema::build(
             self.state.clone(),
             Operation::mutation_root(),
