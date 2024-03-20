@@ -10,7 +10,6 @@ use async_trait::async_trait;
 use fungible::Account;
 use linera_sdk::{
     base::{AccountOwner, WithContractAbi},
-    contract::system_api,
     ensure, ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, ViewStateStorage,
 };
 use non_fungible::{Message, Nft, Operation, TokenId};
@@ -85,7 +84,7 @@ impl Contract for NonFungibleTokenContract {
             } => {
                 self.check_account_authentication(source_account.owner)?;
 
-                if source_account.chain_id == system_api::current_chain_id() {
+                if source_account.chain_id == self.runtime.chain_id() {
                     let nft = self.get_nft(&token_id).await;
                     self.check_account_authentication(nft.owner)?;
 
@@ -176,8 +175,7 @@ impl Contract for NonFungibleTokenContract {
             } => {
                 self.check_account_authentication(source_account.owner)?;
 
-                let execution_outcome = if source_account.chain_id == system_api::current_chain_id()
-                {
+                let execution_outcome = if source_account.chain_id == self.runtime.chain_id() {
                     let nft = self.get_nft(&token_id).await;
                     self.check_account_authentication(nft.owner)?;
 
@@ -224,7 +222,7 @@ impl NonFungibleTokenContract {
         target_account: Account,
     ) -> ExecutionOutcome<Message> {
         self.remove_nft(&nft).await;
-        if target_account.chain_id == system_api::current_chain_id() {
+        if target_account.chain_id == self.runtime.chain_id() {
             nft.owner = target_account.owner;
             self.add_nft(nft).await;
             ExecutionOutcome::default()
@@ -254,8 +252,8 @@ impl NonFungibleTokenContract {
         payload: Vec<u8>,
     ) -> ExecutionOutcome<Message> {
         let token_id = Nft::create_token_id(
-            &system_api::current_chain_id(),
-            &system_api::current_application_id(),
+            &self.runtime.chain_id(),
+            &self.runtime.application_id(),
             &name,
             &owner,
             &payload,
