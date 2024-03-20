@@ -34,11 +34,8 @@ impl Contract for NonFungibleTokenContract {
     type Storage = ViewStateStorage<Self>;
     type State = NonFungibleToken;
 
-    async fn new(state: NonFungibleToken) -> Result<Self, Self::Error> {
-        Ok(NonFungibleTokenContract {
-            state,
-            runtime: ContractRuntime::default(),
-        })
+    async fn new(state: NonFungibleToken, runtime: ContractRuntime) -> Result<Self, Self::Error> {
+        Ok(NonFungibleTokenContract { state, runtime })
     }
 
     fn state_mut(&mut self) -> &mut Self::State {

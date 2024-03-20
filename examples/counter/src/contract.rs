@@ -8,7 +8,8 @@ mod state;
 use self::state::Counter;
 use async_trait::async_trait;
 use linera_sdk::{
-    base::WithContractAbi, ApplicationCallOutcome, Contract, ExecutionOutcome, SimpleStateStorage,
+    base::WithContractAbi, ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome,
+    SimpleStateStorage,
 };
 use thiserror::Error;
 
