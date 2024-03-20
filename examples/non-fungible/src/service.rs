@@ -11,7 +11,7 @@ use base64::engine::{general_purpose::STANDARD_NO_PAD, Engine as _};
 use fungible::Account;
 use linera_sdk::{
     base::{AccountOwner, WithServiceAbi},
-    Service, ViewStateStorage,
+    Service, ServiceRuntime, ViewStateStorage,
 };
 use non_fungible::{NftOutput, Operation, TokenId};
 use std::{
@@ -35,7 +35,7 @@ impl Service for NonFungibleTokenService {
     type Storage = ViewStateStorage<Self>;
     type State = NonFungibleToken;
 
-    async fn new(state: Self::State) -> Result<Self, Self::Error> {
+    async fn new(state: Self::State, _runtime: ServiceRuntime) -> Result<Self, Self::Error> {
         Ok(NonFungibleTokenService {
             state: Arc::new(state),
         })

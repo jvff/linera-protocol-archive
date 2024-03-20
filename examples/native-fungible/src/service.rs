@@ -14,7 +14,7 @@ use linera_sdk::{
     base::{AccountOwner, Amount, WithServiceAbi},
     graphql::GraphQLMutationRoot,
     service::system_api,
-    Service, ViewStateStorage,
+    Service, ServiceRuntime, ViewStateStorage,
 };
 use native_fungible::TICKER_SYMBOL;
 use std::sync::Arc;
@@ -35,7 +35,7 @@ impl Service for NativeFungibleTokenService {
     type Storage = ViewStateStorage<Self>;
     type State = NativeFungibleToken;
 
-    async fn new(state: Self::State) -> Result<Self, Self::Error> {
+    async fn new(state: Self::State, _runtime: ServiceRuntime) -> Result<Self, Self::Error> {
         Ok(NativeFungibleTokenService {
             state: Arc::new(state),
         })

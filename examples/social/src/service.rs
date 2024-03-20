@@ -7,7 +7,8 @@ mod state;
 
 use async_graphql::{EmptySubscription, Request, Response, Schema};
 use linera_sdk::{
-    base::WithServiceAbi, graphql::GraphQLMutationRoot, views::ViewError, Service, ViewStateStorage,
+    base::WithServiceAbi, graphql::GraphQLMutationRoot, views::ViewError, Service, ServiceRuntime,
+    ViewStateStorage,
 };
 use social::Operation;
 use state::Social;
@@ -29,7 +30,7 @@ impl Service for SocialService {
     type Storage = ViewStateStorage<Self>;
     type State = Social;
 
-    async fn new(state: Self::State) -> Result<Self, Self::Error> {
+    async fn new(state: Self::State, _runtime: ServiceRuntime) -> Result<Self, Self::Error> {
         Ok(SocialService {
             state: Arc::new(state),
         })

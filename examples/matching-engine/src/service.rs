@@ -7,7 +7,9 @@ mod state;
 
 use crate::state::{MatchingEngine, MatchingEngineError};
 use async_graphql::{EmptySubscription, Request, Response, Schema};
-use linera_sdk::{base::WithServiceAbi, graphql::GraphQLMutationRoot, Service, ViewStateStorage};
+use linera_sdk::{
+    base::WithServiceAbi, graphql::GraphQLMutationRoot, Service, ServiceRuntime, ViewStateStorage,
+};
 use matching_engine::Operation;
 use std::sync::Arc;
 
@@ -26,7 +28,7 @@ impl Service for MatchingEngineService {
     type Storage = ViewStateStorage<Self>;
     type State = MatchingEngine;
 
-    async fn new(state: Self::State) -> Result<Self, Self::Error> {
+    async fn new(state: Self::State, _runtime: ServiceRuntime) -> Result<Self, Self::Error> {
         Ok(MatchingEngineService {
             state: Arc::new(state),
         })
