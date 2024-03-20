@@ -91,11 +91,7 @@ impl Contract for MatchingEngineContract {
             Operation::ExecuteOrder { order } => {
                 let owner = Self::get_owner(&order);
                 let chain_id = self.runtime.chain_id();
-                Self::check_account_authentication(
-                    None,
-                    self.runtime.authenticated_signer(),
-                    owner,
-                )?;
+                self.check_account_authentication(owner)?;
                 if chain_id == self.runtime.application_id().creation.chain_id {
                     self.execute_order_local(order, chain_id).await?;
                 } else {
@@ -133,11 +129,7 @@ impl Contract for MatchingEngineContract {
                     .runtime
                     .message_id()
                     .expect("Incoming message ID has to be available when executing a message");
-                Self::check_account_authentication(
-                    None,
-                    self.runtime.authenticated_signer(),
-                    owner,
-                )?;
+                self.check_account_authentication(owner)?;
                 self.execute_order_local(order, message_id.chain_id).await?;
             }
         }
@@ -155,11 +147,7 @@ impl Contract for MatchingEngineContract {
             ApplicationCall::ExecuteOrder { order } => {
                 let owner = Self::get_owner(&order);
                 let chain_id = self.runtime.chain_id();
-                Self::check_account_authentication(
-                    self.runtime.authenticated_caller_id(),
-                    self.runtime.authenticated_signer(),
-                    owner,
-                )?;
+                self.check_account_authentication(owner)?;
                 if chain_id == self.runtime.application_id().creation.chain_id {
                     self.execute_order_local(order, chain_id).await?;
                 } else {
@@ -192,15 +180,25 @@ impl MatchingEngineContract {
 
     /// authenticate the originator of the message
     fn check_account_authentication(
-        authenticated_application_id: Option<ApplicationId>,
-        authenticated_signer: Option<Owner>,
+        &mut self,
         owner: AccountOwner,
     ) -> Result<(), MatchingEngineError> {
         match owner {
-            AccountOwner::User(address) if authenticated_signer == Some(address) => Ok(()),
-            AccountOwner::Application(id) if authenticated_application_id == Some(id) => Ok(()),
-            _ => Err(MatchingEngineError::IncorrectAuthentication),
+            AccountOwner::User(address) => {
+                ensure!(
+                    self.runtime.authenticated_signer() == Some(address),
+                    AmmError::IncorrectAuthentication
+                )
+            }
+            AccountOwner::Application(id) => {
+                ensure!(
+                    self.runtime.authenticated_application_id() == Some(id),
+                    AmmError::IncorrectAuthentication
+                )
+            }
         }
+
+        Ok(())
     }
 
     /// The application engine is trading between two tokens. Those tokens are the parameters of the
