@@ -9,9 +9,9 @@ use self::state::NonFungibleToken;
 use async_trait::async_trait;
 use fungible::Account;
 use linera_sdk::{
-    base::{AccountOwner, ApplicationId, Owner, WithContractAbi},
+    base::{AccountOwner, WithContractAbi},
     contract::system_api,
-    ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, ViewStateStorage,
+    ensure, ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, ViewStateStorage,
 };
 use non_fungible::{Message, Nft, Operation, TokenId};
 use std::collections::BTreeSet;
@@ -69,18 +69,10 @@ impl Contract for NonFungibleTokenContract {
                 token_id,
                 target_account,
             } => {
-                Self::check_account_authentication(
-                    None,
-                    self.runtime.authenticated_signer(),
-                    source_owner,
-                )?;
+                self.check_account_authentication(source_owner)?;
 
                 let nft = self.get_nft(&token_id).await;
-                Self::check_account_authentication(
-                    None,
-                    self.runtime.authenticated_signer(),
-                    nft.owner,
-                )?;
+                self.check_account_authentication(nft.owner)?;
 
                 Ok(self.transfer(nft, target_account).await)
             }
@@ -90,19 +82,11 @@ impl Contract for NonFungibleTokenContract {
                 token_id,
                 target_account,
             } => {
-                Self::check_account_authentication(
-                    None,
-                    self.runtime.authenticated_signer(),
-                    source_account.owner,
-                )?;
+                self.check_account_authentication(source_account.owner)?;
 
                 if source_account.chain_id == system_api::current_chain_id() {
                     let nft = self.get_nft(&token_id).await;
-                    Self::check_account_authentication(
-                        None,
-                        self.runtime.authenticated_signer(),
-                        nft.owner,
-                    )?;
+                    self.check_account_authentication(nft.owner)?;
 
                     Ok(self.transfer(nft, target_account).await)
                 } else {
@@ -138,18 +122,10 @@ impl Contract for NonFungibleTokenContract {
                 token_id,
                 target_account,
             } => {
-                Self::check_account_authentication(
-                    None,
-                    self.runtime.authenticated_signer(),
-                    source_account.owner,
-                )?;
+                self.check_account_authentication(source_account.owner)?;
 
                 let nft = self.get_nft(&token_id).await;
-                Self::check_account_authentication(
-                    None,
-                    self.runtime.authenticated_signer(),
-                    nft.owner,
-                )?;
+                self.check_account_authentication(nft.owner)?;
 
                 Ok(self.transfer(nft, target_account).await)
             }
@@ -178,18 +154,10 @@ impl Contract for NonFungibleTokenContract {
                 token_id,
                 target_account,
             } => {
-                Self::check_account_authentication(
-                    self.runtime.authenticated_caller_id(),
-                    self.runtime.authenticated_signer(),
-                    source_owner,
-                )?;
+                self.check_account_authentication(source_owner)?;
 
                 let nft = self.get_nft(&token_id).await;
-                Self::check_account_authentication(
-                    self.runtime.authenticated_caller_id(),
-                    self.runtime.authenticated_signer(),
-                    nft.owner,
-                )?;
+                self.check_account_authentication(nft.owner)?;
 
                 let execution_outcome = self.transfer(nft, target_account).await;
                 Ok(ApplicationCallOutcome {
@@ -203,20 +171,12 @@ impl Contract for NonFungibleTokenContract {
                 token_id,
                 target_account,
             } => {
-                Self::check_account_authentication(
-                    self.runtime.authenticated_caller_id(),
-                    self.runtime.authenticated_signer(),
-                    source_account.owner,
-                )?;
+                self.check_account_authentication(source_account.owner)?;
 
                 let execution_outcome = if source_account.chain_id == system_api::current_chain_id()
                 {
                     let nft = self.get_nft(&token_id).await;
-                    Self::check_account_authentication(
-                        self.runtime.authenticated_caller_id(),
-                        self.runtime.authenticated_signer(),
-                        nft.owner,
-                    )?;
+                    self.check_account_authentication(nft.owner)?;
 
                     self.transfer(nft, target_account).await
                 } else {
@@ -234,16 +194,23 @@ impl Contract for NonFungibleTokenContract {
 
 impl NonFungibleTokenContract {
     /// Verifies that a transfer is authenticated for this local account.
-    fn check_account_authentication(
-        authenticated_application_id: Option<ApplicationId>,
-        authenticated_signer: Option<Owner>,
-        owner: AccountOwner,
-    ) -> Result<(), Error> {
+    fn check_account_authentication(&mut self, owner: AccountOwner) -> Result<(), Error> {
         match owner {
-            AccountOwner::User(address) if authenticated_signer == Some(address) => Ok(()),
-            AccountOwner::Application(id) if authenticated_application_id == Some(id) => Ok(()),
-            _ => Err(Error::IncorrectAuthentication),
+            AccountOwner::User(address) => {
+                ensure!(
+                    self.runtime.authenticated_signer() == Some(address),
+                    Error::IncorrectAuthentication
+                )
+            }
+            AccountOwner::Application(id) => {
+                ensure!(
+                    self.runtime.authenticated_caller_id() == Some(id),
+                    Error::IncorrectAuthentication
+                )
+            }
         }
+
+        Ok(())
     }
 
     /// Transfers the specified NFT to another account.
