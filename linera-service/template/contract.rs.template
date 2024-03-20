@@ -27,10 +27,10 @@ impl Contract for ApplicationContract {{
     type Storage = ViewStateStorage<Self>;
     type State = Application;
 
-    async fn new(state: Self::State) -> Result<Self, Self::Error> {{
+    async fn new(state: Self::State, runtime: ContractRuntime) -> Result<Self, Self::Error> {{
         Ok(ApplicationContract {{
             state,
-            _runtime: ContractRuntime::default(),
+            _runtime: runtime,
         }})
     }}
 

@@ -38,11 +38,8 @@ impl Contract for SocialContract {
     type Storage = ViewStateStorage<Self>;
     type State = Social;
 
-    async fn new(state: Social) -> Result<Self, Self::Error> {
-        Ok(SocialContract {
-            state,
-            runtime: ContractRuntime::default(),
-        })
+    async fn new(state: Social, runtime: ContractRuntime) -> Result<Self, Self::Error> {
+        Ok(SocialContract { state, runtime })
     }
 
     fn state_mut(&mut self) -> &mut Self::State {

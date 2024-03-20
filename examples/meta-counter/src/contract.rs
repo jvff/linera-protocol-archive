@@ -38,11 +38,8 @@ impl Contract for MetaCounterContract {
     type Storage = SimpleStateStorage<Self>;
     type State = MetaCounter;
 
-    async fn new(state: MetaCounter) -> Result<Self, Self::Error> {
-        Ok(MetaCounterContract {
-            state,
-            runtime: ContractRuntime::default(),
-        })
+    async fn new(state: MetaCounter, runtime: ContractRuntime) -> Result<Self, Self::Error> {
+        Ok(MetaCounterContract { state, runtime })
     }
 
     fn state_mut(&mut self) -> &mut Self::State {

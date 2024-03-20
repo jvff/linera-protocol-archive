@@ -33,11 +33,11 @@ impl Contract for NativeFungibleTokenContract {
     type Storage = ViewStateStorage<Self>;
     type State = NativeFungibleToken;
 
-    async fn new(state: NativeFungibleToken) -> Result<Self, Self::Error> {
-        Ok(NativeFungibleTokenContract {
-            state,
-            runtime: ContractRuntime::default(),
-        })
+    async fn new(
+        state: NativeFungibleToken,
+        runtime: ContractRuntime,
+    ) -> Result<Self, Self::Error> {
+        Ok(NativeFungibleTokenContract { state, runtime })
     }
 
     fn state_mut(&mut self) -> &mut Self::State {

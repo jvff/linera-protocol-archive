@@ -36,11 +36,8 @@ impl Contract for CrowdFundingContract {
     type Storage = ViewStateStorage<Self>;
     type State = CrowdFunding;
 
-    async fn new(state: CrowdFunding) -> Result<Self, Self::Error> {
-        Ok(CrowdFundingContract {
-            state,
-            runtime: ContractRuntime::default(),
-        })
+    async fn new(state: CrowdFunding, runtime: ContractRuntime) -> Result<Self, Self::Error> {
+        Ok(CrowdFundingContract { state, runtime })
     }
 
     fn state_mut(&mut self) -> &mut Self::State {

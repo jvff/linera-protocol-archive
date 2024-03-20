@@ -56,11 +56,8 @@ impl Contract for MatchingEngineContract {
     type Storage = ViewStateStorage<Self>;
     type State = MatchingEngine;
 
-    async fn new(state: MatchingEngine) -> Result<Self, Self::Error> {
-        Ok(MatchingEngineContract {
-            state,
-            runtime: ContractRuntime::default(),
-        })
+    async fn new(state: MatchingEngine, runtime: ContractRuntime) -> Result<Self, Self::Error> {
+        Ok(MatchingEngineContract { state, runtime })
     }
 
     fn state_mut(&mut self) -> &mut Self::State {

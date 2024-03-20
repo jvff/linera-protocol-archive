@@ -35,11 +35,8 @@ impl Contract for AmmContract {
     type Storage = ViewStateStorage<Self>;
     type State = Amm;
 
-    async fn new(state: Amm) -> Result<Self, Self::Error> {
-        Ok(AmmContract {
-            state,
-            runtime: ContractRuntime::default(),
-        })
+    async fn new(state: Amm, runtime: ContractRuntime) -> Result<Self, Self::Error> {
+        Ok(AmmContract { state, runtime })
     }
 
     fn state_mut(&mut self) -> &mut Self::State {
