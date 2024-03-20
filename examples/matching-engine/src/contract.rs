@@ -5,20 +5,19 @@
 
 mod state;
 use crate::state::{KeyBook, OrderEntry};
+use async_trait::async_trait;
+use fungible::{Account, FungibleTokenAbi};
+use linera_sdk::{
+    base::{AccountOwner, Amount, ApplicationId, ChainId, WithContractAbi},
+    contract::system_api,
+    ensure, ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, OutgoingMessage,
+    Resources, ViewStateStorage,
+};
 use matching_engine::{
     product_price_amount, ApplicationCall, Message, Operation, Order, OrderId, OrderNature, Price,
 };
 use state::{LevelView, MatchingEngine, MatchingEngineError};
 use std::cmp::min;
-
-use async_trait::async_trait;
-use fungible::{Account, FungibleTokenAbi};
-use linera_sdk::{
-    base::{AccountOwner, Amount, ApplicationId, ChainId, Owner, WithContractAbi},
-    contract::system_api,
-    ensure, ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, OutgoingMessage,
-    Resources, ViewStateStorage,
-};
 
 pub struct MatchingEngineContract {
     state: MatchingEngine,
@@ -187,13 +186,13 @@ impl MatchingEngineContract {
             AccountOwner::User(address) => {
                 ensure!(
                     self.runtime.authenticated_signer() == Some(address),
-                    AmmError::IncorrectAuthentication
+                    MatchingEngineError::IncorrectAuthentication
                 )
             }
             AccountOwner::Application(id) => {
                 ensure!(
-                    self.runtime.authenticated_application_id() == Some(id),
-                    AmmError::IncorrectAuthentication
+                    self.runtime.authenticated_caller_id() == Some(id),
+                    MatchingEngineError::IncorrectAuthentication
                 )
             }
         }

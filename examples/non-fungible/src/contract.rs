@@ -9,9 +9,9 @@ use self::state::NonFungibleToken;
 use async_trait::async_trait;
 use fungible::Account;
 use linera_sdk::{
-    base::{AccountOwner, ApplicationId, Owner, WithContractAbi},
+    base::{AccountOwner, WithContractAbi},
     contract::system_api,
-    ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, ViewStateStorage,
+    ensure, ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, ViewStateStorage,
 };
 use non_fungible::{Message, Nft, Operation, TokenId};
 use std::collections::BTreeSet;
@@ -199,13 +199,13 @@ impl NonFungibleTokenContract {
             AccountOwner::User(address) => {
                 ensure!(
                     self.runtime.authenticated_signer() == Some(address),
-                    AmmError::IncorrectAuthentication
+                    Error::IncorrectAuthentication
                 )
             }
             AccountOwner::Application(id) => {
                 ensure!(
-                    self.runtime.authenticated_application_id() == Some(id),
-                    AmmError::IncorrectAuthentication
+                    self.runtime.authenticated_caller_id() == Some(id),
+                    Error::IncorrectAuthentication
                 )
             }
         }

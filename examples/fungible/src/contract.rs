@@ -9,9 +9,9 @@ use self::state::FungibleToken;
 use async_trait::async_trait;
 use fungible::{Account, ApplicationCall, FungibleResponse, Message, Operation};
 use linera_sdk::{
-    base::{AccountOwner, Amount, ApplicationId, Owner, WithContractAbi},
+    base::{AccountOwner, Amount, WithContractAbi},
     contract::system_api,
-    ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, ViewStateStorage,
+    ensure, ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, ViewStateStorage,
 };
 use std::str::FromStr;
 use thiserror::Error;
@@ -183,13 +183,13 @@ impl FungibleTokenContract {
             AccountOwner::User(address) => {
                 ensure!(
                     self.runtime.authenticated_signer() == Some(address),
-                    AmmError::IncorrectAuthentication
+                    Error::IncorrectAuthentication
                 )
             }
             AccountOwner::Application(id) => {
                 ensure!(
-                    self.runtime.authenticated_application_id() == Some(id),
-                    AmmError::IncorrectAuthentication
+                    self.runtime.authenticated_caller_id() == Some(id),
+                    Error::IncorrectAuthentication
                 )
             }
         }

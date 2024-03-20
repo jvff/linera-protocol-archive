@@ -10,7 +10,7 @@ use amm::{AmmError, ApplicationCall, Message, Operation};
 use async_trait::async_trait;
 use fungible::{Account, FungibleTokenAbi};
 use linera_sdk::{
-    base::{AccountOwner, Amount, ApplicationId, Owner, WithContractAbi},
+    base::{AccountOwner, Amount, ApplicationId, WithContractAbi},
     contract::system_api,
     ensure, ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, OutgoingMessage,
     Resources, ViewStateStorage,
@@ -132,7 +132,7 @@ impl AmmContract {
             }
             AccountOwner::Application(id) => {
                 ensure!(
-                    self.runtime.authenticated_application_id() == Some(id),
+                    self.runtime.authenticated_caller_id() == Some(id),
                     AmmError::IncorrectAuthentication
                 )
             }

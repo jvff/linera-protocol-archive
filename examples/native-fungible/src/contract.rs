@@ -11,7 +11,7 @@ use fungible::{ApplicationCall, FungibleResponse, Message, Operation};
 use linera_sdk::{
     base::{Account, AccountOwner, Amount, Owner, WithContractAbi},
     contract::system_api,
-    ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, ViewStateStorage,
+    ensure, ApplicationCallOutcome, Contract, ContractRuntime, ExecutionOutcome, ViewStateStorage,
 };
 use native_fungible::TICKER_SYMBOL;
 use thiserror::Error;
@@ -268,7 +268,7 @@ impl NativeFungibleTokenContract {
         match owner {
             AccountOwner::User(address) => {
                 ensure!(
-                    authenticated_signer == Some(address),
+                    self.runtime.authenticated_signer() == Some(address),
                     Error::IncorrectAuthentication
                 );
                 Ok(())
