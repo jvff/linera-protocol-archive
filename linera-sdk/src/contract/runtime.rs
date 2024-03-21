@@ -123,7 +123,7 @@ where
         wit::read_chain_balance().into()
     }
 
-    /// Returns the balance of one of the chain owners.
+    /// Returns the balance of one of the accounts in this chain.
     pub fn owner_balance(&mut self, owner: Owner) -> Amount {
         wit::read_owner_balance(owner.into()).into()
     }
