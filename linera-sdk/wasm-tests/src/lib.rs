@@ -8,19 +8,22 @@
 #![cfg(test)]
 #![cfg(target_arch = "wasm32")]
 
+use async_trait::async_trait;
 use linera_sdk::{
-    abi::{ContractAbi, ServiceAbi},
+    abi::{ContractAbi, ServiceAbi, WithContractAbi},
     base::{Amount, ApplicationId, BlockHeight, BytecodeId, ChainId, MessageId, Timestamp},
-    test,
+    test::{self, test_contract_runtime},
     util::BlockingWait,
     views::ViewStorageContext,
-    ContractLogger, ContractRuntime, ServiceLogger, ServiceRuntime,
+    ApplicationCallOutcome, Contract, ContractLogger, ContractRuntime, ExecutionOutcome,
+    ServiceLogger, ServiceRuntime, SimpleStateStorage,
 };
 use linera_views::{
     map_view::MapView,
     register_view::RegisterView,
     views::{HashableView, RootView, View},
 };
+use thiserror::Error;
 use webassembly_test::webassembly_test;
 
 /// Test if the chain ID getter API is mocked successfully.
@@ -30,7 +33,7 @@ fn mock_chain_id() {
 
     test::mock_chain_id(chain_id);
 
-    assert_eq!(ContractRuntime::<Abi>::default().chain_id(), chain_id);
+    assert_eq!(test_contract_runtime::<TestApp>().chain_id(), chain_id);
     assert_eq!(ServiceRuntime::<Abi>::default().chain_id(), chain_id);
 }
 
@@ -53,7 +56,7 @@ fn mock_application_id() {
     test::mock_application_id(application_id);
 
     assert_eq!(
-        ContractRuntime::<Abi>::default().application_id(),
+        test_contract_runtime::<TestApp>().application_id(),
         application_id.with_abi()
     );
     assert_eq!(
@@ -70,7 +73,7 @@ fn mock_application_parameters() {
     test::mock_application_parameters(&parameters);
 
     assert_eq!(
-        ContractRuntime::<Abi>::default().application_parameters(),
+        test_contract_runtime::<TestApp>().application_parameters(),
         parameters
     );
     assert_eq!(
@@ -86,7 +89,7 @@ fn mock_chain_balance() {
 
     test::mock_chain_balance(balance);
 
-    assert_eq!(ContractRuntime::<Abi>::default().chain_balance(), balance);
+    assert_eq!(test_contract_runtime::<TestApp>().chain_balance(), balance);
     assert_eq!(ServiceRuntime::<Abi>::default().chain_balance(), balance);
 }
 
@@ -97,7 +100,7 @@ fn mock_system_timestamp() {
 
     test::mock_system_timestamp(timestamp);
 
-    assert_eq!(ContractRuntime::<Abi>::default().system_time(), timestamp);
+    assert_eq!(test_contract_runtime::<TestApp>().system_time(), timestamp);
     assert_eq!(ServiceRuntime::<Abi>::default().system_time(), timestamp);
 }
 
@@ -379,7 +382,7 @@ fn mock_query() {
 
 /// An application ABI to use in the tests.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct Abi;
+pub struct Abi;
 
 impl ContractAbi for Abi {
     type Parameters = Vec<u8>;
@@ -387,8 +390,6 @@ impl ContractAbi for Abi {
     type Operation = Vec<u8>;
     type Message = Vec<u8>;
     type ApplicationCall = Vec<u8>;
-    type SessionCall = Vec<u8>;
-    type SessionState = Vec<u8>;
     type Response = Vec<u8>;
 }
 
@@ -396,4 +397,63 @@ impl ServiceAbi for Abi {
     type Parameters = Vec<u8>;
     type Query = Vec<u8>;
     type QueryResponse = Vec<u8>;
+}
+
+pub struct TestApp {
+    state: (),
+}
+
+impl WithContractAbi for TestApp {
+    type Abi = Abi;
+}
+
+#[async_trait]
+impl Contract for TestApp {
+    type Error = TestAppError;
+    type Storage = SimpleStateStorage<Self>;
+    type State = ();
+
+    async fn new(state: (), _runtime: ContractRuntime<Self>) -> Result<Self, Self::Error> {
+        Ok(TestApp { state })
+    }
+
+    fn state_mut(&mut self) -> &mut Self::State {
+        &mut self.state
+    }
+
+    async fn initialize(
+        &mut self,
+        _argument: Self::InitializationArgument,
+    ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
+        Ok(ExecutionOutcome::default())
+    }
+
+    async fn execute_operation(
+        &mut self,
+        _operation: Self::Operation,
+    ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
+        Ok(ExecutionOutcome::default())
+    }
+
+    async fn execute_message(
+        &mut self,
+        _message: Self::Message,
+    ) -> Result<ExecutionOutcome<Self::Message>, Self::Error> {
+        Ok(ExecutionOutcome::default())
+    }
+
+    async fn handle_application_call(
+        &mut self,
+        _argument: Self::ApplicationCall,
+    ) -> Result<ApplicationCallOutcome<Self::Message, Self::Response>, Self::Error> {
+        Ok(ApplicationCallOutcome::default())
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum TestAppError {
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+    #[error(transparent)]
+    Bcs(#[from] bcs::Error),
 }
