@@ -80,7 +80,7 @@ where
         Self::fetch_value_through_cache(&self.chain_balance, || wit::read_chain_balance().into())
     }
 
-    /// Returns the balance of one of the chain owners.
+    /// Returns the balance of one of the accounts on this chain.
     pub fn owner_balance(&self, owner: Owner) -> Amount {
         wit::read_owner_balance(owner.into()).into()
     }
