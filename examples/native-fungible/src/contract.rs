@@ -77,7 +77,8 @@ impl Contract for NativeFungibleTokenContract {
 
                 self.runtime.transfer(Some(owner), target_account, amount);
 
-                Ok(self.transfer(account_owner, fungible_target_account, amount))
+                self.transfer(account_owner, fungible_target_account, amount);
+                Ok(())
             }
 
             Operation::Claim {
@@ -94,7 +95,8 @@ impl Contract for NativeFungibleTokenContract {
                 let target_account = self.normalize_account(target_account);
 
                 self.runtime.claim(source_account, target_account, amount);
-                Ok(self.claim(fungible_source_account, fungible_target_account, amount))
+                self.claim(fungible_source_account, fungible_target_account, amount);
+                Ok(())
             }
         }
     }
@@ -119,7 +121,8 @@ impl Contract for NativeFungibleTokenContract {
                 target_account,
             } => {
                 self.check_account_authentication(owner)?;
-                Ok(self.transfer(owner, target_account, amount))
+                self.transfer(owner, target_account, amount);
+                Ok(())
             }
         }
     }
@@ -178,7 +181,7 @@ impl Contract for NativeFungibleTokenContract {
 }
 
 impl NativeFungibleTokenContract {
-    fn transfer(&mut self, source: AccountOwner, target: fungible::Account, amount: Amount) -> () {
+    fn transfer(&mut self, source: AccountOwner, target: fungible::Account, amount: Amount) {
         if target.chain_id != self.runtime.chain_id() {
             let message = Message::Credit {
                 target: target.owner,
@@ -191,12 +194,7 @@ impl NativeFungibleTokenContract {
         }
     }
 
-    fn claim(
-        &mut self,
-        source: fungible::Account,
-        target: fungible::Account,
-        amount: Amount,
-    ) -> () {
+    fn claim(&mut self, source: fungible::Account, target: fungible::Account, amount: Amount) {
         if source.chain_id == self.runtime.chain_id() {
             self.transfer(source.owner, target, amount);
         } else {
