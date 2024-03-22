@@ -122,56 +122,6 @@ impl From<contract::ChainId> for ChainId {
     }
 }
 
-impl<'a> From<contract_system_api::OutgoingMessage<'a>> for RawOutgoingMessage<Vec<u8>, Resources> {
-    fn from(message: contract_system_api::OutgoingMessage) -> Self {
-        Self {
-            destination: message.destination.into(),
-            authenticated: message.authenticated,
-            grant: message.resources.into(),
-            kind: if message.is_tracked {
-                MessageKind::Tracked.into()
-            } else {
-                MessageKind::Simple.into()
-            },
-            message: message.message.to_vec(),
-        }
-    }
-}
-
-impl From<contract_system_api::Resources> for Resources {
-    fn from(value: contract_system_api::Resources) -> Self {
-        Self {
-            fuel: value.fuel,
-            read_operations: value.read_operations,
-            write_operations: value.write_operations,
-            bytes_to_read: value.bytes_to_read,
-            bytes_to_write: value.bytes_to_write,
-            messages: value.messages,
-            message_size: value.message_size,
-            storage_size_delta: value.storage_size_delta,
-        }
-    }
-}
-
-impl<'a> From<contract_system_api::Destination<'a>> for Destination {
-    fn from(guest: contract_system_api::Destination<'a>) -> Self {
-        match guest {
-            contract_system_api::Destination::Recipient(chain_id) => {
-                Destination::Recipient(chain_id.into())
-            }
-            contract_system_api::Destination::Subscribers(subscription) => {
-                Destination::Subscribers(subscription.into())
-            }
-        }
-    }
-}
-
-impl<'a> From<contract_system_api::ChannelName<'a>> for ChannelName {
-    fn from(guest: contract_system_api::ChannelName<'a>) -> Self {
-        guest.name.to_vec().into()
-    }
-}
-
 impl From<contract_system_api::ApplicationId> for UserApplicationId {
     fn from(guest: contract_system_api::ApplicationId) -> Self {
         UserApplicationId {
