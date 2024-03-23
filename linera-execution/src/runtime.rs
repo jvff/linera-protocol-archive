@@ -102,7 +102,7 @@ impl<UserInstance> SyncRuntimeInternal<UserInstance> {
 }
 
 /// The runtime status of an application.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 struct ApplicationStatus {
     /// The caller application ID, if forwarded during the call.
     caller_id: Option<UserApplicationId>,
