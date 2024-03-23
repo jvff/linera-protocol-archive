@@ -75,9 +75,8 @@ impl Contract for FungibleTokenContract {
             } => {
                 self.check_account_authentication(owner)?;
                 self.state.debit(owner, amount).await?;
-                Ok(self
-                    .finish_transfer_to_account(amount, target_account, owner)
-                    .await)
+                self.finish_transfer_to_account(amount, target_account, owner)
+                    .await;
             }
 
             Operation::Claim {
@@ -86,9 +85,11 @@ impl Contract for FungibleTokenContract {
                 target_account,
             } => {
                 self.check_account_authentication(source_account.owner)?;
-                self.claim(source_account, amount, target_account).await
+                self.claim(source_account, amount, target_account).await?;
             }
         }
+
+        Ok(())
     }
 
     async fn execute_message(&mut self, message: Message) -> Result<(), Self::Error> {
@@ -104,7 +105,6 @@ impl Contract for FungibleTokenContract {
                     .expect("Message delivery status has to be available when executing a message");
                 let receiver = if is_bouncing { source } else { target };
                 self.state.credit(receiver, amount).await;
-                Ok(())
             }
             Message::Withdraw {
                 owner,
@@ -113,11 +113,12 @@ impl Contract for FungibleTokenContract {
             } => {
                 self.check_account_authentication(owner)?;
                 self.state.debit(owner, amount).await?;
-                Ok(self
-                    .finish_transfer_to_account(amount, target_account, owner)
-                    .await)
+                self.finish_transfer_to_account(amount, target_account, owner)
+                    .await;
             }
         }
+
+        Ok(())
     }
 
     async fn handle_application_call(

@@ -97,6 +97,7 @@ impl Contract for NonFungibleTokenContract {
                 }
             }
         }
+
         Ok(())
     }
 
@@ -115,7 +116,6 @@ impl Contract for NonFungibleTokenContract {
                 }
 
                 self.add_nft(nft).await;
-                Ok(())
             }
 
             Message::Claim {
@@ -128,9 +128,11 @@ impl Contract for NonFungibleTokenContract {
                 let nft = self.get_nft(&token_id).await?;
                 self.check_account_authentication(nft.owner)?;
 
-                Ok(self.transfer(nft, target_account).await)
+                self.transfer(nft, target_account).await;
             }
         }
+
+        Ok(())
     }
 
     async fn handle_application_call(
