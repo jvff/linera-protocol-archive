@@ -64,7 +64,7 @@ impl Contract for NonFungibleTokenContract {
                 payload,
             } => {
                 self.check_account_authentication(minter)?;
-                self.mint(minter, name, payload).await
+                self.mint(minter, name, payload).await?;
             }
 
             Operation::Transfer {
@@ -77,7 +77,7 @@ impl Contract for NonFungibleTokenContract {
                 let nft = self.get_nft(&token_id).await?;
                 self.check_account_authentication(nft.owner)?;
 
-                Ok(self.transfer(nft, target_account).await)
+                self.transfer(nft, target_account).await;
             }
 
             Operation::Claim {
@@ -91,12 +91,13 @@ impl Contract for NonFungibleTokenContract {
                     let nft = self.get_nft(&token_id).await?;
                     self.check_account_authentication(nft.owner)?;
 
-                    Ok(self.transfer(nft, target_account).await)
+                    self.transfer(nft, target_account).await;
                 } else {
-                    Ok(self.remote_claim(source_account, token_id, target_account))
+                    self.remote_claim(source_account, token_id, target_account)
                 }
             }
         }
+        Ok(())
     }
 
     async fn execute_message(&mut self, message: Message) -> Result<(), Self::Error> {
@@ -144,7 +145,7 @@ impl Contract for NonFungibleTokenContract {
             } => {
                 self.check_account_authentication(minter)?;
 
-                self.mint(minter, name, payload).await
+                self.mint(minter, name, payload).await?;
             }
 
             Self::ApplicationCall::Transfer {
@@ -158,7 +159,6 @@ impl Contract for NonFungibleTokenContract {
                 self.check_account_authentication(nft.owner)?;
 
                 self.transfer(nft, target_account).await;
-                Ok(())
             }
 
             Self::ApplicationCall::Claim {
@@ -176,10 +176,10 @@ impl Contract for NonFungibleTokenContract {
                 } else {
                     self.remote_claim(source_account, token_id, target_account);
                 }
-
-                Ok(())
             }
         }
+
+        Ok(())
     }
 }
 
