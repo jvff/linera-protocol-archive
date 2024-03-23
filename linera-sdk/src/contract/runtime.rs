@@ -207,7 +207,7 @@ where
     Message: Serialize,
 {
     /// Creates a new [`MessageSender`] instance to send the `message` to the `destination`.
-    pub fn new(destination: Destination, message: Message) -> Self {
+    pub(crate) fn new(destination: Destination, message: Message) -> Self {
         MessageSender {
             message: SendMessageRequest {
                 destination,
