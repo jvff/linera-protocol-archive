@@ -80,6 +80,7 @@ impl Contract for MatchingEngineContract {
     /// If the chain is the one of the matching engine then the order is processed
     /// locally. Otherwise, it gets transmitted as a message to the chain of the engine.
     async fn execute_operation(&mut self, operation: Operation) -> Result<(), Self::Error> {
+        log::debug!("Operation: {operation:?}");
         match operation {
             Operation::ExecuteOrder { order } => {
                 let owner = Self::get_owner(&order);
@@ -110,6 +111,7 @@ impl Contract for MatchingEngineContract {
 
     /// Execution of the order on the creation chain
     async fn execute_message(&mut self, message: Message) -> Result<(), Self::Error> {
+        log::debug!("Message: {message:?}");
         ensure!(
             self.runtime.chain_id() == self.runtime.application_id().creation.chain_id,
             Self::Error::MatchingEngineChainOnly

@@ -43,6 +43,7 @@ impl FungibleToken {
 
     /// Credits an `account` with the provided `amount`.
     pub(crate) async fn credit(&mut self, account: AccountOwner, amount: Amount) {
+        log::debug!("Credit {amount:?} to {account:?}");
         if amount == Amount::ZERO {
             return;
         }
@@ -59,6 +60,7 @@ impl FungibleToken {
         account: AccountOwner,
         amount: Amount,
     ) -> Result<(), InsufficientBalanceError> {
+        log::debug!("Debit {amount:?} from {account:?}");
         if amount == Amount::ZERO {
             return Ok(());
         }
