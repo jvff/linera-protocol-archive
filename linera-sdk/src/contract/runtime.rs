@@ -139,7 +139,7 @@ where
         self.prepare_message(message).send_to(destination)
     }
 
-    /// Returns a [`MessageBuilder`] to prepare a message to be sent.
+    /// Returns a `MessageBuilder` to prepare a message to be sent.
     pub fn prepare_message(
         &mut self,
         message: Application::Message,
