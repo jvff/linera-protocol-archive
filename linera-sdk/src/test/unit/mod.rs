@@ -12,6 +12,8 @@
 
 #![allow(missing_docs)]
 
+mod wit;
+
 use futures::FutureExt;
 use linera_base::{
     data_types::{Amount, Timestamp},
@@ -24,7 +26,6 @@ use linera_views::{
 };
 use serde::Serialize;
 
-use self::mock_system_api as wit;
 use crate::{Contract, ContractRuntime, Service, ServiceRuntime};
 
 static mut MOCK_CHAIN_ID: Option<ChainId> = None;

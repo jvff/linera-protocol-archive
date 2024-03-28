@@ -3,10 +3,6 @@
 
 //! Functions and types to interface with the system API available to application views.
 
-<<<<<<< HEAD
-=======
-use crate::{service::wit::view_system_api as wit, util::yield_once};
->>>>>>> 3e89af2a50 (WIP)
 use async_trait::async_trait;
 use linera_base::ensure;
 use linera_views::{
@@ -15,8 +11,7 @@ use linera_views::{
     views::ViewError,
 };
 
-use super::view_system_api as wit;
-use crate::util::yield_once;
+use crate::{service::wit::view_system_api as wit, util::yield_once};
 
 /// We need to have a maximum key size that handles all possible underlying
 /// sizes. The constraint so far is DynamoDb which has a key length of 1024.

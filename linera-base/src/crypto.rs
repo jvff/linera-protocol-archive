@@ -598,6 +598,81 @@ impl WitStore for CryptoHash {
     }
 }
 
+impl WitType for PublicKey {
+    const SIZE: u32 = <(u64, u64, u64, u64) as WitType>::SIZE;
+    type Layout = <(u64, u64, u64, u64) as WitType>::Layout;
+    type Dependencies = HList![];
+
+    fn wit_type_name() -> Cow<'static, str> {
+        "public-key".into()
+    }
+
+    fn wit_type_declaration() -> Cow<'static, str> {
+        concat!(
+            "    record public-key {\n",
+            "        part1: u64,\n",
+            "        part2: u64,\n",
+            "        part3: u64,\n",
+            "        part4: u64,\n",
+            "    }\n",
+        )
+        .into()
+    }
+}
+
+impl WitLoad for PublicKey {
+    fn load<Instance>(
+        memory: &Memory<'_, Instance>,
+        location: GuestPointer,
+    ) -> Result<Self, RuntimeError>
+    where
+        Instance: InstanceWithMemory,
+        <Instance::Runtime as Runtime>::Memory: RuntimeMemory<Instance>,
+    {
+        let (a, b, c, d) = WitLoad::load(memory, location)?;
+        Ok(PublicKey::from([a, b, c, d]))
+    }
+
+    fn lift_from<Instance>(
+        flat_layout: <Self::Layout as Layout>::Flat,
+        memory: &Memory<'_, Instance>,
+    ) -> Result<Self, RuntimeError>
+    where
+        Instance: InstanceWithMemory,
+        <Instance::Runtime as Runtime>::Memory: RuntimeMemory<Instance>,
+    {
+        let (a, b, c, d) = WitLoad::lift_from(flat_layout, memory)?;
+        Ok(PublicKey::from([a, b, c, d]))
+    }
+}
+
+impl WitStore for PublicKey {
+    fn store<Instance>(
+        &self,
+        memory: &mut Memory<'_, Instance>,
+        location: GuestPointer,
+    ) -> Result<(), RuntimeError>
+    where
+        Instance: InstanceWithMemory,
+        <Instance::Runtime as Runtime>::Memory: RuntimeMemory<Instance>,
+    {
+        let [a, b, c, d] = (*self).into();
+        (a, b, c, d).store(memory, location)
+    }
+
+    fn lower<Instance>(
+        &self,
+        memory: &mut Memory<'_, Instance>,
+    ) -> Result<<Self::Layout as Layout>::Flat, RuntimeError>
+    where
+        Instance: InstanceWithMemory,
+        <Instance::Runtime as Runtime>::Memory: RuntimeMemory<Instance>,
+    {
+        let [a, b, c, d] = (*self).into();
+        (a, b, c, d).lower(memory)
+    }
+}
+
 #[cfg(with_testing)]
 impl Arbitrary for CryptoHash {
     type Parameters = ();

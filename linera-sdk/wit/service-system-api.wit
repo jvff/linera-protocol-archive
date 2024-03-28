@@ -2,38 +2,44 @@ package linera:app;
 
 interface service-system-api {
     get-chain-id: func() -> chain-id;
+    get-next-block-height: func() -> block-height;
     get-application-id: func() -> application-id;
     get-application-parameters: func() -> list<u8>;
     read-chain-balance: func() -> amount;
+    read-owner-balance: func(owner: owner) -> amount;
     read-system-timestamp: func() -> timestamp;
+    read-owner-balances: func() -> list<tuple<owner, amount>>;
+    read-balance-owners: func() -> list<owner>;
     try-query-application: func(application: application-id, argument: list<u8>) -> list<u8>;
     log: func(message: string, level: log-level);
 
-    record chain-id {
+    record owner {
         inner0: crypto-hash,
+    }
+
+    record message-id {
+        chain-id: chain-id,
+        height: block-height,
+        index: u32,
+    }
+
+    record crypto-hash {
+        part1: u64,
+        part2: u64,
+        part3: u64,
+        part4: u64,
+    }
+
+    record bytecode-id {
+        message-id: message-id,
     }
 
     record block-height {
         inner0: u64,
     }
 
-    record timestamp {
-        inner0: u64,
-    }
-
-    type u128 = tuple<u64, u64>;
-
-    record application-id {
-        bytecode-id: bytecode-id,
-        creation: message-id,
-    }
-
-    record amount {
-        inner0: u128,
-    }
-
-    record bytecode-id {
-        message-id: message-id,
+    record chain-id {
+        inner0: crypto-hash,
     }
 
     enum log-level {
@@ -44,16 +50,18 @@ interface service-system-api {
         trace,
     }
 
-    record crypto-hash {
-        part1: u64,
-        part2: u64,
-        part3: u64,
-        part4: u64,
+    record amount {
+        inner0: u128,
     }
 
-    record message-id {
-        chain-id: chain-id,
-        height: block-height,
-        index: u32,
+    type u128 = tuple<u64, u64>;
+
+    record timestamp {
+        inner0: u64,
+    }
+
+    record application-id {
+        bytecode-id: bytecode-id,
+        creation: message-id,
     }
 }

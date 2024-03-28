@@ -11,45 +11,6 @@ use std::{
 
 use futures::task;
 
-macro_rules! stack_buffer_for {
-    ($wit_type:ty) => {
-        MaybeUninit::<
-            [u8; <$wit_type as WitType>::SIZE as usize
-                + <$wit_type as WitType>::Layout::ALIGNMENT as usize],
-        >::uninit()
-    };
-}
-
-macro_rules! stack_buffer_address {
-    ($buffer:ident, $wit_type:ty) => {
-        GuestPointer::from($buffer.as_mut_ptr()).after_padding_for::<$wit_type>()
-    };
-}
-
-/// Declares the type to store one of several WIT types.
-#[macro_export]
-macro_rules! buffer_type_for {
-    ($first_wit_type:ty $( | $other_wit_types:ty )*) => {
-        std::mem::MaybeUninit<[u8; {
-            use $crate::witty::{Layout, WitType};
-
-            let mut size = <$first_wit_type as WitType>::SIZE as usize
-                + <$first_wit_type as WitType>::Layout::ALIGNMENT as usize;
-
-            $(
-                let next_size = <$other_wit_types as WitType>::SIZE as usize
-                    + <$other_wit_types as WitType>::Layout::ALIGNMENT as usize;
-
-                if next_size > size {
-                    size = next_size;
-                }
-            )*
-
-            size
-        }]>
-    };
-}
-
 /// Yields the current asynchronous task so that other tasks may progress if possible.
 ///
 /// After other tasks progress, this task resumes as soon as possible. More explicitly, it is

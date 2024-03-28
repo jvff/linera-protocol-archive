@@ -225,7 +225,7 @@ pub enum WasmExecutionError {
     LoadServiceModule(#[source] anyhow::Error),
     #[cfg(with_wasmer)]
     #[error("Failed to instantiate Wasm module: {_0}")]
-    InstantiateModuleWithWasmer(#[from] ::wasmer::InstantiationError),
+    InstantiateModuleWithWasmer(#[from] Box<::wasmer::InstantiationError>),
     #[cfg(with_wasmtime)]
     #[error("Failed to create and configure Wasmtime runtime")]
     CreateWasmtimeEngine(#[source] anyhow::Error),
@@ -243,6 +243,13 @@ pub enum WasmExecutionError {
     UnknownPromise,
     #[error("Attempt to call incorrect `wait` function for a promise")]
     IncorrectPromise,
+}
+
+#[cfg(with_wasmer)]
+impl From<::wasmer::InstantiationError> for WasmExecutionError {
+    fn from(instantiation_error: ::wasmer::InstantiationError) -> Self {
+        WasmExecutionError::InstantiateModuleWithWasmer(Box::new(instantiation_error))
+    }
 }
 
 /// This assumes that the current directory is one of the crates.

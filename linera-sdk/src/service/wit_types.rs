@@ -7,7 +7,10 @@
 
 // Export the service interface.
 wit_bindgen::generate!({
-    world: "service-entrypoints",
+    world: "service",
+    exports: {
+        "linera:app/service-entrypoints": ServiceEntrypoints,
+    },
 });
 
 pub use self::exports::linera::app::service_entrypoints::{ChainId, CryptoHash, QueryContext};

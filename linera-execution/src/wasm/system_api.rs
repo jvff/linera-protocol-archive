@@ -6,14 +6,14 @@ use std::{any::Any, collections::HashMap, marker::PhantomData};
 use linera_base::{
     data_types::{Amount, BlockHeight, SendMessageRequest, Timestamp},
     identifiers::{Account, ApplicationId, ChainId, ChannelName, MessageId, Owner},
-    ownership::ChainOwnership,
+    ownership::{ChainOwnership, CloseChainError},
 };
 use linera_views::batch::{Batch, WriteOperation};
 use linera_witty::{Instance, RuntimeError};
 use tracing::log;
 
 use super::WasmExecutionError;
-use crate::{BaseRuntime, ContractRuntime, ServiceRuntime};
+use crate::{BaseRuntime, ContractRuntime, ExecutionError, ServiceRuntime};
 
 pub struct SystemApiData<Runtime> {
     runtime: Runtime,
@@ -71,7 +71,7 @@ where
     Caller: Instance<UserData = SystemApiData<Runtime>>,
     Runtime: ContractRuntime + Send + 'static,
 {
-    fn chain_id(caller: &mut Caller) -> Result<ChainId, RuntimeError> {
+    fn get_chain_id(caller: &mut Caller) -> Result<ChainId, RuntimeError> {
         tracing::error!("chain_id");
         caller
             .user_data_mut()
@@ -80,7 +80,7 @@ where
             .map_err(|error| RuntimeError::Custom(error.into()))
     }
 
-    fn block_height(caller: &mut Caller) -> Result<BlockHeight, RuntimeError> {
+    fn get_block_height(caller: &mut Caller) -> Result<BlockHeight, RuntimeError> {
         tracing::error!("block_height");
         caller
             .user_data_mut()
@@ -89,7 +89,7 @@ where
             .map_err(|error| RuntimeError::Custom(error.into()))
     }
 
-    fn application_id(caller: &mut Caller) -> Result<ApplicationId, RuntimeError> {
+    fn get_application_id(caller: &mut Caller) -> Result<ApplicationId, RuntimeError> {
         tracing::error!("applicaiton_id");
         caller
             .user_data_mut()
@@ -125,7 +125,7 @@ where
             .map_err(|error| RuntimeError::Custom(error.into()))
     }
 
-    fn message_id(caller: &mut Caller) -> Result<Option<MessageId>, RuntimeError> {
+    fn get_message_id(caller: &mut Caller) -> Result<Option<MessageId>, RuntimeError> {
         tracing::error!("message_id");
         caller
             .user_data_mut()
@@ -161,12 +161,12 @@ where
             .map_err(|error| RuntimeError::Custom(error.into()))
     }
 
-    fn read_owner_balance(caller: &mut Caller) -> Result<Amount, RuntimeError> {
+    fn read_owner_balance(caller: &mut Caller, owner: Owner) -> Result<Amount, RuntimeError> {
         tracing::error!("read_owner_balance");
         caller
             .user_data_mut()
             .runtime
-            .read_owner_balance()
+            .read_owner_balance(owner)
             .map_err(|error| RuntimeError::Custom(error.into()))
     }
 
@@ -224,7 +224,7 @@ where
 
     fn claim(
         caller: &mut Caller,
-        source: Owner,
+        source: Account,
         destination: Account,
         amount: Amount,
     ) -> Result<(), RuntimeError> {
@@ -232,11 +232,11 @@ where
         caller
             .user_data_mut()
             .runtime
-            .transfer(source, destination, amount)
+            .claim(source, destination, amount)
             .map_err(|error| RuntimeError::Custom(error.into()))
     }
 
-    fn chain_ownership(caller: &mut Caller) -> Result<ChainOwnership, RuntimeError> {
+    fn get_chain_ownership(caller: &mut Caller) -> Result<ChainOwnership, RuntimeError> {
         tracing::error!("chain_ownership");
         caller
             .user_data_mut()
@@ -258,13 +258,15 @@ where
             .map_err(|error| RuntimeError::Custom(error.into()))
     }
 
-    fn close_chain(caller: &mut Caller) -> Result<(), RuntimeError> {
-        tracing::error!("chain_chain");
-        caller
-            .user_data_mut()
-            .runtime
-            .chain_ownership()
-            .map_err(|error| RuntimeError::Custom(error.into()))
+    fn close_chain(caller: &mut Caller) -> Result<Result<(), CloseChainError>, RuntimeError> {
+        tracing::error!("close_chain");
+        match caller.user_data_mut().runtime.close_chain() {
+            Ok(()) => Ok(Ok(())),
+            Err(ExecutionError::UnauthorizedApplication(_)) => {
+                Ok(Err(CloseChainError::NotPermitted))
+            }
+            Err(error) => Err(RuntimeError::Custom(error.into())),
+        }
     }
 
     fn try_call_application(
@@ -310,6 +312,14 @@ where
             .map_err(|error| RuntimeError::Custom(error.into()))
     }
 
+    fn get_next_block_height(caller: &mut Caller) -> Result<BlockHeight, RuntimeError> {
+        caller
+            .user_data_mut()
+            .runtime
+            .block_height()
+            .map_err(|error| RuntimeError::Custom(error.into()))
+    }
+
     fn get_application_id(caller: &mut Caller) -> Result<ApplicationId, RuntimeError> {
         caller
             .user_data_mut()
@@ -334,11 +344,35 @@ where
             .map_err(|error| RuntimeError::Custom(error.into()))
     }
 
+    fn read_owner_balance(caller: &mut Caller, owner: Owner) -> Result<Amount, RuntimeError> {
+        caller
+            .user_data_mut()
+            .runtime
+            .read_owner_balance(owner)
+            .map_err(|error| RuntimeError::Custom(error.into()))
+    }
+
     fn read_system_timestamp(caller: &mut Caller) -> Result<Timestamp, RuntimeError> {
         caller
             .user_data_mut()
             .runtime
             .read_system_timestamp()
+            .map_err(|error| RuntimeError::Custom(error.into()))
+    }
+
+    fn read_owner_balances(caller: &mut Caller) -> Result<Vec<(Owner, Amount)>, RuntimeError> {
+        caller
+            .user_data_mut()
+            .runtime
+            .read_owner_balances()
+            .map_err(|error| RuntimeError::Custom(error.into()))
+    }
+
+    fn read_balance_owners(caller: &mut Caller) -> Result<Vec<Owner>, RuntimeError> {
+        caller
+            .user_data_mut()
+            .runtime
+            .read_balance_owners()
             .map_err(|error| RuntimeError::Custom(error.into()))
     }
 

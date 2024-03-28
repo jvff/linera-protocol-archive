@@ -7,7 +7,7 @@
 
 // Export the contract interface.
 wit_bindgen::generate!({
-    world: "contract-entrypoints",
+    world: "contract",
 });
 
 pub use self::contract::{

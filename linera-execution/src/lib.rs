@@ -274,12 +274,8 @@ pub struct FinalizeContext {
 pub struct QueryContext {
     /// The current chain ID.
     pub chain_id: ChainId,
-    /// The authenticated signer of the operation, if any.
-    pub authenticated_signer: Option<Owner>,
-    /// The current block height.
-    pub height: BlockHeight,
-    /// The index of the next message to be created.
-    pub next_message_index: u32,
+    /// The height of the next block on this chain.
+    pub next_block_height: BlockHeight,
 }
 
 pub trait BaseRuntime {

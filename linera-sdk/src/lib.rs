@@ -65,10 +65,11 @@ pub use linera_base::{
 };
 #[doc(hidden)]
 pub use linera_witty as witty;
-use linera_witty::{WitLoad, WitStore, WitType};
 use serde::{de::DeserializeOwned, Serialize};
 
 use self::contract::ContractStateStorage;
+#[cfg(not(target_arch = "wasm32"))]
+pub use self::mock_system_api::MockSystemApi;
 pub use self::{
     contract::ContractRuntime,
     extensions::{FromBcsBytes, ToBcsBytes},

@@ -87,7 +87,7 @@ where
     fn configure_initial_fuel(&mut self) -> Result<(), ExecutionError> {
         let runtime = &mut self.instance.user_data_mut().runtime_mut();
         let fuel = runtime.remaining_fuel()?;
-        let context = self.instance.as_context_mut();
+        let mut context = self.instance.as_context_mut();
 
         self.initial_fuel = fuel;
 
