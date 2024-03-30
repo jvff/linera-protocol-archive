@@ -13,25 +13,19 @@ interface service-system-api {
     try-query-application: func(application: application-id, argument: list<u8>) -> list<u8>;
     log: func(message: string, level: log-level);
 
-    record owner {
-        inner0: crypto-hash,
-    }
-
     record message-id {
         chain-id: chain-id,
         height: block-height,
         index: u32,
     }
 
-    record crypto-hash {
-        part1: u64,
-        part2: u64,
-        part3: u64,
-        part4: u64,
+    record timestamp {
+        inner0: u64,
     }
 
-    record bytecode-id {
-        message-id: message-id,
+    record application-id {
+        bytecode-id: bytecode-id,
+        creation: message-id,
     }
 
     record block-height {
@@ -42,6 +36,19 @@ interface service-system-api {
         inner0: crypto-hash,
     }
 
+    record crypto-hash {
+        part1: u64,
+        part2: u64,
+        part3: u64,
+        part4: u64,
+    }
+
+    type u128 = tuple<u64, u64>;
+
+    record bytecode-id {
+        message-id: message-id,
+    }
+
     enum log-level {
         error,
         warn,
@@ -50,18 +57,11 @@ interface service-system-api {
         trace,
     }
 
+    record owner {
+        inner0: crypto-hash,
+    }
+
     record amount {
         inner0: u128,
-    }
-
-    type u128 = tuple<u64, u64>;
-
-    record timestamp {
-        inner0: u64,
-    }
-
-    record application-id {
-        bytecode-id: bytecode-id,
-        creation: message-id,
     }
 }

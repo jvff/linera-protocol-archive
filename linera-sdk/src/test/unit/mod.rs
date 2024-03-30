@@ -12,6 +12,8 @@
 
 #![allow(missing_docs)]
 
+mod conversions_from_wit;
+mod conversions_to_wit;
 mod wit;
 
 use futures::FutureExt;
@@ -32,7 +34,6 @@ static mut MOCK_CHAIN_ID: Option<ChainId> = None;
 static mut MOCK_APPLICATION_ID: Option<ApplicationId> = None;
 static mut MOCK_APPLICATION_PARAMETERS: Option<Vec<u8>> = None;
 static mut MOCK_SYSTEM_BALANCE: Option<Amount> = None;
-static mut MOCK_OWNER_BALANCE: Option<Amount> = None;
 static mut MOCK_SYSTEM_TIMESTAMP: Option<Timestamp> = None;
 static mut MOCK_LOG_COLLECTOR: Vec<(log::Level, String)> = Vec::new();
 static mut MOCK_KEY_VALUE_STORE: Option<MemoryContext<()>> = None;
@@ -73,10 +74,6 @@ pub fn mock_chain_balance(chain_balance: impl Into<Option<Amount>>) {
 }
 
 /// Sets the mocked owner balance.
-pub fn mock_owner_balance(owner_balance: impl Into<Option<Amount>>) {
-    unsafe { MOCK_OWNER_BALANCE = owner_balance.into() };
-}
-
 /// Sets the mocked system timestamp.
 pub fn mock_system_timestamp(system_timestamp: impl Into<Option<Timestamp>>) {
     unsafe { MOCK_SYSTEM_TIMESTAMP = system_timestamp.into() };
@@ -136,15 +133,6 @@ impl wit::Guest for MockSystemApi {
             .expect(
                 "Unexpected call to the `read_chain_balance` system API. \
                 Please call `mock_chain_balance` first",
-            )
-            .into()
-    }
-
-    fn mocked_read_owner_balance() -> wit::Amount {
-        unsafe { MOCK_OWNER_BALANCE }
-            .expect(
-                "Unexpected call to the `read_owner_balance` system API. \
-                Please call `mock_owner_balance` first",
             )
             .into()
     }
@@ -222,8 +210,6 @@ impl wit::Guest for MockSystemApi {
             .now_or_never()
             .expect("Attempt to write to key-value store while it is being used")
             .expect("Failed to write to memory store");
-
-        Self::mocked_unlock();
     }
 
     fn mocked_try_query_application(application: wit::ApplicationId, query: Vec<u8>) -> Vec<u8> {

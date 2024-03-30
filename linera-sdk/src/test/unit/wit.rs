@@ -12,4 +12,7 @@ wit_bindgen::generate!({
     },
 });
 
-pub(super) use self::exports::linera::app::mock_system_api::Guest;
+pub(super) use self::exports::linera::app::mock_system_api::{
+    Amount, ApplicationId, BlockHeight, BytecodeId, ChainId, CryptoHash, Guest, LogLevel,
+    MessageId, Timestamp, WriteOperation,
+};

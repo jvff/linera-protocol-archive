@@ -49,23 +49,15 @@ pub trait MockSystemApi {
     fn mocked_chain_id() -> ChainId;
     fn mocked_application_id() -> ApplicationId;
     fn mocked_application_parameters() -> Vec<u8>;
-    fn mocked_read_system_balance() -> Amount;
+    fn mocked_read_chain_balance() -> Amount;
     fn mocked_read_system_timestamp() -> Timestamp;
     fn mocked_log(message: String, level: log::Level);
-    fn mocked_load() -> Vec<u8>;
-    fn mocked_load_and_lock() -> Option<Vec<u8>>;
-    fn mocked_store_and_unlock(value: Vec<u8>) -> bool;
-    fn mocked_lock() -> bool;
-    fn mocked_unlock() -> bool;
     fn mocked_read_multi_values_bytes(keys: Vec<Vec<u8>>) -> Vec<Option<Vec<u8>>>;
     fn mocked_read_value_bytes(key: Vec<u8>) -> Option<Vec<u8>>;
     fn mocked_find_keys(prefix: Vec<u8>) -> Vec<Vec<u8>>;
     fn mocked_find_key_values(prefix: Vec<u8>) -> Vec<(Vec<u8>, Vec<u8>)>;
     fn mocked_write_batch(operations: Vec<WriteOperation>);
-    fn mocked_try_query_application(
-        application: ApplicationId,
-        query: Vec<u8>,
-    ) -> Result<Vec<u8>, String>;
+    fn mocked_try_query_application(application: ApplicationId, query: Vec<u8>) -> Vec<u8>;
 }
 
 #[derive(Default)]
@@ -85,40 +77,16 @@ where
         MockSystemApi::new(caller).mocked_application_id()
     }
 
-    fn get_application_parameters(caller: &mut Caller) -> Result<Vec<u8>, RuntimeError> {
+    fn application_parameters(caller: &mut Caller) -> Result<Vec<u8>, RuntimeError> {
         MockSystemApi::new(caller).mocked_application_parameters()
     }
 
-    fn read_system_balance(caller: &mut Caller) -> Result<Amount, RuntimeError> {
-        MockSystemApi::new(caller).mocked_read_system_balance()
+    fn read_chain_balance(caller: &mut Caller) -> Result<Amount, RuntimeError> {
+        MockSystemApi::new(caller).mocked_read_chain_balance()
     }
 
     fn read_system_timestamp(caller: &mut Caller) -> Result<Timestamp, RuntimeError> {
         MockSystemApi::new(caller).mocked_read_system_timestamp()
-    }
-
-    fn load(caller: &mut Caller) -> Result<Vec<u8>, RuntimeError> {
-        MockSystemApi::new(caller).mocked_load()
-    }
-
-    fn load_and_lock(caller: &mut Caller) -> Result<Option<Vec<u8>>, RuntimeError> {
-        MockSystemApi::new(caller).mocked_load_and_lock()
-    }
-
-    fn store_and_unlock(caller: &mut Caller, state: Vec<u8>) -> Result<bool, RuntimeError> {
-        MockSystemApi::new(caller).mocked_store_and_unlock(state)
-    }
-
-    fn lock_new(_caller: &mut Caller) -> Result<u32, RuntimeError> {
-        Ok(0)
-    }
-
-    fn lock_wait(caller: &mut Caller, _promise_id: u32) -> Result<(), RuntimeError> {
-        ensure!(
-            MockSystemApi::new(caller).mocked_lock()?,
-            RuntimeError::Custom(anyhow!("`mocked_lock` function returned a failure"))
-        );
-        Ok(())
     }
 
     fn log(caller: &mut Caller, message: String, level: log::Level) -> Result<(), RuntimeError> {
@@ -147,64 +115,20 @@ where
         MockSystemApi::new(caller).mocked_application_parameters()
     }
 
-    fn read_system_balance(caller: &mut Caller) -> Result<Amount, RuntimeError> {
-        MockSystemApi::new(caller).mocked_read_system_balance()
+    fn read_chain_balance(caller: &mut Caller) -> Result<Amount, RuntimeError> {
+        MockSystemApi::new(caller).mocked_read_chain_balance()
     }
 
     fn read_system_timestamp(caller: &mut Caller) -> Result<Timestamp, RuntimeError> {
         MockSystemApi::new(caller).mocked_read_system_timestamp()
     }
 
-    fn load_new(_caller: &mut Caller) -> Result<u32, RuntimeError> {
-        Ok(0)
-    }
-
-    fn load_wait(
-        caller: &mut Caller,
-        _promise_id: u32,
-    ) -> Result<Result<Vec<u8>, String>, RuntimeError> {
-        MockSystemApi::new(caller).mocked_load().map(Ok)
-    }
-
-    fn lock_new(_caller: &mut Caller) -> Result<u32, RuntimeError> {
-        Ok(0)
-    }
-
-    fn lock_wait(
-        caller: &mut Caller,
-        _promise_id: u32,
-    ) -> Result<Result<bool, String>, RuntimeError> {
-        ensure!(
-            MockSystemApi::new(caller).mocked_lock()?,
-            RuntimeError::Custom(anyhow!("`mocked_lock` function returned a failure"))
-        );
-        Ok(Ok(true))
-    }
-
-    fn try_query_application_new(
+    fn try_query_application(
         caller: &mut Caller,
         application_id: ApplicationId,
         query: Vec<u8>,
-    ) -> Result<u32, RuntimeError> {
-        let resource = Query {
-            application_id,
-            query,
-        };
-
-        Ok(caller.user_data_mut().insert(resource) as u32)
-    }
-
-    fn try_query_application_wait(
-        caller: &mut Caller,
-        promise_id: u32,
-    ) -> Result<Result<Vec<u8>, String>, RuntimeError> {
-        let resource = caller
-            .user_data_mut()
-            .get::<Query>(promise_id as i32)
-            .clone();
-
-        MockSystemApi::new(caller)
-            .mocked_try_query_application(resource.application_id, resource.query)
+    ) -> Result<Vec<u8>, RuntimeError> {
+        MockSystemApi::new(caller).mocked_try_query_application(application_id, query)
     }
 
     fn log(caller: &mut Caller, message: String, level: log::Level) -> Result<(), RuntimeError> {
