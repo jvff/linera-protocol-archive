@@ -11,7 +11,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use async_graphql::InputType;
 use linera_base::{
     abi::ContractAbi,
@@ -829,10 +829,29 @@ impl NodeService {
         self.child.ensure_is_running()
     }
 
-    pub async fn process_inbox(&self, chain_id: &ChainId) -> Result<()> {
+    pub async fn process_inbox(&self, chain_id: &ChainId) -> Result<Vec<CryptoHash>> {
         let query = format!("mutation {{ processInbox(chainId: \"{chain_id}\") }}");
-        self.query_node(query).await?;
-        Ok(())
+        let response = self.query_node(query).await?;
+
+        response["processInbox"]
+            .as_array()
+            .ok_or_else(|| anyhow!("Unexpected response from `processInbox` mutation"))?
+            .iter()
+            .map(|hash_string_value| {
+                hash_string_value
+                    .as_str()
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "Expected strings for certificate hashes in `processInbox` response"
+                        )
+                    })
+                    .and_then(|hash_string| {
+                        hash_string
+                            .parse()
+                            .context("Invalid certificate hash in `processInbox` response")
+                    })
+            })
+            .collect()
     }
 
     pub async fn make_application<A: ContractAbi>(
