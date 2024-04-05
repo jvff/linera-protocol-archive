@@ -3,13 +3,15 @@
 
 //! Implementations of the custom traits for types from the [`log`] crate.
 
+use std::borrow::Cow;
+
+use frunk::{hlist_pat, HList};
+use log::Level;
+
 use crate::{
     GuestPointer, InstanceWithMemory, Layout, Memory, Runtime, RuntimeError, RuntimeMemory,
     WitLoad, WitStore, WitType,
 };
-use frunk::{hlist_pat, HList};
-use log::Level;
-use std::borrow::Cow;
 
 impl WitType for Level {
     const SIZE: u32 = 1;
