@@ -281,7 +281,7 @@ impl AmmApp {
 #[cfg_attr(feature = "kubernetes", test_case(SharedLocalKubernetesNetTestingConfig::new(Network::Grpc, BuildArg::Build) ; "kubernetes_grpc"))]
 #[cfg_attr(feature = "remote_net", test_case(RemoteNetTestingConfig::new(None) ; "remote_net_grpc"))]
 #[test_log::test(tokio::test)]
-async fn test_wasm_end_to_end_counter(config: impl LineraNetConfig) {
+async fn test_wasm_end_to_end_counter(config: impl LineraNetConfig) -> Result<()> {
     use counter::CounterAbi;
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
 
@@ -324,6 +324,8 @@ async fn test_wasm_end_to_end_counter(config: impl LineraNetConfig) {
 
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 #[test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc) ; "service_grpc")]
@@ -332,7 +334,7 @@ async fn test_wasm_end_to_end_counter(config: impl LineraNetConfig) {
 #[cfg_attr(feature = "kubernetes", test_case(SharedLocalKubernetesNetTestingConfig::new(Network::Grpc, BuildArg::Build) ; "kubernetes_grpc"))]
 #[cfg_attr(feature = "remote_net", test_case(RemoteNetTestingConfig::new(None) ; "remote_net_grpc"))]
 #[test_log::test(tokio::test)]
-async fn test_wasm_end_to_end_counter_publish_create(config: impl LineraNetConfig) {
+async fn test_wasm_end_to_end_counter_publish_create(config: impl LineraNetConfig) -> Result<()> {
     use counter::CounterAbi;
 
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
@@ -373,6 +375,8 @@ async fn test_wasm_end_to_end_counter_publish_create(config: impl LineraNetConfi
 
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 #[test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc) ; "service_grpc")]
@@ -381,7 +385,7 @@ async fn test_wasm_end_to_end_counter_publish_create(config: impl LineraNetConfi
 #[cfg_attr(feature = "kubernetes", test_case(SharedLocalKubernetesNetTestingConfig::new(Network::Grpc, BuildArg::Build) ; "kubernetes_grpc"))]
 #[cfg_attr(feature = "remote_net", test_case(RemoteNetTestingConfig::new(None) ; "remote_net_grpc"))]
 #[test_log::test(tokio::test)]
-async fn test_wasm_end_to_end_social_user_pub_sub(config: impl LineraNetConfig) {
+async fn test_wasm_end_to_end_social_user_pub_sub(config: impl LineraNetConfig) -> Result<()> {
     use social::SocialAbi;
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
 
@@ -468,6 +472,8 @@ async fn test_wasm_end_to_end_social_user_pub_sub(config: impl LineraNetConfig) 
 
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 #[test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc), "fungible" ; "service_grpc")]
@@ -481,7 +487,10 @@ async fn test_wasm_end_to_end_social_user_pub_sub(config: impl LineraNetConfig) 
 #[cfg_attr(feature = "remote_net", test_case(RemoteNetTestingConfig::new(None), "fungible" ; "remote_net_grpc"))]
 #[cfg_attr(feature = "remote_net", test_case(RemoteNetTestingConfig::new(None), "native-fungible" ; "native_remote_net_grpc"))]
 #[test_log::test(tokio::test)]
-async fn test_wasm_end_to_end_fungible(config: impl LineraNetConfig, example_name: &str) {
+async fn test_wasm_end_to_end_fungible(
+    config: impl LineraNetConfig,
+    example_name: &str,
+) -> Result<()> {
     use fungible::{FungibleTokenAbi, InitialState};
 
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
@@ -615,6 +624,8 @@ async fn test_wasm_end_to_end_fungible(config: impl LineraNetConfig, example_nam
 
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 #[test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc), "fungible" ; "service_grpc")]
@@ -631,7 +642,7 @@ async fn test_wasm_end_to_end_fungible(config: impl LineraNetConfig, example_nam
 async fn test_wasm_end_to_end_same_wallet_fungible(
     config: impl LineraNetConfig,
     example_name: &str,
-) {
+) -> Result<()> {
     use fungible::{FungibleTokenAbi, InitialState};
 
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
@@ -726,6 +737,8 @@ async fn test_wasm_end_to_end_same_wallet_fungible(
 
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 #[test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc) ; "service_grpc")]
@@ -734,7 +747,7 @@ async fn test_wasm_end_to_end_same_wallet_fungible(
 #[cfg_attr(feature = "kubernetes", test_case(SharedLocalKubernetesNetTestingConfig::new(Network::Grpc, BuildArg::Build) ; "kubernetes_grpc"))]
 #[cfg_attr(feature = "remote_net", test_case(RemoteNetTestingConfig::new(None) ; "remote_net_grpc"))]
 #[test_log::test(tokio::test)]
-async fn test_wasm_end_to_end_non_fungible(config: impl LineraNetConfig) {
+async fn test_wasm_end_to_end_non_fungible(config: impl LineraNetConfig) -> Result<()> {
     use non_fungible::{NftOutput, NonFungibleTokenAbi};
 
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
@@ -1001,6 +1014,8 @@ async fn test_wasm_end_to_end_non_fungible(config: impl LineraNetConfig) {
 
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 #[test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc) ; "service_grpc")]
@@ -1009,7 +1024,7 @@ async fn test_wasm_end_to_end_non_fungible(config: impl LineraNetConfig) {
 #[cfg_attr(feature = "kubernetes", test_case(SharedLocalKubernetesNetTestingConfig::new(Network::Grpc, BuildArg::Build) ; "kubernetes_grpc"))]
 #[cfg_attr(feature = "remote_net", test_case(RemoteNetTestingConfig::new(None) ; "remote_net_grpc"))]
 #[test_log::test(tokio::test)]
-async fn test_wasm_end_to_end_crowd_funding(config: impl LineraNetConfig) {
+async fn test_wasm_end_to_end_crowd_funding(config: impl LineraNetConfig) -> Result<()> {
     use crowd_funding::{CrowdFundingAbi, InitializationArgument};
     use fungible::{FungibleTokenAbi, InitialState};
 
@@ -1133,6 +1148,8 @@ async fn test_wasm_end_to_end_crowd_funding(config: impl LineraNetConfig) {
 
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 // TODO(#1159): We should enable the matching engine on other storages.
@@ -1143,7 +1160,7 @@ async fn test_wasm_end_to_end_crowd_funding(config: impl LineraNetConfig) {
 #[test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc) ; "service_grpc")]
 // #[cfg_attr(feature = "rocksdb", test_case(LocalNetConfig::new_test(Database::RocksDb, Network::Grpc) ; "rocksdb_grpc"))]
 #[test_log::test(tokio::test)]
-async fn test_wasm_end_to_end_matching_engine(config: impl LineraNetConfig) {
+async fn test_wasm_end_to_end_matching_engine(config: impl LineraNetConfig) -> Result<()> {
     use fungible::{FungibleTokenAbi, InitialState};
     use matching_engine::{MatchingEngineAbi, OrderNature, Parameters, Price};
 
@@ -1485,6 +1502,8 @@ async fn test_wasm_end_to_end_matching_engine(config: impl LineraNetConfig) {
 
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 #[test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc) ; "service_grpc")]
@@ -1493,7 +1512,7 @@ async fn test_wasm_end_to_end_matching_engine(config: impl LineraNetConfig) {
 #[cfg_attr(feature = "kubernetes", test_case(SharedLocalKubernetesNetTestingConfig::new(Network::Grpc, BuildArg::Build) ; "kubernetes_grpc"))]
 #[cfg_attr(feature = "remote_net", test_case(RemoteNetTestingConfig::new(None) ; "remote_net_grpc"))]
 #[test_log::test(tokio::test)]
-async fn test_wasm_end_to_end_amm(config: impl LineraNetConfig) {
+async fn test_wasm_end_to_end_amm(config: impl LineraNetConfig) -> Result<()> {
     use amm::{AmmAbi, Parameters};
     use fungible::{FungibleTokenAbi, InitialState};
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
@@ -1816,10 +1835,12 @@ async fn test_wasm_end_to_end_amm(config: impl LineraNetConfig) {
 
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 #[test_log::test(tokio::test)]
-async fn test_resolve_binary() {
+async fn test_resolve_binary() -> Result<()> {
     resolve_binary("linera", env!("CARGO_PKG_NAME"))
         .await
         .unwrap();
@@ -1829,6 +1850,8 @@ async fn test_resolve_binary() {
     assert!(resolve_binary("linera-spaceship", env!("CARGO_PKG_NAME"))
         .await
         .is_err());
+
+    Ok(())
 }
 
 // TODO(#1655): Make the scylladb_udp / rocksdb_udp test work.
@@ -1841,7 +1864,7 @@ async fn test_resolve_binary() {
 #[cfg_attr(feature = "aws", test_case(LocalNetConfig::new_test(Database::DynamoDb, Network::Tcp) ; "aws_tcp"))]
 #[cfg_attr(feature = "aws", test_case(LocalNetConfig::new_test(Database::DynamoDb, Network::Udp) ; "aws_udp"))]
 #[test_log::test(tokio::test)]
-async fn test_end_to_end_reconfiguration(config: LocalNetConfig) {
+async fn test_end_to_end_reconfiguration(config: LocalNetConfig) -> Result<()> {
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
     let network = config.network;
     let (mut net, client) = config.instantiate().await.unwrap();
@@ -1951,6 +1974,8 @@ async fn test_end_to_end_reconfiguration(config: LocalNetConfig) {
 
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 #[test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc) ; "service_grpc")]
@@ -1959,7 +1984,7 @@ async fn test_end_to_end_reconfiguration(config: LocalNetConfig) {
 #[cfg_attr(feature = "kubernetes", test_case(SharedLocalKubernetesNetTestingConfig::new(Network::Grpc, BuildArg::Build) ; "kubernetes_grpc"))]
 #[cfg_attr(feature = "remote_net", test_case(RemoteNetTestingConfig::new(None) ; "remote_net_grpc"))]
 #[test_log::test(tokio::test)]
-async fn test_open_chain_node_service(config: impl LineraNetConfig) {
+async fn test_open_chain_node_service(config: impl LineraNetConfig) -> Result<()> {
     use fungible::{FungibleTokenAbi, InitialState};
 
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
@@ -2054,7 +2079,7 @@ async fn test_open_chain_node_service(config: impl LineraNetConfig) {
         if balance1 == Amount::from_tokens(6) && balance2 == Amount::from_tokens(4) {
             net.ensure_is_running().await.unwrap();
             net.terminate().await.unwrap();
-            return;
+            return Ok(());
         }
     }
     panic!("Failed to receive new block");
@@ -2064,7 +2089,7 @@ async fn test_open_chain_node_service(config: impl LineraNetConfig) {
 #[cfg_attr(feature = "scylladb", test_case(LocalNetConfig::new_test(Database::ScyllaDb, Network::Grpc) ; "scylladb_grpc"))]
 #[cfg_attr(feature = "aws", test_case(LocalNetConfig::new_test(Database::DynamoDb, Network::Grpc) ; "aws_grpc"))]
 #[test_log::test(tokio::test)]
-async fn test_end_to_end_retry_notification_stream(config: LocalNetConfig) {
+async fn test_end_to_end_retry_notification_stream(config: LocalNetConfig) -> Result<()> {
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
 
     let (mut net, client1) = config.instantiate().await.unwrap();
@@ -2121,6 +2146,8 @@ async fn test_end_to_end_retry_notification_stream(config: LocalNetConfig) {
 
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 #[test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc) ; "service_grpc")]
@@ -2129,7 +2156,7 @@ async fn test_end_to_end_retry_notification_stream(config: LocalNetConfig) {
 #[cfg_attr(feature = "kubernetes", test_case(SharedLocalKubernetesNetTestingConfig::new(Network::Grpc, BuildArg::Build) ; "kubernetes_grpc"))]
 #[cfg_attr(feature = "remote_net", test_case(RemoteNetTestingConfig::new(None) ; "remote_net_grpc"))]
 #[test_log::test(tokio::test)]
-async fn test_end_to_end_multiple_wallets(config: impl LineraNetConfig) {
+async fn test_end_to_end_multiple_wallets(config: impl LineraNetConfig) -> Result<()> {
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
 
     // Create net and two clients.
@@ -2167,10 +2194,12 @@ async fn test_end_to_end_multiple_wallets(config: impl LineraNetConfig) {
 
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 #[test_log::test(tokio::test)]
-async fn test_project_new() {
+async fn test_project_new() -> Result<()> {
     let _rustflags_override = override_disable_warnings_as_errors();
     let path_provider = PathProvider::create_temporary_directory().unwrap();
     let client = ClientWrapper::new(path_provider, Network::Grpc, None, 0);
@@ -2184,23 +2213,27 @@ async fn test_project_new() {
         .build_application(project_dir.as_path(), "init-test", false)
         .await
         .unwrap();
+
+    Ok(())
 }
 
 #[test_log::test(tokio::test)]
-async fn test_project_test() {
+async fn test_project_test() -> Result<()> {
     let path_provider = PathProvider::create_temporary_directory().unwrap();
     let client = ClientWrapper::new(path_provider, Network::Grpc, None, 0);
     client
         .project_test(&ClientWrapper::example_path("counter").unwrap())
         .await
         .unwrap();
+
+    Ok(())
 }
 
 #[test_case(Database::Service, Network::Grpc ; "service_grpc")]
 #[cfg_attr(feature = "scylladb", test_case(Database::ScyllaDb, Network::Grpc ; "scylladb_grpc"))]
 #[cfg_attr(feature = "aws", test_case(Database::DynamoDb, Network::Grpc ; "aws_grpc"))]
 #[test_log::test(tokio::test)]
-async fn test_project_publish(database: Database, network: Network) {
+async fn test_project_publish(database: Database, network: Network) -> Result<()> {
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
     let _rustflags_override = override_disable_warnings_as_errors();
     let config = LocalNetConfig {
@@ -2237,10 +2270,12 @@ async fn test_project_publish(database: Database, network: Network) {
 
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 #[test_log::test(tokio::test)]
-async fn test_linera_net_up_simple() {
+async fn test_linera_net_up_simple() -> Result<()> {
     use std::{
         io::{BufRead, BufReader},
         process::{Command, Stdio},
@@ -2283,7 +2318,7 @@ async fn test_linera_net_up_simple() {
 
             assert!(exports.next().is_none());
             assert!(child.wait().unwrap().success());
-            return;
+            return Ok(());
         }
     }
     panic!("Unexpected EOF for stderr");
@@ -2293,7 +2328,7 @@ async fn test_linera_net_up_simple() {
 #[cfg_attr(feature = "scylladb", test_case(Database::ScyllaDb, Network::Grpc ; "scylladb_grpc"))]
 #[cfg_attr(feature = "aws", test_case(Database::DynamoDb, Network::Grpc ; "aws_grpc"))]
 #[test_log::test(tokio::test)]
-async fn test_example_publish(database: Database, network: Network) {
+async fn test_example_publish(database: Database, network: Network) -> Result<()> {
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
     let config = LocalNetConfig {
         num_initial_validators: 1,
@@ -2322,6 +2357,8 @@ async fn test_example_publish(database: Database, network: Network) {
 
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 #[test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc) ; "service_grpc")]
@@ -2330,7 +2367,7 @@ async fn test_example_publish(database: Database, network: Network) {
 #[cfg_attr(feature = "kubernetes", test_case(SharedLocalKubernetesNetTestingConfig::new(Network::Grpc, BuildArg::Build) ; "kubernetes_grpc"))]
 #[cfg_attr(feature = "remote_net", test_case(RemoteNetTestingConfig::new(None) ; "remote_net_grpc"))]
 #[test_log::test(tokio::test)]
-async fn test_end_to_end_open_multi_owner_chain(config: impl LineraNetConfig) {
+async fn test_end_to_end_open_multi_owner_chain(config: impl LineraNetConfig) -> Result<()> {
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
 
     // Create runner and two clients.
@@ -2396,6 +2433,8 @@ async fn test_end_to_end_open_multi_owner_chain(config: impl LineraNetConfig) {
 
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 #[test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc) ; "service_grpc")]
@@ -2404,7 +2443,7 @@ async fn test_end_to_end_open_multi_owner_chain(config: impl LineraNetConfig) {
 #[cfg_attr(feature = "kubernetes", test_case(SharedLocalKubernetesNetTestingConfig::new(Network::Grpc, BuildArg::Build) ; "kubernetes_grpc"))]
 #[cfg_attr(feature = "remote_net", test_case(RemoteNetTestingConfig::new(None) ; "remote_net_grpc"))]
 #[test_log::test(tokio::test)]
-async fn test_end_to_end_change_ownership(config: impl LineraNetConfig) {
+async fn test_end_to_end_change_ownership(config: impl LineraNetConfig) -> Result<()> {
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
 
     // Create runner and client.
@@ -2436,6 +2475,8 @@ async fn test_end_to_end_change_ownership(config: impl LineraNetConfig) {
 
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 #[test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc) ; "service_grpc")]
@@ -2444,7 +2485,7 @@ async fn test_end_to_end_change_ownership(config: impl LineraNetConfig) {
 #[cfg_attr(feature = "kubernetes", test_case(SharedLocalKubernetesNetTestingConfig::new(Network::Grpc, BuildArg::Build) ; "kubernetes_grpc"))]
 #[cfg_attr(feature = "remote_net", test_case(RemoteNetTestingConfig::new(None) ; "remote_net_grpc"))]
 #[test_log::test(tokio::test)]
-async fn test_end_to_end_assign_greatgrandchild_chain(config: impl LineraNetConfig) {
+async fn test_end_to_end_assign_greatgrandchild_chain(config: impl LineraNetConfig) -> Result<()> {
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
 
     // Create runner and two clients.
@@ -2484,6 +2525,8 @@ async fn test_end_to_end_assign_greatgrandchild_chain(config: impl LineraNetConf
 
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 #[test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc) ; "service_grpc")]
@@ -2492,7 +2535,7 @@ async fn test_end_to_end_assign_greatgrandchild_chain(config: impl LineraNetConf
 #[cfg_attr(feature = "kubernetes", test_case(SharedLocalKubernetesNetTestingConfig::new(Network::Grpc, BuildArg::Build) ; "kubernetes_grpc"))]
 #[cfg_attr(feature = "remote_net", test_case(RemoteNetTestingConfig::new(None) ; "remote_net_grpc"))]
 #[test_log::test(tokio::test)]
-async fn test_end_to_end_faucet(config: impl LineraNetConfig) {
+async fn test_end_to_end_faucet(config: impl LineraNetConfig) -> Result<()> {
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
 
     // Create runner and two clients.
@@ -2565,6 +2608,8 @@ async fn test_end_to_end_faucet(config: impl LineraNetConfig) {
     assert!(client3.query_balance(Account::chain(chain3)).await.unwrap() <= Amount::ONE);
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 #[cfg(feature = "benchmark")]
@@ -2574,7 +2619,7 @@ async fn test_end_to_end_faucet(config: impl LineraNetConfig) {
 #[cfg_attr(feature = "kubernetes", test_case(SharedLocalKubernetesNetTestingConfig::new(Network::Grpc, BuildArg::Build) ; "kubernetes_grpc"))]
 #[cfg_attr(feature = "remote_net", test_case(RemoteNetTestingConfig::new(None) ; "remote_net_grpc"))]
 #[test_log::test(tokio::test)]
-async fn test_end_to_end_fungible_benchmark(config: impl LineraNetConfig) {
+async fn test_end_to_end_fungible_benchmark(config: impl LineraNetConfig) -> Result<()> {
     use linera_base::command::CommandExt;
     use tokio::process::Command;
 
@@ -2610,13 +2655,15 @@ async fn test_end_to_end_fungible_benchmark(config: impl LineraNetConfig) {
     faucet_service.terminate().await.unwrap();
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 #[test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc) ; "service_grpc")]
 #[cfg_attr(feature = "scylladb", test_case(LocalNetConfig::new_test(Database::ScyllaDb, Network::Grpc) ; "scylladb_grpc"))]
 #[cfg_attr(feature = "aws", test_case(LocalNetConfig::new_test(Database::DynamoDb, Network::Grpc) ; "aws_grpc"))]
 #[test_log::test(tokio::test)]
-async fn test_end_to_end_retry_pending_block(config: LocalNetConfig) {
+async fn test_end_to_end_retry_pending_block(config: LocalNetConfig) -> Result<()> {
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
     // Create runner and client.
     let (mut net, client) = config.instantiate().await.unwrap();
@@ -2647,6 +2694,8 @@ async fn test_end_to_end_retry_pending_block(config: LocalNetConfig) {
 
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 #[cfg(feature = "benchmark")]
@@ -2657,7 +2706,7 @@ async fn test_end_to_end_retry_pending_block(config: LocalNetConfig) {
 #[cfg_attr(feature = "scylladb", test_case(LocalNetConfig::new_test(Database::ScyllaDb, Network::Tcp) ; "scylladb_tcp"))]
 #[cfg_attr(feature = "aws", test_case(LocalNetConfig::new_test(Database::DynamoDb, Network::Tcp) ; "aws_tcp"))]
 #[test_log::test(tokio::test)]
-async fn test_end_to_end_benchmark(mut config: LocalNetConfig) {
+async fn test_end_to_end_benchmark(mut config: LocalNetConfig) -> Result<()> {
     use fungible::{FungibleTokenAbi, InitialState};
 
     config.num_other_initial_chains = 2;
@@ -2687,6 +2736,8 @@ async fn test_end_to_end_benchmark(mut config: LocalNetConfig) {
 
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
 
 /// Clears the `RUSTFLAGS` environment variable, if it was configured to make warnings fail as
@@ -2718,7 +2769,7 @@ impl Drop for RestoreVarOnDrop {
 #[cfg_attr(feature = "kubernetes", test_case(SharedLocalKubernetesNetTestingConfig::new(Network::Grpc, BuildArg::Build) ; "kubernetes_grpc"))]
 #[cfg_attr(feature = "remote_net", test_case(RemoteNetTestingConfig::new(None) ; "remote_net_grpc"))]
 #[test_log::test(tokio::test)]
-async fn test_end_to_end_listen_for_new_rounds(config: impl LineraNetConfig) {
+async fn test_end_to_end_listen_for_new_rounds(config: impl LineraNetConfig) -> Result<()> {
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
 
     // Create runner and two clients.
@@ -2771,4 +2822,6 @@ async fn test_end_to_end_listen_for_new_rounds(config: impl LineraNetConfig) {
 
     net.ensure_is_running().await.unwrap();
     net.terminate().await.unwrap();
+
+    Ok(())
 }
