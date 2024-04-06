@@ -316,6 +316,8 @@ async fn test_wasm_end_to_end_counter(config: impl LineraNetConfig) -> Result<()
 
     let counter_value: u64 = application.query_json("value").await?;
     assert_eq!(counter_value, original_counter_value + increment);
+    // FIXME: Temporary to make test fail
+    linera_base::ensure!(counter_value == 0, anyhow::anyhow!("Check failed"));
 
     node_service.ensure_is_running()?;
 
@@ -344,9 +346,12 @@ async fn test_wasm_end_to_end_counter_publish_create(config: impl LineraNetConfi
     let chain = client.get_wallet()?.default_chain().unwrap();
     let (contract, service) = client.build_example("counter").await?;
 
-    let bytecode_id = client
-        .publish_bytecode::<CounterAbi, (), u64>(contract, service, None)
-        .await?;
+    // FIXME: Temporary change to add an immediate timeout to test try-operator propagation
+    let bytecode_id = tokio::time::timeout(
+        Duration::ZERO,
+        client.publish_bytecode::<CounterAbi, (), u64>(contract, service, None),
+    )
+    .await??;
     let application_id = client
         .create_application(&bytecode_id, &(), &original_counter_value, &[], None)
         .await?;
