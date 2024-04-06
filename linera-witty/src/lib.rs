@@ -31,6 +31,8 @@ pub use linera_witty_macros::wit_export;
 #[cfg(with_macros)]
 pub use linera_witty_macros::{wit_import, WitLoad, WitStore, WitType};
 
+#[cfg(with_guest)]
+pub use self::runtime::guest;
 #[cfg(with_wasmer)]
 pub use self::runtime::wasmer;
 #[cfg(with_wasmtime)]
