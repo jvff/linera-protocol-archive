@@ -203,7 +203,7 @@ fn btree_map() {
 }
 
 /// Test roundtrip of [`log::Level`].
-#[cfg(feature = "log")]
+#[cfg(with_log)]
 #[test]
 fn log_level() {
     use log::Level::*;
