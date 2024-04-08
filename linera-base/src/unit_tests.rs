@@ -45,6 +45,7 @@ where
         .expect("Flattening WIT roundtrip test failed");
 }
 
+/// Creates a dummy [`Resources`] instance to use for the WIT roundtrip test.
 fn resources_test_case() -> Resources {
     Resources {
         bytes_to_read: 1_474_560,
@@ -58,6 +59,7 @@ fn resources_test_case() -> Resources {
     }
 }
 
+/// Creates a dummy [`SendMessageRequest`] instance to use for the WIT roundtrip test.
 fn send_message_request_test_case() -> SendMessageRequest<Vec<u8>> {
     SendMessageRequest {
         authenticated: true,
@@ -77,6 +79,7 @@ fn send_message_request_test_case() -> SendMessageRequest<Vec<u8>> {
     }
 }
 
+/// Creates a dummy [`Account`] instance to use for the WIT roundtrip test.
 fn account_test_case() -> Account {
     Account {
         chain_id: ChainId::root(10),
@@ -84,6 +87,7 @@ fn account_test_case() -> Account {
     }
 }
 
+/// Creates a dummy [`MessageId`] instance to use for the WIT roundtrip test.
 fn message_id_test_case() -> MessageId {
     MessageId {
         chain_id: ChainId::root(3),
@@ -92,6 +96,7 @@ fn message_id_test_case() -> MessageId {
     }
 }
 
+/// Creates a dummy [`ApplicationId`] instance to use for the WIT roundtrip test.
 fn application_id_test_case() -> ApplicationId {
     ApplicationId {
         bytecode_id: BytecodeId::new(MessageId {
@@ -107,6 +112,7 @@ fn application_id_test_case() -> ApplicationId {
     }
 }
 
+/// Creates a dummy [`BytecodeId`] instance to use for the WIT roundtrip test.
 fn bytecode_id_test_case() -> BytecodeId {
     BytecodeId::new(MessageId {
         chain_id: ChainId(CryptoHash::test_hash("another bytecode")),
@@ -115,6 +121,7 @@ fn bytecode_id_test_case() -> BytecodeId {
     })
 }
 
+/// Creates a dummy [`TimeoutConfig`] instance to use for the WIT roundtrip test.
 fn timeout_config_test_case() -> TimeoutConfig {
     TimeoutConfig {
         fast_round_duration: Some(Duration::from_nanos(20)),
@@ -123,6 +130,7 @@ fn timeout_config_test_case() -> TimeoutConfig {
     }
 }
 
+/// Creates a dummy [`ChainOwnership`] instance to use for the WIT roundtrip test.
 fn chain_ownership_test_case() -> ChainOwnership {
     let super_owners = ["Alice", "Bob"]
         .into_iter()
