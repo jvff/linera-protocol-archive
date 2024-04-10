@@ -7,7 +7,7 @@ pub use crate::type_traits::RegisterWitTypes;
 
 /// Generates WIT snippets for an interface.
 pub trait WitInterface {
-    /// The [`WitType`]s that this interface uses.
+    /// The [`WitType`][`crate::WitType`]s that this interface uses.
     type Dependencies: RegisterWitTypes;
 
     /// The name of the package the interface belongs to.
