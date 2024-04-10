@@ -3,7 +3,7 @@
 
 use std::{
     collections::HashMap,
-    env, iter,
+    env,
     marker::PhantomData,
     mem,
     path::{Path, PathBuf},
@@ -898,31 +898,11 @@ impl NodeService {
         bytecode_str.parse().context("could not parse bytecode ID")
     }
 
-    /// Sends a GraphQL `query` to the node service, returning the JSON [`Value`] received on
-    /// success.
-    ///
-    /// In case of failure, retries the query up to 15 times with increasing delays.
     pub async fn query_node(&self, query: impl AsRef<str>) -> Result<Value> {
         let n_try = 15;
-        let retry_delays = (1..n_try).map(Duration::from_secs);
-        self.query_node_with_retries(query, retry_delays).await
-    }
-
-    /// Sends a GraphQL `query` to the node service, returning the JSON [`Value`] received on
-    /// success.
-    ///
-    /// In case of failure, repeatedly retries the query after the next delay in `retry_delays`.
-    pub async fn query_node_with_retries(
-        &self,
-        query: impl AsRef<str>,
-        retry_delays: impl IntoIterator<Item = Duration>,
-    ) -> Result<Value> {
         let query = query.as_ref();
-        let mut attempts = 0;
-        let delays = iter::once(Duration::ZERO).chain(retry_delays);
-
-        for delay in delays {
-            tokio::time::sleep(delay).await;
+        for i in 0..n_try {
+            tokio::time::sleep(Duration::from_secs(i)).await;
             let url = format!("http://localhost:{}/", self.port);
             let client = reqwest_client();
             let response = client
@@ -942,7 +922,6 @@ impl NodeService {
             );
             let value: Value = response.json().await.context("invalid JSON")?;
             if let Some(errors) = value.get("errors") {
-                attempts += 1;
                 warn!(
                     "Query \"{}\" failed: {}",
                     query.get(..200).unwrap_or(query),
@@ -952,10 +931,10 @@ impl NodeService {
                 return Ok(value["data"].clone());
             }
         }
-
         bail!(
-            "Query \"{}\" failed after {attempts} attempts.",
-            query.get(..200).unwrap_or(query)
+            "Query \"{}\" failed after {} retries.",
+            query.get(..200).unwrap_or(query),
+            n_try
         );
     }
 
