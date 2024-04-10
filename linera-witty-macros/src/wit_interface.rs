@@ -3,15 +3,17 @@
 
 //! Generation of code to generate WIT snippets for an interface.
 
-#[cfg(with_wit_export)]
-use super::wit_export;
-use super::wit_import;
+use std::iter;
+
 use heck::ToKebabCase;
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
 use quote::quote;
-use std::iter;
 use syn::{FnArg, Ident, LitStr, Pat, PatIdent, PatType, ReturnType, Type};
+
+#[cfg(with_wit_export)]
+use super::wit_export;
+use super::wit_import;
 
 /// Returns the code generated for implementing `WitInterface` to generate WIT snippets for an
 /// interface.
