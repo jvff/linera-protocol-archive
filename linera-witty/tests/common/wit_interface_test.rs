@@ -9,6 +9,10 @@ use linera_witty::{
     wit_generation::WitInterface,
 };
 
+/// Expected snippets for the `entryoint` interface.
+pub const ENTRYPOINT: (&str, &[&str], &[(&str, &str)]) =
+    ("entrypoint", &["    entrypoint: func();"], &[]);
+
 /// Expected snippets for the `simple-function` interface.
 pub const SIMPLE_FUNCTION: (&str, &[&str], &[(&str, &str)]) =
     ("simple-function", &["    simple: func();"], &[]);
