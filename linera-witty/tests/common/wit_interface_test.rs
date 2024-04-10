@@ -10,6 +10,8 @@ use linera_witty::{
 };
 
 /// Expected snippets for the `entryoint` interface.
+// The `wit_import` integration test does not use an `Entrypoint` interface
+#[allow(dead_code)]
 pub const ENTRYPOINT: (&str, &[&str], &[(&str, &str)]) =
     ("entrypoint", &["    entrypoint: func();"], &[]);
 
