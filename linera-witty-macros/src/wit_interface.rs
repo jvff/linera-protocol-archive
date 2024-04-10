@@ -209,6 +209,7 @@ impl<'input> From<&'_ wit_export::FunctionInformation<'input>> for FunctionInfor
 }
 
 /// Returns `true` if `the_type` is the unit `()` type.
+#[cfg(with_wit_export)]
 pub fn is_unit_type(the_type: &Type) -> bool {
     matches!(the_type, Type::Tuple(tuple) if tuple.elems.is_empty())
 }
