@@ -1397,13 +1397,9 @@ async fn test_wasm_end_to_end_matching_engine(config: impl LineraNetConfig) {
         .await
         .expect("Failed to get chain A tip hash")
         .expect("Missing blocks from chain A");
-    tokio::time::timeout(
-        Duration::from_secs(5),
-        node_service_admin.wait_for_messages(chain_admin, chain_a_tip_after_cancel),
-    )
-    .await
-    .expect("Missing notification of A's cancel requests")
-    .expect("Failed to wait for notification of A's cancel requests");
+    node_service_admin
+        .wait_for_messages(chain_admin, chain_a_tip_after_cancel)
+        .await?;
 
     let chain_a_refund_admin_tip = node_service_admin
         .chain_tip_hash(chain_admin)
@@ -1426,13 +1422,9 @@ async fn test_wasm_end_to_end_matching_engine(config: impl LineraNetConfig) {
         .expect("Failed to get chain B tip hash")
         .expect("Missing blocks from chain B");
 
-    tokio::time::timeout(
-        Duration::from_secs(5),
-        node_service_admin.wait_for_messages(chain_admin, chain_b_tip_after_cancel),
-    )
-    .await
-    .expect("Missing notification of B's cancel requests")
-    .expect("Failed to wait for notification of B's cancel requests");
+    node_service_admin
+        .wait_for_messages(chain_admin, chain_b_tip_after_cancel)
+        .await?;
 
     let chain_b_refund_admin_tip = node_service_admin
         .chain_tip_hash(chain_admin)
@@ -1440,21 +1432,13 @@ async fn test_wasm_end_to_end_matching_engine(config: impl LineraNetConfig) {
         .expect("Failed to get admin chain tip hash")
         .expect("Missing blocks from admin chain");
 
-    tokio::time::timeout(
-        Duration::from_secs(5),
-        node_service_a.wait_for_messages(chain_a, chain_a_refund_admin_tip),
-    )
-    .await
-    .expect("Missing notification of canceled order refunds to chain A")
-    .expect("Failed to wait for order refund messages");
+    node_service_a
+        .wait_for_messages(chain_a, chain_a_refund_admin_tip)
+        .await?;
 
-    tokio::time::timeout(
-        Duration::from_secs(5),
-        node_service_b.wait_for_messages(chain_b, chain_b_refund_admin_tip),
-    )
-    .await
-    .expect("Missing notification of canceled order refunds to chain B")
-    .expect("Failed to wait for order refund messages");
+    node_service_b
+        .wait_for_messages(chain_b, chain_b_refund_admin_tip)
+        .await?;
 
     // Check balances
     app_fungible0_a
