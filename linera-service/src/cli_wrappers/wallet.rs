@@ -1071,11 +1071,8 @@ impl NodeService {
                 block(hash: "{certificate_hash}", chainId: "{receiver_chain}") {{ hash }}
             }}"#
         );
-        let retry_delays = iter::repeat(Duration::from_millis(100))
-            .take(10)
-            .chain(iter::repeat(Duration::from_secs(1)));
 
-        let data = self.query_node_with_retries(query, retry_delays).await?;
+        let data = self.query_node(query).await?;
 
         assert_eq!(
             data["block"]["hash"].as_str(),
