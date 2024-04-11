@@ -31,7 +31,7 @@ where
 
     let dependencies = functions
         .clone()
-        .flat_map(|function| function.dependencies().cloned().collect::<Vec<_>>());
+        .flat_map(|function| function.dependencies().cloned());
 
     let wit_functions = functions.map(|function| function.wit_declaration());
 
