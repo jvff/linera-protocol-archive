@@ -1251,14 +1251,16 @@ where
             ) {
                 let ownership = chain.execution_state.system.ownership.get();
                 let elapsed = self.storage.current_time().delta_since(entry.seen);
-                if elapsed >= ownership.timeout_config.fallback_duration
-                    && chain.manager.get_mut().vote_fallback(
+                let fallback_allowed = elapsed >= ownership.timeout_config.fallback_duration;
+                let mut vote_fallback = || {
+                    chain.manager.get_mut().vote_fallback(
                         query.chain_id,
                         chain.tip_state.get().next_block_height,
                         *epoch,
                         self.key_pair(),
                     )
-                {
+                };
+                if fallback_allowed && vote_fallback() {
                     chain.save().await?;
                 }
             }
