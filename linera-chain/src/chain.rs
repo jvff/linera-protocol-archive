@@ -218,10 +218,10 @@ pub struct InboxEntry {
 }
 
 impl InboxEntry {
-    fn new(origin: &Origin, event: &Event) -> Self {
+    fn new(origin: Origin, event: &Event) -> Self {
         InboxEntry {
             cursor: Cursor::from(event),
-            origin: origin.clone(),
+            origin,
         }
     }
 }
@@ -576,7 +576,7 @@ where
         // Process the inbox events and update the inbox state.
         let mut inbox = self.inboxes.try_load_entry_mut(origin).await?;
         for event in events {
-            let entry = InboxEntry::new(origin, &event);
+            let entry = InboxEntry::new(origin.clone(), &event);
             let skippable = event.is_skippable();
             let newly_added = inbox.add_event(event).await.map_err(|error| match error {
                 InboxError::ViewError(error) => ChainError::ViewError(error),
@@ -654,7 +654,7 @@ where
                     .await
                     .map_err(|error| ChainError::from((chain_id, origin.clone(), error)))?;
                 if was_added && !event.is_skippable() {
-                    removed_unskippable.insert(InboxEntry::new(origin, event));
+                    removed_unskippable.insert(InboxEntry::new(origin.clone(), event));
                 }
             }
         }
