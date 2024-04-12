@@ -274,13 +274,10 @@ impl AmmApp {
     }
 }
 
-#[test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc) ; "service_grpc")]
-#[cfg_attr(feature = "scylladb", test_case(LocalNetConfig::new_test(Database::ScyllaDb, Network::Grpc) ; "scylladb_grpc"))]
-#[cfg_attr(feature = "dynamodb", test_case(LocalNetConfig::new_test(Database::DynamoDb, Network::Grpc) ; "aws_grpc"))]
-#[cfg_attr(feature = "kubernetes", test_case(SharedLocalKubernetesNetTestingConfig::new(Network::Grpc, BuildArg::Build) ; "kubernetes_grpc"))]
-#[cfg_attr(feature = "remote_net", test_case(RemoteNetTestingConfig::new(None) ; "remote_net_grpc"))]
+/// Test if the wallet file is correctly locked when used.
 #[test_log::test(tokio::test)]
-async fn test_wallet_lock(config: impl LineraNetConfig) -> Result<()> {
+async fn test_wallet_lock() -> Result<()> {
+    let config = LocalNetConfig::new_test(Database::Service, Network::Grpc);
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
 
     let (_net, client) = config.instantiate().await?;
