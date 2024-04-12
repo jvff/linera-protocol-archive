@@ -4,7 +4,7 @@
 
 mod common;
 
-use std::{collections::BTreeMap, env, path::PathBuf, time::Duration};
+use std::{collections::BTreeMap, env, mem, path::PathBuf, time::Duration};
 
 use anyhow::Result;
 use assert_matches::assert_matches;
@@ -272,6 +272,29 @@ impl AmmApp {
         let mutation = format!("operation(operation: {})", operation.to_value());
         self.0.mutate(mutation).await.unwrap();
     }
+}
+
+#[test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc) ; "service_grpc")]
+#[cfg_attr(feature = "scylladb", test_case(LocalNetConfig::new_test(Database::ScyllaDb, Network::Grpc) ; "scylladb_grpc"))]
+#[cfg_attr(feature = "dynamodb", test_case(LocalNetConfig::new_test(Database::DynamoDb, Network::Grpc) ; "aws_grpc"))]
+#[cfg_attr(feature = "kubernetes", test_case(SharedLocalKubernetesNetTestingConfig::new(Network::Grpc, BuildArg::Build) ; "kubernetes_grpc"))]
+#[cfg_attr(feature = "remote_net", test_case(RemoteNetTestingConfig::new(None) ; "remote_net_grpc"))]
+#[test_log::test(tokio::test)]
+async fn test_wallet_lock(config: impl LineraNetConfig) -> Result<()> {
+    let _guard = INTEGRATION_TEST_GUARD.lock().await;
+
+    let (_net, client) = config.instantiate().await?;
+
+    let wallet = client.get_wallet()?;
+    let chain_id = wallet.default_chain().unwrap();
+
+    let lock = wallet;
+    assert!(client.process_inbox(chain_id).await.is_err());
+
+    mem::drop(lock);
+    assert!(client.process_inbox(chain_id).await.is_ok());
+
+    Ok(())
 }
 
 #[test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc); "service_grpc")]
