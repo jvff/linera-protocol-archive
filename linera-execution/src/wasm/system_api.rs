@@ -497,7 +497,7 @@ where
         data.register_promise(promise)
     }
 
-    /// Waits for the promise to read a single from storage.
+    /// Waits for the promise to read a single entry from storage.
     fn read_value_bytes_wait(
         caller: &mut Caller,
         promise_id: u32,
