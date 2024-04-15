@@ -231,7 +231,7 @@ impl<UserData> InstanceSlot<UserData> {
     /// # Panics
     ///
     /// If the underlying instance is accessed concurrently.
-    fn instance(&self) -> MutexGuard<Option<wasmer::Instance>> {
+    fn instance(&mut self) -> MutexGuard<Option<wasmer::Instance>> {
         self.instance
             .try_lock()
             .expect("Unexpected reentrant access to data")
