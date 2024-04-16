@@ -62,7 +62,6 @@ linera-witty = { workspace = true, features = ["wasmer", "test"] }
 serde_json.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 wasmtime.workspace = true
-wit-bindgen-host-wasmtime-rust.workspace = true
 
 [build-dependencies]
 cfg_aliases.workspace = true

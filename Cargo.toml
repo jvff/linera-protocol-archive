@@ -141,9 +141,6 @@ wasmtime = "1.0"
 webassembly-test = "0.1.0"
 web-sys = "0.3.69"
 wit-bindgen = "0.16.0"
-wit-bindgen-guest-rust = { version = "0.2.0", package = "linera-wit-bindgen-guest-rust" }
-wit-bindgen-host-wasmer-rust = { version = "0.2.0", package = "linera-wit-bindgen-host-wasmer-rust" }
-wit-bindgen-host-wasmtime-rust = { version = "0.2.0", package = "linera-wit-bindgen-host-wasmtime-rust" }
 
 linera-base = { version = "0.11.0", path = "./linera-base" }
 linera-chain = { version = "0.11.0", path = "./linera-chain" }
