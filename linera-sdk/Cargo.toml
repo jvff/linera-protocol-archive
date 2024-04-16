@@ -62,3 +62,7 @@ cfg_aliases.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 tokio-test.workspace = true
+
+[[bin]]
+name = "wit-generator"
+path = "src/bin/wit_generator.rs"
