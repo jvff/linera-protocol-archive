@@ -6,13 +6,14 @@
 #![allow(missing_docs)]
 #![allow(clippy::type_complexity)]
 
+use std::{any::Any, marker::PhantomData};
+
 use linera_base::{
     data_types::{Amount, Timestamp},
     identifiers::{ApplicationId, ChainId},
 };
 use linera_views::batch::WriteOperation;
 use linera_witty::{wit_export, wit_import, Instance, Runtime, RuntimeError, RuntimeMemory};
-use std::{any::Any, marker::PhantomData};
 
 /// A map of resources allocated on the host side.
 #[derive(Default)]
