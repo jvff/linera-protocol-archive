@@ -40,27 +40,27 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[cfg(with_testing)]
-pub use self::applications::ApplicationRegistry;
+pub use crate::applications::ApplicationRegistry;
 #[cfg(all(with_testing, any(with_wasmer, with_wasmtime)))]
-pub use self::wasm::test as wasm_test;
+pub use crate::wasm::test as wasm_test;
 #[cfg(with_wasm_runtime)]
-pub use self::wasm::{
+pub use crate::wasm::{
     ContractEntrypoints, ContractSystemApi, ServiceEntrypoints, ServiceSystemApi, SystemApiData,
     ViewSystemApi, WasmContractModule, WasmExecutionError, WasmServiceModule,
 };
-pub use self::{
+pub use crate::{
     applications::{
         ApplicationRegistryView, BytecodeLocation, UserApplicationDescription, UserApplicationId,
     },
     execution::ExecutionStateView,
     policy::ResourceControlPolicy,
     resources::{ResourceController, ResourceTracker},
+    runtime::{ContractSyncRuntime, ServiceSyncRuntime},
     system::{
         SystemExecutionError, SystemExecutionStateView, SystemMessage, SystemOperation,
         SystemQuery, SystemResponse,
     },
 };
-pub use crate::runtime::{ContractSyncRuntime, ServiceSyncRuntime};
 
 /// An implementation of [`UserContractModule`].
 pub type UserContractCode = Arc<dyn UserContractModule + Send + Sync + 'static>;
