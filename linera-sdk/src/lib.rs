@@ -64,8 +64,6 @@ pub use linera_base::{
     data_types::{Resources, SendMessageRequest},
     ensure,
 };
-#[doc(hidden)]
-pub use linera_witty as witty;
 use serde::{de::DeserializeOwned, Serialize};
 
 use self::contract::ContractStateStorage;
