@@ -58,7 +58,6 @@ async fn main() -> Result<ExitCode> {
     let mut report = TestReport::default();
     let mut engine_config = Config::default();
     engine_config.wasm_backtrace_details(WasmBacktraceDetails::Enable);
-    engine_config.async_support(true);
     let engine = Engine::new(&engine_config)?;
     let mut linker = Linker::new(&engine);
     let test_module = load_test_module(&options.module_path, &engine)?;
