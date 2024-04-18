@@ -4,16 +4,25 @@
 //! A separate actor that handles requests specific to a single chain.
 
 use linera_base::identifiers::ChainId;
-use linera_chain::ChainStateView;
+use linera_chain::{
+    data_types::{Block, ExecutedBlock},
+    ChainStateView,
+};
 use linera_storage::Storage;
-use linera_views::views::ViewError;
-use tokio::sync::mpsc;
+use linera_views::views::{View, ViewError};
+use tokio::sync::{mpsc, oneshot};
 use tracing::{instrument, trace};
 
-use crate::worker::WorkerError;
+use crate::{data_types::ChainInfoResponse, worker::WorkerError};
 
 /// A request for the [`ChainWorker`].
-pub enum ChainWorkerRequest {}
+pub enum ChainWorkerRequest {
+    /// Execute a block but discard any changes to the chain state.
+    StageBlockExecution {
+        block: Block,
+        callback: oneshot::Sender<Result<(ExecutedBlock, ChainInfoResponse), WorkerError>>,
+    },
+}
 
 /// The actor worker type.
 pub struct ChainWorker<StorageClient>
@@ -58,10 +67,46 @@ where
         trace!("Starting `ChainWorker`");
 
         while let Some(request) = self.incoming_requests.recv().await {
-            match request {}
+            match request {
+                ChainWorkerRequest::StageBlockExecution { block, callback } => {
+                    let _ = callback.send(self.stage_block_execution(block).await);
+                }
+            }
         }
 
         trace!("`ChainWorker` finished");
+    }
+
+    /// Executes a block without persisting any changes to the state.
+    async fn stage_block_execution(
+        &mut self,
+        block: Block,
+    ) -> Result<(ExecutedBlock, ChainInfoResponse), WorkerError> {
+        self.ensure_is_active()?;
+
+        let local_time = self.storage.clock().current_time();
+        let signer = block.authenticated_signer;
+
+        let executed_block = self
+            .chain
+            .execute_block(&block, local_time, None)
+            .await?
+            .with(block);
+
+        let mut response = ChainInfoResponse::new(&self.chain, None);
+        if let Some(signer) = signer {
+            response.info.requested_owner_balance = self
+                .chain
+                .execution_state
+                .system
+                .balances
+                .get(&signer)
+                .await?;
+        }
+
+        self.chain.rollback();
+
+        Ok((executed_block, response))
     }
 
     /// Ensures that the current chain is active, returning an error otherwise.
