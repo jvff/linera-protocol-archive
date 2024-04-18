@@ -8,7 +8,7 @@ use linera_chain::{
     data_types::{Block, ExecutedBlock},
     ChainStateView,
 };
-use linera_execution::{Query, Response};
+use linera_execution::{Query, Response, UserApplicationDescription, UserApplicationId};
 use linera_storage::Storage;
 use linera_views::views::{View, ViewError};
 use tokio::sync::{mpsc, oneshot};
@@ -22,6 +22,12 @@ pub enum ChainWorkerRequest {
     QueryApplication {
         query: Query,
         callback: oneshot::Sender<Result<Response, WorkerError>>,
+    },
+
+    /// Describe an application.
+    DescribeApplication {
+        application_id: UserApplicationId,
+        callback: oneshot::Sender<Result<UserApplicationDescription, WorkerError>>,
     },
 
     /// Execute a block but discard any changes to the chain state.
@@ -78,6 +84,12 @@ where
                 ChainWorkerRequest::QueryApplication { query, callback } => {
                     let _ = callback.send(self.query_application(query).await);
                 }
+                ChainWorkerRequest::DescribeApplication {
+                    application_id,
+                    callback,
+                } => {
+                    let _ = callback.send(self.describe_application(application_id).await);
+                }
                 ChainWorkerRequest::StageBlockExecution { block, callback } => {
                     let _ = callback.send(self.stage_block_execution(block).await);
                 }
@@ -91,6 +103,16 @@ where
     async fn query_application(&mut self, query: Query) -> Result<Response, WorkerError> {
         self.ensure_is_active()?;
         let response = self.chain.query_application(query).await?;
+        Ok(response)
+    }
+
+    /// Returns an application's description.
+    async fn describe_application(
+        &mut self,
+        application_id: UserApplicationId,
+    ) -> Result<UserApplicationDescription, WorkerError> {
+        self.ensure_is_active()?;
+        let response = self.chain.describe_application(application_id).await?;
         Ok(response)
     }
 
