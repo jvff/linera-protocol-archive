@@ -482,9 +482,16 @@ where
         chain_id: ChainId,
         query: Query,
     ) -> Result<Response, WorkerError> {
-        let mut chain = self.storage.load_active_chain(chain_id).await?;
-        let response = chain.query_application(query).await?;
-        Ok(response)
+        let chain_actor = ChainWorker::spawn(self.storage.clone(), block.chain_id).await?;
+        let (callback, response) = oneshot::channel();
+
+        chain_actor
+            .send(ChainWorkerRequest::QueryApplication { query, callback })
+            .expect("`ChainWorker` stopped executing unexpectedly");
+
+        response
+            .await
+            .expect("`ChainWorker` stopped executing without responding")
     }
 
     pub(crate) async fn describe_application(

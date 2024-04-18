@@ -8,6 +8,7 @@ use linera_chain::{
     data_types::{Block, ExecutedBlock},
     ChainStateView,
 };
+use linera_execution::{Query, Response};
 use linera_storage::Storage;
 use linera_views::views::{View, ViewError};
 use tokio::sync::{mpsc, oneshot};
@@ -17,6 +18,12 @@ use crate::{data_types::ChainInfoResponse, worker::WorkerError};
 
 /// A request for the [`ChainWorker`].
 pub enum ChainWorkerRequest {
+    /// Query an application's state.
+    QueryApplication {
+        query: Query,
+        callback: oneshot::Sender<Result<Response, WorkerError>>,
+    },
+
     /// Execute a block but discard any changes to the chain state.
     StageBlockExecution {
         block: Block,
@@ -68,6 +75,9 @@ where
 
         while let Some(request) = self.incoming_requests.recv().await {
             match request {
+                ChainWorkerRequest::QueryApplication { query, callback } => {
+                    let _ = callback.send(self.query_application(query).await);
+                }
                 ChainWorkerRequest::StageBlockExecution { block, callback } => {
                     let _ = callback.send(self.stage_block_execution(block).await);
                 }
@@ -75,6 +85,13 @@ where
         }
 
         trace!("`ChainWorker` finished");
+    }
+
+    /// Queries an application's state on the chain.
+    async fn query_application(&mut self, query: Query) -> Result<Response, WorkerError> {
+        self.ensure_is_active()?;
+        let response = self.chain.query_application(query).await?;
+        Ok(response)
     }
 
     /// Executes a block without persisting any changes to the state.
