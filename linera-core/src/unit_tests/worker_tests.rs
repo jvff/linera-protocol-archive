@@ -51,10 +51,11 @@ use crate::test_utils::RocksDbStorageBuilder;
 #[cfg(feature = "scylladb")]
 use crate::test_utils::ScyllaDbStorageBuilder;
 use crate::{
+    chain_worker::CrossChainUpdateHelper,
     data_types::*,
     test_utils::{MemoryStorageBuilder, StorageBuilder},
     worker::{
-        CrossChainUpdateHelper, Notification,
+        Notification,
         Reason::{self, NewBlock, NewIncomingMessage},
         ValidatorWorker, WorkerError, WorkerState,
     },
