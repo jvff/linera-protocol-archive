@@ -1398,40 +1398,37 @@ where
                 recipient,
                 latest_heights,
             } => {
-                let mut chain = self.storage.load_chain(sender).await?;
-                let mut chain_state_changed = false;
-                for (medium, height) in latest_heights {
-                    let target = Target { recipient, medium };
-                    if !chain.mark_messages_as_received(&target, height).await? {
-                        continue;
-                    }
-                    chain_state_changed = true;
-                    if chain.all_messages_delivered_up_to(height) {
-                        // Handle delivery notifiers for this chain, if any.
-                        if let hash_map::Entry::Occupied(mut map) =
-                            self.delivery_notifiers.lock().await.entry(sender)
-                        {
-                            while let Some(entry) = map.get_mut().first_entry() {
-                                if entry.key() > &height {
-                                    break;
-                                }
-                                let notifiers = entry.remove();
-                                trace!("Notifying {} callers", notifiers.len());
-                                for notifier in notifiers {
-                                    if let Err(()) = notifier.send(()) {
-                                        warn!("Failed to notify message delivery to caller");
-                                    }
-                                }
-                            }
-                            if map.get().is_empty() {
-                                map.remove();
+                let latest_heights = latest_heights
+                    .into_iter()
+                    .map(|(medium, height)| (Target { recipient, medium }, height))
+                    .collect();
+                let height_with_fully_delivered_messages = self
+                    .query_chain_worker(sender, move |callback| {
+                        ChainWorkerRequest::ConfirmUpdatedRecipient {
+                            latest_heights,
+                            callback,
+                        }
+                    })
+                    .await?;
+                // Handle delivery notifiers for this chain, if any.
+                if let hash_map::Entry::Occupied(mut map) =
+                    self.delivery_notifiers.lock().await.entry(sender)
+                {
+                    while let Some(entry) = map.get_mut().first_entry() {
+                        if entry.key() > &height_with_fully_delivered_messages {
+                            break;
+                        }
+                        let notifiers = entry.remove();
+                        trace!("Notifying {} callers", notifiers.len());
+                        for notifier in notifiers {
+                            if let Err(()) = notifier.send(()) {
+                                warn!("Failed to notify message delivery to caller");
                             }
                         }
                     }
-                }
-                if chain_state_changed {
-                    // Save the chain state.
-                    chain.save().await?;
+                    if map.get().is_empty() {
+                        map.remove();
+                    }
                 }
                 Ok(NetworkActions::default())
             }

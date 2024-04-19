@@ -3,14 +3,14 @@
 
 //! A separate actor that handles requests specific to a single chain.
 
-use linera_base::identifiers::ChainId;
+use linera_base::{data_types::BlockHeight, identifiers::ChainId};
 use linera_chain::{
-    data_types::{Block, ExecutedBlock},
+    data_types::{Block, ExecutedBlock, Target},
     ChainStateView,
 };
 use linera_execution::{Query, Response, UserApplicationDescription, UserApplicationId};
 use linera_storage::Storage;
-use linera_views::views::{View, ViewError};
+use linera_views::views::{RootView, View, ViewError};
 use tokio::sync::{mpsc, oneshot};
 use tracing::{instrument, trace};
 
@@ -34,6 +34,12 @@ pub enum ChainWorkerRequest {
     StageBlockExecution {
         block: Block,
         callback: oneshot::Sender<Result<(ExecutedBlock, ChainInfoResponse), WorkerError>>,
+    },
+
+    /// Handle cross-chain request to confirm that the recipient was updated.
+    ConfirmUpdatedRecipient {
+        latest_heights: Vec<(Target, BlockHeight)>,
+        callback: oneshot::Sender<Result<BlockHeight, WorkerError>>,
     },
 }
 
@@ -93,6 +99,12 @@ where
                 ChainWorkerRequest::StageBlockExecution { block, callback } => {
                     let _ = callback.send(self.stage_block_execution(block).await);
                 }
+                ChainWorkerRequest::ConfirmUpdatedRecipient {
+                    latest_heights,
+                    callback,
+                } => {
+                    let _ = callback.send(self.confirm_updated_recipient(latest_heights).await);
+                }
             }
         }
 
@@ -146,6 +158,30 @@ where
         self.chain.rollback();
 
         Ok((executed_block, response))
+    }
+
+    /// Handles the cross-chain request confirming that the recipient was updated.
+    async fn confirm_updated_recipient(
+        &mut self,
+        latest_heights: Vec<(Target, BlockHeight)>,
+    ) -> Result<BlockHeight, WorkerError> {
+        let mut height_with_fully_delivered_messages = BlockHeight::ZERO;
+
+        for (target, height) in latest_heights {
+            let fully_delivered = self
+                .chain
+                .mark_messages_as_received(&target, height)
+                .await?
+                && self.chain.all_messages_delivered_up_to(height);
+
+            if fully_delivered && height > height_with_fully_delivered_messages {
+                height_with_fully_delivered_messages = height;
+            }
+        }
+
+        self.chain.save().await?;
+
+        Ok(height_with_fully_delivered_messages)
     }
 
     /// Ensures that the current chain is active, returning an error otherwise.
