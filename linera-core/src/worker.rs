@@ -1402,7 +1402,7 @@ where
                 let mut chain_state_changed = false;
                 for (medium, height) in latest_heights {
                     let target = Target { recipient, medium };
-                    if !chain.mark_messages_as_received(target, height).await? {
+                    if !chain.mark_messages_as_received(&target, height).await? {
                         continue;
                     }
                     chain_state_changed = true;
