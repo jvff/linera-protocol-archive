@@ -6,6 +6,8 @@
 use std::collections::BTreeMap;
 
 use linera_base::{data_types::BlockHeight, ensure, identifiers::ChainId};
+#[cfg(with_testing)]
+use linera_chain::data_types::Certificate;
 use linera_chain::{
     data_types::{Block, ExecutedBlock, MessageBundle, Origin, Target},
     ChainStateView,
@@ -26,6 +28,13 @@ use crate::{data_types::ChainInfoResponse, worker::WorkerError};
 
 /// A request for the [`ChainWorker`].
 pub enum ChainWorkerRequest {
+    /// Reads the certificate for a requested [`BlockHeight`].
+    #[cfg(with_testing)]
+    ReadCertificate {
+        height: BlockHeight,
+        callback: oneshot::Sender<Result<Option<Certificate>, WorkerError>>,
+    },
+
     /// Query an application's state.
     QueryApplication {
         query: Query,
@@ -115,6 +124,10 @@ where
 
         while let Some(request) = self.incoming_requests.recv().await {
             match request {
+                #[cfg(with_testing)]
+                ChainWorkerRequest::ReadCertificate { height, callback } => {
+                    let _ = callback.send(self.read_certificate(height).await);
+                }
                 ChainWorkerRequest::QueryApplication { query, callback } => {
                     let _ = callback.send(self.query_application(query).await);
                 }
@@ -148,6 +161,21 @@ where
         }
 
         trace!("`ChainWorker` finished");
+    }
+
+    /// Returns a stored [`Certificate`] for the chain's block at the requested [`BlockHeight`].
+    #[cfg(with_testing)]
+    async fn read_certificate(
+        &mut self,
+        height: BlockHeight,
+    ) -> Result<Option<Certificate>, WorkerError> {
+        self.ensure_is_active()?;
+        let certificate_hash = match self.chain.confirmed_log.get(height.try_into()?).await? {
+            Some(hash) => hash,
+            None => return Ok(None),
+        };
+        let certificate = self.storage.read_certificate(certificate_hash).await?;
+        Ok(Some(certificate))
     }
 
     /// Queries an application's state on the chain.
