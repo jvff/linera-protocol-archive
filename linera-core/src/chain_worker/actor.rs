@@ -11,7 +11,7 @@ use linera_views::views::ViewError;
 use tokio::sync::{mpsc, oneshot};
 use tracing::{instrument, trace};
 
-use super::state::ChainWorkerState;
+use super::{state::ChainWorkerState, ChainWorkerConfig};
 use crate::{data_types::ChainInfoResponse, worker::WorkerError};
 
 /// A request for the [`ChainWorkerActor`].
@@ -59,10 +59,11 @@ where
     /// Spawns a new task to run the [`ChainWorkerActor`], returning an endpoint for sending
     /// requests to the worker.
     pub async fn spawn(
+        config: ChainWorkerConfig,
         storage: StorageClient,
         chain_id: ChainId,
     ) -> Result<mpsc::UnboundedSender<ChainWorkerRequest>, WorkerError> {
-        let worker = ChainWorkerState::new(storage, chain_id).await?;
+        let worker = ChainWorkerState::new(config, storage, chain_id).await?;
         let (sender, receiver) = mpsc::unbounded_channel();
 
         let actor = ChainWorkerActor {
