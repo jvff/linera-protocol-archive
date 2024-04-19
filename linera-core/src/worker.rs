@@ -952,20 +952,18 @@ where
         };
         let origin = Origin { sender, medium };
 
-        let mut chain = self.storage.load_active_chain(chain_id).await?;
-        let mut inbox = chain.inboxes.try_load_entry_mut(&origin).await?;
-
-        let certificate_hash = certificate.hash();
-        let Some(event) = inbox
-            .added_events
-            .iter_mut()
-            .await?
-            .find(|event| {
-                event.certificate_hash == certificate_hash
-                    && event.height == message_id.height
-                    && event.index == message_id.index
+        let Some(event) = self
+            .query_chain_worker(chain_id, {
+                let origin = origin.clone();
+                move |callback| ChainWorkerRequest::FindEventInInbox {
+                    inbox_id: origin,
+                    certificate_hash: certificate.hash(),
+                    height: message_id.height,
+                    index: message_id.index,
+                    callback,
+                }
             })
-            .cloned()
+            .await?
         else {
             return Ok(None);
         };
