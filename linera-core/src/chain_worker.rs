@@ -43,12 +43,22 @@ pub enum ChainWorkerRequest {
     },
 }
 
+/// Configuration parameters for the [`ChainWorker`].
+#[derive(Clone, Debug, Default)]
+pub struct ChainWorkerConfig {
+    /// Whether inactive chains are allowed in storage.
+    pub allow_inactive_chains: bool,
+    /// Whether new messages from deprecated epochs are allowed.
+    pub allow_messages_from_deprecated_epochs: bool,
+}
+
 /// The actor worker type.
 pub struct ChainWorker<StorageClient>
 where
     StorageClient: Storage + Send + Sync + 'static,
     ViewError: From<StorageClient::ContextError>,
 {
+    config: ChainWorkerConfig,
     storage: StorageClient,
     chain: ChainStateView<StorageClient::Context>,
     incoming_requests: mpsc::UnboundedReceiver<ChainWorkerRequest>,
@@ -63,12 +73,14 @@ where
     /// Spawns a new task to run the [`ChainWorker`], returning an endpoint for sending
     /// requests to the worker.
     pub async fn spawn(
+        config: ChainWorkerConfig,
         storage: StorageClient,
         chain_id: ChainId,
     ) -> Result<mpsc::UnboundedSender<ChainWorkerRequest>, WorkerError> {
         let chain = storage.load_chain(chain_id).await?;
         let (sender, receiver) = mpsc::unbounded_channel();
         let worker = ChainWorker {
+            config,
             storage,
             chain,
             incoming_requests: receiver,
