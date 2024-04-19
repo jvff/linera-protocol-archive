@@ -23,7 +23,8 @@ use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, instrument, trace, warn};
 #[cfg(with_testing)]
 use {
-    linera_base::identifiers::BytecodeId, linera_chain::data_types::Certificate,
+    linera_base::{crypto::CryptoHash, identifiers::BytecodeId},
+    linera_chain::data_types::{Certificate, Event},
     linera_execution::BytecodeLocation,
 };
 
@@ -36,6 +37,16 @@ pub enum ChainWorkerRequest {
     ReadCertificate {
         height: BlockHeight,
         callback: oneshot::Sender<Result<Option<Certificate>, WorkerError>>,
+    },
+
+    /// Search for an event in one of the chain's inboxes.
+    #[cfg(with_testing)]
+    FindEventInInbox {
+        inbox_id: Origin,
+        certificate_hash: CryptoHash,
+        height: BlockHeight,
+        index: u32,
+        callback: oneshot::Sender<Result<Option<Event>, WorkerError>>,
     },
 
     /// Query an application's state.
@@ -138,6 +149,19 @@ where
                 ChainWorkerRequest::ReadCertificate { height, callback } => {
                     let _ = callback.send(self.read_certificate(height).await);
                 }
+                #[cfg(with_testing)]
+                ChainWorkerRequest::FindEventInInbox {
+                    inbox_id,
+                    certificate_hash,
+                    height,
+                    index,
+                    callback,
+                } => {
+                    let _ = callback.send(
+                        self.find_event_in_inbox(inbox_id, certificate_hash, height, index)
+                            .await,
+                    );
+                }
                 ChainWorkerRequest::QueryApplication { query, callback } => {
                     let _ = callback.send(self.query_application(query).await);
                 }
@@ -193,6 +217,29 @@ where
         };
         let certificate = self.storage.read_certificate(certificate_hash).await?;
         Ok(Some(certificate))
+    }
+
+    /// Searches for an event in one of the chain's inboxes.
+    #[cfg(with_testing)]
+    async fn find_event_in_inbox(
+        &mut self,
+        inbox_id: Origin,
+        certificate_hash: CryptoHash,
+        height: BlockHeight,
+        index: u32,
+    ) -> Result<Option<Event>, WorkerError> {
+        self.ensure_is_active()?;
+
+        let mut inbox = self.chain.inboxes.try_load_entry_mut(&inbox_id).await?;
+        let mut events = inbox.added_events.iter_mut().await?;
+
+        Ok(events
+            .find(|event| {
+                event.certificate_hash == certificate_hash
+                    && event.height == height
+                    && event.index == index
+            })
+            .cloned())
     }
 
     /// Queries an application's state on the chain.
