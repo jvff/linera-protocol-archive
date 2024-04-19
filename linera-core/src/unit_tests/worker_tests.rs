@@ -3025,7 +3025,6 @@ async fn test_cross_chain_helper() -> anyhow::Result<()> {
         .unwrap();
 
     let helper = CrossChainUpdateHelper {
-        nickname: "test",
         allow_messages_from_deprecated_epochs: true,
         current_epoch: Some(Epoch::from(1)),
         committees: &committees,
@@ -3075,7 +3074,6 @@ async fn test_cross_chain_helper() -> anyhow::Result<()> {
     );
 
     let helper = CrossChainUpdateHelper {
-        nickname: "test",
         allow_messages_from_deprecated_epochs: false,
         current_epoch: Some(Epoch::from(1)),
         committees: &committees,
