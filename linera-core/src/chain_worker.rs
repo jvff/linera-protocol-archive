@@ -6,8 +6,6 @@
 use std::collections::BTreeMap;
 
 use linera_base::{data_types::BlockHeight, ensure, identifiers::ChainId};
-#[cfg(with_testing)]
-use linera_chain::data_types::Certificate;
 use linera_chain::{
     data_types::{Block, ExecutedBlock, MessageBundle, Origin, Target},
     ChainStateView,
@@ -23,6 +21,11 @@ use linera_views::{
 };
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, instrument, trace, warn};
+#[cfg(with_testing)]
+use {
+    linera_base::identifiers::BytecodeId, linera_chain::data_types::Certificate,
+    linera_execution::BytecodeLocation,
+};
 
 use crate::{data_types::ChainInfoResponse, worker::WorkerError};
 
@@ -39,6 +42,13 @@ pub enum ChainWorkerRequest {
     QueryApplication {
         query: Query,
         callback: oneshot::Sender<Result<Response, WorkerError>>,
+    },
+
+    /// Read the [`BytecodeLocation`] for a requested [`BytecodeId`].
+    #[cfg(with_testing)]
+    ReadBytecodeLocation {
+        bytecode_id: BytecodeId,
+        callback: oneshot::Sender<Result<Option<BytecodeLocation>, WorkerError>>,
     },
 
     /// Describe an application.
@@ -131,6 +141,13 @@ where
                 ChainWorkerRequest::QueryApplication { query, callback } => {
                     let _ = callback.send(self.query_application(query).await);
                 }
+                #[cfg(with_testing)]
+                ChainWorkerRequest::ReadBytecodeLocation {
+                    bytecode_id,
+                    callback,
+                } => {
+                    let _ = callback.send(self.read_bytecode_location(bytecode_id).await);
+                }
                 ChainWorkerRequest::DescribeApplication {
                     application_id,
                     callback,
@@ -182,6 +199,18 @@ where
     async fn query_application(&mut self, query: Query) -> Result<Response, WorkerError> {
         self.ensure_is_active()?;
         let response = self.chain.query_application(query).await?;
+        Ok(response)
+    }
+
+    /// Returns the [`BytecodeLocation`] for the requested [`BytecodeId`], if it is known by the
+    /// chain.
+    #[cfg(with_testing)]
+    async fn read_bytecode_location(
+        &mut self,
+        bytecode_id: BytecodeId,
+    ) -> Result<Option<BytecodeLocation>, WorkerError> {
+        self.ensure_is_active()?;
+        let response = self.chain.read_bytecode_location(bytecode_id).await?;
         Ok(response)
     }
 
