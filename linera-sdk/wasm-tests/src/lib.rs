@@ -15,7 +15,6 @@ use linera_sdk::{
     util::BlockingWait,
     views::ViewStorageContext,
     Contract, ContractLogger, ContractRuntime, EmptyState, Service, ServiceLogger, ServiceRuntime,
-    SimpleStateStorage,
 };
 use linera_views::{
     map_view::MapView,
