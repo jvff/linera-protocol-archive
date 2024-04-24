@@ -406,7 +406,6 @@ impl WithServiceAbi for TestApp {
     type Abi = Abi;
 }
 
-#[async_trait]
 impl Contract for TestApp {
     type Error = TestAppError;
     type Storage = SimpleStateStorage<Self>;
