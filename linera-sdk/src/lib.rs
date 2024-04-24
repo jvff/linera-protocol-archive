@@ -14,9 +14,6 @@
 //! [`RootView`](crate::views::RootView) on the state type it automatically implements the
 //! [`State`] trait.
 //!
-//! The [`Contract`](crate::Contract) trait in the contract binary and the
-//! [`Service`](crate::Service) trait in the service binary.
-//!
 //! The contract binary should create a type to implement the [`Contract`](crate::Contract) trait.
 //! The type can store the [`ContractRuntime`](crate::ContractRuntime) and the state, and must have
 //! its implementation exported by using the [`contract!`](crate::contract!) macro.
