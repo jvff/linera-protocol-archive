@@ -11,15 +11,15 @@
 //! [`linera-views`](https://docs.rs/linera-views/latest/linera_views/index.html), a framework that
 //! allows loading selected parts of the state. This is useful if the application's state is large
 //! and doesn't need to be loaded in its entirety for every execution. By deriving
-//! [`RootView`](crate::views::RootView) on the state type it automatically implements the
-//! [`State`] trait.
+//! [`RootView`](views::RootView) on the state type it automatically implements the [`State`]
+//! trait.
 //!
 //! The contract binary should create a type to implement the [`Contract`](crate::Contract) trait.
-//! The type can store the [`ContractRuntime`](crate::ContractRuntime) and the state, and must have
-//! its implementation exported by using the [`contract!`](crate::contract!) macro.
+//! The type can store the [`ContractRuntime`](contract::ContractRuntime) and the state, and must
+//! have its implementation exported by using the [`contract!`](crate::contract!) macro.
 //!
 //! The service binary should create a type to implement the [`Service`](crate::Service) trait.
-//! The type can store the [`ServiceRuntime`](crate::ServiceRuntime) and the state, and must have
+//! The type can store the [`ServiceRuntime`](service::ServiceRuntime) and the state, and must have
 //! its implementation exported by using the [`service!`](crate::service!) macro.
 //!
 //! # Examples
