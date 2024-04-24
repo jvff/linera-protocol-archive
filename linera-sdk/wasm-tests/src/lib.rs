@@ -441,7 +441,6 @@ impl Contract for TestApp {
 
 impl Service for TestApp {
     type Error = TestAppError;
-    type Storage = SimpleStateStorage<Self>;
     type State = ();
     type Parameters = Vec<u8>;
 
