@@ -8,7 +8,6 @@
 #![cfg(test)]
 #![cfg(target_arch = "wasm32")]
 
-use async_trait::async_trait;
 use linera_sdk::{
     abi::{ContractAbi, ServiceAbi, WithContractAbi, WithServiceAbi},
     base::{Amount, ApplicationId, BlockHeight, BytecodeId, ChainId, MessageId, Timestamp},
