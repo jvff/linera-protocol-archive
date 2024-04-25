@@ -43,10 +43,6 @@ impl Contract for NativeFungibleTokenContract {
         })
     }
 
-    fn state_mut(&mut self) -> &mut Self::State {
-        &mut self.state
-    }
-
     async fn instantiate(&mut self, state: Self::InstantiationArgument) -> Result<(), Self::Error> {
         // Validate that the application parameters were configured correctly.
         assert!(
