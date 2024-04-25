@@ -8,7 +8,7 @@ mod state;
 use fungible::{FungibleResponse, FungibleTokenAbi, InitialState, Operation, Parameters};
 use linera_sdk::{
     base::{Account, AccountOwner, ChainId, Owner, WithContractAbi},
-    ensure, Contract, ContractRuntime,
+    ensure, Contract, ContractRuntime, StoreOnDrop,
 };
 use native_fungible::{Message, TICKER_SYMBOL};
 use thiserror::Error;
@@ -16,7 +16,7 @@ use thiserror::Error;
 use self::state::NativeFungibleToken;
 
 pub struct NativeFungibleTokenContract {
-    state: NativeFungibleToken,
+    state: StoreOnDrop<NativeFungibleToken>,
     runtime: ContractRuntime<Self>,
 }
 
@@ -37,7 +37,10 @@ impl Contract for NativeFungibleTokenContract {
         state: NativeFungibleToken,
         runtime: ContractRuntime<Self>,
     ) -> Result<Self, Self::Error> {
-        Ok(NativeFungibleTokenContract { state, runtime })
+        Ok(NativeFungibleTokenContract {
+            state: StoreOnDrop(state),
+            runtime,
+        })
     }
 
     fn state_mut(&mut self) -> &mut Self::State {
