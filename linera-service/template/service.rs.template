@@ -24,7 +24,7 @@ impl Service for ApplicationService {{
         ApplicationService {{ state, runtime }}
     }}
 
-    async fn handle_query(&self, _query: Self::Query) -> Self::QueryResponse() {{
+    async fn handle_query(&self, _query: Self::Query) -> Self::QueryResponse {{
         panic!("Queries not supported by application");
     }}
 }}
