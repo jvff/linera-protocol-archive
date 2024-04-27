@@ -5,6 +5,7 @@
 
 mod conversions_from_wit;
 mod conversions_to_wit;
+#[cfg_attr(with_testing, path = "test_runtime.rs")]
 mod runtime;
 #[doc(hidden)]
 pub mod wit;
