@@ -193,7 +193,7 @@ where
     pub fn block_height(&mut self) -> BlockHeight {
         self.block_height.expect(
             "Block height has not been mocked, \
-            please call `ContractRuntime::set_block_height` first",
+            please call `MockContractRuntime::set_block_height` first",
         )
     }
 
