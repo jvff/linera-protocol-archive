@@ -76,7 +76,7 @@ where
         Self::fetch_mocked_value(
             &self.application_parameters,
             "Application parameters have not been mocked, \
-            please call `ServiceRuntime::set_application_parameters` first",
+            please call `MockServiceRuntime::set_application_parameters` first",
         )
     }
 
