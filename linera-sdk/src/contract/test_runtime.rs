@@ -241,7 +241,7 @@ where
     pub fn message_is_bouncing(&mut self) -> Option<bool> {
         self.message_is_bouncing.expect(
             "`message_is_bouncing` flag has not been mocked, \
-            please call `ContractRuntime::set_message_is_bouncing` first",
+            please call `MockContractRuntime::set_message_is_bouncing` first",
         )
     }
 
