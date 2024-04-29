@@ -17,7 +17,7 @@ use linera_base::{
 use crate::Service;
 
 /// The runtime available during execution of a query.
-pub struct ServiceRuntime<Application>
+pub struct MockServiceRuntime<Application>
 where
     Application: Service,
 {
@@ -32,13 +32,13 @@ where
     url_blobs: RefCell<Option<HashMap<String, Vec<u8>>>>,
 }
 
-impl<Application> ServiceRuntime<Application>
+impl<Application> MockServiceRuntime<Application>
 where
     Application: Service,
 {
-    /// Creates a new [`ServiceRuntime`] instance for a service.
+    /// Creates a new [`MockServiceRuntime`] instance for a service.
     pub(crate) fn new() -> Self {
-        ServiceRuntime {
+        MockServiceRuntime {
             application_parameters: Cell::new(None),
             application_id: Cell::new(None),
             chain_id: Cell::new(None),
