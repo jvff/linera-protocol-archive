@@ -147,7 +147,7 @@ where
     pub fn chain_id(&mut self) -> ChainId {
         self.chain_id.expect(
             "Chain ID has not been mocked, \
-            please call `ContractRuntime::set_chain_id` first",
+            please call `MockContractRuntime::set_chain_id` first",
         )
     }
 
