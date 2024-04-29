@@ -214,7 +214,7 @@ where
     pub fn message_id(&mut self) -> Option<MessageId> {
         self.message_id.expect(
             "Message ID has not been mocked, \
-            please call `ContractRuntime::set_message_id` first",
+            please call `MockContractRuntime::set_message_id` first",
         )
     }
 
