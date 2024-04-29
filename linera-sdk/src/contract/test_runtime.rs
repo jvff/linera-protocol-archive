@@ -127,7 +127,7 @@ where
     pub fn application_id(&mut self) -> ApplicationId<Application::Abi> {
         self.application_id.expect(
             "Application ID has not been mocked, \
-            please call `ContractRuntime::set_application_id` first",
+            please call `MockContractRuntime::set_application_id` first",
         )
     }
 
