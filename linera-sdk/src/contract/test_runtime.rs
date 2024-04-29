@@ -288,7 +288,7 @@ where
     pub fn system_time(&mut self) -> Timestamp {
         self.timestamp.expect(
             "System time has not been mocked, \
-            please call `ContractRuntime::set_system_time` first",
+            please call `MockContractRuntime::set_system_time` first",
         )
     }
 
