@@ -291,7 +291,7 @@ where
         let mut handler_guard = self.query_application_handler.borrow_mut();
         let handler = handler_guard.as_mut().expect(
             "Handler for `query_application` has not been mocked, \
-            please call `ServiceRuntime::set_query_application_handler` first",
+            please call `MockServiceRuntime::set_query_application_handler` first",
         );
 
         let response_bytes = handler(application.forget_abi(), query_bytes);
