@@ -240,7 +240,7 @@ where
             .as_ref()
             .expect(
                 "Owner balances have not been mocked, \
-                please call `ServiceRuntime::set_owner_balances` first",
+                please call `MockServiceRuntime::set_owner_balances` first",
             )
             .iter()
             .map(|(owner, amount)| (*owner, *amount))
