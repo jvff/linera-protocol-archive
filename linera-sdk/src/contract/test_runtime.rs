@@ -563,7 +563,7 @@ where
 
         let handler = self.call_application_handler.as_mut().expect(
             "Handler for `call_application` has not been mocked, \
-            please call `ContractRuntime::set_call_application_handler` first",
+            please call `MockContractRuntime::set_call_application_handler` first",
         );
         let response_bytes = handler(authenticated, application.forget_abi(), call_bytes);
 
