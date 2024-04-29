@@ -11,15 +11,11 @@ use anyhow::{ensure, Context, Result};
 use cargo_toml::Manifest;
 use current_platform::CURRENT_PLATFORM;
 use fs_err::File;
-use linera_base::command::resolve_binary;
 use tracing::debug;
 
 pub struct Project {
     root: PathBuf,
 }
-
-const RUNNER_BIN_NAME: &str = "linera-wasm-test-runner";
-const RUNNER_BIN_CRATE: &str = "linera-sdk";
 
 impl Project {
     pub fn create_new(name: &str, linera_root: Option<&Path>) -> Result<Self> {
