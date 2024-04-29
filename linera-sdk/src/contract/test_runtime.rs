@@ -104,7 +104,7 @@ where
     pub fn application_parameters(&mut self) -> Application::Parameters {
         self.application_parameters.clone().expect(
             "Application parameters have not been mocked, \
-            please call `ContractRuntime::set_application_parameters` first",
+            please call `MockContractRuntime::set_application_parameters` first",
         )
     }
 
