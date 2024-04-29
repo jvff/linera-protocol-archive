@@ -139,7 +139,7 @@ where
         Self::fetch_mocked_value(
             &self.next_block_height,
             "Next block height has not been mocked, \
-            please call `ServiceRuntime::set_next_block_height` first",
+            please call `MockServiceRuntime::set_next_block_height` first",
         )
     }
 
