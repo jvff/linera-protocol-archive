@@ -313,7 +313,7 @@ where
     fn chain_balance_mut(&mut self) -> &mut Amount {
         self.chain_balance.as_mut().expect(
             "Chain balance has not been mocked, \
-            please call `ContractRuntime::set_chain_balance` first",
+            please call `MockContractRuntime::set_chain_balance` first",
         )
     }
 
