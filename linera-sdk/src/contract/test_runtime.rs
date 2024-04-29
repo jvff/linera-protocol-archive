@@ -268,7 +268,7 @@ where
     pub fn authenticated_caller_id(&mut self) -> Option<ApplicationId> {
         self.authenticated_caller_id.expect(
             "Authenticated caller ID has not been mocked, \
-            please call `ContractRuntime::set_authenticated_caller_id` first",
+            please call `MockContractRuntime::set_authenticated_caller_id` first",
         )
     }
 
