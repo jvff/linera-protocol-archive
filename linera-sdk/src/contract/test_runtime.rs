@@ -523,7 +523,7 @@ where
     pub fn close_chain(&mut self) -> Result<(), CloseChainError> {
         let authorized = self.can_close_chain.expect(
             "Authorization to close the chain has not been mocked, \
-            please call `ContractRuntime::set_can_close_chain` first",
+            please call `MockContractRuntime::set_can_close_chain` first",
         );
 
         if authorized {
