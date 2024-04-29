@@ -228,7 +228,7 @@ where
                 panic!(
                     "Balance for owner {owner} was not mocked, \
                     please include a balance for them with a call to \
-                    `ServiceRuntime::set_owner_balance`"
+                    `MockServiceRuntime::set_owner_balance`"
                 )
             })
     }
