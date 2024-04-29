@@ -97,7 +97,7 @@ where
         Self::fetch_mocked_value(
             &self.application_id,
             "Application ID has not been mocked, \
-            please call `ServiceRuntime::set_application_id` first",
+            please call `MockServiceRuntime::set_application_id` first",
         )
     }
 
