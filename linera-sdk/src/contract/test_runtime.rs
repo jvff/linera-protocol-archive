@@ -502,7 +502,7 @@ where
     pub fn chain_ownership(&mut self) -> ChainOwnership {
         self.chain_ownership.clone().expect(
             "Chain ownership has not been mocked, \
-            please call `ContractRuntime::set_chain_ownership` first",
+            please call `MockContractRuntime::set_chain_ownership` first",
         )
     }
 
