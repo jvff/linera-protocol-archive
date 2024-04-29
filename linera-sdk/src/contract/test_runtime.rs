@@ -173,7 +173,7 @@ where
     pub fn authenticated_signer(&mut self) -> Option<Owner> {
         self.authenticated_signer.expect(
             "Authenticated signer has not been mocked, \
-            please call `ContractRuntime::set_authenticated_signer` first",
+            please call `MockContractRuntime::set_authenticated_signer` first",
         )
     }
 
