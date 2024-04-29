@@ -160,7 +160,7 @@ where
         Self::fetch_mocked_value(
             &self.timestamp,
             "System time has not been mocked, \
-            please call `ServiceRuntime::set_system_time` first",
+            please call `MockServiceRuntime::set_system_time` first",
         )
     }
 
