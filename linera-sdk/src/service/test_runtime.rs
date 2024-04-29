@@ -336,7 +336,7 @@ where
             .unwrap_or_else(|| {
                 panic!(
                     "Blob for URL {url:?} has not been mocked, \
-                    please call `ServiceRuntime::set_url_blob` first"
+                    please call `MockServiceRuntime::set_url_blob` first"
                 )
             })
     }
