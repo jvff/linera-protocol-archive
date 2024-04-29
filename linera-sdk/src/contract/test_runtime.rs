@@ -360,14 +360,14 @@ where
             .as_mut()
             .expect(
                 "Owner balances have not been mocked, \
-                please call `ContractRuntime::set_owner_balances` first",
+                please call `MockContractRuntime::set_owner_balances` first",
             )
             .get_mut(&owner)
             .unwrap_or_else(|| {
                 panic!(
                     "Balance for owner {owner} was not mocked, \
                     please include a balance for them in the call to \
-                    `ContractRuntime::set_owner_balances`"
+                    `MockContractRuntime::set_owner_balances`"
                 )
             })
     }
