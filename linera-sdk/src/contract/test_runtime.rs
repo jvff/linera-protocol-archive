@@ -19,7 +19,7 @@ use serde::Serialize;
 use crate::Contract;
 
 /// A mock of the common runtime to interface with the host executing the contract.
-pub struct ContractRuntime<Application>
+pub struct MockContractRuntime<Application>
 where
     Application: Contract,
 {
@@ -44,22 +44,22 @@ where
     claim_requests: Vec<ClaimRequest>,
 }
 
-impl<Application> Default for ContractRuntime<Application>
+impl<Application> Default for MockContractRuntime<Application>
 where
     Application: Contract,
 {
     fn default() -> Self {
-        ContractRuntime::new()
+        MockContractRuntime::new()
     }
 }
 
-impl<Application> ContractRuntime<Application>
+impl<Application> MockContractRuntime<Application>
 where
     Application: Contract,
 {
-    /// Creates a new [`ContractRuntime`] instance for a contract.
+    /// Creates a new [`MockContractRuntime`] instance for a contract.
     pub fn new() -> Self {
-        ContractRuntime {
+        MockContractRuntime {
             application_parameters: None,
             application_id: None,
             chain_id: None,
