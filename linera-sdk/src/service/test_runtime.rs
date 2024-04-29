@@ -118,7 +118,7 @@ where
         Self::fetch_mocked_value(
             &self.chain_id,
             "Chain ID has not been mocked, \
-            please call `ServiceRuntime::set_chain_id` first",
+            please call `MockServiceRuntime::set_chain_id` first",
         )
     }
 
