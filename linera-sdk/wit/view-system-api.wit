@@ -11,11 +11,4 @@ interface view-system-api {
     find-keys-wait: func(promise-id: u32) -> list<list<u8>>;
     find-key-values-new: func(key-prefix: list<u8>) -> u32;
     find-key-values-wait: func(promise-id: u32) -> list<tuple<list<u8>, list<u8>>>;
-    write-batch: func(operations: list<write-operation>);
-
-    variant write-operation {
-        delete(list<u8>),
-        delete-prefix(list<u8>),
-        put(tuple<list<u8>, list<u8>>),
-    }
 }

@@ -13,6 +13,7 @@ interface service-system-api {
     try-query-application: func(application: application-id, argument: list<u8>) -> list<u8>;
     fetch-url: func(url: string) -> list<u8>;
     log: func(message: string, level: log-level);
+    write-batch: func(operations: list<write-operation>);
 
     record amount {
         inner0: u128,
@@ -65,4 +66,10 @@ interface service-system-api {
     }
 
     type u128 = tuple<u64, u64>;
+
+    variant write-operation {
+        delete(list<u8>),
+        delete-prefix(list<u8>),
+        put(tuple<list<u8>, list<u8>>),
+    }
 }

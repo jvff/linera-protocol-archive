@@ -23,6 +23,7 @@ interface contract-system-api {
     try-call-application: func(authenticated: bool, callee-id: application-id, argument: list<u8>) -> list<u8>;
     log: func(message: string, level: log-level);
     consume-fuel: func(fuel: u64);
+    write-batch: func(operations: list<write-operation>);
 
     record account {
         chain-id: chain-id,
@@ -137,4 +138,10 @@ interface contract-system-api {
     }
 
     type u128 = tuple<u64, u64>;
+
+    variant write-operation {
+        delete(list<u8>),
+        delete-prefix(list<u8>),
+        put(tuple<list<u8>, list<u8>>),
+    }
 }

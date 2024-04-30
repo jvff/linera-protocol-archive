@@ -13,10 +13,7 @@ use linera_witty::{wit_export, Instance, RuntimeError};
 use tracing::log;
 
 use super::WasmExecutionError;
-use crate::{
-    BaseRuntime, ContractRuntime, ContractSyncRuntime, ExecutionError, ServiceRuntime,
-    ServiceSyncRuntime,
-};
+use crate::{BaseRuntime, ContractRuntime, ExecutionError, ServiceRuntime};
 
 /// Common host data used as the `UserData` of the system API implementations.
 pub struct SystemApiData<Runtime> {
@@ -322,6 +319,18 @@ where
             .consume_fuel(fuel)
             .map_err(|e| RuntimeError::Custom(e.into()))
     }
+
+    /// Writes a batch of `operations` to storage.
+    fn write_batch(
+        caller: &mut Caller,
+        operations: Vec<WriteOperation>,
+    ) -> Result<(), RuntimeError> {
+        caller
+            .user_data_mut()
+            .runtime_mut()
+            .write_batch(Batch { operations })
+            .map_err(|error| RuntimeError::Custom(error.into()))
+    }
 }
 
 /// An implementation of the system API made available to services.
@@ -448,6 +457,17 @@ where
         }
         Ok(())
     }
+
+    // TODO(#1976): Remove when it's possible to use read-only contexts in views
+    /// Writes a batch of `operations` to storage.
+    fn write_batch(
+        _caller: &mut Caller,
+        _operations: Vec<WriteOperation>,
+    ) -> Result<(), RuntimeError> {
+        Err(RuntimeError::Custom(
+            ExecutionError::ServiceWriteAttempt.into(),
+        ))
+    }
 }
 
 /// An implementation of the system API used to access the view storage for both contracts and
@@ -459,7 +479,7 @@ pub struct ViewSystemApi<Caller>(PhantomData<Caller>);
 impl<Caller, Runtime> ViewSystemApi<Caller>
 where
     Caller: Instance<UserData = SystemApiData<Runtime>>,
-    Runtime: BaseRuntime + WriteBatch + Send + 'static,
+    Runtime: BaseRuntime + Send + 'static,
 {
     /// Creates a new promise to check if the `key` is in storage.
     fn contains_key_new(caller: &mut Caller, key: Vec<u8>) -> Result<u32, RuntimeError> {
@@ -577,35 +597,5 @@ where
         data.runtime
             .find_key_values_by_prefix_wait(&promise)
             .map_err(|error| RuntimeError::Custom(error.into()))
-    }
-
-    /// Writes a batch of `operations` to storage.
-    fn write_batch(
-        caller: &mut Caller,
-        operations: Vec<WriteOperation>,
-    ) -> Result<(), RuntimeError> {
-        WriteBatch::write_batch(&mut caller.user_data_mut().runtime, Batch { operations })
-            .map_err(|error| RuntimeError::Custom(error.into()))
-    }
-}
-
-// TODO(#1977): Remove once the WIT interface does not include `write-batch` in the service system
-// API
-/// An extension trait to separate the behavior between the contract runtime and the service
-/// runtime.
-pub trait WriteBatch {
-    /// Writes a [`Batch`] of operations to storage.
-    fn write_batch(&mut self, batch: Batch) -> Result<(), ExecutionError>;
-}
-
-impl WriteBatch for ContractSyncRuntime {
-    fn write_batch(&mut self, batch: Batch) -> Result<(), ExecutionError> {
-        ContractRuntime::write_batch(self, batch)
-    }
-}
-
-impl WriteBatch for ServiceSyncRuntime {
-    fn write_batch(&mut self, _: Batch) -> Result<(), ExecutionError> {
-        Err(ExecutionError::ServiceWriteAttempt)
     }
 }
