@@ -3,14 +3,19 @@
 
 //! Functions and types to interface with the system API available to application views.
 
+use std::marker::PhantomData;
+
 use linera_base::ensure;
 use linera_views::{
     batch::{Batch, WriteOperation},
-    common::{ContextFromStore, ReadableKeyValueStore, WritableKeyValueStore},
+    common::{Context, ContextFromStore, ReadableKeyValueStore, WritableKeyValueStore},
     views::ViewError,
 };
 
-use crate::{service::wit::view_system_api as wit, util::yield_once};
+use crate::{
+    service::wit::view_system_api as wit, util::yield_once, Contract, ContractRuntime, Service,
+    ServiceRuntime,
+};
 
 /// We need to have a maximum key size that handles all possible underlying
 /// sizes. The constraint so far is DynamoDb which has a key length of 1024.
@@ -22,70 +27,105 @@ const MAX_KEY_SIZE: usize = 900;
 
 /// A type to interface with the key value storage provided to applications.
 #[derive(Default, Clone)]
-pub struct KeyValueStore;
+pub struct KeyValueStore<Runtime>(PhantomData<Runtime>);
 
-impl ReadableKeyValueStore<ViewError> for KeyValueStore {
-    // The KeyValueStore of the system_api does not have limits
-    // on the size of its values.
-    const MAX_KEY_SIZE: usize = MAX_KEY_SIZE;
-    type Keys = Vec<Vec<u8>>;
-    type KeyValues = Vec<(Vec<u8>, Vec<u8>)>;
+// SAFETY: The types are empty types, and calls to the external API are serialized
+unsafe impl<Runtime> Sync for KeyValueStore<Runtime> {}
+unsafe impl<Runtime> Send for KeyValueStore<Runtime> {}
 
-    fn max_stream_queries(&self) -> usize {
-        1
-    }
+macro_rules! impl_key_value_store {
+    ($runtime:ident, $application:ident, $( $wit:tt )*) => {
+        impl<T> ReadableKeyValueStore<ViewError> for KeyValueStore<$runtime<T>>
+        where
+            T: $application,
+        {
+            // The KeyValueStore of the system_api does not have limits
+            // on the size of its values.
+            const MAX_KEY_SIZE: usize = MAX_KEY_SIZE;
+            type Keys = Vec<Vec<u8>>;
+            type KeyValues = Vec<(Vec<u8>, Vec<u8>)>;
 
-    async fn contains_key(&self, key: &[u8]) -> Result<bool, ViewError> {
-        ensure!(key.len() <= Self::MAX_KEY_SIZE, ViewError::KeyTooLong);
-        let promise = wit::contains_key_new(key);
-        yield_once().await;
-        Ok(wit::contains_key_wait(promise))
-    }
+            fn max_stream_queries(&self) -> usize {
+                1
+            }
 
-    async fn read_multi_values_bytes(
-        &self,
-        keys: Vec<Vec<u8>>,
-    ) -> Result<Vec<Option<Vec<u8>>>, ViewError> {
-        for key in &keys {
-            ensure!(key.len() <= Self::MAX_KEY_SIZE, ViewError::KeyTooLong);
+            async fn contains_key(&self, key: &[u8]) -> Result<bool, ViewError> {
+                ensure!(key.len() <= Self::MAX_KEY_SIZE, ViewError::KeyTooLong);
+                let promise = $($wit)*::contains_key_new(key);
+                yield_once().await;
+                Ok($($wit)*::contains_key_wait(promise))
+            }
+
+            async fn read_multi_values_bytes(
+                &self,
+                keys: Vec<Vec<u8>>,
+            ) -> Result<Vec<Option<Vec<u8>>>, ViewError> {
+                for key in &keys {
+                    ensure!(key.len() <= Self::MAX_KEY_SIZE, ViewError::KeyTooLong);
+                }
+                let promise = $($wit)*::read_multi_values_bytes_new(&keys);
+                yield_once().await;
+                Ok($($wit)*::read_multi_values_bytes_wait(promise))
+            }
+
+            async fn read_value_bytes(&self, key: &[u8]) -> Result<Option<Vec<u8>>, ViewError> {
+                ensure!(key.len() <= Self::MAX_KEY_SIZE, ViewError::KeyTooLong);
+                let promise = $($wit)*::read_value_bytes_new(key);
+                yield_once().await;
+                Ok($($wit)*::read_value_bytes_wait(promise))
+            }
+
+            async fn find_keys_by_prefix(
+                &self,
+                key_prefix: &[u8],
+            ) -> Result<Self::Keys, ViewError> {
+                ensure!(
+                    key_prefix.len() <= Self::MAX_KEY_SIZE,
+                    ViewError::KeyTooLong
+                );
+                let promise = $($wit)*::find_keys_new(key_prefix);
+                yield_once().await;
+                Ok($($wit)*::find_keys_wait(promise))
+            }
+
+            async fn find_key_values_by_prefix(
+                &self,
+                key_prefix: &[u8],
+            ) -> Result<Self::KeyValues, ViewError> {
+                ensure!(
+                    key_prefix.len() <= Self::MAX_KEY_SIZE,
+                    ViewError::KeyTooLong
+                );
+                let promise = $($wit)*::find_key_values_new(key_prefix);
+                yield_once().await;
+                Ok($($wit)*::find_key_values_wait(promise))
+            }
         }
-        let promise = wit::read_multi_values_bytes_new(&keys);
-        yield_once().await;
-        Ok(wit::read_multi_values_bytes_wait(promise))
-    }
 
-    async fn read_value_bytes(&self, key: &[u8]) -> Result<Option<Vec<u8>>, ViewError> {
-        ensure!(key.len() <= Self::MAX_KEY_SIZE, ViewError::KeyTooLong);
-        let promise = wit::read_value_bytes_new(key);
-        yield_once().await;
-        Ok(wit::read_value_bytes_wait(promise))
-    }
-
-    async fn find_keys_by_prefix(&self, key_prefix: &[u8]) -> Result<Self::Keys, ViewError> {
-        ensure!(
-            key_prefix.len() <= Self::MAX_KEY_SIZE,
-            ViewError::KeyTooLong
-        );
-        let promise = wit::find_keys_new(key_prefix);
-        yield_once().await;
-        Ok(wit::find_keys_wait(promise))
-    }
-
-    async fn find_key_values_by_prefix(
-        &self,
-        key_prefix: &[u8],
-    ) -> Result<Self::KeyValues, ViewError> {
-        ensure!(
-            key_prefix.len() <= Self::MAX_KEY_SIZE,
-            ViewError::KeyTooLong
-        );
-        let promise = wit::find_key_values_new(key_prefix);
-        yield_once().await;
-        Ok(wit::find_key_values_wait(promise))
-    }
+        impl<T> linera_views::common::KeyValueStore for KeyValueStore<$runtime<T>>
+        where
+            T: $application,
+        {
+            type Error = ViewError;
+        }
+    };
 }
 
-impl WritableKeyValueStore<ViewError> for KeyValueStore {
+impl_key_value_store!(
+    ContractRuntime,
+    Contract,
+    crate::contract::wit::view_system_api
+);
+impl_key_value_store!(
+    ServiceRuntime,
+    Service,
+    crate::service::wit::view_system_api
+);
+
+impl<T> WritableKeyValueStore<ViewError> for KeyValueStore<ContractRuntime<T>>
+where
+    T: Contract,
+{
     const MAX_VALUE_SIZE: usize = usize::MAX;
 
     async fn write_batch(&self, batch: Batch, _base_key: &[u8]) -> Result<(), ViewError> {
@@ -95,7 +135,7 @@ impl WritableKeyValueStore<ViewError> for KeyValueStore {
             .map(WriteOperation::into)
             .collect::<Vec<_>>();
 
-        wit::write_batch(&batch_operations);
+        crate::contract::wit::view_system_api::write_batch(&batch_operations);
 
         Ok(())
     }
@@ -105,10 +145,21 @@ impl WritableKeyValueStore<ViewError> for KeyValueStore {
     }
 }
 
-impl linera_views::common::KeyValueStore for KeyValueStore {
-    type Error = ViewError;
+impl<T> WritableKeyValueStore<ViewError> for KeyValueStore<ServiceRuntime<T>>
+where
+    T: Service,
+{
+    const MAX_VALUE_SIZE: usize = usize::MAX;
+
+    async fn write_batch(&self, _batch: Batch, _base_key: &[u8]) -> Result<(), ViewError> {
+        panic!("Attempt to write to storage from a service");
+    }
+
+    async fn clear_journal(&self, _base_key: &[u8]) -> Result<(), ViewError> {
+        panic!("Attempt to write to storage from a service");
+    }
 }
 
 /// Implementation of [`linera_views::common::Context`] to be used for data storage
 /// by Linera applications.
-pub type ViewStorageContext = ContextFromStore<(), KeyValueStore>;
+pub type ViewStorageContext = Box<dyn Context>;
