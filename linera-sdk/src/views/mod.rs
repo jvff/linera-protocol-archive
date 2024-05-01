@@ -20,6 +20,5 @@ pub use self::aliases::{
     CustomMapView, CustomSetView, LogView, MapView, QueueView, ReadGuardedView, RegisterView,
     SetView,
 };
-pub use self::system_api::KeyValueStore;
-pub use self::system_api::ViewStorageContext;
 pub(crate) use self::system_api::WitInterface;
+pub use self::system_api::{KeyValueStore, ViewStorageContext};
