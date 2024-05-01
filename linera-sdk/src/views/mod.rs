@@ -8,8 +8,6 @@ mod conversions_to_wit;
 #[cfg(with_testing)]
 mod mock_key_value_store;
 mod system_api;
-#[cfg(with_testing)]
-mod test_context;
 
 pub use linera_views::{
     self,
@@ -22,9 +20,4 @@ pub use self::aliases::{
     CustomMapView, CustomSetView, LogView, MapView, QueueView, ReadGuardedView, RegisterView,
     SetView,
 };
-pub use self::system_api::KeyValueStore;
-#[cfg(not(with_testing))]
-pub use self::system_api::ViewStorageContext;
-pub(crate) use self::system_api::WitInterface;
-#[cfg(with_testing)]
-pub use self::test_context::ViewStorageContext;
+pub use self::system_api::{KeyValueStore, ViewStorageContext};
