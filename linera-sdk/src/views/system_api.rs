@@ -10,6 +10,8 @@ use linera_views::{
     views::ViewError,
 };
 
+#[cfg(with_testing)]
+use super::mock_system_api as mock_wit;
 use crate::{
     contract::wit::view_system_api::{self as contract_wit, WriteOperation},
     service::wit::view_system_api as service_wit,
@@ -105,13 +107,17 @@ impl WritableKeyValueStore<ViewError> for KeyValueStore {
 }
 
 /// Which system API should be used to interface with the storage.
-#[derive(Clone, Copy, Debug, Default)]
+#[cfg_attr(with_testing, allow(dead_code))]
+#[derive(Clone, Copy, Debug)]
 pub(crate) enum WitInterface {
     /// The contract system API.
     Contract,
     /// The service system API.
     #[default]
     Service,
+    #[cfg(with_testing)]
+    /// A mock system API.
+    Mock { read_only: bool },
 }
 
 impl WitInterface {
@@ -120,6 +126,8 @@ impl WitInterface {
         match self {
             WitInterface::Contract => contract_wit::contains_key_new(key),
             WitInterface::Service => service_wit::contains_key_new(key),
+            #[cfg(with_testing)]
+            WitInterface::Mock { .. } => mock_wit::contains_key_new(key),
         }
     }
 
@@ -128,6 +136,8 @@ impl WitInterface {
         match self {
             WitInterface::Contract => contract_wit::contains_key_wait(promise),
             WitInterface::Service => service_wit::contains_key_wait(promise),
+            #[cfg(with_testing)]
+            WitInterface::Mock { .. } => mock_wit::contains_key_wait(promise),
         }
     }
 
@@ -136,6 +146,8 @@ impl WitInterface {
         match self {
             WitInterface::Contract => contract_wit::read_multi_values_bytes_new(keys),
             WitInterface::Service => service_wit::read_multi_values_bytes_new(keys),
+            #[cfg(with_testing)]
+            WitInterface::Mock { .. } => mock_wit::read_multi_values_bytes_new(keys),
         }
     }
 
@@ -144,6 +156,8 @@ impl WitInterface {
         match self {
             WitInterface::Contract => contract_wit::read_multi_values_bytes_wait(promise),
             WitInterface::Service => service_wit::read_multi_values_bytes_wait(promise),
+            #[cfg(with_testing)]
+            WitInterface::Mock { .. } => mock_wit::read_multi_values_bytes_wait(promise),
         }
     }
 
@@ -152,6 +166,8 @@ impl WitInterface {
         match self {
             WitInterface::Contract => contract_wit::read_value_bytes_new(key),
             WitInterface::Service => service_wit::read_value_bytes_new(key),
+            #[cfg(with_testing)]
+            WitInterface::Mock { .. } => mock_wit::read_value_bytes_new(key),
         }
     }
 
@@ -160,6 +176,8 @@ impl WitInterface {
         match self {
             WitInterface::Contract => contract_wit::read_value_bytes_wait(promise),
             WitInterface::Service => service_wit::read_value_bytes_wait(promise),
+            #[cfg(with_testing)]
+            WitInterface::Mock { .. } => mock_wit::read_value_bytes_wait(promise),
         }
     }
 
@@ -168,6 +186,8 @@ impl WitInterface {
         match self {
             WitInterface::Contract => contract_wit::find_keys_new(key_prefix),
             WitInterface::Service => service_wit::find_keys_new(key_prefix),
+            #[cfg(with_testing)]
+            WitInterface::Mock { .. } => mock_wit::find_keys_new(key_prefix),
         }
     }
 
@@ -176,6 +196,8 @@ impl WitInterface {
         match self {
             WitInterface::Contract => contract_wit::find_keys_wait(promise),
             WitInterface::Service => service_wit::find_keys_wait(promise),
+            #[cfg(with_testing)]
+            WitInterface::Mock { .. } => mock_wit::find_keys_wait(promise),
         }
     }
 
@@ -184,6 +206,8 @@ impl WitInterface {
         match self {
             WitInterface::Contract => contract_wit::find_key_values_new(key_prefix),
             WitInterface::Service => service_wit::find_key_values_new(key_prefix),
+            #[cfg(with_testing)]
+            WitInterface::Mock { .. } => mock_wit::find_key_values_new(key_prefix),
         }
     }
 
@@ -192,6 +216,8 @@ impl WitInterface {
         match self {
             WitInterface::Contract => contract_wit::find_key_values_wait(promise),
             WitInterface::Service => service_wit::find_key_values_wait(promise),
+            #[cfg(with_testing)]
+            WitInterface::Mock { .. } => mock_wit::find_key_values_wait(promise),
         }
     }
 
@@ -208,6 +234,20 @@ impl WitInterface {
                 contract_wit::write_batch(&batch_operations);
             }
             WitInterface::Service => panic!("Attempt to modify storage from a service"),
+            #[cfg(with_testing)]
+            WitInterface::Mock { read_only: false } => {
+                let batch_operations = batch
+                    .operations
+                    .into_iter()
+                    .map(WriteOperation::from)
+                    .collect::<Vec<_>>();
+
+                mock_wit::write_batch(&batch_operations);
+            }
+            #[cfg(with_testing)]
+            WitInterface::Mock { read_only: true } => {
+                panic!("Attempt to modify storage from a service")
+            }
         }
     }
 }
