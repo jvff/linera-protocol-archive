@@ -236,13 +236,7 @@ impl WitInterface {
             WitInterface::Service => panic!("Attempt to modify storage from a service"),
             #[cfg(with_testing)]
             WitInterface::Mock { read_only: false } => {
-                let batch_operations = batch
-                    .operations
-                    .into_iter()
-                    .map(WriteOperation::from)
-                    .collect::<Vec<_>>();
-
-                mock_wit::write_batch(&batch_operations);
+                mock_wit::write_batch(batch);
             }
             #[cfg(with_testing)]
             WitInterface::Mock { read_only: true } => {

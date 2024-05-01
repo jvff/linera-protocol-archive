@@ -16,7 +16,7 @@ use linera_base::{
 };
 use serde::Serialize;
 
-use crate::Contract;
+use crate::{views::WitInterface, Contract, KeyValueStore};
 
 /// A mock of the common runtime to interface with the host executing the contract.
 pub struct MockContractRuntime<Application>
@@ -79,6 +79,13 @@ where
             unsubscribe_requests: Vec::new(),
             outgoing_transfers: HashMap::new(),
             claim_requests: Vec::new(),
+        }
+    }
+
+    /// Returns the key-value store to interface with storage.
+    pub fn key_value_store(&self) -> KeyValueStore {
+        KeyValueStore {
+            wit_api: WitInterface::Mock { read_only: false },
         }
     }
 

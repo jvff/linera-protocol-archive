@@ -14,7 +14,7 @@ use linera_base::{
     identifiers::{ApplicationId, ChainId, Owner},
 };
 
-use crate::Service;
+use crate::{views::WitInterface, KeyValueStore, Service};
 
 /// The runtime available during execution of a query.
 pub struct MockServiceRuntime<Application>
@@ -48,6 +48,13 @@ where
             owner_balances: RefCell::new(None),
             query_application_handler: RefCell::new(None),
             url_blobs: RefCell::new(None),
+        }
+    }
+
+    /// Returns the key-value store to interface with storage.
+    pub fn key_value_store(&self) -> KeyValueStore {
+        KeyValueStore {
+            wit_api: WitInterface::Mock { read_only: true },
         }
     }
 

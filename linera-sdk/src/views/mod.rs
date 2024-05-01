@@ -7,7 +7,6 @@ mod aliases;
 mod conversions_to_wit;
 #[cfg(with_testing)]
 mod mock_system_api;
-#[cfg(not(with_testing))]
 mod system_api;
 #[cfg(with_testing)]
 mod test_context;
@@ -23,7 +22,9 @@ pub use self::aliases::{
     CustomMapView, CustomSetView, LogView, MapView, QueueView, ReadGuardedView, RegisterView,
     SetView,
 };
+pub use self::system_api::KeyValueStore;
 #[cfg(not(with_testing))]
 pub use self::system_api::ViewStorageContext;
+pub(crate) use self::system_api::WitInterface;
 #[cfg(with_testing)]
 pub use self::test_context::ViewStorageContext;
