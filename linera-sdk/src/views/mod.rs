@@ -15,9 +15,11 @@ pub use linera_views::{
     views::{RootView, View, ViewError},
 };
 
-pub use self::aliases::{
-    ByteCollectionView, ByteMapView, ByteSetView, CollectionView, CustomCollectionView,
-    CustomMapView, CustomSetView, LogView, MapView, QueueView, ReadGuardedView, RegisterView,
-    SetView,
+pub use self::{
+    aliases::{
+        ByteCollectionView, ByteMapView, ByteSetView, CollectionView, CustomCollectionView,
+        CustomMapView, CustomSetView, LogView, MapView, QueueView, ReadGuardedView, RegisterView,
+        SetView,
+    },
+    system_api::{KeyValueStore, ViewStorageContext},
 };
-pub use self::system_api::{KeyValueStore, ViewStorageContext};
