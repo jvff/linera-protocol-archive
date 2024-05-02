@@ -14,7 +14,7 @@ use linera_sdk::{
 };
 use matching_engine::{
     product_price_amount, MatchingEngineAbi, Message, Operation, Order, OrderId, OrderNature,
-    Parameters, Price,
+    Parameters, Price, PriceAsk, PriceBid,
 };
 use state::{LevelView, MatchingEngine};
 
@@ -748,5 +748,23 @@ impl MatchingEngineContract {
             }
         }
         transfers
+    }
+}
+
+impl MatchingEngine {
+    /// Returns the [`LevelView`] for a specified ask `price`.
+    pub async fn ask_level(&mut self, price: &PriceAsk) -> &mut LevelView {
+        self.asks
+            .load_entry_mut(price)
+            .await
+            .expect("Failed to load `LevelView` for an ask price")
+    }
+
+    /// Returns the [`LevelView`] for a specified bid `price`.
+    pub async fn bid_level(&mut self, price: &PriceBid) -> &mut LevelView {
+        self.bids
+            .load_entry_mut(price)
+            .await
+            .expect("Failed to load `LevelView` for a bid price")
     }
 }
