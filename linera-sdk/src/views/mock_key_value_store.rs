@@ -3,8 +3,6 @@
 
 //! A mock system API for interfacing with the key-value store.
 
-#![allow(static_mut_refs)]
-
 use std::{
     collections::BTreeMap,
     sync::{
