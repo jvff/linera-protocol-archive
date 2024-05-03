@@ -223,7 +223,7 @@ where
 
     fn finalize(&mut self, _context: FinalizeContext) -> Result<(), ExecutionError> {
         self.configure_initial_fuel()?;
-        let result = ContractEntrypoints::new(&mut self.instance).finalize();
+        let result = ContractEntrypoints::new(&mut self.instance).store();
         self.persist_remaining_fuel()?;
         result.map_err(WasmExecutionError::from)?;
         Ok(())

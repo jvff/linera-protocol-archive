@@ -86,7 +86,7 @@ macro_rules! contract {
                 )
             }
 
-            fn finalize() {
+            fn store() {
                 use $crate::util::BlockingWait;
 
                 let contract = unsafe { CONTRACT.take() }

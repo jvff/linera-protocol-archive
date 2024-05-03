@@ -154,7 +154,7 @@ where
 
     fn finalize(&mut self, _context: FinalizeContext) -> Result<(), ExecutionError> {
         ContractEntrypoints::new(&mut self.instance)
-            .finalize()
+            .store()
             .map_err(WasmExecutionError::from)?;
         Ok(())
     }
