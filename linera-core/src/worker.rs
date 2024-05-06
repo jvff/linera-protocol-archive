@@ -52,7 +52,10 @@ use {
     prometheus::{HistogramVec, IntCounterVec},
 };
 
-use crate::data_types::{ChainInfo, ChainInfoQuery, ChainInfoResponse, CrossChainRequest};
+use crate::{
+    chain_worker::{ChainWorkerActor, ChainWorkerRequest},
+    data_types::{ChainInfo, ChainInfoQuery, ChainInfoResponse, CrossChainRequest},
+};
 
 #[cfg(test)]
 #[path = "unit_tests/worker_tests.rs"]
@@ -429,20 +432,16 @@ where
         &mut self,
         block: Block,
     ) -> Result<(ExecutedBlock, ChainInfoResponse), WorkerError> {
-        let mut chain = self.storage.load_active_chain(block.chain_id).await?;
-        let local_time = self.storage.clock().current_time();
-        let signer = block.authenticated_signer;
-        let executed_block = chain
-            .execute_block(&block, local_time, None)
-            .await?
-            .with(block);
-        let mut response = ChainInfoResponse::new(&chain, None);
-        if let Some(signer) = signer {
-            response.info.requested_owner_balance =
-                chain.execution_state.system.balances.get(&signer).await?;
-        }
-        // Do not save the new state.
-        Ok((executed_block, response))
+        let chain_actor = ChainWorkerActor::spawn(self.storage.clone(), block.chain_id).await?;
+        let (callback, response) = oneshot::channel();
+
+        chain_actor
+            .send(ChainWorkerRequest::StageBlockExecution { block, callback })
+            .expect("`ChainWorkerActor` stopped executing unexpectedly");
+
+        response
+            .await
+            .expect("`ChainWorkerActor` stopped executing without responding")
     }
 
     // Schedule a notification when cross-chain messages are delivered up to the given height.
