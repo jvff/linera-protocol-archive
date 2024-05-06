@@ -3,6 +3,10 @@
 
 //! A worker to handle a single chain.
 
+mod actor;
 mod state;
 
-pub use self::state::ChainWorkerState;
+pub use self::{
+    actor::{ChainWorkerActor, ChainWorkerRequest},
+    state::ChainWorkerState,
+};
