@@ -887,13 +887,14 @@ where
         recipient: ChainId,
         bundles: Vec<MessageBundle>,
     ) -> Result<Option<BlockHeight>, WorkerError> {
-        ChainWorkerState::new(
-            self.chain_worker_config.clone(),
-            self.storage.clone(),
-            recipient,
-        )
-        .await?
-        .process_cross_chain_update(origin, bundles)
+        self.query_chain_worker(recipient, move |callback| {
+            ChainWorkerRequest::ProcessCrossChainUpdate {
+                origin,
+                recipient,
+                bundles,
+                callback,
+            }
+        })
         .await
     }
 
