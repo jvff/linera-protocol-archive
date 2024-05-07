@@ -920,13 +920,10 @@ where
         chain_id: ChainId,
         height: BlockHeight,
     ) -> Result<Option<Certificate>, WorkerError> {
-        let chain = self.storage.load_active_chain(chain_id).await?;
-        let certificate_hash = match chain.confirmed_log.get(height.try_into()?).await? {
-            Some(hash) => hash,
-            None => return Ok(None),
-        };
-        let certificate = self.storage.read_certificate(certificate_hash).await?;
-        Ok(Some(certificate))
+        self.query_chain_worker(chain_id, move |callback| {
+            ChainWorkerRequest::ReadCertificate { height, callback }
+        })
+        .await
     }
 
     /// Returns the application registry for a specific chain.
