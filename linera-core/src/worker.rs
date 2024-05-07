@@ -890,7 +890,6 @@ where
         self.query_chain_worker(recipient, move |callback| {
             ChainWorkerRequest::ProcessCrossChainUpdate {
                 origin,
-                recipient,
                 bundles,
                 callback,
             }
