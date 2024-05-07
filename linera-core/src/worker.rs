@@ -487,9 +487,13 @@ where
         chain_id: ChainId,
         application_id: UserApplicationId,
     ) -> Result<UserApplicationDescription, WorkerError> {
-        let mut chain = self.storage.load_active_chain(chain_id).await?;
-        let response = chain.describe_application(application_id).await?;
-        Ok(response)
+        self.query_chain_worker(chain_id, move |callback| {
+            ChainWorkerRequest::DescribeApplication {
+                application_id,
+                callback,
+            }
+        })
+        .await
     }
 
     /// Gets a reference to the [`KeyPair`], if available.
