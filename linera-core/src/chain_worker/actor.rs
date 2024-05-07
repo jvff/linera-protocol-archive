@@ -11,7 +11,7 @@ use linera_base::{
     identifiers::{BlobId, ChainId},
 };
 use linera_chain::data_types::{
-    Block, ExecutedBlock, HashedCertificateValue, MessageBundle, Origin, Target,
+    Block, Event, ExecutedBlock, HashedCertificateValue, MessageBundle, Origin, Target,
 };
 use linera_execution::{Query, Response, UserApplicationDescription, UserApplicationId};
 use linera_storage::Storage;
@@ -39,6 +39,16 @@ pub enum ChainWorkerRequest {
     ReadCertificate {
         height: BlockHeight,
         callback: oneshot::Sender<Result<Option<Certificate>, WorkerError>>,
+    },
+
+    /// Search for an event in one of the chain's inboxes.
+    #[cfg(with_testing)]
+    FindEventInInbox {
+        inbox_id: Origin,
+        certificate_hash: CryptoHash,
+        height: BlockHeight,
+        index: u32,
+        callback: oneshot::Sender<Result<Option<Event>, WorkerError>>,
     },
 
     /// Query an application's state.
@@ -135,6 +145,20 @@ where
                 #[cfg(with_testing)]
                 ChainWorkerRequest::ReadCertificate { height, callback } => {
                     let _ = callback.send(self.worker.read_certificate(height).await);
+                }
+                #[cfg(with_testing)]
+                ChainWorkerRequest::FindEventInInbox {
+                    inbox_id,
+                    certificate_hash,
+                    height,
+                    index,
+                    callback,
+                } => {
+                    let _ = callback.send(
+                        self.worker
+                            .find_event_in_inbox(inbox_id, certificate_hash, height, index)
+                            .await,
+                    );
                 }
                 ChainWorkerRequest::QueryApplication { query, callback } => {
                     let _ = callback.send(self.worker.query_application(query).await);
