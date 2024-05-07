@@ -37,7 +37,6 @@ pub enum ChainWorkerRequest {
     /// Process a cross-chain update.
     ProcessCrossChainUpdate {
         origin: Origin,
-        recipient: ChainId,
         bundles: Vec<MessageBundle>,
         callback: oneshot::Sender<Result<Option<BlockHeight>, WorkerError>>,
     },
@@ -105,13 +104,12 @@ where
                 }
                 ChainWorkerRequest::ProcessCrossChainUpdate {
                     origin,
-                    recipient,
                     bundles,
                     callback,
                 } => {
                     let _ = callback.send(
                         self.worker
-                            .process_cross_chain_update(origin, recipient, bundles)
+                            .process_cross_chain_update(origin, bundles)
                             .await,
                     );
                 }
