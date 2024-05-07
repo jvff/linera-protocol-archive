@@ -7,6 +7,8 @@ mod actor;
 mod config;
 mod state;
 
+#[cfg(test)]
+pub(crate) use self::state::CrossChainUpdateHelper;
 pub use self::{
     actor::{ChainWorkerActor, ChainWorkerRequest},
     config::ChainWorkerConfig,
