@@ -476,7 +476,7 @@ where
         chain_id: ChainId,
         query: Query,
     ) -> Result<Response, WorkerError> {
-        ChainWorkerState::new(self.storage.clone(), block.chain_id)
+        ChainWorkerState::new(self.storage.clone(), chain_id)
             .await?
             .query_application(query)
             .await
