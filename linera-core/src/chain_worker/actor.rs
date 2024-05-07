@@ -17,7 +17,10 @@ use {
 };
 
 use super::{state::ChainWorkerState, ChainWorkerConfig};
-use crate::{data_types::ChainInfoResponse, worker::WorkerError};
+use crate::{
+    data_types::{ChainInfoQuery, ChainInfoResponse},
+    worker::{NetworkActions, WorkerError},
+};
 
 /// A request for the [`ChainWorkerActor`].
 pub enum ChainWorkerRequest {
@@ -76,12 +79,18 @@ pub enum ChainWorkerRequest {
         latest_heights: Vec<(Target, BlockHeight)>,
         callback: oneshot::Sender<Result<BlockHeight, WorkerError>>,
     },
+
+    /// Handle a [`ChainInfoQuery`].
+    HandleChainInfoQuery {
+        query: ChainInfoQuery,
+        callback: oneshot::Sender<Result<(ChainInfoResponse, NetworkActions), WorkerError>>,
+    },
 }
 
 /// The actor worker type.
 pub struct ChainWorkerActor<StorageClient>
 where
-    StorageClient: Storage + Send + Sync + 'static,
+    StorageClient: Storage + Clone + Send + Sync + 'static,
     ViewError: From<StorageClient::ContextError>,
 {
     worker: ChainWorkerState<StorageClient>,
@@ -90,7 +99,7 @@ where
 
 impl<StorageClient> ChainWorkerActor<StorageClient>
 where
-    StorageClient: Storage + Send + Sync + 'static,
+    StorageClient: Storage + Clone + Send + Sync + 'static,
     ViewError: From<StorageClient::ContextError>,
 {
     /// Spawns a new task to run the [`ChainWorkerActor`], returning an endpoint for sending
@@ -175,6 +184,9 @@ where
                 } => {
                     let _ =
                         callback.send(self.worker.confirm_updated_recipient(latest_heights).await);
+                }
+                ChainWorkerRequest::HandleChainInfoQuery { query, callback } => {
+                    let _ = callback.send(self.worker.handle_chain_info_query(query).await);
                 }
             }
         }
