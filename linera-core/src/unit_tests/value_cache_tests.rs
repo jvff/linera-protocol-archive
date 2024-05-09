@@ -19,7 +19,7 @@ async fn test_retrieve_missing_value() {
     assert!(cache.keys().await.is_empty());
 }
 
-/// Tests inserting a value from the cache.
+/// Tests inserting a value in the cache.
 #[tokio::test]
 async fn test_insert_single_value() {
     let cache = CertificateValueCache::default();
@@ -32,7 +32,7 @@ async fn test_insert_single_value() {
     assert_eq!(cache.keys().await, BTreeSet::from([hash]));
 }
 
-/// Tests inserting many values from the cache, one-by-one.
+/// Tests inserting many values in the cache, one-by-one.
 #[tokio::test]
 async fn test_insert_many_values_individually() {
     let cache = CertificateValueCache::default();
@@ -53,13 +53,36 @@ async fn test_insert_many_values_individually() {
     );
 }
 
-/// Tests inserting many values from the cache, all-at-once.
+/// Tests inserting many values in the cache, all-at-once.
 #[tokio::test]
 async fn test_insert_many_values_together() {
     let cache = CertificateValueCache::default();
     let values = create_dummy_values(0..(DEFAULT_VALUE_CACHE_SIZE as u64)).collect::<Vec<_>>();
 
     cache.insert_all(values.iter().map(Cow::Borrowed)).await;
+
+    for value in &values {
+        assert!(cache.contains(&value.hash()).await);
+        assert_eq!(cache.get(&value.hash()).await.as_ref(), Some(value));
+    }
+
+    assert_eq!(
+        cache.keys().await,
+        BTreeSet::from_iter(values.iter().map(HashedCertificateValue::hash))
+    );
+}
+
+/// Tests re-inserting many values in the cache, all-at-once.
+#[tokio::test]
+async fn test_reinsertion_of_values() {
+    let cache = CertificateValueCache::default();
+    let values = create_dummy_values(0..(DEFAULT_VALUE_CACHE_SIZE as u64)).collect::<Vec<_>>();
+
+    cache.insert_all(values.iter().map(Cow::Borrowed)).await;
+
+    for value in &values {
+        assert!(!cache.insert(Cow::Borrowed(value)).await);
+    }
 
     for value in &values {
         assert!(cache.contains(&value.hash()).await);
