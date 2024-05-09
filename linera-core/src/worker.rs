@@ -648,9 +648,9 @@ where
         // Verify that all required bytecode blobs are available, and no unrelated ones provided.
         self.check_no_missing_bytecode(block, blobs).await?;
         // Persist certificate and blobs.
-        for value in blobs {
-            self.cache_recent_value(Cow::Borrowed(value)).await;
-        }
+        self.recent_values
+            .insert_all(blobs.iter().map(Cow::Borrowed))
+            .await;
         let (result_blob, result_certificate) = tokio::join!(
             self.storage.write_hashed_certificate_values(blobs),
             self.storage.write_certificate(&certificate)
