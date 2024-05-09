@@ -19,9 +19,9 @@ async fn test_retrieve_missing_value() {
     assert!(cache.keys().await.is_empty());
 }
 
-/// Tests inserting and retrieving a value from the cache.
+/// Tests inserting a value from the cache.
 #[tokio::test]
-async fn test_insert_and_retrieve_single_value() {
+async fn test_insert_single_value() {
     let cache = CertificateValueCache::default();
     let value = create_dummy_value(0);
     let hash = value.hash();
