@@ -32,9 +32,9 @@ async fn test_insert_single_value() {
     assert_eq!(cache.keys().await, BTreeSet::from([hash]));
 }
 
-/// Tests inserting and retrieving many values from the cache, one-by-one.
+/// Tests inserting many values from the cache, one-by-one.
 #[tokio::test]
-async fn test_insert_and_retrieve_many_values_individually() {
+async fn test_insert_many_values_individually() {
     let cache = CertificateValueCache::default();
     let values = create_dummy_values(0..(DEFAULT_VALUE_CACHE_SIZE as u64)).collect::<Vec<_>>();
 
