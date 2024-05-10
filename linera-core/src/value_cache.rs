@@ -153,16 +153,23 @@ impl CertificateValueCache {
         let hash = value.hash();
         let mut cache = self.cache.lock().await;
         if cache.contains(&hash) {
-            return false;
+            // Promote the re-inserted value in the cache, as if it was accessed again.
+            cache.promote(&hash);
+            if let Some(confirmed_value) = value.validated_to_confirmed() {
+                // Also promote its respective confirmed certificate value
+                cache.promote(&confirmed_value.hash());
+            }
+            false
+        } else {
+            if let Some(confirmed_value) = value.validated_to_confirmed() {
+                // Cache the certificate for the confirmed block in advance, so that the clients don't
+                // have to send it.
+                cache.push(confirmed_value.hash(), confirmed_value);
+            }
+            // Cache the certificate so that clients don't have to send the value again.
+            cache.push(hash, value.into_owned());
+            true
         }
-        if let Some(confirmed_value) = value.validated_to_confirmed() {
-            // Cache the certificate for the confirmed block in advance, so that the clients don't
-            // have to send it.
-            cache.push(confirmed_value.hash(), confirmed_value);
-        }
-        // Cache the certificate so that clients don't have to send the value again.
-        cache.push(hash, value.into_owned());
-        true
     }
 
     /// Inserts multiple [`HashedCertificateValue`]s into the cache. If they're not
