@@ -5,7 +5,7 @@
 
 use linera_base::crypto::KeyPair;
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 /// Configuration parameters for the [`ChainWorkerState`][`super::state::ChainWorkerState`].
 #[derive(Clone, Default)]
@@ -17,6 +17,9 @@ pub struct ChainWorkerConfig {
     pub allow_inactive_chains: bool,
     /// Whether new messages from deprecated epochs are allowed.
     pub allow_messages_from_deprecated_epochs: bool,
+    /// Blocks with a timestamp this far in the future will still be accepted, but the validator
+    /// will wait until that timestamp before voting.
+    pub grace_period: Duration,
 }
 
 impl ChainWorkerConfig {
