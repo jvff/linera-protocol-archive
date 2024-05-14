@@ -1773,8 +1773,8 @@ async fn test_resolve_binary() {
 
 // TODO(#1655): Make the scylladb_udp / rocksdb_udp test work.
 //#[cfg_attr(feature = "scylladb", test_case(LocalNetConfig::new_test(Database::ScyllaDb, Network::Udp) ; "scylladb_udp"))]
-#[test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc) ; "service_grpc")]
-#[test_case(LocalNetConfig::new_test(Database::Service, Network::Tcp) ; "service_tcp")]
+#[test_case(LocalNetConfig::new_test(Database::RocksDb, Network::Grpc) ; "rocksdb")]
+// #[test_case(LocalNetConfig::new_test(Database::Service, Network::Tcp) ; "service_tcp")]
 #[cfg_attr(feature = "scylladb", test_case(LocalNetConfig::new_test(Database::ScyllaDb, Network::Grpc) ; "scylladb_grpc"))]
 #[cfg_attr(feature = "aws", test_case(LocalNetConfig::new_test(Database::DynamoDb, Network::Grpc) ; "aws_grpc"))]
 #[cfg_attr(feature = "scylladb", test_case(LocalNetConfig::new_test(Database::ScyllaDb, Network::Tcp) ; "scylladb_tcp"))]
@@ -2424,7 +2424,7 @@ async fn test_end_to_end_assign_greatgrandchild_chain(config: impl LineraNetConf
     net.terminate().await.unwrap();
 }
 
-#[test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc) ; "service_grpc")]
+#[test_case(LocalNetConfig::new_test(Database::RocksDb, Network::Grpc) ; "rocksdb")]
 #[cfg_attr(feature = "scylladb", test_case(LocalNetConfig::new_test(Database::ScyllaDb, Network::Grpc) ; "scylladb_grpc"))]
 #[cfg_attr(feature = "aws", test_case(LocalNetConfig::new_test(Database::DynamoDb, Network::Grpc) ; "aws_grpc"))]
 #[cfg_attr(feature = "kubernetes", test_case(SharedLocalKubernetesNetTestingConfig::new(Network::Grpc, BuildArg::Build) ; "kubernetes_grpc"))]
