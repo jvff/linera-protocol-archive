@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
+    collections::HashSet,
     path::PathBuf,
     time::{Duration, Instant},
 };
@@ -55,11 +56,7 @@ use {
         config::NetworkProtocol, grpc::GrpcClient, mass_client::MassClient,
         simple::SimpleMassClient, RpcMessage,
     },
-    std::{
-        collections::{HashMap, HashSet},
-        iter,
-        sync::Arc,
-    },
+    std::{collections::HashMap, iter, sync::Arc},
     tracing::{error, trace},
 };
 
@@ -152,8 +149,12 @@ impl ClientContext {
         };
         let node_provider = NodeProvider::new(node_options);
         let delivery = CrossChainMessageDelivery::new(options.wait_for_outgoing_messages);
-        let chain_client_builder =
-            ChainClientBuilder::new(node_provider, options.max_pending_messages, delivery);
+        let chain_client_builder = ChainClientBuilder::new(
+            node_provider,
+            options.max_pending_messages,
+            delivery,
+            HashSet::from_iter(wallet_state.chain_ids()),
+        );
         ClientContext {
             chain_client_builder,
             wallet_state,
