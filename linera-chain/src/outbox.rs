@@ -55,6 +55,20 @@ where
         Ok(true)
     }
 
+    /// Schedules messages from multiple heights if we haven't already.
+    ///
+    /// Returns true if a change was made.
+    pub(crate) fn schedule_messages(
+        &mut self,
+        heights: impl IntoIterator<Item = BlockHeight>,
+    ) -> Result<bool, ArithmeticError> {
+        let mut changed = false;
+        for height in heights {
+            changed |= self.schedule_message(height)?;
+        }
+        Ok(changed)
+    }
+
     /// Marks all messages as received up to the given height.
     ///
     /// Returns true if a change was made.
