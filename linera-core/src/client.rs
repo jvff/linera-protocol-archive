@@ -95,7 +95,7 @@ impl<ValidatorNodeProvider: Clone> ChainClientBuilder<ValidatorNodeProvider> {
         validator_node_provider: ValidatorNodeProvider,
         max_pending_messages: usize,
         cross_chain_message_delivery: CrossChainMessageDelivery,
-        tracked_chains: HashSet<ChainId>,
+        tracked_chains: impl IntoIterator<Item = ChainId>,
     ) -> Self {
         let recent_values = Arc::new(tokio::sync::Mutex::new(LruCache::new(
             NonZeroUsize::try_from(DEFAULT_VALUE_CACHE_SIZE).unwrap(),
@@ -105,7 +105,7 @@ impl<ValidatorNodeProvider: Clone> ChainClientBuilder<ValidatorNodeProvider> {
             max_pending_messages,
             cross_chain_message_delivery,
             recent_values,
-            tracked_chains,
+            tracked_chains: tracked_chains.into_iter().collect(),
             delivery_notifiers: Arc::new(tokio::sync::Mutex::new(DeliveryNotifiers::default())),
             notifier: Arc::new(Notifier::default()),
         }

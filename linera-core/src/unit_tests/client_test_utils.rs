@@ -568,7 +568,7 @@ where
             provider,
             10,
             CrossChainMessageDelivery::NonBlocking,
-            HashSet::from([chain_id]),
+            [chain_id],
         );
         Ok(builder.build(
             chain_id,

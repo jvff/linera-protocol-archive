@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
-    collections::HashSet,
     path::PathBuf,
     time::{Duration, Instant},
 };
@@ -153,7 +152,7 @@ impl ClientContext {
             node_provider,
             options.max_pending_messages,
             delivery,
-            HashSet::from_iter(wallet_state.chain_ids()),
+            wallet_state.chain_ids(),
         );
         ClientContext {
             chain_client_builder,
