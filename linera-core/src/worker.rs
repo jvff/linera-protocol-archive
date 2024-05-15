@@ -4,7 +4,7 @@
 
 use std::{
     borrow::Cow,
-    collections::{hash_map, BTreeMap, BTreeSet, HashMap, HashSet, VecDeque},
+    collections::{hash_map, BTreeMap, BTreeSet, HashMap, VecDeque},
     num::NonZeroUsize,
     sync::Arc,
     time::Duration,
@@ -743,28 +743,22 @@ where
     ) -> Result<(), WorkerError> {
         let required_locations = block.bytecode_locations();
         // Find all certificates containing bytecode used when executing this block.
-        let mut required_hashes: HashSet<_> = required_locations
-            .keys()
-            .map(|bytecode_location| bytecode_location.certificate_hash)
-            .collect();
+        let mut required_locations_left: HashMap<CryptoHash, &BytecodeLocation> =
+            required_locations
+                .keys()
+                .map(|bytecode_location| (bytecode_location.certificate_hash, bytecode_location))
+                .collect();
         for value in hashed_certificate_values {
             let value_hash = value.hash();
             ensure!(
-                required_hashes.remove(&value_hash),
+                required_locations_left.remove(&value_hash).is_some(),
                 WorkerError::UnneededValue { value_hash }
             );
         }
-        let value_hashes: HashSet<_> = hashed_certificate_values
-            .iter()
-            .map(|hashed_certificate_value| hashed_certificate_value.hash())
-            .collect();
         let recent_values = self.recent_values.lock().await;
-        let tasks = required_locations
-            .into_keys()
-            .filter(|location| {
-                !recent_values.contains(&location.certificate_hash)
-                    && !value_hashes.contains(&location.certificate_hash)
-            })
+        let tasks = required_locations_left
+            .into_values()
+            .filter(|location| !recent_values.contains(&location.certificate_hash))
             .map(|location| {
                 self.storage
                     .contains_hashed_certificate_value(location.certificate_hash)
@@ -775,7 +769,7 @@ where
         for (location, result) in future::join_all(tasks).await {
             match result {
                 Ok(true) => {}
-                Ok(false) => locations.push(location),
+                Ok(false) => locations.push(location.to_owned()),
                 Err(err) => Err(err)?,
             }
         }
