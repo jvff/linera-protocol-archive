@@ -193,6 +193,12 @@ pub enum CrossChainRequest {
         recipient: ChainId,
         latest_heights: Vec<(Medium, BlockHeight)>,
     },
+    /// Notify that the messages weren't sent and shouldn't be retried automatically.
+    PostponeUpdatingRecipient {
+        sender: ChainId,
+        recipient: ChainId,
+        latest_heights: Vec<(Medium, BlockHeight)>,
+    },
 }
 
 impl CrossChainRequest {
@@ -201,7 +207,9 @@ impl CrossChainRequest {
         use CrossChainRequest::*;
         match self {
             UpdateRecipient { recipient, .. } => *recipient,
-            ConfirmUpdatedRecipient { sender, .. } => *sender,
+            ConfirmUpdatedRecipient { sender, .. } | PostponeUpdatingRecipient { sender, .. } => {
+                *sender
+            }
         }
     }
 

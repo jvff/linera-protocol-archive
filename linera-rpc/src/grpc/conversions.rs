@@ -34,6 +34,8 @@ pub enum GrpcProtoConversionError {
     CryptoError(#[from] CryptoError),
     #[error("Inconsistent outer/inner chain ids")]
     InconsistentChainId,
+    #[error("Can't postpone sending cross-chain messages outside of a client")]
+    AttemptToPostponeCrossChainMessage,
 }
 
 /// Extracts an optional field from a Proto type and tries to map it.
@@ -259,6 +261,9 @@ impl TryFrom<CrossChainRequest> for api::CrossChainRequest {
                 recipient: Some(recipient.into()),
                 latest_heights: bincode::serialize(&latest_heights)?,
             }),
+            CrossChainRequest::PostponeUpdatingRecipient { .. } => {
+                return Err(GrpcProtoConversionError::AttemptToPostponeCrossChainMessage)
+            }
         };
         Ok(Self { inner: Some(inner) })
     }

@@ -1423,6 +1423,19 @@ where
                 }
                 Ok(NetworkActions::default())
             }
+            CrossChainRequest::PostponeUpdatingRecipient {
+                sender,
+                recipient,
+                latest_heights,
+            } => {
+                let mut chain = self.storage.load_chain(sender).await?;
+                for (medium, height) in latest_heights {
+                    let target = Target { recipient, medium };
+                    chain.mark_messages_as_postponed(target, height).await?;
+                }
+                chain.save().await?;
+                Ok(NetworkActions::default())
+            }
         }
     }
 }
