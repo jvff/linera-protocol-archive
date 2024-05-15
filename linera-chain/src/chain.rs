@@ -222,8 +222,10 @@ where
 
     /// Mailboxes used to receive messages indexed by their origin.
     pub inboxes: ReentrantCollectionView<C, Origin, InboxStateView<C>>,
-    /// Mailboxes used to send messages, indexed by their target.
+    /// Mailboxes used to eagerly send messages, indexed by their target.
     pub outboxes: ReentrantCollectionView<C, Target, OutboxStateView<C>>,
+    /// Mailboxes used to lazily send messages, indexed by their target.
+    pub lazy_outboxes: ReentrantCollectionView<C, Target, OutboxStateView<C>>,
     /// Number of outgoing messages in flight for each block height.
     /// We use a `RegisterView` to prioritize speed for small maps.
     pub outbox_counters: RegisterView<C, BTreeMap<BlockHeight, u32>>,
