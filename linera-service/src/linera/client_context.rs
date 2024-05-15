@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
+    collections::HashSet,
     path::PathBuf,
     time::{Duration, Instant},
 };
