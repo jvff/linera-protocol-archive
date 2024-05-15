@@ -41,6 +41,7 @@ where
     ViewError: From<C::Error>,
 {
     /// Schedules a message at the given height if we haven't already.
+    ///
     /// Returns true if a change was made.
     pub(crate) fn schedule_message(
         &mut self,
@@ -55,6 +56,7 @@ where
     }
 
     /// Marks all messages as received up to the given height.
+    ///
     /// Returns true if a change was made.
     pub(crate) async fn mark_messages_as_received(
         &mut self,
