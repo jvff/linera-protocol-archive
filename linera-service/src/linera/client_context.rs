@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
-    collections::HashSet,
     path::PathBuf,
     time::{Duration, Instant},
 };
@@ -56,7 +55,11 @@ use {
         config::NetworkProtocol, grpc::GrpcClient, mass_client::MassClient,
         simple::SimpleMassClient, RpcMessage,
     },
-    std::{collections::HashMap, iter, sync::Arc},
+    std::{
+        collections::{HashMap, HashSet},
+        iter,
+        sync::Arc,
+    },
     tracing::{error, trace},
 };
 
