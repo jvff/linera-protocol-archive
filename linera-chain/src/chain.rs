@@ -391,6 +391,19 @@ where
         Ok(true)
     }
 
+    /// Moves messages from the eager outboxes to the lazy outboxes.
+    pub async fn mark_messages_as_postponed(
+        &mut self,
+        target: Target,
+        height: BlockHeight,
+    ) -> Result<bool, ChainError> {
+        let mut eager_outbox = self.outboxes.try_load_entry_mut(&target).await?;
+        let mut lazy_outbox = self.lazy_outboxes.try_load_entry_mut(&target).await?;
+        let message_heights = eager_outbox.mark_messages_as_received(height).await?;
+        lazy_outbox.schedule_messages(message_heights)?;
+        Ok(false)
+    }
+
     /// Returns true if there are no more outgoing messages in flight up to the given
     /// block height.
     pub fn all_messages_delivered_up_to(&mut self, height: BlockHeight) -> bool {
