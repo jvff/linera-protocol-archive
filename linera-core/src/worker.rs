@@ -403,6 +403,7 @@ where
             .await
     }
 
+    // NOTE: This only works for non-sharded workers!
     #[inline]
     pub(crate) async fn fully_handle_certificate_with_notifications(
         &mut self,
