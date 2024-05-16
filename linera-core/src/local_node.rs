@@ -539,4 +539,9 @@ where
         }
         None
     }
+
+    /// Adds a chain to the set of chains tracked by this node.
+    pub async fn track_chain(&mut self, chain_id: ChainId) {
+        self.node.lock().await.state.track_chain(chain_id)
+    }
 }
