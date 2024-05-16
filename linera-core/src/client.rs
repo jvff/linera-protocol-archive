@@ -1734,6 +1734,9 @@ where
             self.node_client
                 .track_chain(ChainId::child(message_id))
                 .await;
+            self.node_client
+                .retry_pending_cross_chain_requests(self.chain_id)
+                .await?;
             return Ok(ClientOutcome::Committed((message_id, certificate)));
         }
     }
