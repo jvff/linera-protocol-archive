@@ -743,11 +743,10 @@ where
     ) -> Result<(), WorkerError> {
         let required_locations = block.bytecode_locations();
         // Find all certificates containing bytecode used when executing this block.
-        let mut required_locations_left: HashMap<CryptoHash, &BytecodeLocation> =
-            required_locations
-                .keys()
-                .map(|bytecode_location| (bytecode_location.certificate_hash, bytecode_location))
-                .collect();
+        let mut required_locations_left: HashMap<_, _> = required_locations
+            .into_keys()
+            .map(|bytecode_location| (bytecode_location.certificate_hash, bytecode_location))
+            .collect();
         for value in hashed_certificate_values {
             let value_hash = value.hash();
             ensure!(
@@ -769,7 +768,7 @@ where
         for (location, result) in future::join_all(tasks).await {
             match result {
                 Ok(true) => {}
-                Ok(false) => locations.push(location.to_owned()),
+                Ok(false) => locations.push(location),
                 Err(err) => Err(err)?,
             }
         }
