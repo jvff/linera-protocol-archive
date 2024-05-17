@@ -545,7 +545,7 @@ where
         self.node.lock().await.state.track_chain(chain_id)
     }
 
-    /// Handle any pending local cross-chain requests.
+    /// Handles any pending local cross-chain requests.
     pub async fn retry_pending_cross_chain_requests(
         &mut self,
         sender_chain: ChainId,
