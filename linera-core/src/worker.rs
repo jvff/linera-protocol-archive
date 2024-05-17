@@ -748,13 +748,14 @@ where
             .iter()
             .map(|hashed_certificate_value| hashed_certificate_value.hash())
             .collect();
-        let recent_hashes = self.recent_values.keys().await;
-        let tasks = required_locations
-            .into_keys()
-            .filter(|location| {
-                !recent_hashes.contains(&location.certificate_hash)
-                    && !value_hashes.contains(&location.certificate_hash)
+        let tasks = self
+            .recent_values
+            .subtract_cached_items_from::<_, Vec<_>>(required_locations.into_keys(), |location| {
+                &location.certificate_hash
             })
+            .await
+            .into_iter()
+            .filter(|location| !value_hashes.contains(&location.certificate_hash))
             .map(|location| {
                 self.storage
                     .contains_hashed_certificate_value(location.certificate_hash)
