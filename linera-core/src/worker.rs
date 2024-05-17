@@ -726,6 +726,7 @@ where
             message_counts,
             state_hash,
         } = executed_block;
+        // Check that the chain is active and ready for this confirmation.
         assert_eq!(chain.chain_id(), block.chain_id);
         let tip = chain.tip_state.get().clone();
         if tip.next_block_height < block.height {
@@ -885,7 +886,9 @@ where
         };
         let chain_id = block.chain_id;
         let height = block.height;
+        // Check that the chain is active and ready for this confirmation.
         assert_eq!(chain.chain_id(), chain_id);
+        chain.ensure_is_active()?;
         // Verify the certificate. Returns a catch-all error to make client code more robust.
         let (epoch, committee) = chain
             .execution_state
@@ -934,7 +937,9 @@ where
             } => (*chain_id, *height, *epoch),
             _ => panic!("Expecting a leader timeout certificate"),
         };
+        // Check that the chain is active and ready for this confirmation.
         assert_eq!(chain.chain_id(), chain_id);
+        chain.ensure_is_active()?;
         // Verify the certificate. Returns a catch-all error to make client code more robust.
         let (chain_epoch, committee) = chain
             .execution_state
@@ -1300,7 +1305,7 @@ where
         // Check that the chain is active and ready for a certificate.
         let mut chain = self
             .storage
-            .load_active_chain(certificate.value().chain_id())
+            .load_chain(certificate.value().chain_id())
             .await?;
 
         let mut notifications = vec![];
