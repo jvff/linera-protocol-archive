@@ -7,7 +7,7 @@
 #[path = "unit_tests/value_cache_tests.rs"]
 mod unit_tests;
 
-use std::{borrow::Cow, collections::BTreeSet, num::NonZeroUsize};
+use std::{borrow::Cow, num::NonZeroUsize};
 
 use linera_base::crypto::CryptoHash;
 use linera_chain::data_types::{Certificate, HashedCertificateValue, LiteCertificate};
@@ -63,8 +63,11 @@ impl Default for CertificateValueCache {
 }
 
 impl CertificateValueCache {
-    /// Returns a [`BTreeSet`] of the hashes in the cache.
-    pub async fn keys(&self) -> BTreeSet<CryptoHash> {
+    /// Returns a `Collection` of the hashes in the cache.
+    pub async fn keys(&self) -> Collection
+    where
+        Collection: FromIterator<CryptoHash>,
+    {
         self.cache
             .lock()
             .await
