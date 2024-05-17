@@ -35,7 +35,7 @@ static CACHE_HIT_COUNT: Lazy<IntCounterVec> = Lazy::new(|| {
     .expect("Counter creation should not fail")
 });
 
-/// A counter metric for the number of cache hits in the [`CertificateValueCache`].
+/// A counter metric for the number of cache misses in the [`CertificateValueCache`].
 #[cfg(with_metrics)]
 static CACHE_MISS_COUNT: Lazy<IntCounterVec> = Lazy::new(|| {
     prometheus_util::register_int_counter_vec(
