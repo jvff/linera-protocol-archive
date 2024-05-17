@@ -79,6 +79,29 @@ impl CertificateValueCache {
         self.cache.lock().await.contains(hash)
     }
 
+    /// Returns a `Collection` created from a set of `items` minus the items that have an
+    /// equivalent entry in the cache.
+    ///
+    /// This is useful for selecting a sub-set of `items` which don't have an entry in the cache.
+    ///
+    /// An `Item` has an entry in the cache if `key_extractor` executed for the item returns a
+    /// [`CryptoHash`] key that has an entry in the cache.
+    pub async fn subtract_cached_items_from<Item, Collection>(
+        &self,
+        items: impl IntoIterator<Item = Item>,
+        key_extractor: impl Fn(&Item) -> &CryptoHash,
+    ) -> Collection
+    where
+        Collection: FromIterator<Item>,
+    {
+        let cache = self.cache.lock().await;
+
+        super_set
+            .into_iter()
+            .filter(|item| cache.contains(key_extractor(item)))
+            .collect()
+    }
+
     /// Returns a [`HashedCertificateValue`] from the cache, if present.
     pub async fn get(&self, hash: &CryptoHash) -> Option<HashedCertificateValue> {
         let maybe_value = self.cache.lock().await.get(hash).cloned();
