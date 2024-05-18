@@ -112,7 +112,7 @@ async fn test_one_eviction() {
     }
 
     assert_eq!(
-        cache.keys().await,
+        cache.keys::<BTreeSet<_>>().await,
         BTreeSet::from_iter(values.iter().skip(1).map(HashedCertificateValue::hash))
     );
 }
