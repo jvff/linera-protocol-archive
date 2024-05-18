@@ -16,7 +16,7 @@ async fn test_retrieve_missing_value() {
     let hash = CryptoHash::test_hash("Missing value");
 
     assert!(cache.get(&hash).await.is_none());
-    assert!(cache.keys().await.is_empty());
+    assert!(cache.keys::<Vec<_>>().await.is_empty());
 }
 
 /// Tests inserting a value in the cache.
