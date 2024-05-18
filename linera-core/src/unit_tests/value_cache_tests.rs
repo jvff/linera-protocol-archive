@@ -29,7 +29,7 @@ async fn test_insert_single_value() {
     assert!(cache.insert(Cow::Borrowed(&value)).await);
     assert!(cache.contains(&hash).await);
     assert_eq!(cache.get(&hash).await, Some(value));
-    assert_eq!(cache.keys().await, BTreeSet::from([hash]));
+    assert_eq!(cache.keys::<BTreeSet<_>>().await, BTreeSet::from([hash]));
 }
 
 /// Tests inserting many values in the cache, one-by-one.
