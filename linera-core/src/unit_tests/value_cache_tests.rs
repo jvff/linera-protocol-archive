@@ -90,7 +90,7 @@ async fn test_reinsertion_of_values() {
     }
 
     assert_eq!(
-        cache.keys().await,
+        cache.keys::<BTreeSet<_>>().await,
         BTreeSet::from_iter(values.iter().map(HashedCertificateValue::hash))
     );
 }
