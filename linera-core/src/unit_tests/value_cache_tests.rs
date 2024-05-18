@@ -67,7 +67,7 @@ async fn test_insert_many_values_together() {
     }
 
     assert_eq!(
-        cache.keys().await,
+        cache.keys::<BTreeSet<_>>().await,
         BTreeSet::from_iter(values.iter().map(HashedCertificateValue::hash))
     );
 }
