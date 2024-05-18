@@ -153,7 +153,7 @@ async fn test_eviction_of_second_entry() {
     }
 
     assert_eq!(
-        cache.keys().await,
+        cache.keys::<BTreeSet<_>>().await,
         BTreeSet::from_iter(
             values
                 .iter()
