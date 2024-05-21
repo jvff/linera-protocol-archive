@@ -64,7 +64,7 @@ impl Default for CertificateValueCache {
 
 impl CertificateValueCache {
     /// Returns a `Collection` of the hashes in the cache.
-    pub async fn keys(&self) -> Collection
+    pub async fn keys<Collection>(&self) -> Collection
     where
         Collection: FromIterator<CryptoHash>,
     {
@@ -99,7 +99,7 @@ impl CertificateValueCache {
     {
         let cache = self.cache.lock().await;
 
-        super_set
+        items
             .into_iter()
             .filter(|item| cache.contains(key_extractor(item)))
             .collect()
