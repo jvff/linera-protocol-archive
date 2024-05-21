@@ -101,7 +101,7 @@ impl CertificateValueCache {
 
         items
             .into_iter()
-            .filter(|item| cache.contains(key_extractor(item)))
+            .filter(|item| !cache.contains(key_extractor(item)))
             .collect()
     }
 
