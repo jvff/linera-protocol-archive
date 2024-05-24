@@ -3,7 +3,10 @@
 
 //! The state and functionality of a chain worker.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::{
+    collections::{BTreeMap, BTreeSet, HashMap},
+    sync::Arc,
+};
 
 use linera_base::{
     data_types::{ArithmeticError, BlockHeight},
@@ -12,8 +15,8 @@ use linera_base::{
 };
 use linera_chain::{
     data_types::{
-        Block, Certificate, CertificateValue, ExecutedBlock, IncomingMessage, Medium,
-        MessageAction, MessageBundle, Origin, Target,
+        Block, Certificate, CertificateValue, ExecutedBlock, HashedCertificateValue,
+        IncomingMessage, Medium, MessageAction, MessageBundle, Origin, Target,
     },
     ChainError, ChainStateView,
 };
@@ -37,6 +40,7 @@ use {
 use super::ChainWorkerConfig;
 use crate::{
     data_types::{ChainInfo, ChainInfoQuery, ChainInfoResponse, CrossChainRequest},
+    value_cache::ValueCache,
     worker::{NetworkActions, Notification, Reason, WorkerError},
 };
 
@@ -49,6 +53,7 @@ where
     config: ChainWorkerConfig,
     storage: StorageClient,
     chain: ChainStateView<StorageClient::Context>,
+    recent_hashed_certificate_values: Arc<ValueCache<CryptoHash, HashedCertificateValue>>,
     knows_chain_is_active: bool,
 }
 
@@ -61,6 +66,7 @@ where
     pub async fn new(
         config: ChainWorkerConfig,
         storage: StorageClient,
+        certificate_value_cache: Arc<ValueCache<CryptoHash, HashedCertificateValue>>,
         chain_id: ChainId,
     ) -> Result<Self, WorkerError> {
         let chain = storage.load_chain(chain_id).await?;
@@ -69,6 +75,7 @@ where
             config,
             storage,
             chain,
+            recent_hashed_certificate_values: certificate_value_cache,
             knows_chain_is_active: false,
         })
     }
