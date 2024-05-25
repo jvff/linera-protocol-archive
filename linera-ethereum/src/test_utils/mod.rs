@@ -104,11 +104,16 @@ pub struct SimpleTokenContractFunction {
 impl SimpleTokenContractFunction {
     pub async fn new(anvil_test: AnvilTest) -> anyhow::Result<Self> {
         // 2: initializing the contract
+        println!("SimpleTokenConytractFunction, step 1");
         let initial_supply = U256::from(1000);
+        println!("SimpleTokenConytractFunction, step 2");
         let simple_token =
             SimpleTokenContract::deploy(&anvil_test.provider, initial_supply).await?;
+        println!("SimpleTokenConytractFunction, step 3");
         let contract_address = simple_token.address();
+        println!("SimpleTokenConytractFunction, step 4");
         let contract_address = format!("{:?}", contract_address);
+        println!("SimpleTokenConytractFunction, step 5");
         Ok(Self {
             contract_address,
             anvil_test,
