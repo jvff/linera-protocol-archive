@@ -89,8 +89,8 @@ impl EthereumQueries for EthereumClient<HttpProvider> {
         block_number: Option<u64>,
     ) -> Result<U256, EthereumServiceError> {
         let address = address.parse::<Address>()?;
-        let block_id = get_block_id(block_number);
-        Ok(self.provider.get_balance(address, block_id).await?)
+        let _block_id = get_block_id(block_number);
+        Ok(self.provider.get_balance(address).await?)
     }
 
     async fn read_events(
