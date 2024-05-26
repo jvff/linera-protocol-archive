@@ -18,7 +18,7 @@ use linera_base::{
 };
 use linera_chain::data_types::{
     Block, BlockProposal, Certificate, CertificateValue, ExecutedBlock, HashedCertificateValue,
-    LiteCertificate, Medium, MessageBundle, Origin, OutgoingMessage, Target,
+    LiteCertificate, MessageBundle, Origin, OutgoingMessage, Target,
 };
 use linera_execution::{
     committee::Epoch, BytecodeLocation, Query, Response, UserApplicationDescription,
@@ -36,7 +36,7 @@ use {
         crypto::PublicKey,
         identifiers::{BytecodeId, Destination, MessageId},
     },
-    linera_chain::data_types::{ChannelFullName, IncomingMessage, MessageAction},
+    linera_chain::data_types::{ChannelFullName, IncomingMessage, Medium, MessageAction},
 };
 #[cfg(with_metrics)]
 use {
