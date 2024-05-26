@@ -11,6 +11,7 @@ use std::{
 
 use futures::{future, FutureExt};
 use linera_base::{
+    crypto::CryptoHash,
     data_types::{ArithmeticError, BlockHeight, HashedBlob},
     ensure,
     identifiers::{BlobId, ChainId},
@@ -35,8 +36,7 @@ use linera_views::{
 use tracing::{debug, warn};
 #[cfg(with_testing)]
 use {
-    linera_base::{crypto::CryptoHash, identifiers::BytecodeId},
-    linera_chain::data_types::Event,
+    linera_base::identifiers::BytecodeId, linera_chain::data_types::Event,
     linera_execution::BytecodeLocation,
 };
 
