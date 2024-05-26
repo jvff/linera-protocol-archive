@@ -26,7 +26,7 @@ use linera_chain::{
 };
 use linera_execution::{
     committee::{Committee, Epoch},
-    Query, Response, UserApplicationDescription, UserApplicationId,
+    BytecodeLocation, Query, Response, UserApplicationDescription, UserApplicationId,
 };
 use linera_storage::Storage;
 use linera_views::{
@@ -35,10 +35,7 @@ use linera_views::{
 };
 use tracing::{debug, warn};
 #[cfg(with_testing)]
-use {
-    linera_base::identifiers::BytecodeId, linera_chain::data_types::Event,
-    linera_execution::BytecodeLocation,
-};
+use {linera_base::identifiers::BytecodeId, linera_chain::data_types::Event};
 
 use super::ChainWorkerConfig;
 use crate::{
