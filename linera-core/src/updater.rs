@@ -401,7 +401,13 @@ where
         let range: Range<usize> =
             initial_block_height.try_into()?..target_block_height.try_into()?;
         let (keys, manager) = {
-            let mut chain = self.storage.load_chain(chain_id).await?;
+            // TODO(#2066): Remove the sub-task spawn
+            let mut chain = tokio::spawn({
+                let storage = self.storage.clone();
+                async move { storage.load_chain(chain_id).await }
+            })
+            .await
+            .expect("Load-chain task panicked")?;
             (
                 chain.confirmed_log.read(range).await?,
                 std::mem::take(chain.manager.get_mut()),
