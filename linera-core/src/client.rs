@@ -328,11 +328,15 @@ where
     pub async fn chain_state_view(
         &self,
     ) -> Result<Arc<ChainStateView<S::Context>>, LocalNodeError> {
-        let chain_state_view = self
-            .storage_client()
-            .await
-            .load_chain(self.chain_id)
-            .await?;
+        // TODO(#2066): Remove the sub-task spawn
+        let storage = self.storage_client().await;
+        let chain_state_view = tokio::spawn({
+            let storage = storage.clone();
+            let chain_id = self.chain_id;
+            async move { storage.load_chain(chain_id).await }
+        })
+        .await
+        .expect("Panic while loading chain")?;
         Ok(Arc::new(chain_state_view))
     }
 
@@ -1067,11 +1071,16 @@ where
         hashed_certificate_values: Vec<HashedCertificateValue>,
         hashed_blobs: Vec<HashedBlob>,
     ) -> Result<(), LocalNodeError> {
-        let info = self
-            .node_client
-            .handle_certificate(certificate, hashed_certificate_values, hashed_blobs)
-            .await?
-            .info;
+        let mut node_client = self.node_client.clone();
+        // TODO(#2066): Remove the sub-task spawn
+        let info = tokio::spawn(async move {
+            node_client
+                .handle_certificate(certificate, hashed_certificate_values, hashed_blobs)
+                .await
+        })
+        .await
+        .expect("Panic while handling certificate")?
+        .info;
         self.update_from_info(&info);
         Ok(())
     }

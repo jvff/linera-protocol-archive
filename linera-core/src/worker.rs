@@ -668,14 +668,16 @@ where
         &self,
         chain_id: ChainId,
     ) -> Result<ChainWorkerState<StorageClient>, WorkerError> {
-        ChainWorkerState::new(
+        // TODO(#2066): Remove the sub-task spawn
+        tokio::spawn(ChainWorkerState::new(
             self.chain_worker_config.clone(),
             self.storage.clone(),
             self.recent_hashed_certificate_values.clone(),
             self.recent_hashed_blobs.clone(),
             chain_id,
-        )
+        ))
         .await
+        .expect("Task to create `ChainWorkerState` panicked")
     }
 }
 
