@@ -64,7 +64,7 @@ where
     ViewError: From<StorageClient::ContextError>,
 {
     /// Creates a new [`ChainWorkerState`] using the provided `storage` client.
-    pub async fn new(
+    pub async fn load(
         config: ChainWorkerConfig,
         storage: StorageClient,
         certificate_value_cache: Arc<ValueCache<CryptoHash, HashedCertificateValue>>,
