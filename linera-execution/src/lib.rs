@@ -780,19 +780,19 @@ pub struct TestExecutionRuntimeContext {
 
 #[cfg(with_testing)]
 impl TestExecutionRuntimeContext {
-    pub fn new(chain_id: ChainId, execution_runtime_config: ExecutionRuntimeConfig) -> Self {
-        Self {
+    pub fn new(chain_id: ChainId, execution_runtime_config: ExecutionRuntimeConfig) -> Arc<Self> {
+        Arc::new(Self {
             chain_id,
             execution_runtime_config,
             user_contracts: Arc::default(),
             user_services: Arc::default(),
-        }
+        })
     }
 }
 
 #[cfg(with_testing)]
 #[async_trait]
-impl ExecutionRuntimeContext for TestExecutionRuntimeContext {
+impl ExecutionRuntimeContext for Arc<TestExecutionRuntimeContext> {
     fn chain_id(&self) -> ChainId {
         self.chain_id
     }

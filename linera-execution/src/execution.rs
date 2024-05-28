@@ -42,11 +42,12 @@ pub struct ExecutionStateView<C> {
 }
 
 #[cfg(with_testing)]
-impl ExecutionStateView<MemoryContext<TestExecutionRuntimeContext>>
+impl ExecutionStateView<MemoryContext<Arc<TestExecutionRuntimeContext>>>
 where
-    MemoryContext<TestExecutionRuntimeContext>: Context + Clone + Send + Sync + 'static,
-    ViewError:
-        From<<MemoryContext<TestExecutionRuntimeContext> as linera_views::common::Context>::Error>,
+    MemoryContext<Arc<TestExecutionRuntimeContext>>: Context + Clone + Send + Sync + 'static,
+    ViewError: From<
+        <MemoryContext<Arc<TestExecutionRuntimeContext>> as linera_views::common::Context>::Error,
+    >,
 {
     /// Simulates the instantiation of an application.
     pub async fn simulate_instantiation(

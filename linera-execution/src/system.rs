@@ -1035,6 +1035,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use linera_base::{data_types::BlockHeight, identifiers::ApplicationId};
     use linera_views::memory::MemoryContext;
 
@@ -1044,7 +1046,7 @@ mod tests {
     /// Returns an execution state view and a matching operation context, for epoch 1, with root
     /// chain 0 as the admin ID and one empty committee.
     async fn new_view_and_context() -> (
-        ExecutionStateView<MemoryContext<TestExecutionRuntimeContext>>,
+        ExecutionStateView<MemoryContext<Arc<TestExecutionRuntimeContext>>>,
         OperationContext,
     ) {
         let description = ChainDescription::Root(5);

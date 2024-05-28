@@ -28,12 +28,13 @@ use crate::{
     ChainError, ChainStateView,
 };
 
-impl ChainStateView<MemoryContext<TestExecutionRuntimeContext>>
+impl ChainStateView<MemoryContext<Arc<TestExecutionRuntimeContext>>>
 where
-    MemoryContext<TestExecutionRuntimeContext>:
+    MemoryContext<Arc<TestExecutionRuntimeContext>>:
         linera_views::common::Context + Clone + Send + Sync + 'static,
-    ViewError:
-        From<<MemoryContext<TestExecutionRuntimeContext> as linera_views::common::Context>::Error>,
+    ViewError: From<
+        <MemoryContext<Arc<TestExecutionRuntimeContext>> as linera_views::common::Context>::Error,
+    >,
 {
     pub async fn new(chain_id: ChainId) -> Self {
         let exec_runtime_context =

@@ -67,7 +67,7 @@ pub async fn register_mock_applications<C>(
     count: u64,
 ) -> anyhow::Result<vec::IntoIter<(UserApplicationId, MockApplication)>>
 where
-    C: Context<Extra = TestExecutionRuntimeContext> + Clone + Send + Sync + 'static,
+    C: Context<Extra = Arc<TestExecutionRuntimeContext>> + Clone + Send + Sync + 'static,
     ViewError: From<C::Error>,
 {
     let mock_applications: Vec<_> =

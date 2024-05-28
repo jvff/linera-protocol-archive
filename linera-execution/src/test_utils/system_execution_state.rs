@@ -72,7 +72,9 @@ impl SystemExecutionState {
             .expect("hashing from memory should not fail")
     }
 
-    pub async fn into_view(self) -> ExecutionStateView<MemoryContext<TestExecutionRuntimeContext>> {
+    pub async fn into_view(
+        self,
+    ) -> ExecutionStateView<MemoryContext<Arc<TestExecutionRuntimeContext>>> {
         let chain_id = self
             .description
             .expect("Chain description should be set")
@@ -85,7 +87,7 @@ impl SystemExecutionState {
         self,
         chain_id: ChainId,
         execution_runtime_config: ExecutionRuntimeConfig,
-    ) -> ExecutionStateView<MemoryContext<TestExecutionRuntimeContext>> {
+    ) -> ExecutionStateView<MemoryContext<Arc<TestExecutionRuntimeContext>>> {
         // Destructure, to make sure we don't miss any fields.
         let SystemExecutionState {
             description,
