@@ -668,7 +668,7 @@ where
         &self,
         chain_id: ChainId,
     ) -> Result<ChainWorkerState<StorageClient>, WorkerError> {
-        ChainWorkerState::new(
+        ChainWorkerState::load(
             self.chain_worker_config.clone(),
             self.storage.clone(),
             self.recent_hashed_certificate_values.clone(),
