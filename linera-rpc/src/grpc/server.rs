@@ -17,7 +17,7 @@ use linera_base::identifiers::ChainId;
 use linera_core::{
     node::NodeError,
     worker::{NetworkActions, Notification, ValidatorWorker, WorkerError, WorkerState},
-    JoinSetExt,
+    JoinSetExt as _,
 };
 use linera_storage::Storage;
 use linera_views::views::ViewError;

@@ -10,11 +10,12 @@ use futures::{
     stream::{self, FuturesUnordered, SplitSink, SplitStream},
     Sink, SinkExt, Stream, StreamExt, TryStreamExt,
 };
+use linera_core::JoinSetExt as _;
 use serde::{Deserialize, Serialize};
 use tokio::{
     io::AsyncWriteExt,
     net::{lookup_host, TcpListener, TcpStream, ToSocketAddrs, UdpSocket},
-    sync::Mutex,
+    sync::{oneshot, Mutex},
     task::{JoinHandle, JoinSet},
 };
 use tokio_util::{codec::Framed, sync::CancellationToken, udp::UdpFramed};
@@ -77,15 +78,21 @@ pub trait MessageHandler: Clone {
     async fn handle_message(&mut self, message: RpcMessage) -> Option<RpcMessage>;
 }
 
-/// The result of spawning a server is a handle to track completion.
+/// The result of spawning a server is oneshot channel to track completion, and the set of
+/// executing tasks.
 pub struct ServerHandle {
-    pub handle: tokio::task::JoinHandle<Result<(), std::io::Error>>,
+    pub handle: oneshot::Receiver<Result<(), std::io::Error>>,
+    _tasks: JoinSet<()>,
 }
 
 impl ServerHandle {
     pub async fn join(self) -> Result<(), std::io::Error> {
-        self.handle.await??;
-        Ok(())
+        self.handle.await.map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::Interrupted,
+                "Server task did not finish successfully",
+            )
+        })?
     }
 }
 
@@ -156,12 +163,16 @@ impl TransportProtocol {
     where
         S: MessageHandler + Send + 'static,
     {
-        let handle = match self {
-            Self::Udp => tokio::spawn(UdpServer::run(address, state, shutdown_signal)),
-            Self::Tcp => tokio::spawn(TcpServer::run(address, state, shutdown_signal)),
+        let mut tasks = JoinSet::new();
+        let (handle, _) = match self {
+            Self::Udp => tasks.spawn_task(UdpServer::run(address, state, shutdown_signal)),
+            Self::Tcp => tasks.spawn_task(TcpServer::run(address, state, shutdown_signal)),
         };
 
-        ServerHandle { handle }
+        ServerHandle {
+            handle,
+            _tasks: tasks,
+        }
     }
 }
 
