@@ -401,7 +401,7 @@ where
         loop {
             tokio::select! { biased;
                 _ = shutdown_signal.cancelled() => {
-                    while tasks.join_next().await.is_some() {}
+                    tasks.await_all_tasks().await;
                     return Ok(());
                 }
                 maybe_socket = accept_stream.next() => match maybe_socket {
@@ -411,10 +411,10 @@ where
                             handler.clone(),
                             connection_shutdown_signal.clone(),
                         );
-                        tasks.spawn(server.serve());
+                        tasks.spawn_task(server.serve());
                     }
                     Some(Err(error)) => {
-                        while tasks.join_next().await.is_some() {}
+                        tasks.await_all_tasks().await;
                         return Err(error);
                     }
                     None => unreachable!(
@@ -423,8 +423,7 @@ where
                 },
             }
 
-            // Reap finished tasks
-            while tasks.try_join_next().is_some() {}
+            tasks.reap_finished_tasks();
         }
     }
 
