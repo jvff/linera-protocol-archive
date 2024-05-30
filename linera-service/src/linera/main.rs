@@ -24,6 +24,7 @@ use linera_core::{
     local_node::LocalNodeClient,
     node::LocalValidatorNodeProvider,
     worker::{Reason, WorkerState},
+    JoinSetExt as _,
 };
 use linera_execution::{
     committee::{Committee, ValidatorName, ValidatorState},
@@ -44,6 +45,7 @@ use linera_storage::Storage;
 use linera_views::views::ViewError;
 use rand::Rng as _;
 use serde_json::Value;
+use tokio::task::JoinSet;
 use tracing::{debug, info, warn};
 
 mod client_context;
@@ -743,11 +745,12 @@ impl Runnable for Job {
             }
 
             Watch { chain_id, raw } => {
+                let mut join_set = JoinSet::new();
                 let chain_id = chain_id.unwrap_or_else(|| context.default_chain());
                 let chain_client = context.make_chain_client(storage, chain_id).into_arc();
                 info!("Watching for notifications for chain {:?}", chain_id);
                 let (listener, _listen_handle, mut notifications) = chain_client.listen().await?;
-                tokio::spawn(listener);
+                join_set.spawn_task(listener);
                 while let Some(notification) = notifications.next().await {
                     if let Reason::NewBlock { .. } = notification.reason {
                         let mut guard = chain_client.lock().await;
