@@ -2,14 +2,10 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashMap, io, net::ToSocketAddrs, sync::Arc};
+use std::{collections::HashMap, io, net::ToSocketAddrs, pin::pin, sync::Arc};
 
 use async_trait::async_trait;
-use futures::{
-    future,
-    stream::{self, AbortHandle, AbortRegistration, Abortable},
-    Sink, SinkExt, Stream, StreamExt, TryStreamExt,
-};
+use futures::{future, stream, Sink, SinkExt, Stream, StreamExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::{
     net::{TcpListener, TcpStream, UdpSocket},
@@ -151,15 +147,14 @@ impl TransportProtocol {
     where
         S: MessageHandler + Send + 'static,
     {
-        let (abort, registration) = AbortHandle::new_pair();
         let handle = match self {
             Self::Udp => {
                 let socket = UdpSocket::bind(&address).await?;
-                tokio::spawn(Self::run_udp_server(socket, state, registration))
+                tokio::spawn(Self::run_udp_server(socket, state))
             }
             Self::Tcp => {
                 let listener = TcpListener::bind(address).await?;
-                tokio::spawn(Self::run_tcp_server(listener, state, registration))
+                tokio::spawn(Self::run_tcp_server(listener, state))
             }
         };
         Ok(ServerHandle { handle })
@@ -196,16 +191,11 @@ impl ConnectionPool for UdpConnectionPool {
 
 // Server implementation for UDP.
 impl TransportProtocol {
-    async fn run_udp_server<S>(
-        socket: UdpSocket,
-        state: S,
-        registration: AbortRegistration,
-    ) -> Result<(), std::io::Error>
+    async fn run_udp_server<S>(socket: UdpSocket, state: S) -> Result<(), std::io::Error>
     where
         S: MessageHandler + Send + 'static,
     {
-        let (udp_sink, udp_stream) = UdpFramed::new(socket, Codec).split();
-        let mut udp_stream = Abortable::new(udp_stream, registration);
+        let (udp_sink, mut udp_stream) = UdpFramed::new(socket, Codec).split();
         let udp_sink = Arc::new(Mutex::new(udp_sink));
         // Track the latest tasks for a given peer. This is used to return answers in the
         // same order as the queries.
@@ -297,19 +287,15 @@ impl ConnectionPool for TcpConnectionPool {
 
 // Server implementation for TCP.
 impl TransportProtocol {
-    async fn run_tcp_server<S>(
-        listener: TcpListener,
-        state: S,
-        registration: AbortRegistration,
-    ) -> Result<(), std::io::Error>
+    async fn run_tcp_server<S>(listener: TcpListener, state: S) -> Result<(), std::io::Error>
     where
         S: MessageHandler + Send + 'static,
     {
-        let accept_stream = stream::try_unfold(listener, |listener| async move {
+        let mut accept_stream = stream::try_unfold(listener, |listener| async move {
             let (socket, _) = listener.accept().await?;
             Ok::<_, io::Error>(Some((socket, listener)))
         });
-        let mut accept_stream = Box::pin(Abortable::new(accept_stream, registration));
+        let mut accept_stream = pin!(accept_stream);
         while let Some(value) = accept_stream.next().await {
             let socket = value?;
             let mut handler = state.clone();
