@@ -232,7 +232,7 @@ where
         let address = self.get_listen_address(self.public_config.port);
 
         #[cfg(with_metrics)]
-        Self::start_metrics(&self.get_listen_address(self.internal_config.metrics_port));
+        Self::start_metrics(self.get_listen_address(self.internal_config.metrics_port));
 
         self.public_config
             .protocol
@@ -244,15 +244,12 @@ where
     }
 
     #[cfg(with_metrics)]
-    pub fn start_metrics(address: &String) {
-        match address.parse::<SocketAddr>() {
-            Err(err) => panic!("Invalid metrics address for {address}: {err}"),
-            Ok(address) => prometheus_server::start_metrics(address),
-        }
+    pub fn start_metrics(address: SocketAddr) {
+        prometheus_server::start_metrics(address)
     }
 
-    fn get_listen_address(&self, port: u16) -> String {
-        format!("0.0.0.0:{}", port)
+    fn get_listen_address(&self, port: u16) -> SocketAddr {
+        SocketAddr::from(([0, 0, 0, 0], port))
     }
 
     async fn try_proxy_message(
