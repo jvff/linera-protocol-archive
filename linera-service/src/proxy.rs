@@ -1,7 +1,7 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{path::PathBuf, time::Duration};
+use std::{net::SocketAddr, path::PathBuf, time::Duration};
 
 use anyhow::{bail, Result};
 use async_trait::async_trait;
@@ -15,6 +15,8 @@ use linera_rpc::{
     simple::{MessageHandler, TransportProtocol},
     RpcMessage,
 };
+#[cfg(with_metrics)]
+use linera_service::prometheus_server;
 use linera_service::{
     config::{GenesisConfig, Import, ValidatorServerConfig},
     grpc_proxy::GrpcProxy,
@@ -24,8 +26,6 @@ use linera_service::{
 use linera_storage::Storage;
 use linera_views::{common::CommonStoreConfig, views::ViewError};
 use tracing::{error, info, instrument};
-#[cfg(with_metrics)]
-use {linera_service::prometheus_server, std::net::SocketAddr};
 
 /// Options for running the proxy.
 #[derive(clap::Parser, Debug, Clone)]
