@@ -112,7 +112,6 @@ pub struct GrpcServer<S> {
 
 pub struct GrpcServerHandle {
     handle: oneshot::Receiver<Result<(), GrpcError>>,
-    _tasks: JoinSet<()>,
 }
 
 impl GrpcServerHandle {
@@ -188,6 +187,7 @@ where
         cross_chain_config: CrossChainConfig,
         notification_config: NotificationConfig,
         shutdown_signal: CancellationToken,
+        tasks: &mut JoinSet<()>,
     ) -> GrpcServerHandle {
         info!(
             "spawning gRPC server on {}:{} for shard {}",
@@ -199,8 +199,6 @@ where
 
         let (notification_sender, notification_receiver) =
             mpsc::channel(notification_config.notification_queue_size);
-
-        let mut tasks = JoinSet::new();
 
         tasks.spawn_task({
             info!(
@@ -272,10 +270,7 @@ where
             Ok(())
         });
 
-        GrpcServerHandle {
-            handle,
-            _tasks: tasks,
-        }
+        GrpcServerHandle { handle }
     }
 
     /// Continuously waits for receiver to receive a notification which is then sent to
