@@ -16,7 +16,7 @@ use tokio::{
     io::AsyncWriteExt,
     net::{lookup_host, TcpListener, TcpStream, ToSocketAddrs, UdpSocket},
     sync::{oneshot, Mutex},
-    task::{JoinHandle, JoinSet},
+    task::JoinSet,
 };
 use tokio_util::{codec::Framed, sync::CancellationToken, udp::UdpFramed};
 use tracing::{error, warn};
@@ -209,7 +209,8 @@ pub struct UdpServer<State> {
     handler: State,
     udp_sink: SharedUdpSink,
     udp_stream: SplitStream<UdpFramed<Codec>>,
-    active_handlers: HashMap<SocketAddr, JoinHandle<()>>,
+    active_handlers: HashMap<SocketAddr, oneshot::Receiver<()>>,
+    tasks: JoinSet<()>,
 }
 
 /// Type alias for the outgoing endpoint of UDP messages.
@@ -253,6 +254,7 @@ where
             udp_sink: Arc::new(Mutex::new(udp_sink)),
             udp_stream,
             active_handlers: HashMap::new(),
+            tasks: JoinSet::new(),
         })
     }
 
@@ -262,7 +264,7 @@ where
         let mut state = self.handler.clone();
         let udp_sink = self.udp_sink.clone();
 
-        let new_task = tokio::spawn(async move {
+        let (new_task, _) = self.tasks.spawn_task(async move {
             if let Some(reply) = state.handle_message(message).await {
                 if let Some(task) = previous_task {
                     if let Err(error) = task.await {
@@ -280,7 +282,10 @@ where
 
         if self.active_handlers.len() >= 100 {
             // Collect finished tasks to avoid leaking memory.
-            self.active_handlers.retain(|_, task| !task.is_finished());
+            self.active_handlers.retain(|_, task| {
+                matches!(task.try_recv(), Err(oneshot::error::TryRecvError::Empty))
+            });
+            self.tasks.reap_finished_tasks();
         }
     }
 
@@ -309,6 +314,8 @@ where
                 warn!("Message handler panicked: {}", error);
             }
         }
+
+        self.tasks.await_all_tasks().await;
     }
 }
 
