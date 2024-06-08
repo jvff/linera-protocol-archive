@@ -400,6 +400,7 @@ where
 
         let connection_shutdown_signal = shutdown_signal.child_token();
         let mut tasks = JoinSet::new();
+        let mut reap_countdown = REAP_TASKS_THRESHOLD;
 
         loop {
             tokio::select! { biased;
@@ -415,6 +416,7 @@ where
                             connection_shutdown_signal.clone(),
                         );
                         tasks.spawn_task(server.serve());
+                        reap_countdown -= 1;
                     }
                     Some(Err(error)) => {
                         tasks.await_all_tasks().await;
@@ -426,7 +428,10 @@ where
                 },
             }
 
-            tasks.reap_finished_tasks();
+            if reap_countdown == 0 {
+                tasks.reap_finished_tasks();
+                reap_countdown = REAP_TASKS_THRESHOLD;
+            }
         }
     }
 
