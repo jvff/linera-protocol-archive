@@ -64,13 +64,14 @@ impl ServerContext {
         (state, shard_id, shard.clone())
     }
 
-    async fn spawn_simple<S>(
+    fn spawn_simple<S>(
         &self,
         listen_address: &str,
         states: Vec<(WorkerState<S>, ShardId, ShardConfig)>,
         protocol: simple::TransportProtocol,
         shutdown_signal: CancellationToken,
-    ) where
+    ) -> JoinSet<()>
+    where
         S: Storage + Clone + Send + Sync + 'static,
         ViewError: From<S::ContextError>,
     {
@@ -112,16 +113,18 @@ impl ServerContext {
             );
         }
 
-        handles.collect::<()>().await;
-        tasks.await_all_tasks().await;
+        tasks.spawn_task(handles.collect::<()>());
+
+        tasks
     }
 
-    async fn spawn_grpc<S>(
+    fn spawn_grpc<S>(
         &self,
         listen_address: &str,
         states: Vec<(WorkerState<S>, ShardId, ShardConfig)>,
         shutdown_signal: CancellationToken,
-    ) where
+    ) -> JoinSet<()>
+    where
         S: Storage + Clone + Send + Sync + 'static,
         ViewError: From<S::ContextError>,
     {
@@ -156,8 +159,9 @@ impl ServerContext {
             );
         }
 
-        handles.collect::<()>().await;
-        tasks.await_all_tasks().await;
+        tasks.spawn_task(handles.collect::<()>());
+
+        tasks
     }
 
     #[cfg(with_metrics)]
@@ -200,19 +204,17 @@ impl Runnable for ServerContext {
             }
         };
 
-        match self.server_config.internal_network.protocol {
+        let mut tasks = match self.server_config.internal_network.protocol {
             NetworkProtocol::Simple(protocol) => {
                 self.spawn_simple(&listen_address, states, protocol, shutdown_notifier)
-                    .await
             }
             NetworkProtocol::Grpc(tls_config) => match tls_config {
-                TlsConfig::ClearText => {
-                    self.spawn_grpc(&listen_address, states, shutdown_notifier)
-                        .await
-                }
+                TlsConfig::ClearText => self.spawn_grpc(&listen_address, states, shutdown_notifier),
                 TlsConfig::Tls => bail!("TLS not supported between proxy and shards."),
             },
         };
+
+        tasks.await_all_tasks().await;
 
         Ok(())
     }
