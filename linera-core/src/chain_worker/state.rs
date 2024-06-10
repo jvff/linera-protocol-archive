@@ -52,6 +52,7 @@ where
 {
     config: ChainWorkerConfig,
     storage: StorageClient,
+    chain_id: ChainId,
     chain: ChainStateView<StorageClient::Context>,
     recent_hashed_certificate_values: Arc<ValueCache<CryptoHash, HashedCertificateValue>>,
     recent_hashed_blobs: Arc<ValueCache<BlobId, HashedBlob>>,
@@ -76,6 +77,7 @@ where
         Ok(ChainWorkerState {
             config,
             storage,
+            chain_id,
             chain,
             recent_hashed_certificate_values: certificate_value_cache,
             recent_hashed_blobs: blob_cache,
@@ -85,7 +87,7 @@ where
 
     /// Returns the [`ChainId`] of the chain handled by this worker.
     pub fn chain_id(&self) -> ChainId {
-        self.chain.chain_id()
+        self.chain_id
     }
 
     /// Returns a stored [`Certificate`] for the chain's block at the requested [`BlockHeight`].
