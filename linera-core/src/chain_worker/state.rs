@@ -6,7 +6,10 @@
 use std::{
     borrow::Cow,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
-    sync::Arc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
 use futures::{future, FutureExt};
@@ -56,7 +59,7 @@ where
     chain: ChainStateView<StorageClient::Context>,
     recent_hashed_certificate_values: Arc<ValueCache<CryptoHash, HashedCertificateValue>>,
     recent_hashed_blobs: Arc<ValueCache<BlobId, HashedBlob>>,
-    knows_chain_is_active: bool,
+    knows_chain_is_active: AtomicBool,
 }
 
 impl<StorageClient> ChainWorkerState<StorageClient>
@@ -81,7 +84,7 @@ where
             chain,
             recent_hashed_certificate_values: certificate_value_cache,
             recent_hashed_blobs: blob_cache,
-            knows_chain_is_active: false,
+            knows_chain_is_active: AtomicBool::new(false),
         })
     }
 
@@ -739,9 +742,9 @@ where
 
     /// Ensures that the current chain is active, returning an error otherwise.
     fn ensure_is_active(&mut self) -> Result<(), WorkerError> {
-        if !self.knows_chain_is_active {
+        if !self.knows_chain_is_active.load(Ordering::Acquire) {
             self.chain.ensure_is_active()?;
-            self.knows_chain_is_active = true;
+            self.knows_chain_is_active.store(true, Ordering::Release);
         }
         Ok(())
     }
