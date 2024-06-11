@@ -36,7 +36,7 @@ use linera_views::{
     common::Context,
     views::{RootView, View, ViewError},
 };
-use tokio::sync::RwLock;
+use tokio::sync::{OwnedRwLockReadGuard, RwLock};
 use tracing::{debug, warn};
 #[cfg(with_testing)]
 use {linera_base::identifiers::BytecodeId, linera_chain::data_types::Event};
@@ -92,6 +92,16 @@ where
     /// Returns the [`ChainId`] of the chain handled by this worker.
     pub fn chain_id(&self) -> ChainId {
         self.chain_id
+    }
+
+    /// Returns a read-only view of the [`ChainStateView`].
+    ///
+    /// The returned view holds a lock on the chain state, which prevents the worker from changing
+    /// it.
+    pub async fn chain_state_view(
+        &self,
+    ) -> OwnedRwLockReadGuard<ChainStateView<StorageClient::Context>> {
+        self.chain.clone().read_owned().await
     }
 
     /// Returns a stored [`Certificate`] for the chain's block at the requested [`BlockHeight`].
