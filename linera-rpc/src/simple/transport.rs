@@ -161,14 +161,14 @@ impl TransportProtocol {
         address: impl ToSocketAddrs + Send + 'static,
         state: S,
         shutdown_signal: CancellationToken,
-        tasks: &mut JoinSet<()>,
+        join_set: &mut JoinSet<()>,
     ) -> ServerHandle
     where
         S: MessageHandler + Send + 'static,
     {
         let handle = match self {
-            Self::Udp => tasks.spawn_task(UdpServer::run(address, state, shutdown_signal)),
-            Self::Tcp => tasks.spawn_task(TcpServer::run(address, state, shutdown_signal)),
+            Self::Udp => join_set.spawn_task(UdpServer::run(address, state, shutdown_signal)),
+            Self::Tcp => join_set.spawn_task(TcpServer::run(address, state, shutdown_signal)),
         };
         ServerHandle { handle }
     }
@@ -208,7 +208,7 @@ pub struct UdpServer<State> {
     udp_sink: SharedUdpSink,
     udp_stream: SplitStream<UdpFramed<Codec>>,
     active_handlers: HashMap<SocketAddr, TaskHandle<()>>,
-    tasks: JoinSet<()>,
+    join_set: JoinSet<()>,
 }
 
 /// Type alias for the outgoing endpoint of UDP messages.
@@ -252,7 +252,7 @@ where
             udp_sink: Arc::new(Mutex::new(udp_sink)),
             udp_stream,
             active_handlers: HashMap::new(),
-            tasks: JoinSet::new(),
+            join_set: JoinSet::new(),
         })
     }
 
@@ -262,7 +262,7 @@ where
         let mut state = self.handler.clone();
         let udp_sink = self.udp_sink.clone();
 
-        let new_task = self.tasks.spawn_task(async move {
+        let new_task = self.join_set.spawn_task(async move {
             if let Some(reply) = state.handle_message(message).await {
                 if let Some(task) = previous_task {
                     if let Err(error) = task.await {
@@ -281,7 +281,7 @@ where
         if self.active_handlers.len() >= REAP_TASKS_THRESHOLD {
             // Collect finished tasks to avoid leaking memory.
             self.active_handlers.retain(|_, task| task.is_running());
-            self.tasks.reap_finished_tasks();
+            self.join_set.reap_finished_tasks();
         }
     }
 
@@ -311,7 +311,7 @@ where
             }
         }
 
-        self.tasks.await_all_tasks().await;
+        self.join_set.await_all_tasks().await;
     }
 }
 
@@ -392,13 +392,13 @@ where
         let mut accept_stream = pin!(accept_stream);
 
         let connection_shutdown_signal = shutdown_signal.child_token();
-        let mut tasks = JoinSet::new();
+        let mut join_set = JoinSet::new();
         let mut reap_countdown = REAP_TASKS_THRESHOLD;
 
         loop {
             tokio::select! { biased;
                 _ = shutdown_signal.cancelled() => {
-                    tasks.await_all_tasks().await;
+                    join_set.await_all_tasks().await;
                     return Ok(());
                 }
                 maybe_socket = accept_stream.next() => match maybe_socket {
@@ -408,11 +408,11 @@ where
                             handler.clone(),
                             connection_shutdown_signal.clone(),
                         );
-                        tasks.spawn_task(server.serve());
+                        join_set.spawn_task(server.serve());
                         reap_countdown -= 1;
                     }
                     Some(Err(error)) => {
-                        tasks.await_all_tasks().await;
+                        join_set.await_all_tasks().await;
                         return Err(error);
                     }
                     None => unreachable!(
@@ -422,7 +422,7 @@ where
             }
 
             if reap_countdown == 0 {
-                tasks.reap_finished_tasks();
+                join_set.reap_finished_tasks();
                 reap_countdown = REAP_TASKS_THRESHOLD;
             }
         }

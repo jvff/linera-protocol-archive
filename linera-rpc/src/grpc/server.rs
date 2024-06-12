@@ -187,7 +187,7 @@ where
         cross_chain_config: CrossChainConfig,
         notification_config: NotificationConfig,
         shutdown_signal: CancellationToken,
-        tasks: &mut JoinSet<()>,
+        join_set: &mut JoinSet<()>,
     ) -> GrpcServerHandle {
         info!(
             "spawning gRPC server on {}:{} for shard {}",
@@ -200,7 +200,7 @@ where
         let (notification_sender, notification_receiver) =
             mpsc::channel(notification_config.notification_queue_size);
 
-        tasks.spawn_task({
+        join_set.spawn_task({
             info!(
                 nickname = state.nickname(),
                 "spawning cross-chain queries thread on {} for shard {}", host, shard_id
@@ -218,7 +218,7 @@ where
             )
         });
 
-        tasks.spawn_task({
+        join_set.spawn_task({
             info!(
                 nickname = state.nickname(),
                 "spawning notifications thread on {} for shard {}", host, shard_id
@@ -244,7 +244,7 @@ where
             .max_encoding_message_size(GRPC_MAX_MESSAGE_SIZE)
             .max_decoding_message_size(GRPC_MAX_MESSAGE_SIZE);
 
-        let handle = tasks.spawn_task(async move {
+        let handle = join_set.spawn_task(async move {
             let server_address = SocketAddr::from((IpAddr::from_str(&host)?, port));
 
             let reflection_service = tonic_reflection::server::Builder::configure()

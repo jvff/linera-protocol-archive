@@ -233,7 +233,7 @@ where
     #[instrument(skip_all, fields(port = self.public_config.port, metrics_port = self.internal_config.metrics_port), err)]
     async fn run(self, shutdown_signal: CancellationToken) -> Result<()> {
         info!("Starting simple server");
-        let mut tasks = JoinSet::new();
+        let mut join_set = JoinSet::new();
         let address = self.get_listen_address(self.public_config.port);
 
         #[cfg(with_metrics)]
@@ -244,11 +244,11 @@ where
 
         self.public_config
             .protocol
-            .spawn_server(address, self, shutdown_signal, &mut tasks)
+            .spawn_server(address, self, shutdown_signal, &mut join_set)
             .join()
             .await?;
 
-        tasks.await_all_tasks().await;
+        join_set.await_all_tasks().await;
 
         Ok(())
     }

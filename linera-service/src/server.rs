@@ -75,7 +75,7 @@ impl ServerContext {
         S: Storage + Clone + Send + Sync + 'static,
         ViewError: From<S::ContextError>,
     {
-        let mut tasks = JoinSet::new();
+        let mut join_set = JoinSet::new();
         let handles = FuturesUnordered::new();
 
         let internal_network = self
@@ -101,7 +101,7 @@ impl ServerContext {
                 shard_id,
                 cross_chain_config,
             )
-            .spawn(shutdown_signal.clone(), &mut tasks);
+            .spawn(shutdown_signal.clone(), &mut join_set);
 
             handles.push(
                 server_handle
@@ -113,9 +113,9 @@ impl ServerContext {
             );
         }
 
-        tasks.spawn_task(handles.collect::<()>());
+        join_set.spawn_task(handles.collect::<()>());
 
-        tasks
+        join_set
     }
 
     fn spawn_grpc<S>(
@@ -128,7 +128,7 @@ impl ServerContext {
         S: Storage + Clone + Send + Sync + 'static,
         ViewError: From<S::ContextError>,
     {
-        let mut tasks = JoinSet::new();
+        let mut join_set = JoinSet::new();
         let handles = FuturesUnordered::new();
 
         for (state, shard_id, shard) in states {
@@ -146,7 +146,7 @@ impl ServerContext {
                 self.cross_chain_config.clone(),
                 self.notification_config.clone(),
                 shutdown_signal.clone(),
-                &mut tasks,
+                &mut join_set,
             );
 
             handles.push(
@@ -159,9 +159,9 @@ impl ServerContext {
             );
         }
 
-        tasks.spawn_task(handles.collect::<()>());
+        join_set.spawn_task(handles.collect::<()>());
 
-        tasks
+        join_set
     }
 
     #[cfg(with_metrics)]
@@ -204,7 +204,7 @@ impl Runnable for ServerContext {
             }
         };
 
-        let mut tasks = match self.server_config.internal_network.protocol {
+        let mut join_set = match self.server_config.internal_network.protocol {
             NetworkProtocol::Simple(protocol) => {
                 self.spawn_simple(&listen_address, states, protocol, shutdown_notifier)
             }
@@ -214,7 +214,7 @@ impl Runnable for ServerContext {
             },
         };
 
-        tasks.await_all_tasks().await;
+        join_set.await_all_tasks().await;
 
         Ok(())
     }

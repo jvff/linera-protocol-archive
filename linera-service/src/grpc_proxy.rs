@@ -227,7 +227,7 @@ where
     #[instrument(skip_all, fields(public_address = %self.public_address(), internal_address = %self.internal_address(), metrics_address = %self.metrics_address()), err)]
     pub async fn run(self, shutdown_signal: CancellationToken) -> Result<()> {
         info!("Starting gRPC server");
-        let mut tasks = JoinSet::new();
+        let mut join_set = JoinSet::new();
 
         #[cfg(with_metrics)]
         prometheus_server::start_metrics(self.metrics_address(), shutdown_signal.clone());
@@ -236,7 +236,7 @@ where
         health_reporter
             .set_serving::<ValidatorNodeServer<GrpcProxy<S>>>()
             .await;
-        let internal_server = tasks.spawn_task(
+        let internal_server = join_set.spawn_task(
             Server::builder()
                 .add_service(self.as_notifier_service())
                 .serve(self.internal_address()),
@@ -244,7 +244,7 @@ where
         let reflection_service = tonic_reflection::server::Builder::configure()
             .register_encoded_file_descriptor_set(linera_rpc::FILE_DESCRIPTOR_SET)
             .build()?;
-        let public_server = tasks.spawn_task(
+        let public_server = join_set.spawn_task(
             self.public_server()?
                 .layer(
                     ServiceBuilder::new()

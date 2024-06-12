@@ -806,11 +806,11 @@ impl ClientContext {
     ) -> Vec<RpcMessage> {
         let time_start = Instant::now();
         info!("Broadcasting {} {}", proposals.len(), phase);
-        let mut tasks = JoinSet::new();
+        let mut join_set = JoinSet::new();
         let mut handles = Vec::new();
         for mut client in self.make_validator_mass_clients() {
             let proposals = proposals.clone();
-            let handle = tasks.spawn_task(async move {
+            let handle = join_set.spawn_task(async move {
                 debug!("Sending {} requests", proposals.len());
                 let responses = client
                     .send(proposals, max_in_flight)
