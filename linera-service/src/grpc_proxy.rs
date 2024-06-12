@@ -236,7 +236,7 @@ where
         health_reporter
             .set_serving::<ValidatorNodeServer<GrpcProxy<S>>>()
             .await;
-        let (internal_server, _) = tasks.spawn_task(
+        let internal_server = tasks.spawn_task(
             Server::builder()
                 .add_service(self.as_notifier_service())
                 .serve(self.internal_address()),
@@ -244,7 +244,7 @@ where
         let reflection_service = tonic_reflection::server::Builder::configure()
             .register_encoded_file_descriptor_set(linera_rpc::FILE_DESCRIPTOR_SET)
             .build()?;
-        let (public_server, _) = tasks.spawn_task(
+        let public_server = tasks.spawn_task(
             self.public_server()?
                 .layer(
                     ServiceBuilder::new()
