@@ -17,7 +17,7 @@ use linera_base::identifiers::ChainId;
 use linera_core::{
     node::NodeError,
     worker::{NetworkActions, Notification, ValidatorWorker, WorkerError, WorkerState},
-    JoinSetExt as _,
+    JoinSetExt as _, TaskHandle,
 };
 use linera_storage::Storage;
 use linera_views::views::ViewError;
@@ -111,7 +111,7 @@ pub struct GrpcServer<S> {
 }
 
 pub struct GrpcServerHandle {
-    handle: oneshot::Receiver<Result<(), GrpcError>>,
+    handle: TaskHandle<Result<(), GrpcError>>,
 }
 
 impl GrpcServerHandle {
@@ -244,7 +244,7 @@ where
             .max_encoding_message_size(GRPC_MAX_MESSAGE_SIZE)
             .max_decoding_message_size(GRPC_MAX_MESSAGE_SIZE);
 
-        let (handle, _) = tasks.spawn_task(async move {
+        let handle = tasks.spawn_task(async move {
             let server_address = SocketAddr::from((IpAddr::from_str(&host)?, port));
 
             let reflection_service = tonic_reflection::server::Builder::configure()
