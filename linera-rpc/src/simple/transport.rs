@@ -207,7 +207,7 @@ pub struct UdpServer<State> {
     handler: State,
     udp_sink: SharedUdpSink,
     udp_stream: SplitStream<UdpFramed<Codec>>,
-    active_handlers: HashMap<SocketAddr, oneshot::Receiver<()>>,
+    active_handlers: HashMap<SocketAddr, TaskHandle<()>>,
     tasks: JoinSet<()>,
 }
 
@@ -262,7 +262,7 @@ where
         let mut state = self.handler.clone();
         let udp_sink = self.udp_sink.clone();
 
-        let (new_task, _) = self.tasks.spawn_task(async move {
+        let new_task = self.tasks.spawn_task(async move {
             if let Some(reply) = state.handle_message(message).await {
                 if let Some(task) = previous_task {
                     if let Err(error) = task.await {
@@ -280,9 +280,7 @@ where
 
         if self.active_handlers.len() >= REAP_TASKS_THRESHOLD {
             // Collect finished tasks to avoid leaking memory.
-            self.active_handlers.retain(|_, task| {
-                matches!(task.try_recv(), Err(oneshot::error::TryRecvError::Empty))
-            });
+            self.active_handlers.retain(|_, task| task.is_running());
             self.tasks.reap_finished_tasks();
         }
     }
