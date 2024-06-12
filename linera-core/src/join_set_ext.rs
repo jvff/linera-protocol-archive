@@ -16,7 +16,7 @@ use tokio::{
 };
 
 /// An extension trait for the [`JoinSet`] type.
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(web))]
 pub trait JoinSetExt: Sized {
     /// Spawns a `future` task on this [`JoinSet`] using [`JoinSet::spawn`].
     ///
@@ -35,7 +35,7 @@ pub trait JoinSetExt: Sized {
 }
 
 /// An extension trait for the [`JoinSet`] type.
-#[cfg(target_arch = "wasm32")]
+#[cfg(web)]
 pub trait JoinSetExt: Sized {
     /// Spawns a `future` task on this [`JoinSet`] using [`JoinSet::spawn_local`].
     ///
@@ -52,7 +52,7 @@ pub trait JoinSetExt: Sized {
     fn reap_finished_tasks(&mut self);
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(web))]
 impl JoinSetExt for JoinSet<()> {
     fn spawn_task<F>(&mut self, future: F) -> (oneshot::Receiver<F::Output>, AbortHandle)
     where
@@ -77,7 +77,7 @@ impl JoinSetExt for JoinSet<()> {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(web)]
 impl JoinSetExt for JoinSet<()> {
     fn spawn_task<F>(&mut self, future: F) -> (oneshot::Receiver<F::Output>, AbortHandle)
     where
