@@ -10,12 +10,12 @@ use futures::{
     stream::{self, FuturesUnordered, SplitSink, SplitStream},
     Sink, SinkExt, Stream, StreamExt, TryStreamExt,
 };
-use linera_core::JoinSetExt as _;
+use linera_core::{JoinSetExt as _, TaskHandle};
 use serde::{Deserialize, Serialize};
 use tokio::{
     io::AsyncWriteExt,
     net::{lookup_host, TcpListener, TcpStream, ToSocketAddrs, UdpSocket},
-    sync::{oneshot, Mutex},
+    sync::Mutex,
     task::JoinSet,
 };
 use tokio_util::{codec::Framed, sync::CancellationToken, udp::UdpFramed};
@@ -84,7 +84,7 @@ pub trait MessageHandler: Clone {
 /// The result of spawning a server is oneshot channel to track completion, and the set of
 /// executing tasks.
 pub struct ServerHandle {
-    pub handle: oneshot::Receiver<Result<(), std::io::Error>>,
+    pub handle: TaskHandle<Result<(), std::io::Error>>,
 }
 
 impl ServerHandle {
@@ -166,7 +166,7 @@ impl TransportProtocol {
     where
         S: MessageHandler + Send + 'static,
     {
-        let (handle, _) = match self {
+        let handle = match self {
             Self::Udp => tasks.spawn_task(UdpServer::run(address, state, shutdown_signal)),
             Self::Tcp => tasks.spawn_task(TcpServer::run(address, state, shutdown_signal)),
         };
