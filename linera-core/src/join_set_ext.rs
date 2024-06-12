@@ -113,8 +113,6 @@ impl JoinSetExt for JoinSet<()> {
 }
 
 /// A handle to a task spawned with [`JoinSetExt`].
-///
-/// Dropping a handle aborts its respective task.
 pub struct TaskHandle<Output> {
     output_receiver: oneshot::Receiver<Output>,
     abort_handle: AbortHandle,
