@@ -810,7 +810,7 @@ impl ClientContext {
         let mut handles = Vec::new();
         for mut client in self.make_validator_mass_clients() {
             let proposals = proposals.clone();
-            let (handle, _) = tasks.spawn_task(async move {
+            let handle = tasks.spawn_task(async move {
                 debug!("Sending {} requests", proposals.len());
                 let responses = client
                     .send(proposals, max_in_flight)
