@@ -160,7 +160,7 @@ where
         &mut self,
         bytecode_id: BytecodeId,
     ) -> Result<Option<BytecodeLocation>, WorkerError> {
-        let mut chain = self.chain.write().await;
+        let chain = self.chain.read().await;
         self.ensure_is_active(&chain)?;
         let response = chain.read_bytecode_location(bytecode_id).await?;
         Ok(response)
