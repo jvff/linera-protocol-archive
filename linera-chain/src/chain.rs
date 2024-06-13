@@ -407,7 +407,7 @@ where
     }
 
     pub async fn describe_application(
-        &mut self,
+        &self,
         application_id: UserApplicationId,
     ) -> Result<UserApplicationDescription, ChainError> {
         self.execution_state
