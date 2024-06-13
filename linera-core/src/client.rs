@@ -127,7 +127,11 @@ impl<ValidatorNodeProvider: Clone> Client<ValidatorNodeProvider> {
         next_block_height: BlockHeight,
         pending_block: Option<Block>,
         pending_blobs: BTreeMap<BlobId, HashedBlob>,
-    ) -> ChainClient<ValidatorNodeProvider, Storage> {
+    ) -> ChainClient<ValidatorNodeProvider, Storage>
+    where
+        Storage: linera_storage::Storage,
+        ViewError: From<Storage::ContextError>,
+    {
         let known_key_pairs = known_key_pairs
             .into_iter()
             .map(|kp| (Owner::from(kp.public()), kp))
@@ -192,7 +196,11 @@ impl MessagePolicy {
 /// * The chain being operated is called the "local chain" or just the "chain".
 /// * As a rule, operations are considered successful (and communication may stop) when
 /// they succeeded in gathering a quorum of responses.
-pub struct ChainClient<ValidatorNodeProvider, Storage> {
+pub struct ChainClient<ValidatorNodeProvider, Storage>
+where
+    Storage: linera_storage::Storage,
+    ViewError: From<Storage::ContextError>,
+{
     /// The off-chain chain ID.
     chain_id: ChainId,
     /// How to talk to the validators.
@@ -291,7 +299,11 @@ impl From<Infallible> for ChainClientError {
     }
 }
 
-impl<P, S> ChainClient<P, S> {
+impl<P, S> ChainClient<P, S>
+where
+    S: Storage,
+    ViewError: From<S::ContextError>,
+{
     pub fn chain_id(&self) -> ChainId {
         self.chain_id
     }
@@ -2225,9 +2237,16 @@ enum ExecuteBlockOutcome {
 
 /// A chain client in an `Arc<Mutex<_>>`, so it can be used by different tasks and threads.
 #[derive(Debug)]
-pub struct ArcChainClient<P, S>(pub Arc<Mutex<ChainClient<P, S>>>);
+pub struct ArcChainClient<P, S>(pub Arc<Mutex<ChainClient<P, S>>>)
+where
+    S: Storage,
+    ViewError: From<S::ContextError>;
 
-impl<P, S> Deref for ArcChainClient<P, S> {
+impl<P, S> Deref for ArcChainClient<P, S>
+where
+    S: Storage,
+    ViewError: From<S::ContextError>,
+{
     type Target = Arc<Mutex<ChainClient<P, S>>>;
 
     fn deref(&self) -> &Self::Target {
@@ -2235,13 +2254,21 @@ impl<P, S> Deref for ArcChainClient<P, S> {
     }
 }
 
-impl<P, S> Clone for ArcChainClient<P, S> {
+impl<P, S> Clone for ArcChainClient<P, S>
+where
+    S: Storage,
+    ViewError: From<S::ContextError>,
+{
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl<P, S> ArcChainClient<P, S> {
+impl<P, S> ArcChainClient<P, S>
+where
+    S: Storage,
+    ViewError: From<S::ContextError>,
+{
     pub fn new(client: ChainClient<P, S>) -> Self {
         Self(Arc::new(Mutex::new(client)))
     }

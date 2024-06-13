@@ -112,7 +112,11 @@ impl ClientContext<DummyValidatorNodeProvider> for DummyContext {
         unimplemented!()
     }
 
-    fn make_chain_client<S>(&self, _: S, _: ChainId) -> ChainClient<DummyValidatorNodeProvider, S> {
+    fn make_chain_client<S>(&self, _: S, _: ChainId) -> ChainClient<DummyValidatorNodeProvider, S>
+    where
+        S: Storage,
+        ViewError: From<S::ContextError>,
+    {
         unimplemented!()
     }
 

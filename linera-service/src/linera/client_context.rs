@@ -81,7 +81,11 @@ impl chain_listener::ClientContext<NodeProvider> for ClientContext {
         self.wallet_state.inner()
     }
 
-    fn make_chain_client<S>(&self, storage: S, chain_id: ChainId) -> ChainClient<NodeProvider, S> {
+    fn make_chain_client<S>(&self, storage: S, chain_id: ChainId) -> ChainClient<NodeProvider, S>
+    where
+        S: Storage,
+        ViewError: From<S::ContextError>,
+    {
         self.make_chain_client(storage, chain_id)
     }
 
@@ -150,7 +154,11 @@ impl ClientContext {
             .expect("No chain specified in wallet with no default chain")
     }
 
-    fn make_chain_client<S>(&self, storage: S, chain_id: ChainId) -> ChainClient<NodeProvider, S> {
+    fn make_chain_client<S>(&self, storage: S, chain_id: ChainId) -> ChainClient<NodeProvider, S>
+    where
+        S: Storage,
+        ViewError: From<S::ContextError>,
+    {
         let chain = self
             .wallet()
             .get(chain_id)

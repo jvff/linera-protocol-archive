@@ -14,7 +14,7 @@ use linera_core::{
     client::ChainClient,
     test_utils::{FaultType, MemoryStorageBuilder, NodeProvider, StorageBuilder as _, TestBuilder},
 };
-use linera_storage::{DbStorage, Storage, TestClock};
+use linera_storage::{DbStorage, MemoryStorage, Storage, TestClock};
 use linera_views::{memory::MemoryStore, views::ViewError};
 
 use super::MutationRoot;
@@ -37,7 +37,11 @@ impl chain_listener::ClientContext<NodeProvider<DbStorage<MemoryStore, TestClock
         &self,
         _: S,
         _: ChainId,
-    ) -> ChainClient<NodeProvider<DbStorage<MemoryStore, TestClock>>, S> {
+    ) -> ChainClient<NodeProvider<DbStorage<MemoryStore, TestClock>>, S>
+    where
+        S: Storage,
+        ViewError: From<S::ContextError>,
+    {
         unimplemented!()
     }
 
@@ -96,7 +100,7 @@ async fn test_faucet_rate_limiting() {
 
 #[test]
 fn test_multiply() {
-    let mul = MutationRoot::<(), (), ()>::multiply;
+    let mul = MutationRoot::<(), MemoryStorage<TestClock>, ()>::multiply;
     assert_eq!(mul((1 << 127) + (1 << 63), 1 << 63), [1 << 62, 1 << 62, 0]);
     assert_eq!(mul(u128::MAX, u64::MAX), [u64::MAX - 1, u64::MAX, 1]);
 }

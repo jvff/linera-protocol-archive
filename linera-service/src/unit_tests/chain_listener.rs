@@ -49,7 +49,11 @@ impl chain_listener::ClientContext<NodeProvider<MemoryStorage<TestClock>>> for C
         &self,
         storage: S,
         chain_id: ChainId,
-    ) -> ChainClient<NodeProvider<MemoryStorage<TestClock>>, S> {
+    ) -> ChainClient<NodeProvider<MemoryStorage<TestClock>>, S>
+    where
+        S: Storage,
+        ViewError: From<S::ContextError>,
+    {
         let chain = self
             .wallet
             .get(chain_id)
