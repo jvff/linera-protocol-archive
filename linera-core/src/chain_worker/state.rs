@@ -171,7 +171,7 @@ where
         &mut self,
         application_id: UserApplicationId,
     ) -> Result<UserApplicationDescription, WorkerError> {
-        let mut chain = self.chain.write().await;
+        let chain = self.chain.read().await;
         self.ensure_is_active(&chain)?;
         let response = chain.describe_application(application_id).await?;
         Ok(response)
