@@ -186,7 +186,9 @@ where
         &mut self,
         block: Block,
     ) -> Result<(ExecutedBlock, ChainInfoResponse), WorkerError> {
-        let mut chain = self.chain.write().await;
+        let mut writable_chain = self.chain.write().await;
+        let mut chain = writable_chain.clone_unchecked()?;
+        let _read_lock_guard = writable_chain.downgrade();
         self.ensure_is_active(&chain)?;
 
         let local_time = self.storage.clock().current_time();
@@ -197,7 +199,7 @@ where
             .await?
             .with(block);
 
-        let mut response = ChainInfoResponse::new(&*chain, None);
+        let mut response = ChainInfoResponse::new(&chain, None);
         if let Some(signer) = signer {
             response.info.requested_owner_balance =
                 chain.execution_state.system.balances.get(&signer).await?;
