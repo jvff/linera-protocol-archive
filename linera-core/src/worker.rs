@@ -5,6 +5,7 @@
 use std::{
     borrow::Cow,
     collections::{hash_map, BTreeMap, HashMap, VecDeque},
+    num::NonZeroUsize,
     sync::Arc,
     time::Duration,
 };
@@ -29,10 +30,11 @@ use linera_execution::{
 };
 use linera_storage::Storage;
 use linera_views::views::ViewError;
+use lru::LruCache;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::{
-    sync::{oneshot, Mutex, OwnedRwLockReadGuard},
+    sync::{mpsc, oneshot, Mutex, OwnedRwLockReadGuard},
     task::JoinSet,
 };
 use tracing::{error, instrument, trace, warn};
@@ -59,6 +61,10 @@ use crate::{
 #[cfg(test)]
 #[path = "unit_tests/worker_tests.rs"]
 mod worker_tests;
+
+/// The maximum number of [`ChainWorkerActor`]s to keep running.
+static CHAIN_WORKER_LIMIT: Lazy<NonZeroUsize> =
+    Lazy::new(|| NonZeroUsize::new(1_000).expect("`CHAIN_WORKER_LIMIT` should not be zero"));
 
 #[cfg(with_metrics)]
 static NUM_ROUNDS_IN_CERTIFICATE: Lazy<HistogramVec> = Lazy::new(|| {
@@ -290,6 +296,9 @@ where
     delivery_notifiers: Arc<Mutex<DeliveryNotifiers>>,
     /// The set of spawned [`ChainWorkerActor`] tasks.
     chain_worker_tasks: Arc<Mutex<JoinSet<()>>>,
+    /// The cache of running [`ChainWorkerActor`] endpoints.
+    chain_worker_endpoints:
+        Arc<Mutex<LruCache<ChainId, mpsc::Sender<ChainWorkerRequest<StorageClient::Context>>>>>,
 }
 
 pub(crate) type DeliveryNotifiers =
@@ -309,6 +318,7 @@ where
             recent_hashed_blobs: Arc::new(ValueCache::default()),
             delivery_notifiers: Arc::default(),
             chain_worker_tasks: Arc::default(),
+            chain_worker_endpoints: Arc::new(Mutex::new(LruCache::new(*CHAIN_WORKER_LIMIT))),
         }
     }
 
@@ -327,6 +337,7 @@ where
             recent_hashed_blobs,
             delivery_notifiers,
             chain_worker_tasks: Arc::default(),
+            chain_worker_endpoints: Arc::new(Mutex::new(LruCache::new(*CHAIN_WORKER_LIMIT))),
         }
     }
 
