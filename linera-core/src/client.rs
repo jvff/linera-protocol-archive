@@ -69,7 +69,11 @@ use crate::{
 mod client_tests;
 
 /// A builder that creates `ChainClients` which share the cache and notifiers.
-pub struct Client<ValidatorNodeProvider, Storage> {
+pub struct Client<ValidatorNodeProvider, Storage>
+where
+    Storage: linera_storage::Storage,
+    ViewError: From<Storage::ContextError>,
+{
     /// How to talk to the validators.
     validator_node_provider: ValidatorNodeProvider,
     /// Local node to manage the execution state and the local storage of the chains that we are
@@ -88,7 +92,10 @@ pub struct Client<ValidatorNodeProvider, Storage> {
     storage: Storage,
 }
 
-impl<P, S: Storage + Clone> Client<P, S> {
+impl<P, S: Storage + Clone> Client<P, S>
+where
+    ViewError: From<S::ContextError>,
+{
     /// Creates a new `Client` with a new cache and notifiers.
     pub fn new(
         validator_node_provider: P,
@@ -144,6 +151,7 @@ impl<P, S: Storage + Clone> Client<P, S> {
     ) -> ChainClient<P, S>
     where
         P: Clone,
+        ViewError: From<S::ContextError>,
     {
         let known_key_pairs = known_key_pairs
             .into_iter()
@@ -199,7 +207,11 @@ impl MessagePolicy {
 /// * The chain being operated is called the "local chain" or just the "chain".
 /// * As a rule, operations are considered successful (and communication may stop) when
 /// they succeeded in gathering a quorum of responses.
-pub struct ChainClient<ValidatorNodeProvider, Storage> {
+pub struct ChainClient<ValidatorNodeProvider, Storage>
+where
+    Storage: linera_storage::Storage,
+    ViewError: From<Storage::ContextError>,
+{
     /// The Linera [`Client`] that manages operations on this chain.
     client: Arc<Client<ValidatorNodeProvider, Storage>>,
     /// The off-chain chain ID.
@@ -297,7 +309,11 @@ impl From<Infallible> for ChainClientError {
     }
 }
 
-impl<P, S> ChainClient<P, S> {
+impl<P, S> ChainClient<P, S>
+where
+    S: Storage,
+    ViewError: From<S::ContextError>,
+{
     pub fn chain_id(&self) -> ChainId {
         self.chain_id
     }
@@ -2280,9 +2296,16 @@ enum ExecuteBlockOutcome {
 
 /// A chain client in an `Arc<Mutex<_>>`, so it can be used by different tasks and threads.
 #[derive(Debug)]
-pub struct ArcChainClient<P, S>(pub Arc<Mutex<ChainClient<P, S>>>);
+pub struct ArcChainClient<P, S>(pub Arc<Mutex<ChainClient<P, S>>>)
+where
+    S: Storage,
+    ViewError: From<S::ContextError>;
 
-impl<P, S> Deref for ArcChainClient<P, S> {
+impl<P, S> Deref for ArcChainClient<P, S>
+where
+    S: Storage,
+    ViewError: From<S::ContextError>,
+{
     type Target = Arc<Mutex<ChainClient<P, S>>>;
 
     fn deref(&self) -> &Self::Target {
@@ -2290,13 +2313,21 @@ impl<P, S> Deref for ArcChainClient<P, S> {
     }
 }
 
-impl<P, S> Clone for ArcChainClient<P, S> {
+impl<P, S> Clone for ArcChainClient<P, S>
+where
+    S: Storage,
+    ViewError: From<S::ContextError>,
+{
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl<P, S> ArcChainClient<P, S> {
+impl<P, S> ArcChainClient<P, S>
+where
+    S: Storage,
+    ViewError: From<S::ContextError>,
+{
     pub fn new(client: ChainClient<P, S>) -> Self {
         Self(Arc::new(Mutex::new(client)))
     }
