@@ -6,6 +6,8 @@
 use std::{
     borrow::Cow,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    mem,
+    ops::{Deref, DerefMut},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -36,7 +38,7 @@ use linera_views::{
     common::Context,
     views::{ClonableView, RootView, View, ViewError},
 };
-use tokio::sync::{OwnedRwLockReadGuard, RwLock};
+use tokio::sync::{OwnedRwLockReadGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracing::{debug, warn};
 #[cfg(with_testing)]
 use {linera_base::identifiers::BytecodeId, linera_chain::data_types::Event};
@@ -57,7 +59,7 @@ where
     config: ChainWorkerConfig,
     storage: StorageClient,
     chain_id: ChainId,
-    chain: Arc<RwLock<ChainStateView<StorageClient::Context>>>,
+    chain: ChainStateSlot<StorageClient::Context>,
     recent_hashed_certificate_values: Arc<ValueCache<CryptoHash, HashedCertificateValue>>,
     recent_hashed_blobs: Arc<ValueCache<BlobId, HashedBlob>>,
     knows_chain_is_active: AtomicBool,
@@ -99,9 +101,9 @@ where
     /// The returned view holds a lock on the chain state, which prevents the worker from changing
     /// it.
     pub async fn chain_state_view(
-        &self,
+        &mut self,
     ) -> OwnedRwLockReadGuard<ChainStateView<StorageClient::Context>> {
-        self.chain.clone().read_owned().await
+        self.chain.share().await
     }
 
     /// Returns a stored [`Certificate`] for the chain's block at the requested [`BlockHeight`].
@@ -1057,5 +1059,103 @@ impl<'a> CrossChainUpdateHelper<'a> {
             vec![]
         };
         Ok(certificates)
+    }
+}
+
+/// A wrapper over the [`ChainStateView`], that only places it inside a [`RwLock`] if it needs to
+/// be shared.
+pub enum ChainStateSlot<C> {
+    Unique(ChainStateView<C>),
+    Shared(Arc<RwLock<ChainStateView<C>>>),
+    Switching,
+}
+
+impl<C> ChainStateSlot<C>
+where
+    C: Context + Send + Sync + 'static,
+    ViewError: From<C::Error>,
+{
+    pub async fn read(&self) -> ReadableChainState<'_, C> {
+        match self {
+            ChainStateSlot::Unique(chain) => ReadableChainState::Unique(&chain),
+            ChainStateSlot::Shared(chain) => ReadableChainState::Shared(chain.read().await),
+            ChainStateSlot::Switching => unreachable!(
+                "The `Switching` variant should only be temporary and \
+                while the `ChainStateSlot` is being exclusively accessed"
+            ),
+        }
+    }
+
+    pub async fn write(&mut self) -> WritableChainState<'_, C> {
+        match self {
+            ChainStateSlot::Unique(chain) => WritableChainState::Unique(&mut chain),
+            ChainStateSlot::Shared(chain) => WritableChainState::Shared(chain.write().await),
+            ChainStateSlot::Switching => unreachable!(
+                "The `Switching` variant should only be temporary and \
+                while the `ChainStateSlot` is being exclusively accessed"
+            ),
+        }
+    }
+
+    pub async fn share(&mut self) -> OwnedRwLockReadGuard<ChainStateView<C>> {
+        let shared_chain = match mem::replace(self, ChainStateSlot::Switching) {
+            ChainStateSlot::Unique(chain) => Arc::new(RwLock::new(chain)),
+            ChainStateSlot::Shared(chain) => chain,
+            ChainStateSlot::Switching => unreachable!(
+                "The `Switching` variant should only be temporary and \
+                while the `ChainStateSlot` is being exclusively accessed"
+            ),
+        };
+
+        let read_guard = shared_chain.clone().read_owned().await;
+
+        *self = ChainStateSlot::Shared(shared_chain);
+
+        read_guard
+    }
+}
+
+/// A wrapper over the [`ChainStateView`], that only places it inside a [`RwLock`] if it needs to
+/// be shared.
+pub enum ReadableChainState<'slot, C> {
+    Unique(&'slot ChainStateView<C>),
+    Shared(RwLockReadGuard<'slot, ChainStateView<C>>),
+}
+
+impl<C> Deref for ReadableChainState<'_, C> {
+    type Target = ChainStateView<C>;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            ReadableChainState::Unique(reference) => reference,
+            ReadableChainState::Shared(guard) => &*guard,
+        }
+    }
+}
+
+/// A wrapper over the [`ChainStateView`], that only places it inside a [`RwLock`] if it needs to
+/// be shared.
+pub enum WritableChainState<'slot, C> {
+    Unique(&'slot mut ChainStateView<C>),
+    Shared(RwLockWriteGuard<'slot, ChainStateView<C>>),
+}
+
+impl<C> Deref for WritableChainState<'_, C> {
+    type Target = ChainStateView<C>;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            ReadableChainState::Unique(reference) => &*reference,
+            ReadableChainState::Shared(guard) => &*guard,
+        }
+    }
+}
+
+impl<C> DerefMut for WritableChainState<'_, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            ReadableChainState::Unique(reference) => reference,
+            ReadableChainState::Shared(guard) => &mut *guard,
+        }
     }
 }
