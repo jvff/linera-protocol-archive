@@ -393,7 +393,7 @@ where
     /// this chain's [`ApplicationRegistryView`][`linera_execution::ApplicationRegistryView`].
     #[cfg(with_testing)]
     pub async fn read_bytecode_location(
-        &self,
+        &mut self,
         bytecode_id: BytecodeId,
     ) -> Result<Option<BytecodeLocation>, ChainError> {
         self.execution_state
