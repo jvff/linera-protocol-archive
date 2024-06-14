@@ -347,7 +347,7 @@ fn generate_clonable_view_code(input: ItemStruct) -> TokenStream2 {
         impl #generics linera_views::views::ClonableView<#context> for #struct_name #generics
         #context_constraints
         {
-            fn clone_unchecked(&mut self) -> Result<Self, linera_views::views::ViewError> {
+            fn clone_unchecked(&self) -> Result<Self, linera_views::views::ViewError> {
                 Ok(Self {
                     #(#clone_unchecked_quotes)*
                 })

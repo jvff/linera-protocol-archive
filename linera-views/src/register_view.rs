@@ -97,7 +97,7 @@ where
     ViewError: From<C::Error>,
     T: Clone + Default + Send + Sync + Serialize + DeserializeOwned,
 {
-    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&self) -> Result<Self, ViewError> {
         Ok(RegisterView {
             delete_storage_first: self.delete_storage_first,
             context: self.context.clone(),

@@ -150,7 +150,7 @@ where
     ViewError: From<C::Error>,
     W: ClonableView<C> + Send + Sync,
 {
-    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&self) -> Result<Self, ViewError> {
         let cloned_updates = self
             .updates
             .get_mut()
@@ -659,7 +659,7 @@ where
     I: Send + Sync + Debug + Serialize + DeserializeOwned,
     W: ClonableView<C> + Send + Sync,
 {
-    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&self) -> Result<Self, ViewError> {
         Ok(CollectionView {
             collection: self.collection.clone_unchecked()?,
             _phantom: PhantomData,
@@ -994,7 +994,7 @@ where
     I: Send + Sync + Debug,
     W: ClonableView<C> + Send + Sync,
 {
-    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&self) -> Result<Self, ViewError> {
         Ok(CustomCollectionView {
             collection: self.collection.clone_unchecked()?,
             _phantom: PhantomData,

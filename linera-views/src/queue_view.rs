@@ -136,7 +136,7 @@ where
     ViewError: From<C::Error>,
     T: Clone + Send + Sync + Serialize,
 {
-    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&self) -> Result<Self, ViewError> {
         Ok(QueueView {
             context: self.context.clone(),
             stored_indices: self.stored_indices.clone(),

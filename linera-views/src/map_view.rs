@@ -135,7 +135,7 @@ where
     ViewError: From<C::Error>,
     V: Clone + Send + Sync + Serialize,
 {
-    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&self) -> Result<Self, ViewError> {
         Ok(ByteMapView {
             context: self.context.clone(),
             delete_storage_first: self.delete_storage_first,
@@ -830,7 +830,7 @@ where
     I: Send + Sync + Serialize,
     V: Clone + Send + Sync + Serialize,
 {
-    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&self) -> Result<Self, ViewError> {
         Ok(MapView {
             map: self.map.clone_unchecked()?,
             _phantom: PhantomData,
@@ -1244,7 +1244,7 @@ where
     I: Send + Sync + CustomSerialize,
     V: Clone + Send + Sync + Serialize,
 {
-    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&self) -> Result<Self, ViewError> {
         Ok(CustomMapView {
             map: self.map.clone_unchecked()?,
             _phantom: PhantomData,

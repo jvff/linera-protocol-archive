@@ -118,7 +118,7 @@ where
     ViewError: From<C::Error>,
     T: Clone + Send + Sync + Serialize,
 {
-    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&self) -> Result<Self, ViewError> {
         Ok(LogView {
             context: self.context.clone(),
             delete_storage_first: self.delete_storage_first,

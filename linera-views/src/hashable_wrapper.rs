@@ -106,7 +106,7 @@ where
     O: Serialize + DeserializeOwned + Send + Sync + Copy + PartialEq,
     W::Hasher: Hasher<Output = O>,
 {
-    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&self) -> Result<Self, ViewError> {
         Ok(WrappedHashableContainerView {
             _phantom: PhantomData,
             stored_hash: self.stored_hash,

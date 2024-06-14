@@ -251,7 +251,7 @@ where
     C: Context + Send + Sync,
     ViewError: From<C::Error>,
 {
-    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&self) -> Result<Self, ViewError> {
         Ok(KeyValueStoreView {
             context: self.context.clone(),
             delete_storage_first: self.delete_storage_first,

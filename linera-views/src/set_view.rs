@@ -100,7 +100,7 @@ where
     C: Context + Send + Sync,
     ViewError: From<C::Error>,
 {
-    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&self) -> Result<Self, ViewError> {
         Ok(ByteSetView {
             context: self.context.clone(),
             delete_storage_first: self.delete_storage_first,
@@ -383,7 +383,7 @@ where
     ViewError: From<C::Error>,
     I: Send + Sync + Serialize,
 {
-    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&self) -> Result<Self, ViewError> {
         Ok(SetView {
             set: self.set.clone_unchecked()?,
             _phantom: PhantomData,
@@ -632,7 +632,7 @@ where
     ViewError: From<C::Error>,
     I: Send + Sync + CustomSerialize,
 {
-    fn clone_unchecked(&mut self) -> Result<Self, ViewError> {
+    fn clone_unchecked(&self) -> Result<Self, ViewError> {
         Ok(CustomSetView {
             set: self.set.clone_unchecked()?,
             _phantom: PhantomData,
