@@ -96,9 +96,19 @@ where
     /// The returned view holds a lock on the chain state, which prevents the worker from changing
     /// it.
     pub async fn chain_state_view(
-        &self,
-    ) -> OwnedRwLockReadGuard<ChainStateView<StorageClient::Context>> {
-        self.chain.clone().read_owned().await
+        &mut self,
+    ) -> Result<OwnedRwLockReadGuard<ChainStateView<StorageClient::Context>>, WorkerError> {
+        if self.shared_chain_view.is_none() {
+            self.shared_chain_view = Some(Arc::new(RwLock::new(self.chain.clone_unchecked()?)));
+        }
+
+        Ok(self
+            .shared_chain_view
+            .as_ref()
+            .expect("`shared_chain_view` should be initialized above")
+            .clone()
+            .read_owned()
+            .await)
     }
 
     /// Returns a stored [`Certificate`] for the chain's block at the requested [`BlockHeight`].
