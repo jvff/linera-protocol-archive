@@ -251,7 +251,7 @@ where
             })
         }
         let info = ChainInfoResponse::new(&self.chain, self.config.key_pair());
-        self.chain.save().await?;
+        self.save().await?;
         Ok((info, actions))
     }
 
@@ -369,7 +369,7 @@ where
                 .await;
         }
         let info = ChainInfoResponse::new(&self.chain, self.config.key_pair());
-        self.chain.save().await?;
+        self.save().await?;
         // Trigger any outgoing cross-chain messages that haven't been confirmed yet.
         let actions = self.create_network_actions().await?;
         Ok((info, actions))
@@ -425,7 +425,7 @@ where
             self.storage.clock().current_time(),
         );
         let info = ChainInfoResponse::new(&self.chain, self.config.key_pair());
-        self.chain.save().await?;
+        self.save().await?;
         let round = self.chain.manager.get().current_round;
         if round > old_round {
             actions.notifications.push(Notification {
@@ -561,7 +561,7 @@ where
             },
         });
         // Persist chain.
-        self.chain.save().await?;
+        self.save().await?;
         self.recent_hashed_certificate_values
             .insert(Cow::Owned(certificate.value))
             .await;
@@ -610,7 +610,7 @@ where
             return Ok(None);
         }
         // Save the chain.
-        self.chain.save().await?;
+        self.save().await?;
         Ok(Some(last_updated_height))
     }
 
@@ -633,7 +633,7 @@ where
             }
         }
 
-        self.chain.save().await?;
+        self.save().await?;
 
         Ok(height_with_fully_delivered_messages)
     }
@@ -651,7 +651,7 @@ where
                 let local_time = self.storage.clock().current_time();
                 let manager = self.chain.manager.get_mut();
                 if manager.vote_timeout(chain_id, height, *epoch, key_pair, local_time) {
-                    self.chain.save().await?;
+                    self.save().await?;
                 }
             }
         }
@@ -667,7 +667,7 @@ where
                     let key_pair = self.config.key_pair();
                     let manager = self.chain.manager.get_mut();
                     if manager.vote_fallback(chain_id, height, *epoch, key_pair) {
-                        self.chain.save().await?;
+                        self.save().await?;
                     }
                 }
             }
@@ -965,6 +965,11 @@ where
             recipient,
             bundle_vecs,
         })
+    }
+
+    /// Stores the chain state in persistent storage.
+    async fn save(&mut self) -> Result<(), WorkerError> {
+        Ok(self.chain.save().await?)
     }
 }
 
