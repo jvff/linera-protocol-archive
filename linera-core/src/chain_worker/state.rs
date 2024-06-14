@@ -129,19 +129,19 @@ where
         height: BlockHeight,
         index: u32,
     ) -> Result<Option<Event>, WorkerError> {
-        let chain = self.chain.read().await;
+        let mut chain = self.chain.write().await;
         self.ensure_is_active(&chain)?;
 
-        let Some(inbox) = chain.inboxes.try_load_entry(&inbox_id).await? else {
-            return Ok(None);
-        };
-        let events = inbox.added_events.elements().await?;
+        let mut inbox = chain.inboxes.try_load_entry_mut(&inbox_id).await?;
+        let mut events = inbox.added_events.iter_mut().await?;
 
-        Ok(events.into_iter().find(|event| {
-            event.certificate_hash == certificate_hash
-                && event.height == height
-                && event.index == index
-        }))
+        Ok(events
+            .find(|event| {
+                event.certificate_hash == certificate_hash
+                    && event.height == height
+                    && event.index == index
+            })
+            .cloned())
     }
 
     /// Queries an application's state on the chain.
