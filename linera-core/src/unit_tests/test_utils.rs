@@ -99,6 +99,7 @@ where
         &mut self,
         proposal: BlockProposal,
     ) -> Result<ChainInfoResponse, NodeError> {
+        dbg!("handle_block_proposal");
         self.spawn_and_receive(move |validator, sender| {
             validator.do_handle_block_proposal(proposal, sender)
         })
@@ -110,6 +111,7 @@ where
         certificate: LiteCertificate<'_>,
         _delivery: CrossChainMessageDelivery,
     ) -> Result<ChainInfoResponse, NodeError> {
+        dbg!("handle_lite_certificate");
         let certificate = certificate.cloned();
         self.spawn_and_receive(move |validator, sender| {
             validator.do_handle_lite_certificate(certificate, sender)
@@ -124,6 +126,7 @@ where
         hashed_blobs: Vec<HashedBlob>,
         _delivery: CrossChainMessageDelivery,
     ) -> Result<ChainInfoResponse, NodeError> {
+        dbg!("handle_certificate");
         self.spawn_and_receive(move |validator, sender| {
             validator.do_handle_certificate(
                 certificate,
@@ -139,8 +142,11 @@ where
         &mut self,
         query: ChainInfoQuery,
     ) -> Result<ChainInfoResponse, NodeError> {
+        dbg!("handle_chain_info_query");
         self.spawn_and_receive(move |validator, sender| {
-            validator.do_handle_chain_info_query(query, sender)
+            let fut = validator.do_handle_chain_info_query(query, sender);
+            dbg!(std::mem::size_of_val(&fut));
+            fut
         })
         .await
     }
@@ -195,10 +201,14 @@ where
     {
         let validator = self.clone();
         let (sender, receiver) = oneshot::channel();
-        tokio::spawn(async move {
-            if f(validator, sender).await.is_err() {
-                tracing::debug!("result could not be sent");
-            }
+        tokio::spawn({
+            let fut = async move {
+                if f(validator, sender).await.is_err() {
+                    tracing::debug!("result could not be sent");
+                }
+            };
+            dbg!(std::mem::size_of_val(&fut));
+            fut
         });
         receiver.await.unwrap()
     }
@@ -208,7 +218,9 @@ where
         proposal: BlockProposal,
         sender: oneshot::Sender<Result<ChainInfoResponse, NodeError>>,
     ) -> Result<(), Result<ChainInfoResponse, NodeError>> {
+        dbg!(90);
         let mut validator = self.client.lock().await;
+        dbg!(91);
         let result = match validator.fault_type {
             FaultType::Offline | FaultType::OfflineWithInfo => Err(NodeError::ClientIoError {
                 error: "offline".to_string(),
@@ -220,6 +232,7 @@ where
                 .await
                 .map_err(Into::into),
         };
+        dbg!(92);
         // In a local node cross-chain messages can't get lost, so we can ignore the actions here.
         sender.send(result.map(|(info, _actions)| info))
     }
@@ -298,20 +311,27 @@ where
         query: ChainInfoQuery,
         sender: oneshot::Sender<Result<ChainInfoResponse, NodeError>>,
     ) -> Result<(), Result<ChainInfoResponse, NodeError>> {
+        dbg!(100);
         let validator = self.client.lock().await;
+        dbg!(101);
         let result = if validator.fault_type == FaultType::Offline {
+            dbg!(102);
             Err(NodeError::ClientIoError {
                 error: "offline".to_string(),
             })
         } else {
+            dbg!(103);
             validator
                 .state
                 .handle_chain_info_query(query)
                 .await
                 .map_err(Into::into)
         };
+        dbg!(104);
         // In a local node cross-chain messages can't get lost, so we can ignore the actions here.
-        sender.send(result.map(|(info, _actions)| info))
+        let r = sender.send(result.map(|(info, _actions)| info));
+        dbg!(105);
+        r
     }
 
     async fn do_subscribe(

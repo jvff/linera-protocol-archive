@@ -625,15 +625,20 @@ where
         proposal: BlockProposal,
         value: HashedCertificateValue,
     ) -> Result<Certificate, ChainClientError> {
+        dbg!(60);
         let submit_action = CommunicateAction::SubmitBlock { proposal };
+        dbg!(61);
         let certificate = self
             .communicate_chain_action(committee, submit_action, value)
             .await?;
+        dbg!(62);
         self.process_certificate(certificate.clone(), vec![], vec![])
             .await?;
+        dbg!(63);
         if certificate.value().is_confirmed() {
             Ok(certificate)
         } else {
+            dbg!(64);
             self.finalize_block(committee, certificate).await
         }
     }
@@ -689,30 +694,43 @@ where
         action: CommunicateAction,
         value: HashedCertificateValue,
     ) -> Result<Certificate, ChainClientError> {
+        dbg!(70);
         let local_node = self.node_client.clone();
+        dbg!(71);
         let chain_manager_pending_blobs = self.chain_managers_pending_blobs().await?;
+        dbg!(72);
         let nodes: Vec<_> = self.validator_node_provider.make_nodes(committee)?;
+        dbg!(73);
         let ((votes_hash, votes_round), votes) = communicate_with_quorum(
             &nodes,
             committee,
             |vote: &LiteVote| (vote.value.value_hash, vote.round),
             |name, node| {
+                dbg!(80);
                 let mut updater = ValidatorUpdater {
                     name,
                     node,
                     local_node: local_node.clone(),
                     local_node_chain_managers_pending_blobs: chain_manager_pending_blobs.clone(),
                 };
+                dbg!(81);
                 let action = action.clone();
-                Box::pin(async move { updater.send_chain_update(action).await })
+                Box::pin(async move {
+                    dbg!(82);
+                    let r = updater.send_chain_update(action).await;
+                    dbg!(83);
+                    r
+                })
             },
         )
         .await?;
+        dbg!(74);
         let round = match action {
             CommunicateAction::SubmitBlock { proposal } => proposal.content.round,
             CommunicateAction::FinalizeBlock { certificate, .. } => certificate.round,
             CommunicateAction::RequestTimeout { round, .. } => round,
         };
+        dbg!(75);
         ensure!(
             (votes_hash, votes_round) == (value.hash(), round),
             ChainClientError::ProtocolError("Unexpected response from validators")
@@ -721,6 +739,7 @@ where
         // * `communicate_with_quorum` ensured a sufficient "weight" of
         // (non-error) answers were returned by validators.
         // * each answer is a vote signed by the expected validator.
+        dbg!(76);
         let certificate = LiteCertificate::try_from_votes(votes)
             .ok_or_else(|| {
                 ChainClientError::InternalError("Vote values or rounds don't match; this is a bug")
@@ -729,6 +748,7 @@ where
             .ok_or_else(|| {
                 ChainClientError::ProtocolError("A quorum voted for an unexpected value")
             })?;
+        dbg!(77);
         Ok(certificate)
     }
 
@@ -1206,6 +1226,7 @@ where
         block: Block,
         round: Round,
     ) -> Result<Certificate, ChainClientError> {
+        dbg!(40);
         ensure!(
             block.height == self.next_block_height,
             ChainClientError::BlockProposalError("Unexpected block height")
@@ -1214,8 +1235,10 @@ where
             block.previous_block_hash == self.block_hash,
             ChainClientError::BlockProposalError("Unexpected previous block hash")
         );
+        dbg!(41);
         // Gather information on the current local state.
         let manager = *self.chain_info_with_manager_values().await?.manager;
+        dbg!(42);
         // In the fast round, we must never make any conflicting proposals.
         if round.is_fast() {
             if let Some(pending) = &self.pending_block {
@@ -1229,6 +1252,7 @@ where
             }
         }
         // Make sure that we follow the steps in the multi-round protocol.
+        dbg!(43);
         let executed_block = if let Some(validated_block_certificate) = &manager.requested_locked {
             ensure!(
                 validated_block_certificate.value().block() == Some(&block),
@@ -1236,17 +1260,21 @@ where
                     "A different block has already been validated at this height"
                 )
             );
+            dbg!(44);
             validated_block_certificate
                 .value()
                 .executed_block()
                 .unwrap()
                 .clone()
         } else {
+            dbg!(45);
             self.stage_block_execution_and_discard_failing_messages(block)
                 .await?
                 .0
         };
+        dbg!(46);
         let block = executed_block.block.clone();
+        dbg!(47);
         if let Some(proposal) = manager.requested_proposed {
             if proposal.content.round.is_fast() {
                 ensure!(
@@ -1263,25 +1291,30 @@ where
             HashedCertificateValue::new_validated(executed_block)
         };
         // Collect the hashed certificate values required for execution.
+        dbg!(48);
         let committee = self.local_committee().await?;
         let nodes: Vec<(ValidatorName, P::Node)> =
             self.validator_node_provider.make_nodes(&committee)?;
+        dbg!(49);
         let values = self
             .node_client
             .read_or_download_hashed_certificate_values(nodes.clone(), block.bytecode_locations())
             .await?;
         let hashed_blobs = self.read_local_blobs(block.blob_ids()).await?;
         // Create the final block proposal.
+        dbg!(50);
         let key_pair = self.key_pair().await?;
         let proposal = if let Some(cert) = manager.requested_locked {
             BlockProposal::new_retry(round, *cert, key_pair, values, hashed_blobs)
         } else {
             BlockProposal::new_initial(round, block.clone(), key_pair, values, hashed_blobs)
         };
+        dbg!(51);
         // Check the final block proposal. This will be cheaper after #1401.
         self.node_client
             .handle_block_proposal(proposal.clone())
             .await?;
+        dbg!(52);
         // Remember what we are trying to do before sending the proposal to the validators.
         self.pending_block = Some(block);
         // Send the query to validators.
@@ -1290,6 +1323,7 @@ where
             .await?;
         self.pending_block = None;
         self.pending_blobs.clear();
+        dbg!(53);
         // Communicate the new certificate now.
         self.communicate_chain_updates(
             &committee,
@@ -1298,6 +1332,7 @@ where
             self.cross_chain_message_delivery,
         )
         .await?;
+        dbg!(54);
         if let Ok(new_committee) = self.local_committee().await {
             if new_committee != committee {
                 // If the configuration just changed, communicate to the new committee as well.
@@ -1311,6 +1346,7 @@ where
                 .await?;
             }
         }
+        dbg!(55);
         Ok(certificate)
     }
 
@@ -1364,6 +1400,7 @@ where
         incoming_messages: Vec<IncomingMessage>,
         operations: Vec<Operation>,
     ) -> Result<ExecuteBlockOutcome, ChainClientError> {
+        dbg!(20);
         match self.process_pending_block_without_prepare().await? {
             ClientOutcome::Committed(Some(certificate)) => {
                 return Ok(ExecuteBlockOutcome::Conflict(certificate))
@@ -1373,9 +1410,11 @@ where
                 return Ok(ExecuteBlockOutcome::WaitForTimeout(timeout))
             }
         }
+        dbg!(21);
         let confirmed_value = self
             .set_pending_block(incoming_messages, operations)
             .await?;
+        dbg!(22);
         match self.process_pending_block_without_prepare().await? {
             ClientOutcome::Committed(Some(certificate))
                 if certificate.hash() == confirmed_value.hash() =>
@@ -1668,8 +1707,11 @@ where
     async fn process_pending_block_without_prepare(
         &mut self,
     ) -> Result<ClientOutcome<Option<Certificate>>, ChainClientError> {
+        dbg!(30);
         let identity = self.identity().await?;
+        dbg!(31);
         let mut info = self.chain_info_with_manager_values().await?;
+        dbg!(32);
         // If the current round has timed out, we request a timeout certificate and retry in
         // the next round.
         if let Some(round_timeout) = info.manager.round_timeout {
@@ -1678,6 +1720,7 @@ where
                 info = self.chain_info_with_manager_values().await?;
             }
         }
+        dbg!(33);
         let manager = *info.manager;
         // Drop the pending block if it is outdated.
         if let Some(block) = &self.pending_block {
@@ -1686,6 +1729,7 @@ where
                 self.pending_blobs.clear();
             }
         }
+        dbg!(34);
         // If there is a validated block in the current round, finalize it.
         if let Some(certificate) = &manager.requested_locked {
             if certificate.round == manager.current_round {
@@ -1710,6 +1754,7 @@ where
                 }
             }
         }
+        dbg!(35);
         // The block we want to propose is either the highest validated, or our pending one.
         let maybe_block = manager
             .requested_locked
@@ -1721,17 +1766,20 @@ where
                 .filter(|proposal| proposal.content.round.is_fast())
                 .map(|proposal| &proposal.content.block))
             .or(self.pending_block.as_ref());
+        dbg!(36);
         let Some(block) = maybe_block else {
             return Ok(ClientOutcome::Committed(None)); // Nothing to propose.
         };
         // If there is a conflicting proposal in the current round, we can only propose if the
         // next round can be started without a timeout, i.e. if we are in a multi-leader round.
+        dbg!(37);
         let conflicting_proposal = manager
             .requested_proposed
             .as_ref()
             .map_or(false, |proposal| {
                 proposal.content.round == manager.current_round && proposal.content.block != *block
             });
+        dbg!(38);
         let round = if !conflicting_proposal {
             manager.current_round
         } else if let Some(round) = manager
@@ -1751,6 +1799,7 @@ where
                 "Conflicting proposal in the current round.",
             ));
         };
+        dbg!(39);
         let can_propose = match round {
             Round::Fast => manager.ownership.super_owners.contains_key(&identity),
             Round::MultiLeader(_) => true,
@@ -2028,9 +2077,13 @@ where
         committee: Committee,
     ) -> Result<ClientOutcome<Certificate>, ChainClientError> {
         loop {
+            dbg!(10);
             self.prepare_chain().await?;
+            dbg!(11);
             let epoch = self.epoch().await?;
+            dbg!(12);
             let messages = self.pending_messages().await?;
+            dbg!(13);
             match self
                 .execute_block(
                     messages,
@@ -2044,10 +2097,12 @@ where
                 .await?
             {
                 ExecuteBlockOutcome::Executed(certificate) => {
-                    return Ok(ClientOutcome::Committed(certificate))
+                    dbg!(14);
+                    return Ok(ClientOutcome::Committed(certificate));
                 }
                 ExecuteBlockOutcome::Conflict(_) => continue,
                 ExecuteBlockOutcome::WaitForTimeout(timeout) => {
+                    dbg!(15);
                     return Ok(ClientOutcome::WaitForTimeout(timeout));
                 }
             };

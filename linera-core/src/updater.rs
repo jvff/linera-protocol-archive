@@ -384,13 +384,17 @@ where
         delivery: CrossChainMessageDelivery,
     ) -> Result<(), NodeError> {
         // Figure out which certificates this validator is missing.
+        dbg!(120);
         let query = ChainInfoQuery::new(chain_id);
+        dbg!(121);
         let initial_block_height = match self.node.handle_chain_info_query(query).await {
             Ok(response) => {
+                dbg!(122);
                 response.check(self.name)?;
                 response.info.next_block_height
             }
             Err(error) => {
+                dbg!(123);
                 error!(
                     name = ?self.name, ?chain_id, %error,
                     "Failed to query validator about missing blocks"
@@ -399,29 +403,41 @@ where
             }
         };
         // Obtain the missing blocks and the manager state from the local node.
+        dbg!(124);
         let range: Range<usize> =
             initial_block_height.try_into()?..target_block_height.try_into()?;
         let (keys, manager) = {
-            let chain = self.local_node.chain_state_view(chain_id).await?;
+            let fut = self.local_node.chain_state_view(chain_id);
+            dbg!(std::mem::size_of_val(&fut));
+            let chain = fut.await?;
+            dbg!(125);
             (
                 chain.confirmed_log.read(range).await?,
                 chain.manager.get().clone(),
             )
         };
+        dbg!(126);
         if !keys.is_empty() {
             // Send the requested certificates in order.
+            dbg!(127);
             let storage = self.local_node.storage_client();
+            dbg!(128);
             let certs = storage.await.read_certificates(keys.into_iter()).await?;
+            dbg!(129);
             for cert in certs {
                 self.send_certificate(cert, delivery).await?;
             }
+            dbg!(130);
         }
+        dbg!(131);
         if let Some(cert) = manager.timeout {
+            dbg!(132);
             if cert.value().is_timeout() && cert.value().chain_id() == chain_id {
                 self.send_certificate(cert, CrossChainMessageDelivery::NonBlocking)
                     .await?;
             }
         }
+        dbg!(133);
         Ok(())
     }
 
@@ -453,6 +469,7 @@ where
         &mut self,
         action: CommunicateAction,
     ) -> Result<LiteVote, NodeError> {
+        dbg!(110);
         let (target_block_height, chain_id) = match &action {
             CommunicateAction::SubmitBlock { proposal } => {
                 let block = &proposal.content.block;
@@ -466,29 +483,38 @@ where
                 height, chain_id, ..
             } => (*height, *chain_id),
         };
+        dbg!(111);
         // Update the validator with missing information, if needed.
         let delivery = CrossChainMessageDelivery::NonBlocking;
         self.send_chain_information(chain_id, target_block_height, delivery)
             .await?;
+        dbg!(112);
         // Send the block proposal, certificate or timeout request and return a vote.
         let vote = match action {
             CommunicateAction::SubmitBlock { proposal } => {
+                dbg!(113);
                 let info = self.send_block_proposal(proposal.clone()).await?;
+                dbg!(114);
                 info.manager.pending
             }
             CommunicateAction::FinalizeBlock {
                 certificate,
                 delivery,
             } => {
+                dbg!(115);
                 let info = self.send_certificate(certificate, delivery).await?;
+                dbg!(116);
                 info.manager.pending
             }
             CommunicateAction::RequestTimeout { .. } => {
+                dbg!(117);
                 let query = ChainInfoQuery::new(chain_id).with_timeout();
                 let info = self.node.handle_chain_info_query(query).await?.info;
+                dbg!(118);
                 info.manager.timeout_vote
             }
         };
+        dbg!(119);
         match vote {
             Some(vote) if vote.validator == self.name => {
                 vote.check()?;

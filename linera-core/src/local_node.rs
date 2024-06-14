@@ -310,7 +310,9 @@ where
         chain_id: ChainId,
     ) -> Result<OwnedRwLockReadGuard<ChainStateView<S::Context>>, WorkerError> {
         let node = self.node.lock().await;
-        node.state.chain_state_view(chain_id).await
+        let fut = node.state.chain_state_view(chain_id);
+        dbg!(std::mem::size_of_val(&fut));
+        fut.await
     }
 
     pub(crate) async fn local_chain_info(

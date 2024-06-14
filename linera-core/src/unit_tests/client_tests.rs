@@ -1224,25 +1224,34 @@ where
     B: StorageBuilder,
     ViewError: From<<B::Storage as Storage>::ContextError>,
 {
+    dbg!(1);
     let mut builder = TestBuilder::new(storage_builder, 4, 1).await?;
+    dbg!(2);
     let mut admin = builder
         .add_initial_chain(ChainDescription::Root(0), Amount::from_tokens(3))
         .await?;
+    dbg!(3);
     let mut user = builder
         .add_initial_chain(ChainDescription::Root(1), Amount::ZERO)
         .await?;
+    dbg!(4);
     let validators = builder.initial_committee.validators().clone();
 
+    dbg!(5);
     let committee = Committee::new(validators.clone(), ResourceControlPolicy::only_fuel());
+    dbg!(6);
     admin.stage_new_committee(committee).await.unwrap();
+    dbg!(7);
     admin.finalize_committee().await.unwrap();
 
     // Root chain 1 receives the notification about the new epoch.
+    dbg!("Root chain 1 receives the notification about the new epoch.");
     user.synchronize_from_validators().await.unwrap();
     user.process_inbox().await.unwrap();
     assert_eq!(user.epoch().await.unwrap(), Epoch::from(1));
 
     // Stop listening for new committees.
+    dbg!("Stop listening for new committees.");
     let cert = user
         .unsubscribe_from_new_committees()
         .await
@@ -1252,6 +1261,7 @@ where
     admin.process_inbox().await.unwrap();
 
     // Create a new committee.
+    dbg!("Create a new committee.");
     let committee = Committee::new(validators, ResourceControlPolicy::only_fuel());
     admin.stage_new_committee(committee).await.unwrap();
     assert_eq!(admin.next_block_height, BlockHeight::from(4));
@@ -1260,6 +1270,7 @@ where
     assert_eq!(admin.epoch().await.unwrap(), Epoch::from(2));
 
     // Sending money from the admin chain is supported.
+    dbg!("Sending money from the admin chain is supported.");
     let cert = admin
         .transfer_to_account(
             None,
@@ -1282,6 +1293,7 @@ where
         .unwrap();
 
     // User is still at the initial epoch, but we can receive transfers from future
+    dbg!("User is still at the initial epoch, but we can receive transfers from future");
     // epochs AFTER synchronizing the client with the admin chain.
     assert_matches!(
         user.receive_certificate(cert).await,
@@ -1291,18 +1303,22 @@ where
     user.synchronize_from_validators().await.unwrap();
 
     // User is a unsubscribed, so the migration message is not even in the inbox yet.
+    dbg!("User is a unsubscribed, so the migration message is not even in the inbox yet.");
     user.process_inbox().await.unwrap();
     assert_eq!(user.epoch().await.unwrap(), Epoch::from(1));
 
     // Now subscribe explicitly to migrations.
+    dbg!("Now subscribe explicitly to migrations.");
     let cert = user.subscribe_to_new_committees().await.unwrap().unwrap();
     admin.receive_certificate(cert).await.unwrap();
     admin.process_inbox().await.unwrap();
 
     // Have the admin chain deprecate the previous epoch.
+    dbg!("Have the admin chain deprecate the previous epoch.");
     admin.finalize_committee().await.unwrap();
 
     // Try to make a transfer back to the admin chain.
+    dbg!("Try to make a transfer back to the admin chain.");
     let cert = user
         .transfer_to_account(
             None,
@@ -1318,16 +1334,19 @@ where
         Err(ChainClientError::CommitteeDeprecationError)
     );
     // Transfer is blocked because the epoch #0 has been retired by admin.
+    dbg!("Transfer is blocked because the epoch #0 has been retired by admin.");
     admin.synchronize_from_validators().await.unwrap();
     admin.process_inbox().await.unwrap();
     assert_eq!(admin.local_balance().await.unwrap(), Amount::ZERO);
 
     // Have the user receive the notification to migrate to epoch #2.
+    dbg!("Have the user receive the notification to migrate to epoch #2.");
     user.synchronize_from_validators().await.unwrap();
     user.process_inbox().await.unwrap();
     assert_eq!(user.epoch().await.unwrap(), Epoch::from(2));
 
     // Try again to make a transfer back to the admin chain.
+    dbg!("Try again to make a transfer back to the admin chain.");
     let cert = user
         .transfer_to_account(
             None,
@@ -1341,6 +1360,7 @@ where
     admin.receive_certificate(cert).await.unwrap();
     admin.process_inbox().await.unwrap();
     // Transfer goes through and the previous one as well thanks to block chaining.
+    dbg!("Transfer goes through and the previous one as well thanks to block chaining.");
     assert_eq!(admin.local_balance().await.unwrap(), Amount::from_tokens(3));
     Ok(())
 }
