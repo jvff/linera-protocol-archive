@@ -34,7 +34,7 @@ use linera_execution::{
 use linera_storage::Storage;
 use linera_views::{
     common::Context,
-    views::{ClonableView, RootView, View, ViewError},
+    views::{RootView, View, ViewError},
 };
 use tokio::sync::{OwnedRwLockReadGuard, RwLock};
 use tracing::{debug, warn};
@@ -146,11 +146,7 @@ where
 
     /// Queries an application's state on the chain.
     pub async fn query_application(&mut self, query: Query) -> Result<Response, WorkerError> {
-        let mut writable_chain = self.chain.write().await;
-        // TODO(#1416): Make `ExecutionStateActor::handle_request` receive `&self` so that
-        // `query_application` below doesn't need a mutable `chain` view.
-        let mut chain = writable_chain.clone_unchecked()?;
-        let _read_lock_guard = writable_chain.downgrade();
+        let mut chain = self.chain.write().await;
         self.ensure_is_active(&chain)?;
         let local_time = self.storage.clock().current_time();
         let response = chain.query_application(local_time, query).await?;
