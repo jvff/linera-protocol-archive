@@ -1,0 +1,252 @@
+---
+source: linera-witty-macros/src/wit_export/../unit_tests/wit_export.rs
+assertion_line: 24
+expression: "pretty_print(wit_export::generate(&input, parameters))"
+---
+impl SomeType {
+    pub fn with_caller(caller: &mut Caller) {}
+    pub fn without_caller() {}
+}
+impl linera_witty::ExportTo<linera_witty::wasmer::InstanceBuilder<()>> for SomeType {
+    fn export_to(
+        target: &mut linera_witty::wasmer::InstanceBuilder<()>,
+    ) -> Result<(), linera_witty::RuntimeError> {
+        linera_witty::ExportFunction::export(
+            target,
+            "package:namespace/some-type",
+            "with-caller",
+            #[allow(clippy::type_complexity)]
+            |
+                mut caller: linera_witty::wasmer::FunctionEnvMut<
+                    '_,
+                    linera_witty::wasmer::Environment<()>,
+                >,
+                input,
+            | -> Result<
+                <<(
+                    linera_witty::HList![& mut Caller],
+                    (),
+                ) as linera_witty::ExportedFunctionInterface>::GuestResults as linera_witty::wasmer::WasmerResults>::Results,
+                linera_witty::RuntimeError,
+            > {
+                type Interface = (linera_witty::HList![& mut Caller], ());
+                let guest_parameters = linera_witty::wasmer::WasmerParameters::from_wasmer(
+                    input,
+                );
+                let (linera_witty::hlist_pat![caller], result_storage) = <Interface as linera_witty::ExportedFunctionInterface>::lift_parameters(
+                    guest_parameters,
+                    &linera_witty::InstanceWithMemory::memory(&mut caller)?,
+                )?;
+                #[allow(clippy::let_unit_value)]
+                let host_results = SomeType::with_caller(caller);
+                let guest_results = <Interface as linera_witty::ExportedFunctionInterface>::lower_results(
+                    host_results,
+                    result_storage,
+                    &mut linera_witty::InstanceWithMemory::memory(&mut caller)?,
+                )?;
+                #[allow(clippy::unit_arg)]
+                Ok(linera_witty::wasmer::WasmerResults::into_wasmer(guest_results))
+            },
+        )?;
+        linera_witty::ExportFunction::export(
+            target,
+            "package:namespace/some-type",
+            "without-caller",
+            #[allow(clippy::type_complexity)]
+            |
+                mut caller: linera_witty::wasmer::FunctionEnvMut<
+                    '_,
+                    linera_witty::wasmer::Environment<()>,
+                >,
+                input,
+            | -> Result<
+                <<(
+                    linera_witty::HList![],
+                    (),
+                ) as linera_witty::ExportedFunctionInterface>::GuestResults as linera_witty::wasmer::WasmerResults>::Results,
+                linera_witty::RuntimeError,
+            > {
+                type Interface = (linera_witty::HList![], ());
+                let guest_parameters = linera_witty::wasmer::WasmerParameters::from_wasmer(
+                    input,
+                );
+                let (linera_witty::hlist_pat![], result_storage) = <Interface as linera_witty::ExportedFunctionInterface>::lift_parameters(
+                    guest_parameters,
+                    &linera_witty::InstanceWithMemory::memory(&mut caller)?,
+                )?;
+                #[allow(clippy::let_unit_value)]
+                let host_results = SomeType::without_caller();
+                let guest_results = <Interface as linera_witty::ExportedFunctionInterface>::lower_results(
+                    host_results,
+                    result_storage,
+                    &mut linera_witty::InstanceWithMemory::memory(&mut caller)?,
+                )?;
+                #[allow(clippy::unit_arg)]
+                Ok(linera_witty::wasmer::WasmerResults::into_wasmer(guest_results))
+            },
+        )?;
+        Ok(())
+    }
+}
+impl linera_witty::ExportTo<linera_witty::wasmtime::Linker<()>> for SomeType {
+    fn export_to(
+        target: &mut linera_witty::wasmtime::Linker<()>,
+    ) -> Result<(), linera_witty::RuntimeError> {
+        linera_witty::ExportFunction::export(
+            target,
+            "package:namespace/some-type",
+            "with-caller",
+            #[allow(clippy::type_complexity)]
+            |
+                mut caller: linera_witty::wasmtime::Caller<'_, ()>,
+                input,
+            | -> Result<
+                <<(
+                    linera_witty::HList![& mut Caller],
+                    (),
+                ) as linera_witty::ExportedFunctionInterface>::GuestResults as linera_witty::wasmtime::WasmtimeResults>::Results,
+                linera_witty::RuntimeError,
+            > {
+                type Interface = (linera_witty::HList![& mut Caller], ());
+                let guest_parameters = linera_witty::wasmtime::WasmtimeParameters::from_wasmtime(
+                    input,
+                );
+                let (linera_witty::hlist_pat![caller], result_storage) = <Interface as linera_witty::ExportedFunctionInterface>::lift_parameters(
+                    guest_parameters,
+                    &linera_witty::InstanceWithMemory::memory(&mut caller)?,
+                )?;
+                #[allow(clippy::let_unit_value)]
+                let host_results = SomeType::with_caller(caller);
+                let guest_results = <Interface as linera_witty::ExportedFunctionInterface>::lower_results(
+                    host_results,
+                    result_storage,
+                    &mut linera_witty::InstanceWithMemory::memory(&mut caller)?,
+                )?;
+                #[allow(clippy::unit_arg)]
+                Ok(linera_witty::wasmtime::WasmtimeResults::into_wasmtime(guest_results))
+            },
+        )?;
+        linera_witty::ExportFunction::export(
+            target,
+            "package:namespace/some-type",
+            "without-caller",
+            #[allow(clippy::type_complexity)]
+            |
+                mut caller: linera_witty::wasmtime::Caller<'_, ()>,
+                input,
+            | -> Result<
+                <<(
+                    linera_witty::HList![],
+                    (),
+                ) as linera_witty::ExportedFunctionInterface>::GuestResults as linera_witty::wasmtime::WasmtimeResults>::Results,
+                linera_witty::RuntimeError,
+            > {
+                type Interface = (linera_witty::HList![], ());
+                let guest_parameters = linera_witty::wasmtime::WasmtimeParameters::from_wasmtime(
+                    input,
+                );
+                let (linera_witty::hlist_pat![], result_storage) = <Interface as linera_witty::ExportedFunctionInterface>::lift_parameters(
+                    guest_parameters,
+                    &linera_witty::InstanceWithMemory::memory(&mut caller)?,
+                )?;
+                #[allow(clippy::let_unit_value)]
+                let host_results = SomeType::without_caller();
+                let guest_results = <Interface as linera_witty::ExportedFunctionInterface>::lower_results(
+                    host_results,
+                    result_storage,
+                    &mut linera_witty::InstanceWithMemory::memory(&mut caller)?,
+                )?;
+                #[allow(clippy::unit_arg)]
+                Ok(linera_witty::wasmtime::WasmtimeResults::into_wasmtime(guest_results))
+            },
+        )?;
+        Ok(())
+    }
+}
+impl linera_witty::ExportTo<linera_witty::MockInstance<()>> for SomeType {
+    fn export_to(
+        target: &mut linera_witty::MockInstance<()>,
+    ) -> Result<(), linera_witty::RuntimeError> {
+        linera_witty::ExportFunction::export(
+            target,
+            "package:namespace/some-type",
+            "with-caller",
+            #[allow(clippy::type_complexity)]
+            |
+                mut caller: linera_witty::MockInstance<()>,
+                input,
+            | -> Result<
+                <<(
+                    linera_witty::HList![& mut Caller],
+                    (),
+                ) as linera_witty::ExportedFunctionInterface>::GuestResults as linera_witty::MockResults>::Results,
+                linera_witty::RuntimeError,
+            > {
+                type Interface = (linera_witty::HList![& mut Caller], ());
+                let guest_parameters = input;
+                let (linera_witty::hlist_pat![caller], result_storage) = <Interface as linera_witty::ExportedFunctionInterface>::lift_parameters(
+                    guest_parameters,
+                    &linera_witty::InstanceWithMemory::memory(&mut caller)?,
+                )?;
+                #[allow(clippy::let_unit_value)]
+                let host_results = SomeType::with_caller(caller);
+                let guest_results = <Interface as linera_witty::ExportedFunctionInterface>::lower_results(
+                    host_results,
+                    result_storage,
+                    &mut linera_witty::InstanceWithMemory::memory(&mut caller)?,
+                )?;
+                #[allow(clippy::unit_arg)] Ok(guest_results)
+            },
+        )?;
+        linera_witty::ExportFunction::export(
+            target,
+            "package:namespace/some-type",
+            "without-caller",
+            #[allow(clippy::type_complexity)]
+            |
+                mut caller: linera_witty::MockInstance<()>,
+                input,
+            | -> Result<
+                <<(
+                    linera_witty::HList![],
+                    (),
+                ) as linera_witty::ExportedFunctionInterface>::GuestResults as linera_witty::MockResults>::Results,
+                linera_witty::RuntimeError,
+            > {
+                type Interface = (linera_witty::HList![], ());
+                let guest_parameters = input;
+                let (linera_witty::hlist_pat![], result_storage) = <Interface as linera_witty::ExportedFunctionInterface>::lift_parameters(
+                    guest_parameters,
+                    &linera_witty::InstanceWithMemory::memory(&mut caller)?,
+                )?;
+                #[allow(clippy::let_unit_value)]
+                let host_results = SomeType::without_caller();
+                let guest_results = <Interface as linera_witty::ExportedFunctionInterface>::lower_results(
+                    host_results,
+                    result_storage,
+                    &mut linera_witty::InstanceWithMemory::memory(&mut caller)?,
+                )?;
+                #[allow(clippy::unit_arg)] Ok(guest_results)
+            },
+        )?;
+        Ok(())
+    }
+}
+impl linera_witty::wit_generation::WitInterface for SomeType {
+    type Dependencies = linera_witty::HList![& mut Caller];
+    fn wit_package() -> &'static str {
+        "package:namespace"
+    }
+    fn wit_name() -> &'static str {
+        "some-type"
+    }
+    fn wit_functions() -> Vec<String> {
+        vec![
+            [std::borrow::Cow::Borrowed("    "), "with-caller".into(), ": func(".into(),
+            "caller".into(), ": ".into(), < & mut Caller as linera_witty::WitType >
+            ::wit_type_name(), ")".into(), ";".into(),].as_slice().join(""),
+            [std::borrow::Cow::Borrowed("    "), "without-caller".into(), ": func("
+            .into(), ")".into(), ";".into(),].as_slice().join("")
+        ]
+    }
+}

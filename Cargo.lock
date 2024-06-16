@@ -4843,6 +4843,8 @@ version = "0.12.0"
 dependencies = [
  "cfg_aliases",
  "heck 0.4.1",
+ "insta",
+ "prettyplease",
  "proc-macro-error 1.0.4",
  "proc-macro2",
  "quote",

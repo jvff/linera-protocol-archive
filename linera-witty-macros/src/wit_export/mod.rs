@@ -6,6 +6,9 @@
 // TODO(#1683): Remove feature flags by generating runtime agnostic code
 #![cfg(with_wit_export)]
 
+#[path = "../unit_tests/wit_export.rs"]
+mod tests;
+
 mod caller_type_parameter;
 mod function_information;
 

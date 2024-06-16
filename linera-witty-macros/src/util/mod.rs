@@ -6,6 +6,7 @@
 mod fields;
 mod specialization;
 #[cfg(test)]
+#[macro_use]
 mod test_util;
 
 use std::hash::{Hash, Hasher};
@@ -13,7 +14,7 @@ use std::hash::{Hash, Hasher};
 use heck::ToKebabCase;
 use proc_macro2::{Span, TokenStream};
 #[cfg(not(test))]
-use proc_macro_error::abort;
+pub use proc_macro_error::abort;
 use quote::ToTokens;
 use syn::{
     parse::{self, Parse, ParseStream},
@@ -24,7 +25,7 @@ use syn::{
 #[cfg(with_wit_export)]
 pub use self::specialization::Specialization;
 #[cfg(test)]
-pub use self::test_util::abort;
+pub use self::test_util::pretty_print;
 pub use self::{fields::FieldsInformation, specialization::Specializations};
 
 /// Changes the [`DeriveInput`] by replacing some generic type parameters with specialized types.
