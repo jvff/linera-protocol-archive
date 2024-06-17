@@ -211,7 +211,7 @@ where
                     );
                 }
                 ChainWorkerRequest::GetChainStateView { callback } => {
-                    let _ = callback.send(Ok(self.worker.chain_state_view().await));
+                    let _ = callback.send(self.worker.chain_state_view().await);
                 }
                 ChainWorkerRequest::QueryApplication { query, callback } => {
                     let _ = callback.send(self.worker.query_application(query).await);
