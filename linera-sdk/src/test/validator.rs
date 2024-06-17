@@ -11,7 +11,7 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use futures::FutureExt;
 use linera_base::{
-    crypto::KeyPair,
+    crypto::{KeyPair, PublicKey},
     data_types::{ApplicationPermissions, Timestamp},
     identifiers::{ApplicationId, BytecodeId, ChainDescription, ChainId},
     ownership::ChainOwnership,
@@ -158,6 +158,22 @@ impl TestValidator {
     /// it.
     pub async fn new_chain(&self) -> ActiveChain {
         let key_pair = KeyPair::generate();
+        let description = self
+            .request_new_chain_from_admin_chain(key_pair.public())
+            .await;
+        let chain = ActiveChain::new(key_pair, description, self.clone());
+
+        chain.handle_received_messages().await;
+
+        self.chains.insert(description.into(), chain.clone());
+
+        chain
+    }
+
+    /// Adds a block to the admin chain to create a new chain.
+    ///
+    /// Returns the [`ChainDescription`] of the new chain.
+    async fn request_new_chain_from_admin_chain(&self, public_key: PublicKey) -> ChainDescription {
         let admin_id = ChainId::root(0);
         let admin_chain = self
             .chains
@@ -165,7 +181,7 @@ impl TestValidator {
             .expect("Admin chain should be created when the `TestValidator` is constructed");
 
         let new_chain_config = OpenChainConfig {
-            ownership: ChainOwnership::single(key_pair.public()),
+            ownership: ChainOwnership::single(public_key),
             committees: [(Epoch::ZERO, self.committee.clone())]
                 .into_iter()
                 .collect(),
@@ -181,14 +197,7 @@ impl TestValidator {
             })
             .await;
 
-        let description = ChainDescription::Child(messages[OPEN_CHAIN_MESSAGE_INDEX as usize]);
-        let chain = ActiveChain::new(key_pair, description, self.clone());
-
-        chain.handle_received_messages().await;
-
-        self.chains.insert(description.into(), chain.clone());
-
-        chain
+        ChainDescription::Child(messages[OPEN_CHAIN_MESSAGE_INDEX as usize])
     }
 
     /// Returns the [`ActiveChain`] reference to the microchain identified by `chain_id`.
