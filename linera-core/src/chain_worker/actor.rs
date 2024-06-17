@@ -12,8 +12,7 @@ use linera_base::{
 };
 use linera_chain::{
     data_types::{
-        Block, BlockProposal, Event, ExecutedBlock, HashedCertificateValue, MessageBundle, Origin,
-        Target,
+        Block, BlockProposal, ExecutedBlock, HashedCertificateValue, MessageBundle, Origin, Target,
     },
     ChainStateView,
 };
@@ -27,7 +26,8 @@ use tokio::{
 use tracing::{instrument, trace};
 #[cfg(with_testing)]
 use {
-    linera_base::identifiers::BytecodeId, linera_chain::data_types::Certificate,
+    linera_base::identifiers::BytecodeId,
+    linera_chain::data_types::{Certificate, Event},
     linera_execution::BytecodeLocation,
 };
 
