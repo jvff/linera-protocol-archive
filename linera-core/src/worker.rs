@@ -38,18 +38,19 @@ use tokio::{
     task::JoinSet,
 };
 use tracing::{error, instrument, trace, warn};
+#[cfg(with_metrics)]
+use {
+    linera_base::prometheus_util,
+    prometheus::{HistogramVec, IntCounterVec},
+};
 #[cfg(with_testing)]
 use {
     linera_base::{
         crypto::PublicKey,
         identifiers::{BytecodeId, Destination, MessageId},
+        sync::Lazy,
     },
     linera_chain::data_types::{ChannelFullName, IncomingMessage, Medium, MessageAction},
-};
-#[cfg(with_metrics)]
-use {
-    linera_base::{prometheus_util, sync::Lazy},
-    prometheus::{HistogramVec, IntCounterVec},
 };
 
 use crate::{
