@@ -69,12 +69,12 @@ use crate::{
 mod client_tests;
 
 /// A builder that creates `ChainClients` which share the cache and notifiers.
-pub struct Client<ValidatorNodeProvider, Storage> {
+pub struct Client<ValidatorNodeProvider, Storage, Context> {
     /// How to talk to the validators.
     validator_node_provider: ValidatorNodeProvider,
     /// Local node to manage the execution state and the local storage of the chains that we are
     /// tracking.
-    local_node: LocalNodeClient<Storage>,
+    local_node: LocalNodeClient<Storage, Context>,
     /// Maximum number of pending messages processed at a time in a block.
     max_pending_messages: usize,
     /// The policy for automatically handling incoming messages.
@@ -88,7 +88,7 @@ pub struct Client<ValidatorNodeProvider, Storage> {
     storage: Storage,
 }
 
-impl<P, S: Storage + Clone> Client<P, S> {
+impl<P, S: Storage + Clone> Client<P, S, S::Context> {
     /// Creates a new `Client` with a new cache and notifiers.
     pub fn new(
         validator_node_provider: P,
@@ -141,7 +141,7 @@ impl<P, S: Storage + Clone> Client<P, S> {
         next_block_height: BlockHeight,
         pending_block: Option<Block>,
         pending_blobs: BTreeMap<BlobId, HashedBlob>,
-    ) -> ChainClient<P, S>
+    ) -> ChainClient<P, S, S::Context>
     where
         P: Clone,
     {
@@ -199,9 +199,9 @@ impl MessagePolicy {
 /// * The chain being operated is called the "local chain" or just the "chain".
 /// * As a rule, operations are considered successful (and communication may stop) when
 /// they succeeded in gathering a quorum of responses.
-pub struct ChainClient<ValidatorNodeProvider, Storage> {
+pub struct ChainClient<ValidatorNodeProvider, Storage, Context> {
     /// The Linera [`Client`] that manages operations on this chain.
-    client: Arc<Client<ValidatorNodeProvider, Storage>>,
+    client: Arc<Client<ValidatorNodeProvider, Storage, Context>>,
     /// The off-chain chain ID.
     chain_id: ChainId,
     /// How to talk to the validators.
@@ -297,7 +297,7 @@ impl From<Infallible> for ChainClientError {
     }
 }
 
-impl<P, S> ChainClient<P, S> {
+impl<P, S, C> ChainClient<P, S, C> {
     pub fn chain_id(&self) -> ChainId {
         self.chain_id
     }
@@ -330,7 +330,7 @@ enum ReceiveCertificateMode {
     AlreadyChecked,
 }
 
-impl<P, S> ChainClient<P, S>
+impl<P, S> ChainClient<P, S, S::Context>
 where
     P: LocalValidatorNodeProvider + Sync,
     S: Storage + Clone + Send + Sync + 'static,
@@ -2280,29 +2280,29 @@ enum ExecuteBlockOutcome {
 
 /// A chain client in an `Arc<Mutex<_>>`, so it can be used by different tasks and threads.
 #[derive(Debug)]
-pub struct ArcChainClient<P, S>(pub Arc<Mutex<ChainClient<P, S>>>);
+pub struct ArcChainClient<P, S, C>(pub Arc<Mutex<ChainClient<P, S, C>>>);
 
-impl<P, S> Deref for ArcChainClient<P, S> {
-    type Target = Arc<Mutex<ChainClient<P, S>>>;
+impl<P, S, C> Deref for ArcChainClient<P, S, C> {
+    type Target = Arc<Mutex<ChainClient<P, S, C>>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<P, S> Clone for ArcChainClient<P, S> {
+impl<P, S, C> Clone for ArcChainClient<P, S, C> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl<P, S> ArcChainClient<P, S> {
-    pub fn new(client: ChainClient<P, S>) -> Self {
+impl<P, S, C> ArcChainClient<P, S, C> {
+    pub fn new(client: ChainClient<P, S, C>) -> Self {
         Self(Arc::new(Mutex::new(client)))
     }
 }
 
-impl<P, S> ArcChainClient<P, S>
+impl<P, S> ArcChainClient<P, S, S::Context>
 where
     P: ValidatorNodeProvider + Sync,
     <<P as ValidatorNodeProvider>::Node as crate::node::ValidatorNode>::NotificationStream: Send,

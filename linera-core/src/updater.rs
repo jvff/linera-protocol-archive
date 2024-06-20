@@ -65,10 +65,10 @@ pub enum CommunicateAction {
     },
 }
 
-pub struct ValidatorUpdater<A, S> {
+pub struct ValidatorUpdater<A, S, C> {
     pub name: ValidatorName,
     pub node: A,
-    pub local_node: LocalNodeClient<S>,
+    pub local_node: LocalNodeClient<S, C>,
     pub local_node_chain_managers_pending_blobs: BTreeMap<BlobId, HashedBlob>,
 }
 
@@ -176,7 +176,7 @@ where
     Err(CommunicationError::Sample(sample))
 }
 
-impl<A, S> ValidatorUpdater<A, S>
+impl<A, S> ValidatorUpdater<A, S, S::Context>
 where
     A: LocalValidatorNode + Clone + 'static,
     S: Storage + Clone + Send + Sync + 'static,

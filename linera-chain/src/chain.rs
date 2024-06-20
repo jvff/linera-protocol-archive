@@ -233,11 +233,7 @@ impl InboxEntry {
 /// A view accessing the state of a chain.
 #[derive(Debug, RootView, ClonableView, SimpleObject)]
 #[graphql(cache_control(no_cache))]
-pub struct ChainStateView<C>
-where
-    C: Clone + Context + Send + Sync + 'static,
-    ViewError: From<C::Error>,
-{
+pub struct ChainStateView<C> {
     /// Execution state, including system and user applications.
     pub execution_state: ExecutionStateView<C>,
     /// Hash of the execution state.
@@ -350,11 +346,7 @@ impl ChainTipState {
 
 /// The state of a channel followed by subscribers.
 #[derive(Debug, ClonableView, View, SimpleObject)]
-pub struct ChannelStateView<C>
-where
-    C: Context + Send + Sync,
-    ViewError: From<C::Error>,
-{
+pub struct ChannelStateView<C> {
     /// The current subscribers.
     pub subscribers: SetView<C, ChainId>,
     /// The latest block height, if any, to be sent to future subscribers.

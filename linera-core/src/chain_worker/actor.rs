@@ -40,11 +40,7 @@ use crate::{
 };
 
 /// A request for the [`ChainWorkerActor`].
-pub enum ChainWorkerRequest<Context>
-where
-    Context: linera_views::common::Context + Clone + Send + Sync + 'static,
-    ViewError: From<Context::Error>,
-{
+pub enum ChainWorkerRequest<Context> {
     /// Reads the certificate for a requested [`BlockHeight`].
     #[cfg(with_testing)]
     ReadCertificate {

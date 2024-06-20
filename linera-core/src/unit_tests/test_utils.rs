@@ -76,19 +76,19 @@ pub enum FaultType {
 /// All methods are executed in spawned Tokio tasks, so that canceling a client task doesn't cause
 /// the validator's tasks to be canceled: In a real network, a validator also wouldn't cancel
 /// tasks if the client stopped waiting for the response.
-struct LocalValidator<S> {
-    state: WorkerState<S>,
+struct LocalValidator<S, C> {
+    state: WorkerState<S, C>,
     fault_type: FaultType,
     notifier: Notifier<Notification>,
 }
 
 #[derive(Clone)]
-pub struct LocalValidatorClient<S> {
+pub struct LocalValidatorClient<S, C> {
     name: ValidatorName,
-    client: Arc<Mutex<LocalValidator<S>>>,
+    client: Arc<Mutex<LocalValidator<S, C>>>,
 }
 
-impl<S> ValidatorNode for LocalValidatorClient<S>
+impl<S> ValidatorNode for LocalValidatorClient<S, S::Context>
 where
     S: Storage + Clone + Send + Sync + 'static,
     ViewError: From<S::ContextError>,
@@ -177,7 +177,7 @@ where
     }
 }
 
-impl<S> LocalValidatorClient<S>
+impl<S> LocalValidatorClient<S, S::Context>
 where
     S: Storage + Clone + Send + Sync + 'static,
     ViewError: From<S::ContextError>,
@@ -391,14 +391,14 @@ where
 }
 
 #[derive(Clone)]
-pub struct NodeProvider<S>(BTreeMap<ValidatorName, Arc<Mutex<LocalValidator<S>>>>);
+pub struct NodeProvider<S, C>(BTreeMap<ValidatorName, Arc<Mutex<LocalValidator<S, C>>>>);
 
-impl<S> LocalValidatorNodeProvider for NodeProvider<S>
+impl<S> LocalValidatorNodeProvider for NodeProvider<S, S::Context>
 where
     S: Storage + Clone + Send + Sync + 'static,
     ViewError: From<S::ContextError>,
 {
-    type Node = LocalValidatorClient<S>;
+    type Node = LocalValidatorClient<S, S::Context>;
 
     fn make_node(&self, _: &str) -> Result<Self::Node, NodeError> {
         unimplemented!()
@@ -428,12 +428,13 @@ where
     }
 }
 
-impl<S> FromIterator<LocalValidatorClient<S>> for NodeProvider<S> {
+impl<S, C> FromIterator<LocalValidatorClient<S, C>> for NodeProvider<S, C> {
     fn from_iter<T>(iter: T) -> Self
     where
-        T: IntoIterator<Item = LocalValidatorClient<S>>,
+        T: IntoIterator<Item = LocalValidatorClient<S, C>>,
     {
-        let destructure = |validator: LocalValidatorClient<S>| (validator.name, validator.client);
+        let destructure =
+            |validator: LocalValidatorClient<S, C>| (validator.name, validator.client);
         Self(iter.into_iter().map(destructure).collect())
     }
 }
@@ -449,7 +450,7 @@ pub struct TestBuilder<B: StorageBuilder> {
     pub initial_committee: Committee,
     admin_id: ChainId,
     genesis_storage_builder: GenesisStorageBuilder,
-    validator_clients: Vec<LocalValidatorClient<B::Storage>>,
+    validator_clients: Vec<LocalValidatorClient<B::Storage, <B::Storage as Storage>::Context>>,
     validator_storages: HashMap<ValidatorName, B::Storage>,
     chain_client_storages: Vec<B::Storage>,
 }

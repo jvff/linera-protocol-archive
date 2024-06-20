@@ -36,11 +36,7 @@ mod inbox_tests;
 /// * Reconciliation of added and removed events is allowed to skip some added events.
 /// However, the opposite is not true: every removed event must be eventually added.
 #[derive(Debug, ClonableView, View, async_graphql::SimpleObject)]
-pub struct InboxStateView<C>
-where
-    C: Clone + Context + Send + Sync,
-    ViewError: From<C::Error>,
-{
+pub struct InboxStateView<C> {
     /// We have already added all the messages below this height and index.
     pub next_cursor_to_add: RegisterView<C, Cursor>,
     /// We have already removed all the messages below this height and index.

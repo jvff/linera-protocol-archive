@@ -277,7 +277,7 @@ impl From<linera_chain::ChainError> for WorkerError {
 
 /// State of a worker in a validator or a local node.
 #[derive(Clone)]
-pub struct WorkerState<StorageClient> {
+pub struct WorkerState<StorageClient, Context> {
     /// A name used for logging
     nickname: String,
     /// Access to local persistent storage.
@@ -294,17 +294,16 @@ pub struct WorkerState<StorageClient> {
     /// The set of spawned [`ChainWorkerActor`] tasks.
     chain_worker_tasks: Arc<Mutex<JoinSet<()>>>,
     /// The cache of running [`ChainWorkerActor`]s.
-    chain_workers: Arc<Mutex<LruCache<ChainId, ChainActorEndpoint<StorageClient>>>>,
+    chain_workers: Arc<Mutex<LruCache<ChainId, ChainActorEndpoint<Context>>>>,
 }
 
 /// The sender endpoint for [`ChainWorkerRequest`]s.
-type ChainActorEndpoint<StorageClient> =
-    mpsc::UnboundedSender<ChainWorkerRequest<<StorageClient as Storage>::Context>>;
+type ChainActorEndpoint<Context> = mpsc::UnboundedSender<ChainWorkerRequest<Context>>;
 
 pub(crate) type DeliveryNotifiers =
     HashMap<ChainId, BTreeMap<BlockHeight, Vec<oneshot::Sender<()>>>>;
 
-impl<StorageClient> WorkerState<StorageClient> {
+impl<StorageClient, Context> WorkerState<StorageClient, Context> {
     pub fn new(nickname: String, key_pair: Option<KeyPair>, storage: StorageClient) -> Self {
         WorkerState {
             nickname,
@@ -405,7 +404,7 @@ impl<StorageClient> WorkerState<StorageClient> {
     }
 }
 
-impl<StorageClient> WorkerState<StorageClient>
+impl<StorageClient> WorkerState<StorageClient, StorageClient::Context>
 where
     StorageClient: Storage + Clone + Send + Sync + 'static,
     ViewError: From<StorageClient::ContextError>,
@@ -778,7 +777,7 @@ where
 }
 
 #[cfg(with_testing)]
-impl<StorageClient> WorkerState<StorageClient> {
+impl<StorageClient, Context> WorkerState<StorageClient, Context> {
     /// Gets a reference to the validator's [`PublicKey`].
     ///
     /// # Panics
@@ -797,7 +796,7 @@ impl<StorageClient> WorkerState<StorageClient> {
 
 #[cfg_attr(not(web), async_trait)]
 #[cfg_attr(web, async_trait(?Send))]
-impl<StorageClient> ValidatorWorker for WorkerState<StorageClient>
+impl<StorageClient> ValidatorWorker for WorkerState<StorageClient, StorageClient::Context>
 where
     StorageClient: Storage + Clone + Send + Sync + 'static,
     ViewError: From<StorageClient::ContextError>,

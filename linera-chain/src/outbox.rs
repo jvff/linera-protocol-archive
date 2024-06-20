@@ -23,11 +23,7 @@ mod outbox_tests;
 /// messages for them.
 /// * When marking block heights as received, messages at lower heights are also marked (ie. dequeued).
 #[derive(Debug, ClonableView, View, async_graphql::SimpleObject)]
-pub struct OutboxStateView<C>
-where
-    C: Context + Send + Sync + 'static,
-    ViewError: From<C::Error>,
-{
+pub struct OutboxStateView<C> {
     /// The minimum block height accepted in the future.
     pub next_height_to_schedule: RegisterView<C, BlockHeight>,
     /// Keep sending these certified blocks of ours until they are acknowledged by
