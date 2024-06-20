@@ -16,6 +16,7 @@ use linera_base::{
     data_types::{ArithmeticError, BlockHeight, HashedBlob, Round},
     doc_scalar, ensure,
     identifiers::{BlobId, ChainId, Owner},
+    sync::Lazy,
 };
 use linera_chain::{
     data_types::{
@@ -48,7 +49,6 @@ use {
     linera_base::{
         crypto::PublicKey,
         identifiers::{BytecodeId, Destination, MessageId},
-        sync::Lazy,
     },
     linera_chain::data_types::{ChannelFullName, IncomingMessage, Medium, MessageAction},
 };
