@@ -33,21 +33,13 @@ use crate::{
 };
 
 /// A local node with a single worker, typically used by clients.
-pub struct LocalNode<S>
-where
-    S: Storage,
-    ViewError: From<S::ContextError>,
-{
+pub struct LocalNode<S> {
     state: WorkerState<S>,
 }
 
 /// A client to a local node.
 #[derive(Clone)]
-pub struct LocalNodeClient<S>
-where
-    S: Storage,
-    ViewError: From<S::ContextError>,
-{
+pub struct LocalNodeClient<S> {
     node: Arc<Mutex<LocalNode<S>>>,
 }
 
@@ -150,11 +142,7 @@ where
     }
 }
 
-impl<S> LocalNodeClient<S>
-where
-    S: Storage,
-    ViewError: From<S::ContextError>,
-{
+impl<S> LocalNodeClient<S> {
     pub fn new(state: WorkerState<S>) -> Self {
         let node = LocalNode { state };
 
@@ -166,8 +154,7 @@ where
 
 impl<S> LocalNodeClient<S>
 where
-    S: Storage + Clone,
-    ViewError: From<S::ContextError>,
+    S: Clone,
 {
     pub(crate) async fn storage_client(&self) -> S {
         let node = self.node.lock().await;

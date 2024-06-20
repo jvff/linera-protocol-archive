@@ -101,11 +101,7 @@ static SERVER_REQUEST_LATENCY_PER_REQUEST_TYPE: Lazy<HistogramVec> = Lazy::new(|
 });
 
 #[derive(Clone)]
-pub struct GrpcServer<S>
-where
-    S: Storage,
-    ViewError: From<S::ContextError>,
-{
+pub struct GrpcServer<S> {
     state: WorkerState<S>,
     shard_id: ShardId,
     network: ValidatorInternalNetworkConfig,

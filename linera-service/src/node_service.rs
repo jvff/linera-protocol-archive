@@ -59,36 +59,21 @@ pub struct Chains {
 }
 
 pub type ClientMapInner<P, S> = BTreeMap<ChainId, ArcChainClient<P, S>>;
-pub(crate) struct ChainClients<P, S>(Arc<Mutex<ClientMapInner<P, S>>>)
-where
-    S: Storage,
-    ViewError: From<S::ContextError>;
+pub(crate) struct ChainClients<P, S>(Arc<Mutex<ClientMapInner<P, S>>>);
 
-impl<P, S> Clone for ChainClients<P, S>
-where
-    S: Storage,
-    ViewError: From<S::ContextError>,
-{
+impl<P, S> Clone for ChainClients<P, S> {
     fn clone(&self) -> Self {
         ChainClients(self.0.clone())
     }
 }
 
-impl<P, S> Default for ChainClients<P, S>
-where
-    S: Storage,
-    ViewError: From<S::ContextError>,
-{
+impl<P, S> Default for ChainClients<P, S> {
     fn default() -> Self {
         Self(Arc::new(Mutex::new(BTreeMap::new())))
     }
 }
 
-impl<P, S> ChainClients<P, S>
-where
-    S: Storage,
-    ViewError: From<S::ContextError>,
-{
+impl<P, S> ChainClients<P, S> {
     async fn client(&self, chain_id: &ChainId) -> Option<ArcChainClient<P, S>> {
         Some(self.0.lock().await.get(chain_id)?.clone())
     }
@@ -115,31 +100,19 @@ where
 }
 
 /// Our root GraphQL query type.
-pub struct QueryRoot<P, S>
-where
-    S: Storage,
-    ViewError: From<S::ContextError>,
-{
+pub struct QueryRoot<P, S> {
     clients: ChainClients<P, S>,
     port: NonZeroU16,
     default_chain: Option<ChainId>,
 }
 
 /// Our root GraphQL subscription type.
-pub struct SubscriptionRoot<P, S>
-where
-    S: Storage,
-    ViewError: From<S::ContextError>,
-{
+pub struct SubscriptionRoot<P, S> {
     clients: ChainClients<P, S>,
 }
 
 /// Our root GraphQL mutation type.
-pub struct MutationRoot<P, S, C>
-where
-    S: Storage,
-    ViewError: From<S::ContextError>,
-{
+pub struct MutationRoot<P, S, C> {
     clients: ChainClients<P, S>,
     context: Arc<Mutex<C>>,
 }
@@ -969,11 +942,7 @@ fn bytes_from_list(list: &[async_graphql::Value]) -> Option<Vec<u8>> {
 
 /// The `NodeService` is a server that exposes a web-server to the client.
 /// The node service is primarily used to explore the state of a chain in GraphQL.
-pub struct NodeService<P, S, C>
-where
-    S: Storage,
-    ViewError: From<S::ContextError>,
-{
+pub struct NodeService<P, S, C> {
     clients: ChainClients<P, S>,
     config: ChainListenerConfig,
     port: NonZeroU16,
@@ -982,11 +951,7 @@ where
     context: Arc<Mutex<C>>,
 }
 
-impl<P, S: Clone, C> Clone for NodeService<P, S, C>
-where
-    S: Storage,
-    ViewError: From<S::ContextError>,
-{
+impl<P, S: Clone, C> Clone for NodeService<P, S, C> {
     fn clone(&self) -> Self {
         Self {
             clients: self.clients.clone(),

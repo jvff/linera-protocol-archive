@@ -65,11 +65,7 @@ pub enum CommunicateAction {
     },
 }
 
-pub struct ValidatorUpdater<A, S>
-where
-    S: Storage,
-    ViewError: From<S::ContextError>,
-{
+pub struct ValidatorUpdater<A, S> {
     pub name: ValidatorName,
     pub node: A,
     pub local_node: LocalNodeClient<S>,

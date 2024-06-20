@@ -26,10 +26,7 @@ use linera_service::{
 };
 use linera_storage::{MemoryStorage, Storage};
 use linera_version::VersionInfo;
-use linera_views::{
-    memory::{MemoryStoreConfig, TEST_MEMORY_MAX_STREAM_QUERIES},
-    views::ViewError,
-};
+use linera_views::memory::{MemoryStoreConfig, TEST_MEMORY_MAX_STREAM_QUERIES};
 
 #[derive(Clone)]
 struct DummyValidatorNode;
@@ -130,20 +127,13 @@ impl<P: LocalValidatorNodeProvider + Send, S: Storage + Send + Sync> ClientConte
         unimplemented!()
     }
 
-    fn make_chain_client(&self, _: ChainId) -> ChainClient<P, S>
-    where
-        ViewError: From<S::ContextError>,
-    {
+    fn make_chain_client(&self, _: ChainId) -> ChainClient<P, S> {
         unimplemented!()
     }
 
     fn update_wallet_for_new_chain(&mut self, _: ChainId, _: Option<KeyPair>, _: Timestamp) {}
 
-    async fn update_wallet<'a>(&'a mut self, _: &'a mut ChainClient<P, S>)
-    where
-        ViewError: From<S::ContextError>,
-    {
-    }
+    async fn update_wallet<'a>(&'a mut self, _: &'a mut ChainClient<P, S>) {}
 }
 
 #[tokio::main]
