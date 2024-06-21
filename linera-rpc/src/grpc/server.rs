@@ -14,7 +14,6 @@ use futures::{
     FutureExt as _, StreamExt,
 };
 use linera_base::identifiers::ChainId;
-use linera_chain::ChainStateView;
 use linera_core::{
     node::NodeError,
     worker::{NetworkActions, Notification, ValidatorWorker, WorkerError, WorkerState},
@@ -102,8 +101,8 @@ static SERVER_REQUEST_LATENCY_PER_REQUEST_TYPE: Lazy<HistogramVec> = Lazy::new(|
 });
 
 #[derive(Clone)]
-pub struct GrpcServer<S, C> {
-    state: WorkerState<S, C>,
+pub struct GrpcServer<S> {
+    state: WorkerState<S>,
     shard_id: ShardId,
     network: ValidatorInternalNetworkConfig,
     cross_chain_sender: CrossChainSender,
@@ -172,7 +171,7 @@ where
     }
 }
 
-impl<S> GrpcServer<S, ChainStateView<S::Context>>
+impl<S> GrpcServer<S>
 where
     S: Storage + Clone + Send + Sync + 'static,
     ViewError: From<S::ContextError>,
@@ -181,7 +180,7 @@ where
     pub fn spawn(
         host: String,
         port: u16,
-        state: WorkerState<S, ChainStateView<S::Context>>,
+        state: WorkerState<S>,
         shard_id: ShardId,
         internal_network: ValidatorInternalNetworkConfig,
         cross_chain_config: CrossChainConfig,
@@ -430,7 +429,7 @@ where
 }
 
 #[tonic::async_trait]
-impl<S> ValidatorWorkerRpc for GrpcServer<S, ChainStateView<S::Context>>
+impl<S> ValidatorWorkerRpc for GrpcServer<S>
 where
     S: Storage + Clone + Send + Sync + 'static,
     ViewError: From<S::ContextError>,

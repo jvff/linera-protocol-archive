@@ -58,62 +58,62 @@ pub struct Chains {
     pub default: Option<ChainId>,
 }
 
-pub type ClientMapInner<P, S, C> = BTreeMap<ChainId, ArcChainClient<P, S, C>>;
-pub(crate) struct ChainClients<P, S, C>(Arc<Mutex<ClientMapInner<P, S, C>>>);
+pub type ClientMapInner<P, S> = BTreeMap<ChainId, ArcChainClient<P, S>>;
+pub(crate) struct ChainClients<P, S>(Arc<Mutex<ClientMapInner<P, S>>>);
 
-impl<P, S, C> Clone for ChainClients<P, S, C> {
+impl<P, S> Clone for ChainClients<P, S> {
     fn clone(&self) -> Self {
         ChainClients(self.0.clone())
     }
 }
 
-impl<P, S, C> Default for ChainClients<P, S, C> {
+impl<P, S> Default for ChainClients<P, S> {
     fn default() -> Self {
         Self(Arc::new(Mutex::new(BTreeMap::new())))
     }
 }
 
-impl<P, S, C> ChainClients<P, S, C> {
-    async fn client(&self, chain_id: &ChainId) -> Option<ArcChainClient<P, S, C>> {
+impl<P, S> ChainClients<P, S> {
+    async fn client(&self, chain_id: &ChainId) -> Option<ArcChainClient<P, S>> {
         Some(self.0.lock().await.get(chain_id)?.clone())
     }
 
     pub(crate) async fn client_lock(
         &self,
         chain_id: &ChainId,
-    ) -> Option<OwnedMutexGuard<ChainClient<P, S, C>>> {
+    ) -> Option<OwnedMutexGuard<ChainClient<P, S>>> {
         Some(self.client(chain_id).await?.0.lock_owned().await)
     }
 
     pub(crate) async fn try_client_lock(
         &self,
         chain_id: &ChainId,
-    ) -> Result<OwnedMutexGuard<ChainClient<P, S, C>>, Error> {
+    ) -> Result<OwnedMutexGuard<ChainClient<P, S>>, Error> {
         self.client_lock(chain_id)
             .await
             .ok_or_else(|| Error::new(format!("Unknown chain ID: {}", chain_id)))
     }
 
-    pub(crate) async fn map_lock(&self) -> MutexGuard<ClientMapInner<P, S, C>> {
+    pub(crate) async fn map_lock(&self) -> MutexGuard<ClientMapInner<P, S>> {
         self.0.lock().await
     }
 }
 
 /// Our root GraphQL query type.
-pub struct QueryRoot<P, S, C> {
-    clients: ChainClients<P, S, C>,
+pub struct QueryRoot<P, S> {
+    clients: ChainClients<P, S>,
     port: NonZeroU16,
     default_chain: Option<ChainId>,
 }
 
 /// Our root GraphQL subscription type.
-pub struct SubscriptionRoot<P, S, C> {
-    clients: ChainClients<P, S, C>,
+pub struct SubscriptionRoot<P, S> {
+    clients: ChainClients<P, S>,
 }
 
 /// Our root GraphQL mutation type.
-pub struct MutationRoot<P, S, C, Ch> {
-    clients: ChainClients<P, S, Ch>,
+pub struct MutationRoot<P, S, C> {
+    clients: ChainClients<P, S>,
     context: Arc<Mutex<C>>,
 }
 
@@ -196,7 +196,7 @@ impl IntoResponse for NodeServiceError {
 }
 
 #[Subscription]
-impl<P, S> SubscriptionRoot<P, S, ChainStateView<S::Context>>
+impl<P, S> SubscriptionRoot<P, S>
 where
     P: ValidatorNodeProvider + Send + Sync + 'static,
     S: Storage + Clone + Send + Sync + 'static,
@@ -212,16 +212,11 @@ where
     }
 }
 
-impl<P, S, C> MutationRoot<P, S, C, ChainStateView<S::Context>>
+impl<P, S, C> MutationRoot<P, S, C>
 where
     P: ValidatorNodeProvider + Send + Sync + 'static,
     S: Storage + Clone + Send + Sync + 'static,
-    C: ClientContext<
-            ValidatorNodeProvider = P,
-            Storage = S,
-            ChainState = ChainStateView<S::Context>,
-        > + Send
-        + 'static,
+    C: ClientContext<ValidatorNodeProvider = P, Storage = S> + Send + 'static,
     ViewError: From<S::ContextError>,
 {
     async fn execute_system_operation(
@@ -253,11 +248,11 @@ where
         mut f: F,
     ) -> Result<T, Error>
     where
-        F: FnMut(OwnedMutexGuard<ChainClient<P, S, ChainStateView<S::Context>>>) -> Fut,
+        F: FnMut(OwnedMutexGuard<ChainClient<P, S>>) -> Fut,
         Fut: Future<
             Output = (
                 Result<ClientOutcome<T>, Error>,
-                OwnedMutexGuard<ChainClient<P, S, ChainStateView<S::Context>>>,
+                OwnedMutexGuard<ChainClient<P, S>>,
             ),
         >,
     {
@@ -277,16 +272,11 @@ where
 }
 
 #[Object(cache_control(no_cache))]
-impl<P, S, C> MutationRoot<P, S, C, ChainStateView<S::Context>>
+impl<P, S, C> MutationRoot<P, S, C>
 where
     P: ValidatorNodeProvider + Send + Sync + 'static,
     S: Storage + Clone + Send + Sync + 'static,
-    C: ClientContext<
-            ValidatorNodeProvider = P,
-            Storage = S,
-            ChainState = ChainStateView<S::Context>,
-        > + Send
-        + 'static,
+    C: ClientContext<ValidatorNodeProvider = P, Storage = S> + Send + 'static,
     ViewError: From<S::ContextError>,
 {
     /// Processes the inbox and returns the lists of certificate hashes that were created, if any.
@@ -710,7 +700,7 @@ where
 }
 
 #[Object(cache_control(no_cache))]
-impl<P, S> QueryRoot<P, S, ChainStateView<S::Context>>
+impl<P, S> QueryRoot<P, S>
 where
     P: ValidatorNodeProvider + Send + Sync + 'static,
     S: Storage + Clone + Send + Sync + 'static,
@@ -952,8 +942,8 @@ fn bytes_from_list(list: &[async_graphql::Value]) -> Option<Vec<u8>> {
 
 /// The `NodeService` is a server that exposes a web-server to the client.
 /// The node service is primarily used to explore the state of a chain in GraphQL.
-pub struct NodeService<P, S, C, Ch> {
-    clients: ChainClients<P, S, Ch>,
+pub struct NodeService<P, S, C> {
+    clients: ChainClients<P, S>,
     config: ChainListenerConfig,
     port: NonZeroU16,
     default_chain: Option<ChainId>,
@@ -961,7 +951,7 @@ pub struct NodeService<P, S, C, Ch> {
     context: Arc<Mutex<C>>,
 }
 
-impl<P, S: Clone, C, Ch> Clone for NodeService<P, S, C, Ch> {
+impl<P, S: Clone, C> Clone for NodeService<P, S, C> {
     fn clone(&self) -> Self {
         Self {
             clients: self.clients.clone(),
@@ -974,17 +964,12 @@ impl<P, S: Clone, C, Ch> Clone for NodeService<P, S, C, Ch> {
     }
 }
 
-impl<P, S, C> NodeService<P, S, C, ChainStateView<S::Context>>
+impl<P, S, C> NodeService<P, S, C>
 where
     P: ValidatorNodeProvider + Send + Sync + 'static,
     <<P as ValidatorNodeProvider>::Node as ValidatorNode>::NotificationStream: Send,
     S: Storage + Clone + Send + Sync + 'static,
-    C: ClientContext<
-            ValidatorNodeProvider = P,
-            Storage = S,
-            ChainState = ChainStateView<S::Context>,
-        > + Send
-        + 'static,
+    C: ClientContext<ValidatorNodeProvider = P, Storage = S> + Send + 'static,
     ViewError: From<S::ContextError>,
 {
     /// Creates a new instance of the node service given a client chain and a port.
@@ -1006,13 +991,7 @@ where
     }
 
     #[allow(clippy::type_complexity)]
-    pub fn schema(
-        &self,
-    ) -> Schema<
-        QueryRoot<P, S, ChainStateView<S::Context>>,
-        MutationRoot<P, S, C, ChainStateView<S::Context>>,
-        SubscriptionRoot<P, S, ChainStateView<S::Context>>,
-    > {
+    pub fn schema(&self) -> Schema<QueryRoot<P, S>, MutationRoot<P, S, C>, SubscriptionRoot<P, S>> {
         Schema::build(
             QueryRoot {
                 clients: self.clients.clone(),

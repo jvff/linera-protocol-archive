@@ -16,7 +16,7 @@ use linera_base::{
     data_types::{BlockHeight, HashedBlob, Timestamp},
     identifiers::{BlobId, ChainDescription, ChainId, Owner},
 };
-use linera_chain::{data_types::Block, ChainStateView};
+use linera_chain::data_types::Block;
 use linera_core::{client::ChainClient, node::ValidatorNodeProvider};
 use linera_storage::Storage;
 use linera_views::views::ViewError;
@@ -166,10 +166,8 @@ impl Wallet {
         Ok(())
     }
 
-    pub async fn update_from_state<P, S>(
-        &mut self,
-        state: &mut ChainClient<P, S, ChainStateView<S::Context>>,
-    ) where
+    pub async fn update_from_state<P, S>(&mut self, state: &mut ChainClient<P, S>)
+    where
         P: ValidatorNodeProvider + Sync + 'static,
         S: Storage + Clone + Send + Sync + 'static,
         ViewError: From<S::ContextError>,

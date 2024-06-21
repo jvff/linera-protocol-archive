@@ -8,7 +8,6 @@ use linera_base::{
     data_types::Amount,
     identifiers::{Account, ChainDescription},
 };
-use linera_chain::ChainStateView;
 use linera_core::{
     client,
     test_utils::{MemoryStorageBuilder, NodeProvider, StorageBuilder, TestBuilder},
@@ -24,12 +23,8 @@ use recorder::BenchRecorderMeasurement;
 use tokio::runtime;
 
 type ChainClient<B> = client::ChainClient<
-    NodeProvider<
-        <B as StorageBuilder>::Storage,
-        ChainStateView<<<B as StorageBuilder>::Storage as Storage>::Context>,
-    >,
+    NodeProvider<<B as StorageBuilder>::Storage>,
     <B as StorageBuilder>::Storage,
-    ChainStateView<<<B as StorageBuilder>::Storage as Storage>::Context>,
 >;
 
 mod recorder;

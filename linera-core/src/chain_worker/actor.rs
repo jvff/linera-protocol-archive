@@ -40,7 +40,11 @@ use crate::{
 };
 
 /// A request for the [`ChainWorkerActor`].
-pub enum ChainWorkerRequest<ChainState> {
+pub enum ChainWorkerRequest<Context>
+where
+    Context: linera_views::common::Context + Clone + Send + Sync + 'static,
+    ViewError: From<Context::Error>,
+{
     /// Reads the certificate for a requested [`BlockHeight`].
     #[cfg(with_testing)]
     ReadCertificate {
@@ -60,7 +64,8 @@ pub enum ChainWorkerRequest<ChainState> {
 
     /// Request a read-only view of the [`ChainStateView`].
     GetChainStateView {
-        callback: oneshot::Sender<Result<OwnedRwLockReadGuard<ChainState>, WorkerError>>,
+        callback:
+            oneshot::Sender<Result<OwnedRwLockReadGuard<ChainStateView<Context>>, WorkerError>>,
     },
 
     /// Query an application's state.
@@ -135,12 +140,16 @@ pub enum ChainWorkerRequest<ChainState> {
 }
 
 /// The actor worker type.
-pub struct ChainWorkerActor<StorageClient, ChainState> {
-    worker: ChainWorkerState<StorageClient, ChainState>,
-    incoming_requests: mpsc::UnboundedReceiver<ChainWorkerRequest<ChainState>>,
+pub struct ChainWorkerActor<StorageClient>
+where
+    StorageClient: Storage + Clone + Send + Sync + 'static,
+    ViewError: From<StorageClient::ContextError>,
+{
+    worker: ChainWorkerState<StorageClient>,
+    incoming_requests: mpsc::UnboundedReceiver<ChainWorkerRequest<StorageClient::Context>>,
 }
 
-impl<StorageClient> ChainWorkerActor<StorageClient, ChainStateView<StorageClient::Context>>
+impl<StorageClient> ChainWorkerActor<StorageClient>
 where
     StorageClient: Storage + Clone + Send + Sync + 'static,
     ViewError: From<StorageClient::ContextError>,
@@ -154,10 +163,8 @@ where
         blob_cache: Arc<ValueCache<BlobId, HashedBlob>>,
         chain_id: ChainId,
         join_set: &mut JoinSet<()>,
-    ) -> Result<
-        mpsc::UnboundedSender<ChainWorkerRequest<ChainStateView<StorageClient::Context>>>,
-        WorkerError,
-    > {
+    ) -> Result<mpsc::UnboundedSender<ChainWorkerRequest<StorageClient::Context>>, WorkerError>
+    {
         let worker = ChainWorkerState::load(
             config,
             storage,

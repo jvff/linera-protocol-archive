@@ -15,9 +15,8 @@ use linera_base::{
     identifiers::{BlobId, ChainId},
     time::{Duration, Instant},
 };
-use linera_chain::{
-    data_types::{BlockProposal, Certificate, CertificateValue, HashedCertificateValue, LiteVote},
-    ChainStateView,
+use linera_chain::data_types::{
+    BlockProposal, Certificate, CertificateValue, HashedCertificateValue, LiteVote,
 };
 use linera_execution::{
     committee::{Committee, ValidatorName},
@@ -66,10 +65,10 @@ pub enum CommunicateAction {
     },
 }
 
-pub struct ValidatorUpdater<A, S, C> {
+pub struct ValidatorUpdater<A, S> {
     pub name: ValidatorName,
     pub node: A,
-    pub local_node: LocalNodeClient<S, C>,
+    pub local_node: LocalNodeClient<S>,
     pub local_node_chain_managers_pending_blobs: BTreeMap<BlobId, HashedBlob>,
 }
 
@@ -177,7 +176,7 @@ where
     Err(CommunicationError::Sample(sample))
 }
 
-impl<A, S> ValidatorUpdater<A, S, ChainStateView<S::Context>>
+impl<A, S> ValidatorUpdater<A, S>
 where
     A: LocalValidatorNode + Clone + 'static,
     S: Storage + Clone + Send + Sync + 'static,

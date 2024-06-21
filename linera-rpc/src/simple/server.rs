@@ -5,7 +5,6 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::{channel::mpsc, stream::StreamExt};
-use linera_chain::ChainStateView;
 use linera_core::{
     node::NodeError,
     worker::{NetworkActions, ValidatorWorker, WorkerError, WorkerState},
@@ -24,11 +23,12 @@ use crate::{
     RpcMessage,
 };
 
-pub struct Server<S, C> {
+#[derive(Clone)]
+pub struct Server<S> {
     network: ValidatorInternalNetworkPreConfig<TransportProtocol>,
     host: String,
     port: u16,
-    state: WorkerState<S, C>,
+    state: WorkerState<S>,
     shard_id: ShardId,
     cross_chain_config: CrossChainConfig,
     // Stats
@@ -36,31 +36,13 @@ pub struct Server<S, C> {
     user_errors: u64,
 }
 
-impl<S, C> Clone for Server<S, C>
-where
-    S: Clone,
-{
-    fn clone(&self) -> Self {
-        Server {
-            network: self.network.clone(),
-            host: self.host.clone(),
-            port: self.port,
-            state: self.state.clone(),
-            shard_id: self.shard_id,
-            cross_chain_config: self.cross_chain_config.clone(),
-            packets_processed: self.packets_processed,
-            user_errors: self.user_errors,
-        }
-    }
-}
-
-impl<S, C> Server<S, C> {
+impl<S> Server<S> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         network: ValidatorInternalNetworkPreConfig<TransportProtocol>,
         host: String,
         port: u16,
-        state: WorkerState<S, C>,
+        state: WorkerState<S>,
         shard_id: ShardId,
         cross_chain_config: CrossChainConfig,
     ) -> Self {
@@ -85,7 +67,7 @@ impl<S, C> Server<S, C> {
     }
 }
 
-impl<S> Server<S, ChainStateView<S::Context>>
+impl<S> Server<S>
 where
     S: Storage + Clone + Send + Sync + 'static,
     ViewError: From<S::ContextError>,
@@ -189,25 +171,14 @@ where
     }
 }
 
-struct RunningServerState<S, C> {
-    server: Server<S, C>,
+#[derive(Clone)]
+struct RunningServerState<S> {
+    server: Server<S>,
     cross_chain_sender: mpsc::Sender<(RpcMessage, ShardId)>,
 }
 
-impl<S, C> Clone for RunningServerState<S, C>
-where
-    S: Clone,
-{
-    fn clone(&self) -> Self {
-        RunningServerState {
-            server: self.server.clone(),
-            cross_chain_sender: self.cross_chain_sender.clone(),
-        }
-    }
-}
-
 #[async_trait]
-impl<S> MessageHandler for RunningServerState<S, ChainStateView<S::Context>>
+impl<S> MessageHandler for RunningServerState<S>
 where
     S: Storage + Clone + Send + Sync + 'static,
     ViewError: From<S::ContextError>,
@@ -363,7 +334,7 @@ where
     }
 }
 
-impl<S, C> RunningServerState<S, C>
+impl<S> RunningServerState<S>
 where
     S: Send,
 {

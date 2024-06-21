@@ -19,10 +19,7 @@ use linera_base::{
     identifiers::{ChainDescription, ChainId, MessageId, Owner},
     ownership::ChainOwnership,
 };
-use linera_chain::{
-    data_types::{CertificateValue, ExecutedBlock},
-    ChainStateView,
-};
+use linera_chain::data_types::{CertificateValue, ExecutedBlock};
 use linera_core::{
     client::ChainClientError,
     data_types::{ChainInfoQuery, ClientOutcome},
@@ -1076,7 +1073,7 @@ impl Job {
         storage: S,
         public_key: PublicKey,
         validators: Option<Vec<(ValidatorName, String)>>,
-        context: &mut ClientContext<S, ChainStateView<S::Context>>,
+        context: &mut ClientContext<S>,
     ) -> anyhow::Result<()>
     where
         S: Storage + Clone + Send + Sync + 'static,
@@ -1147,7 +1144,7 @@ impl Job {
     async fn print_peg_certificate_hash<S>(
         storage: S,
         chain_ids: impl IntoIterator<Item = ChainId>,
-        context: &ClientContext<S, ChainStateView<S::Context>>,
+        context: &ClientContext<S>,
     ) -> anyhow::Result<()>
     where
         S: Storage + Clone + Send + Sync + 'static,

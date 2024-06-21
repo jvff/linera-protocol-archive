@@ -276,7 +276,8 @@ impl From<linera_chain::ChainError> for WorkerError {
 }
 
 /// State of a worker in a validator or a local node.
-pub struct WorkerState<StorageClient, ChainState> {
+#[derive(Clone)]
+pub struct WorkerState<StorageClient> {
     /// A name used for logging
     nickname: String,
     /// Access to local persistent storage.
@@ -293,34 +294,17 @@ pub struct WorkerState<StorageClient, ChainState> {
     /// The set of spawned [`ChainWorkerActor`] tasks.
     chain_worker_tasks: Arc<Mutex<JoinSet<()>>>,
     /// The cache of running [`ChainWorkerActor`]s.
-    chain_workers: Arc<Mutex<LruCache<ChainId, ChainActorEndpoint<ChainState>>>>,
-}
-
-impl<StorageClient, ChainState> Clone for WorkerState<StorageClient, ChainState>
-where
-    StorageClient: Clone,
-{
-    fn clone(&self) -> Self {
-        WorkerState {
-            nickname: self.nickname.clone(),
-            storage: self.storage.clone(),
-            chain_worker_config: self.chain_worker_config.clone(),
-            recent_hashed_certificate_values: self.recent_hashed_certificate_values.clone(),
-            recent_hashed_blobs: self.recent_hashed_blobs.clone(),
-            delivery_notifiers: self.delivery_notifiers.clone(),
-            chain_worker_tasks: self.chain_worker_tasks.clone(),
-            chain_workers: self.chain_workers.clone(),
-        }
-    }
+    chain_workers: Arc<Mutex<LruCache<ChainId, ChainActorEndpoint<StorageClient>>>>,
 }
 
 /// The sender endpoint for [`ChainWorkerRequest`]s.
-type ChainActorEndpoint<ChainState> = mpsc::UnboundedSender<ChainWorkerRequest<ChainState>>;
+type ChainActorEndpoint<StorageClient> =
+    mpsc::UnboundedSender<ChainWorkerRequest<<StorageClient as Storage>::Context>>;
 
 pub(crate) type DeliveryNotifiers =
     HashMap<ChainId, BTreeMap<BlockHeight, Vec<oneshot::Sender<()>>>>;
 
-impl<StorageClient, ChainState> WorkerState<StorageClient, ChainState> {
+impl<StorageClient> WorkerState<StorageClient> {
     pub fn new(nickname: String, key_pair: Option<KeyPair>, storage: StorageClient) -> Self {
         WorkerState {
             nickname,
@@ -421,7 +405,7 @@ impl<StorageClient, ChainState> WorkerState<StorageClient, ChainState> {
     }
 }
 
-impl<StorageClient> WorkerState<StorageClient, ChainStateView<StorageClient::Context>>
+impl<StorageClient> WorkerState<StorageClient>
 where
     StorageClient: Storage + Clone + Send + Sync + 'static,
     ViewError: From<StorageClient::ContextError>,
@@ -747,8 +731,7 @@ where
         chain_id: ChainId,
         request_builder: impl FnOnce(
             oneshot::Sender<Result<Response, WorkerError>>,
-        )
-            -> ChainWorkerRequest<ChainStateView<StorageClient::Context>>,
+        ) -> ChainWorkerRequest<StorageClient::Context>,
     ) -> Result<Response, WorkerError> {
         let chain_actor = self.get_chain_worker_endpoint(chain_id).await?;
         let (callback, response) = oneshot::channel();
@@ -767,7 +750,7 @@ where
     async fn get_chain_worker_endpoint(
         &self,
         chain_id: ChainId,
-    ) -> Result<ChainActorEndpoint<ChainStateView<StorageClient::Context>>, WorkerError> {
+    ) -> Result<ChainActorEndpoint<StorageClient>, WorkerError> {
         let mut chain_workers = self.chain_workers.lock().await;
 
         if !chain_workers.contains(&chain_id) {
@@ -795,7 +778,7 @@ where
 }
 
 #[cfg(with_testing)]
-impl<StorageClient, ChainState> WorkerState<StorageClient, ChainState> {
+impl<StorageClient> WorkerState<StorageClient> {
     /// Gets a reference to the validator's [`PublicKey`].
     ///
     /// # Panics
@@ -814,8 +797,7 @@ impl<StorageClient, ChainState> WorkerState<StorageClient, ChainState> {
 
 #[cfg_attr(not(web), async_trait)]
 #[cfg_attr(web, async_trait(?Send))]
-impl<StorageClient> ValidatorWorker
-    for WorkerState<StorageClient, ChainStateView<StorageClient::Context>>
+impl<StorageClient> ValidatorWorker for WorkerState<StorageClient>
 where
     StorageClient: Storage + Clone + Send + Sync + 'static,
     ViewError: From<StorageClient::ContextError>,

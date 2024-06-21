@@ -33,21 +33,14 @@ use crate::{
 };
 
 /// A local node with a single worker, typically used by clients.
-pub struct LocalNode<S, C> {
-    state: WorkerState<S, C>,
+pub struct LocalNode<S> {
+    state: WorkerState<S>,
 }
 
 /// A client to a local node.
-pub struct LocalNodeClient<S, C> {
-    node: Arc<Mutex<LocalNode<S, C>>>,
-}
-
-impl<S, C> Clone for LocalNodeClient<S, C> {
-    fn clone(&self) -> Self {
-        LocalNodeClient {
-            node: self.node.clone(),
-        }
-    }
+#[derive(Clone)]
+pub struct LocalNodeClient<S> {
+    node: Arc<Mutex<LocalNode<S>>>,
 }
 
 /// Error type for the operations on a local node.
@@ -84,7 +77,7 @@ pub enum LocalNodeError {
     NodeError(#[from] NodeError),
 }
 
-impl<S> LocalNodeClient<S, ChainStateView<S::Context>>
+impl<S> LocalNodeClient<S>
 where
     S: Storage + Clone + Send + Sync + 'static,
     ViewError: From<S::ContextError>,
@@ -149,8 +142,8 @@ where
     }
 }
 
-impl<S, C> LocalNodeClient<S, C> {
-    pub fn new(state: WorkerState<S, C>) -> Self {
+impl<S> LocalNodeClient<S> {
+    pub fn new(state: WorkerState<S>) -> Self {
         let node = LocalNode { state };
 
         Self {
@@ -159,7 +152,7 @@ impl<S, C> LocalNodeClient<S, C> {
     }
 }
 
-impl<S, C> LocalNodeClient<S, C>
+impl<S> LocalNodeClient<S>
 where
     S: Clone,
 {
@@ -169,7 +162,7 @@ where
     }
 }
 
-impl<S> LocalNodeClient<S, ChainStateView<S::Context>>
+impl<S> LocalNodeClient<S>
 where
     S: Storage + Clone + Send + Sync + 'static,
     ViewError: From<S::ContextError>,

@@ -30,7 +30,7 @@ use linera_chain::{
         OutgoingMessage, SignatureAggregator,
     },
     test::{make_child_block, make_first_block, BlockTestExt, VoteTestExt},
-    ChainError, ChainExecutionContext, ChainStateView,
+    ChainError, ChainExecutionContext,
 };
 use linera_execution::{
     committee::{Committee, Epoch, ValidatorName},
@@ -68,10 +68,7 @@ const TEST_GRACE_PERIOD_MICROS: u64 = 500_000;
 
 /// Instantiates the protocol with a single validator. Returns the corresponding committee
 /// and the (non-sharded, in-memory) "worker" that we can interact with.
-fn init_worker<S>(
-    storage: S,
-    is_client: bool,
-) -> (Committee, WorkerState<S, ChainStateView<S::Context>>)
+fn init_worker<S>(storage: S, is_client: bool) -> (Committee, WorkerState<S>)
 where
     S: Storage + Clone + Send + Sync + 'static,
     ViewError: From<S::ContextError>,
@@ -86,10 +83,7 @@ where
 }
 
 /// Same as `init_worker` but also instantiates some initial chains.
-async fn init_worker_with_chains<S, I>(
-    storage: S,
-    balances: I,
-) -> (Committee, WorkerState<S, ChainStateView<S::Context>>)
+async fn init_worker_with_chains<S, I>(storage: S, balances: I) -> (Committee, WorkerState<S>)
 where
     I: IntoIterator<Item = (ChainDescription, PublicKey, Amount)>,
     S: Storage + Clone + Send + Sync + 'static,
@@ -119,7 +113,7 @@ async fn init_worker_with_chain<S>(
     description: ChainDescription,
     owner: PublicKey,
     balance: Amount,
-) -> (Committee, WorkerState<S, ChainStateView<S::Context>>)
+) -> (Committee, WorkerState<S>)
 where
     S: Storage + Clone + Send + Sync + 'static,
     ViewError: From<S::ContextError>,
@@ -127,17 +121,17 @@ where
     init_worker_with_chains(storage, [(description, owner, balance)]).await
 }
 
-fn make_certificate<S, C>(
+fn make_certificate<S>(
     committee: &Committee,
-    worker: &WorkerState<S, C>,
+    worker: &WorkerState<S>,
     value: HashedCertificateValue,
 ) -> Certificate {
     make_certificate_with_round(committee, worker, value, Round::Fast)
 }
 
-fn make_certificate_with_round<S, C>(
+fn make_certificate_with_round<S>(
     committee: &Committee,
-    worker: &WorkerState<S, C>,
+    worker: &WorkerState<S>,
     value: HashedCertificateValue,
     round: Round,
 ) -> Certificate {
@@ -154,7 +148,7 @@ fn make_certificate_with_round<S, C>(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn make_simple_transfer_certificate<S, C>(
+async fn make_simple_transfer_certificate<S>(
     chain_description: ChainDescription,
     key_pair: &KeyPair,
     target_id: ChainId,
@@ -162,7 +156,7 @@ async fn make_simple_transfer_certificate<S, C>(
     incoming_messages: Vec<IncomingMessage>,
     committee: &Committee,
     balance: Amount,
-    worker: &WorkerState<S, C>,
+    worker: &WorkerState<S>,
     previous_confirmed_block: Option<&Certificate>,
 ) -> Certificate {
     make_transfer_certificate_for_epoch(
@@ -183,7 +177,7 @@ async fn make_simple_transfer_certificate<S, C>(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn make_transfer_certificate<S, C>(
+async fn make_transfer_certificate<S>(
     chain_description: ChainDescription,
     key_pair: &KeyPair,
     source: Option<Owner>,
@@ -193,7 +187,7 @@ async fn make_transfer_certificate<S, C>(
     committee: &Committee,
     balance: Amount,
     balances: BTreeMap<Owner, Amount>,
-    worker: &WorkerState<S, C>,
+    worker: &WorkerState<S>,
     previous_confirmed_block: Option<&Certificate>,
 ) -> Certificate {
     make_transfer_certificate_for_epoch(
@@ -214,7 +208,7 @@ async fn make_transfer_certificate<S, C>(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn make_transfer_certificate_for_epoch<S, C>(
+async fn make_transfer_certificate_for_epoch<S>(
     chain_description: ChainDescription,
     key_pair: &KeyPair,
     source: Option<Owner>,
@@ -225,7 +219,7 @@ async fn make_transfer_certificate_for_epoch<S, C>(
     committee: &Committee,
     balance: Amount,
     balances: BTreeMap<Owner, Amount>,
-    worker: &WorkerState<S, C>,
+    worker: &WorkerState<S>,
     previous_confirmed_block: Option<&Certificate>,
 ) -> Certificate {
     let chain_id = chain_description.into();

@@ -13,7 +13,6 @@ use linera_base::{
     identifiers::{ChainDescription, ChainId},
     ownership::{ChainOwnership, TimeoutConfig},
 };
-use linera_chain::ChainStateView;
 use linera_core::{
     client::{ChainClient, Client},
     node::CrossChainMessageDelivery,
@@ -27,7 +26,7 @@ use linera_rpc::{
     config::{NetworkProtocol, ValidatorPublicNetworkPreConfig},
     simple::TransportProtocol,
 };
-use linera_storage::{MemoryStorage, Storage, TestClock};
+use linera_storage::{MemoryStorage, TestClock};
 use rand::SeedableRng as _;
 
 use crate::{
@@ -37,28 +36,23 @@ use crate::{
 };
 
 type TestStorage = MemoryStorage<TestClock>;
-type TestProvider = NodeProvider<TestStorage, ChainStateView<<TestStorage as Storage>::Context>>;
+type TestProvider = NodeProvider<TestStorage>;
 
 struct ClientContext {
     wallet: Wallet,
-    client:
-        Arc<Client<TestProvider, TestStorage, ChainStateView<<TestStorage as Storage>::Context>>>,
+    client: Arc<Client<TestProvider, TestStorage>>,
 }
 
 #[async_trait]
 impl chain_listener::ClientContext for ClientContext {
     type ValidatorNodeProvider = TestProvider;
     type Storage = TestStorage;
-    type ChainState = ChainStateView<<TestStorage as Storage>::Context>;
 
     fn wallet(&self) -> &Wallet {
         &self.wallet
     }
 
-    fn make_chain_client(
-        &self,
-        chain_id: ChainId,
-    ) -> ChainClient<TestProvider, TestStorage, Self::ChainState> {
+    fn make_chain_client(&self, chain_id: ChainId) -> ChainClient<TestProvider, TestStorage> {
         let chain = self
             .wallet
             .get(chain_id)
@@ -102,18 +96,13 @@ impl chain_listener::ClientContext for ClientContext {
 
     async fn update_wallet<'a>(
         &'a mut self,
-        client: &'a mut ChainClient<TestProvider, TestStorage, Self::ChainState>,
+        client: &'a mut ChainClient<TestProvider, TestStorage>,
     ) {
         self.wallet.update_from_state(client).await;
     }
 }
 
-fn make_genesis_config(
-    builder: &TestBuilder<
-        MemoryStorageBuilder,
-        ChainStateView<<MemoryStorage<TestClock> as Storage>::Context>,
-    >,
-) -> GenesisConfig {
+fn make_genesis_config(builder: &TestBuilder<MemoryStorageBuilder>) -> GenesisConfig {
     let network = ValidatorPublicNetworkPreConfig {
         protocol: NetworkProtocol::Simple(TransportProtocol::Tcp),
         host: "localhost".to_string(),

@@ -7,9 +7,8 @@ use linera_base::{
     data_types::{Blob, HashedBlob, Timestamp},
     identifiers::{BlobId, ChainId},
 };
-use linera_chain::{
-    data_types::{BlockProposal, Certificate, HashedCertificateValue, LiteCertificate},
-    ChainStateView,
+use linera_chain::data_types::{
+    BlockProposal, Certificate, HashedCertificateValue, LiteCertificate,
 };
 use linera_core::{
     client::ChainClient,
@@ -27,10 +26,7 @@ use linera_service::{
 };
 use linera_storage::{MemoryStorage, Storage};
 use linera_version::VersionInfo;
-use linera_views::{
-    memory::{MemoryStoreConfig, TEST_MEMORY_MAX_STREAM_QUERIES},
-    views::ViewError,
-};
+use linera_views::memory::{MemoryStoreConfig, TEST_MEMORY_MAX_STREAM_QUERIES};
 
 #[derive(Clone)]
 struct DummyValidatorNode;
@@ -121,31 +117,23 @@ struct DummyContext<P, S> {
 }
 
 #[async_trait]
-impl<P, S> ClientContext for DummyContext<P, S>
-where
-    P: LocalValidatorNodeProvider + Send,
-    S: Storage + Send + Sync,
-    ViewError: From<S::ContextError>,
+impl<P: LocalValidatorNodeProvider + Send, S: Storage + Send + Sync> ClientContext
+    for DummyContext<P, S>
 {
     type ValidatorNodeProvider = P;
     type Storage = S;
-    type ChainState = ChainStateView<S::Context>;
 
     fn wallet(&self) -> &Wallet {
         unimplemented!()
     }
 
-    fn make_chain_client(&self, _: ChainId) -> ChainClient<P, S, ChainStateView<S::Context>> {
+    fn make_chain_client(&self, _: ChainId) -> ChainClient<P, S> {
         unimplemented!()
     }
 
     fn update_wallet_for_new_chain(&mut self, _: ChainId, _: Option<KeyPair>, _: Timestamp) {}
 
-    async fn update_wallet<'a>(
-        &'a mut self,
-        _: &'a mut ChainClient<P, S, ChainStateView<S::Context>>,
-    ) {
-    }
+    async fn update_wallet<'a>(&'a mut self, _: &'a mut ChainClient<P, S>) {}
 }
 
 #[tokio::main]
@@ -164,7 +152,7 @@ async fn main() -> std::io::Result<()> {
     let context = DummyContext {
         _phantom: std::marker::PhantomData,
     };
-    let service = NodeService::<DummyValidatorNodeProvider, _, _, _>::new(
+    let service = NodeService::<DummyValidatorNodeProvider, _, _>::new(
         config,
         std::num::NonZeroU16::new(8080).unwrap(),
         None,
