@@ -69,12 +69,12 @@ use crate::{
 mod client_tests;
 
 /// A builder that creates `ChainClients` which share the cache and notifiers.
-pub struct Client<ValidatorNodeProvider, Storage> {
+pub struct Client<ValidatorNodeProvider, Storage, ChainState> {
     /// How to talk to the validators.
     validator_node_provider: ValidatorNodeProvider,
     /// Local node to manage the execution state and the local storage of the chains that we are
     /// tracking.
-    local_node: LocalNodeClient<Storage>,
+    local_node: LocalNodeClient<Storage, ChainState>,
     /// Maximum number of pending messages processed at a time in a block.
     max_pending_messages: usize,
     /// The policy for automatically handling incoming messages.
@@ -88,7 +88,7 @@ pub struct Client<ValidatorNodeProvider, Storage> {
     storage: Storage,
 }
 
-impl<P, S: Storage + Clone> Client<P, S> {
+impl<P, S: Storage + Clone, C> Client<P, S, C> {
     /// Creates a new `Client` with a new cache and notifiers.
     pub fn new(
         validator_node_provider: P,
@@ -141,7 +141,7 @@ impl<P, S: Storage + Clone> Client<P, S> {
         next_block_height: BlockHeight,
         pending_block: Option<Block>,
         pending_blobs: BTreeMap<BlobId, HashedBlob>,
-    ) -> ChainClient<P, S>
+    ) -> ChainClient<P, S, C>
     where
         P: Clone,
     {
@@ -199,9 +199,9 @@ impl MessagePolicy {
 /// * The chain being operated is called the "local chain" or just the "chain".
 /// * As a rule, operations are considered successful (and communication may stop) when
 /// they succeeded in gathering a quorum of responses.
-pub struct ChainClient<ValidatorNodeProvider, Storage> {
+pub struct ChainClient<ValidatorNodeProvider, Storage, ChainState> {
     /// The Linera [`Client`] that manages operations on this chain.
-    client: Arc<Client<ValidatorNodeProvider, Storage>>,
+    client: Arc<Client<ValidatorNodeProvider, Storage, ChainState>>,
     /// The off-chain chain ID.
     chain_id: ChainId,
     /// How to talk to the validators.
@@ -297,7 +297,7 @@ impl From<Infallible> for ChainClientError {
     }
 }
 
-impl<P, S> ChainClient<P, S> {
+impl<P, S, C> ChainClient<P, S, C> {
     pub fn chain_id(&self) -> ChainId {
         self.chain_id
     }
@@ -330,7 +330,7 @@ enum ReceiveCertificateMode {
     AlreadyChecked,
 }
 
-impl<P, S> ChainClient<P, S>
+impl<P, S> ChainClient<P, S, ChainStateView<S::Context>>
 where
     P: LocalValidatorNodeProvider + Sync,
     S: Storage + Clone + Send + Sync + 'static,
@@ -769,7 +769,7 @@ where
         nodes: &[(ValidatorName, <P as LocalValidatorNodeProvider>::Node)],
     ) -> Vec<HashedCertificateValue> {
         future::join_all(locations.iter().map(|location| {
-            LocalNodeClient::<S>::download_hashed_certificate_value(nodes.to_owned(), *location)
+            LocalNodeClient::<S, _>::download_hashed_certificate_value(nodes.to_owned(), *location)
         }))
         .await
         .into_iter()
@@ -785,7 +785,7 @@ where
         future::join_all(
             blob_ids
                 .iter()
-                .map(|blob_id| LocalNodeClient::<S>::download_blob(nodes.to_owned(), *blob_id)),
+                .map(|blob_id| LocalNodeClient::<S, _>::download_blob(nodes.to_owned(), *blob_id)),
         )
         .await
         .into_iter()
@@ -897,7 +897,7 @@ where
         committees: BTreeMap<Epoch, Committee>,
         max_epoch: Epoch,
         mut node: A,
-        node_client: LocalNodeClient<S>,
+        node_client: LocalNodeClient<S, ChainStateView<S::Context>>,
     ) -> Result<(ValidatorName, u64, Vec<Certificate>), NodeError>
     where
         A: LocalValidatorNode + Clone + 'static,
@@ -2260,7 +2260,7 @@ where
     }
 
     /// Wraps this chain client into an `Arc<Mutex<_>>`.
-    pub fn into_arc(self) -> ArcChainClient<P, S> {
+    pub fn into_arc(self) -> ArcChainClient<P, S, ChainStateView<S::Context>> {
         ArcChainClient::new(self)
     }
 }
@@ -2280,29 +2280,29 @@ enum ExecuteBlockOutcome {
 
 /// A chain client in an `Arc<Mutex<_>>`, so it can be used by different tasks and threads.
 #[derive(Debug)]
-pub struct ArcChainClient<P, S>(pub Arc<Mutex<ChainClient<P, S>>>);
+pub struct ArcChainClient<P, S, C>(pub Arc<Mutex<ChainClient<P, S, C>>>);
 
-impl<P, S> Deref for ArcChainClient<P, S> {
-    type Target = Arc<Mutex<ChainClient<P, S>>>;
+impl<P, S, C> Deref for ArcChainClient<P, S, C> {
+    type Target = Arc<Mutex<ChainClient<P, S, C>>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<P, S> Clone for ArcChainClient<P, S> {
+impl<P, S, C> Clone for ArcChainClient<P, S, C> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl<P, S> ArcChainClient<P, S> {
-    pub fn new(client: ChainClient<P, S>) -> Self {
+impl<P, S, C> ArcChainClient<P, S, C> {
+    pub fn new(client: ChainClient<P, S, C>) -> Self {
         Self(Arc::new(Mutex::new(client)))
     }
 }
 
-impl<P, S> ArcChainClient<P, S>
+impl<P, S> ArcChainClient<P, S, ChainStateView<S::Context>>
 where
     P: ValidatorNodeProvider + Sync,
     <<P as ValidatorNodeProvider>::Node as crate::node::ValidatorNode>::NotificationStream: Send,
@@ -2312,7 +2312,7 @@ where
     async fn local_chain_info(
         &self,
         chain_id: ChainId,
-        local_node: &mut LocalNodeClient<S>,
+        local_node: &mut LocalNodeClient<S, ChainStateView<S::Context>>,
     ) -> Option<Box<ChainInfo>> {
         let mut guard = self.lock().await;
         let Ok(info) = local_node.local_chain_info(chain_id).await else {
@@ -2327,7 +2327,7 @@ where
     async fn local_next_block_height(
         &self,
         chain_id: ChainId,
-        local_node: &mut LocalNodeClient<S>,
+        local_node: &mut LocalNodeClient<S, ChainStateView<S::Context>>,
     ) -> Option<BlockHeight> {
         let info = self.local_chain_info(chain_id, local_node).await?;
         Some(info.next_block_height)
@@ -2337,7 +2337,7 @@ where
         &self,
         name: ValidatorName,
         node: <P as ValidatorNodeProvider>::Node,
-        mut local_node: LocalNodeClient<S>,
+        mut local_node: LocalNodeClient<S, ChainStateView<S::Context>>,
         notification: Notification,
     ) {
         match notification.reason {
@@ -2552,7 +2552,7 @@ where
         &self,
         name: ValidatorName,
         node: <P as ValidatorNodeProvider>::Node,
-        node_client: LocalNodeClient<S>,
+        node_client: LocalNodeClient<S, ChainStateView<S::Context>>,
     ) -> Result<(), ChainClientError> {
         let ((committees, max_epoch), chain_id, current_tracker) = {
             let mut guard = self.lock().await;
@@ -2564,7 +2564,7 @@ where
         };
         // Proceed to downloading received certificates.
         let (name, tracker, certificates) =
-            ChainClient::<P, S>::synchronize_received_certificates_from_validator(
+            ChainClient::<P, S, _>::synchronize_received_certificates_from_validator(
                 chain_id,
                 name,
                 current_tracker,

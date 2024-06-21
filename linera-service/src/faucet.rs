@@ -13,6 +13,7 @@ use linera_base::{
     identifiers::{ChainId, MessageId},
     ownership::ChainOwnership,
 };
+use linera_chain::ChainStateView;
 use linera_core::{
     client::{ChainClient, ChainClientError},
     data_types::ClientOutcome,
@@ -34,14 +35,14 @@ use crate::{chain_listener::ClientContext, config::GenesisConfig, util};
 mod tests;
 
 /// The root GraphQL query type.
-pub struct QueryRoot<P, S> {
+pub struct QueryRoot<P, S, Ch> {
     genesis_config: Arc<GenesisConfig>,
-    client: Arc<Mutex<ChainClient<P, S>>>,
+    client: Arc<Mutex<ChainClient<P, S, Ch>>>,
 }
 
 /// The root GraphQL mutation type.
-pub struct MutationRoot<P, S, C> {
-    client: Arc<Mutex<ChainClient<P, S>>>,
+pub struct MutationRoot<P, S, C, Ch> {
+    client: Arc<Mutex<ChainClient<P, S, Ch>>>,
     context: Arc<Mutex<C>>,
     amount: Amount,
     end_timestamp: Timestamp,
@@ -79,7 +80,7 @@ pub struct Validator {
 }
 
 #[Object(cache_control(no_cache))]
-impl<P, S> QueryRoot<P, S>
+impl<P, S> QueryRoot<P, S, ChainStateView<S::Context>>
 where
     P: ValidatorNodeProvider + Send + Sync + 'static,
     S: Storage + Clone + Send + Sync + 'static,
@@ -111,12 +112,17 @@ where
 }
 
 #[Object(cache_control(no_cache))]
-impl<P, S, C> MutationRoot<P, S, C>
+impl<P, S, C> MutationRoot<P, S, C, ChainStateView<S::Context>>
 where
     P: ValidatorNodeProvider + Send + Sync + 'static,
     <P as ValidatorNodeProvider>::Node: Sync,
     S: Storage + Clone + Send + Sync + 'static,
-    C: ClientContext<ValidatorNodeProvider = P, Storage = S> + Send + 'static,
+    C: ClientContext<
+            ValidatorNodeProvider = P,
+            Storage = S,
+            ChainState = ChainStateView<S::Context>,
+        > + Send
+        + 'static,
     ViewError: From<S::ContextError>,
 {
     /// Creates a new chain with the given authentication key, and transfers tokens to it.
@@ -125,12 +131,17 @@ where
     }
 }
 
-impl<P, S, C> MutationRoot<P, S, C>
+impl<P, S, C> MutationRoot<P, S, C, ChainStateView<S::Context>>
 where
     P: ValidatorNodeProvider + Send + Sync + 'static,
     <P as ValidatorNodeProvider>::Node: Sync,
     S: Storage + Clone + Send + Sync + 'static,
-    C: ClientContext<ValidatorNodeProvider = P, Storage = S> + Send + 'static,
+    C: ClientContext<
+            ValidatorNodeProvider = P,
+            Storage = S,
+            ChainState = ChainStateView<S::Context>,
+        > + Send
+        + 'static,
     ViewError: From<S::ContextError>,
 {
     async fn do_claim(&self, public_key: PublicKey) -> Result<ClaimOutcome, Error> {
@@ -184,7 +195,7 @@ where
     }
 }
 
-impl<P, S, C> MutationRoot<P, S, C> {
+impl<P, S, C, Ch> MutationRoot<P, S, C, Ch> {
     /// Multiplies a `u128` with a `u64` and returns the result as a 192-bit number.
     fn multiply(a: u128, b: u64) -> [u64; 3] {
         let lower = u128::from(u64::MAX);
@@ -197,8 +208,8 @@ impl<P, S, C> MutationRoot<P, S, C> {
 }
 
 /// A GraphQL interface to request a new chain with tokens.
-pub struct FaucetService<P, S, C> {
-    client: Arc<Mutex<ChainClient<P, S>>>,
+pub struct FaucetService<P, S, C, Ch> {
+    client: Arc<Mutex<ChainClient<P, S, Ch>>>,
     context: Arc<Mutex<C>>,
     genesis_config: Arc<GenesisConfig>,
     port: NonZeroU16,
@@ -208,7 +219,7 @@ pub struct FaucetService<P, S, C> {
     start_balance: Amount,
 }
 
-impl<P, S: Clone, C> Clone for FaucetService<P, S, C> {
+impl<P, S: Clone, C, Ch> Clone for FaucetService<P, S, C, Ch> {
     fn clone(&self) -> Self {
         Self {
             client: self.client.clone(),
@@ -223,17 +234,22 @@ impl<P, S: Clone, C> Clone for FaucetService<P, S, C> {
     }
 }
 
-impl<P, S, C> FaucetService<P, S, C>
+impl<P, S, C> FaucetService<P, S, C, ChainStateView<S::Context>>
 where
     P: ValidatorNodeProvider + Send + Sync + Clone + 'static,
     S: Storage + Clone + Send + Sync + 'static,
-    C: ClientContext<ValidatorNodeProvider = P, Storage = S> + Send + 'static,
+    C: ClientContext<
+            ValidatorNodeProvider = P,
+            Storage = S,
+            ChainState = ChainStateView<S::Context>,
+        > + Send
+        + 'static,
     ViewError: From<S::ContextError>,
 {
     /// Creates a new instance of the faucet service.
     pub async fn new(
         port: NonZeroU16,
-        mut client: ChainClient<P, S>,
+        mut client: ChainClient<P, S, ChainStateView<S::Context>>,
         context: C,
         amount: Amount,
         end_timestamp: Timestamp,
@@ -254,7 +270,7 @@ where
         })
     }
 
-    pub fn schema(&self) -> Schema<QueryRoot<P, S>, MutationRoot<P, S, C>, EmptySubscription> {
+    pub fn schema(&self) -> FaucetSchema<P, S, C> {
         let mutation_root = MutationRoot {
             client: self.client.clone(),
             context: self.context.clone(),
@@ -299,3 +315,9 @@ where
         schema.execute(request.into_inner()).await.into()
     }
 }
+
+type FaucetSchema<P, S, C> = Schema<
+    QueryRoot<P, S, ChainStateView<<S as Storage>::Context>>,
+    MutationRoot<P, S, C, ChainStateView<<S as Storage>::Context>>,
+    EmptySubscription,
+>;

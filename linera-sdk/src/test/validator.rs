@@ -16,6 +16,7 @@ use linera_base::{
     identifiers::{ApplicationId, BytecodeId, ChainDescription, ChainId},
     ownership::ChainOwnership,
 };
+use linera_chain::ChainStateView;
 use linera_core::worker::WorkerState;
 use linera_execution::{
     committee::{Committee, Epoch, ValidatorName},
@@ -42,7 +43,7 @@ use crate::ContractAbi;
 pub struct TestValidator {
     key_pair: KeyPair,
     committee: Committee,
-    worker: Arc<Mutex<WorkerState<MemoryStorage<TestClock>>>>,
+    worker: Arc<Mutex<TestWorker>>,
     clock: TestClock,
     chains: Arc<DashMap<ChainId, ActiveChain>>,
 }
@@ -69,7 +70,7 @@ impl TestValidator {
             .now_or_never()
             .expect("execution of MemoryStorage::new should not await anything");
         let clock = storage.clock.clone();
-        let worker = WorkerState::new(
+        let worker = TestWorker::new(
             "Single validator node".to_string(),
             Some(key_pair.copy()),
             storage,
@@ -133,7 +134,7 @@ impl TestValidator {
     }
 
     /// Returns the locked [`WorkerState`] of this validator.
-    pub(crate) async fn worker(&self) -> MutexGuard<WorkerState<MemoryStorage<TestClock>>> {
+    pub(crate) async fn worker(&self) -> MutexGuard<TestWorker> {
         self.worker.lock().await
     }
 
@@ -229,3 +230,9 @@ impl TestValidator {
         self.chains.insert(description.into(), chain);
     }
 }
+
+/// A type alias for a [`WorkerState`] with storage in memory.
+pub type TestWorker = WorkerState<
+    MemoryStorage<TestClock>,
+    ChainStateView<<MemoryStorage<TestClock> as Storage>::Context>,
+>;

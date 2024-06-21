@@ -14,7 +14,7 @@ use linera_base::{
     data_types::Timestamp,
     identifiers::{ChainId, Destination},
 };
-use linera_chain::data_types::OutgoingMessage;
+use linera_chain::{data_types::OutgoingMessage, ChainStateView};
 use linera_core::{
     client::{ArcChainClient, ChainClient},
     node::{LocalValidatorNodeProvider, ValidatorNode, ValidatorNodeProvider},
@@ -46,13 +46,14 @@ pub struct ChainListenerConfig {
 pub trait ClientContext {
     type ValidatorNodeProvider: LocalValidatorNodeProvider;
     type Storage: Storage;
+    type ChainState;
 
     fn wallet(&self) -> &Wallet;
 
     fn make_chain_client(
         &self,
         chain_id: ChainId,
-    ) -> ChainClient<Self::ValidatorNodeProvider, Self::Storage>;
+    ) -> ChainClient<Self::ValidatorNodeProvider, Self::Storage, Self::ChainState>;
 
     fn update_wallet_for_new_chain(
         &mut self,
@@ -63,18 +64,18 @@ pub trait ClientContext {
 
     async fn update_wallet<'a>(
         &'a mut self,
-        client: &'a mut ChainClient<Self::ValidatorNodeProvider, Self::Storage>,
+        client: &'a mut ChainClient<Self::ValidatorNodeProvider, Self::Storage, Self::ChainState>,
     );
 }
 
 /// A `ChainListener` is a process that listens to notifications from validators and reacts
 /// appropriately.
-pub struct ChainListener<P, S> {
+pub struct ChainListener<P, S, C> {
     config: ChainListenerConfig,
-    clients: ChainClients<P, S>,
+    clients: ChainClients<P, S, C>,
 }
 
-impl<P, S> ChainListener<P, S>
+impl<P, S> ChainListener<P, S, ChainStateView<S::Context>>
 where
     P: ValidatorNodeProvider + Send + Sync + 'static,
     <<P as ValidatorNodeProvider>::Node as ValidatorNode>::NotificationStream: Send,
@@ -82,14 +83,22 @@ where
     ViewError: From<S::ContextError>,
 {
     /// Creates a new chain listener given client chains.
-    pub(crate) fn new(config: ChainListenerConfig, clients: ChainClients<P, S>) -> Self {
+    pub(crate) fn new(
+        config: ChainListenerConfig,
+        clients: ChainClients<P, S, ChainStateView<S::Context>>,
+    ) -> Self {
         Self { config, clients }
     }
 
     /// Runs the chain listener.
     pub async fn run<C>(self, context: Arc<Mutex<C>>, storage: S)
     where
-        C: ClientContext<ValidatorNodeProvider = P, Storage = S> + Send + 'static,
+        C: ClientContext<
+                ValidatorNodeProvider = P,
+                Storage = S,
+                ChainState = ChainStateView<S::Context>,
+            > + Send
+            + 'static,
     {
         let chain_ids = context.lock().await.wallet().chain_ids();
         for chain_id in chain_ids {
@@ -105,12 +114,17 @@ where
 
     fn run_with_chain_id<C>(
         chain_id: ChainId,
-        clients: ChainClients<P, S>,
+        clients: ChainClients<P, S, ChainStateView<S::Context>>,
         context: Arc<Mutex<C>>,
         storage: S,
         config: ChainListenerConfig,
     ) where
-        C: ClientContext<ValidatorNodeProvider = P, Storage = S> + Send + 'static,
+        C: ClientContext<
+                ValidatorNodeProvider = P,
+                Storage = S,
+                ChainState = ChainStateView<S::Context>,
+            > + Send
+            + 'static,
     {
         let _handle = tokio::task::spawn(async move {
             if let Err(err) =
@@ -123,13 +137,18 @@ where
 
     async fn run_client_stream<C>(
         chain_id: ChainId,
-        clients: ChainClients<P, S>,
+        clients: ChainClients<P, S, ChainStateView<S::Context>>,
         context: Arc<Mutex<C>>,
         storage: S,
         config: ChainListenerConfig,
     ) -> anyhow::Result<()>
     where
-        C: ClientContext<ValidatorNodeProvider = P, Storage = S> + Send + 'static,
+        C: ClientContext<
+                ValidatorNodeProvider = P,
+                Storage = S,
+                ChainState = ChainStateView<S::Context>,
+            > + Send
+            + 'static,
     {
         let client = {
             let mut map_guard = clients.map_lock().await;

@@ -18,7 +18,7 @@ use linera_base::{
     identifiers::{Account, BlobId, BytecodeId, ChainId},
     ownership::ChainOwnership,
 };
-use linera_chain::data_types::Certificate;
+use linera_chain::{data_types::Certificate, ChainStateView};
 use linera_core::{
     client::{ArcChainClient, ChainClient, Client},
     data_types::ClientOutcome,
@@ -66,9 +66,9 @@ use {
 
 use crate::{client_options::ChainOwnershipConfig, ClientOptions};
 
-pub struct ClientContext<Storage> {
+pub struct ClientContext<Storage, ChainState> {
     pub(crate) wallet_state: WalletState,
-    pub(crate) client: Arc<Client<NodeProvider, Storage>>,
+    pub(crate) client: Arc<Client<NodeProvider, Storage, ChainState>>,
     pub(crate) send_timeout: Duration,
     pub(crate) recv_timeout: Duration,
     pub(crate) notification_retry_delay: Duration,
@@ -77,19 +77,23 @@ pub struct ClientContext<Storage> {
 }
 
 #[async_trait]
-impl<S> chain_listener::ClientContext for ClientContext<S>
+impl<S> chain_listener::ClientContext for ClientContext<S, ChainStateView<S::Context>>
 where
     S: Storage + Clone + Send + Sync + 'static,
     ViewError: From<<S as Storage>::ContextError>,
 {
     type ValidatorNodeProvider = NodeProvider;
     type Storage = S;
+    type ChainState = ChainStateView<S::Context>;
 
     fn wallet(&self) -> &Wallet {
         self.wallet_state.inner()
     }
 
-    fn make_chain_client(&self, chain_id: ChainId) -> ChainClient<NodeProvider, S> {
+    fn make_chain_client(
+        &self,
+        chain_id: ChainId,
+    ) -> ChainClient<NodeProvider, S, ChainStateView<S::Context>> {
         self.make_chain_client(chain_id)
     }
 
@@ -103,12 +107,15 @@ where
         self.save_wallet();
     }
 
-    async fn update_wallet<'a>(&'a mut self, client: &'a mut ChainClient<NodeProvider, S>) {
+    async fn update_wallet<'a>(
+        &'a mut self,
+        client: &'a mut ChainClient<NodeProvider, S, ChainStateView<S::Context>>,
+    ) {
         self.update_and_save_wallet(client).await;
     }
 }
 
-impl<S> ClientContext<S>
+impl<S> ClientContext<S, ChainStateView<S::Context>>
 where
     S: Storage + Clone + Send + Sync + 'static,
     ViewError: From<S::ContextError>,
@@ -165,7 +172,10 @@ where
             .expect("No chain specified in wallet with no default chain")
     }
 
-    fn make_chain_client(&self, chain_id: ChainId) -> ChainClient<NodeProvider, S> {
+    fn make_chain_client(
+        &self,
+        chain_id: ChainId,
+    ) -> ChainClient<NodeProvider, S, ChainStateView<S::Context>> {
         let chain = self
             .wallet()
             .get(chain_id)
@@ -209,11 +219,17 @@ where
         info!("Saved user chain states");
     }
 
-    async fn update_wallet_from_client(&mut self, state: &mut ChainClient<NodeProvider, S>) {
+    async fn update_wallet_from_client(
+        &mut self,
+        state: &mut ChainClient<NodeProvider, S, ChainStateView<S::Context>>,
+    ) {
         self.wallet_mut().update_from_state(state).await
     }
 
-    pub async fn update_and_save_wallet(&mut self, state: &mut ChainClient<NodeProvider, S>) {
+    pub async fn update_and_save_wallet(
+        &mut self,
+        state: &mut ChainClient<NodeProvider, S, ChainStateView<S::Context>>,
+    ) {
         self.update_wallet_from_client(state).await;
         self.save_wallet()
     }
@@ -240,7 +256,7 @@ where
 
     pub async fn process_inbox(
         &mut self,
-        chain_client: &ArcChainClient<NodeProvider, S>,
+        chain_client: &ArcChainClient<NodeProvider, S, ChainStateView<S::Context>>,
     ) -> anyhow::Result<Vec<Certificate>> {
         let mut certificates = Vec::new();
         // Try processing the inbox optimistically without waiting for validator notifications.
@@ -287,7 +303,7 @@ where
 
     pub async fn publish_bytecode(
         &mut self,
-        chain_client: &ArcChainClient<NodeProvider, S>,
+        chain_client: &ArcChainClient<NodeProvider, S, ChainStateView<S::Context>>,
         contract: PathBuf,
         service: PathBuf,
     ) -> anyhow::Result<BytecodeId> {
@@ -329,7 +345,7 @@ where
 
     pub async fn publish_blob(
         &mut self,
-        chain_client: &ArcChainClient<NodeProvider, S>,
+        chain_client: &ArcChainClient<NodeProvider, S, ChainStateView<S::Context>>,
         blob_path: PathBuf,
     ) -> anyhow::Result<BlobId> {
         info!("Loading blob file");
@@ -360,11 +376,11 @@ where
     /// timeout, it will wait and retry.
     pub async fn apply_client_command<E, F, Fut, T>(
         &mut self,
-        client: &ArcChainClient<NodeProvider, S>,
+        client: &ArcChainClient<NodeProvider, S, ChainStateView<S::Context>>,
         mut f: F,
     ) -> anyhow::Result<T>
     where
-        F: FnMut(OwnedMutexGuard<ChainClient<NodeProvider, S>>) -> Fut,
+        F: FnMut(OwnedMutexGuard<ChainClient<NodeProvider, S, ChainStateView<S::Context>>>) -> Fut,
         Fut: Future<Output = Result<ClientOutcome<T>, E>>,
         anyhow::Error: From<E>,
     {
@@ -422,7 +438,7 @@ where
 }
 
 #[cfg(feature = "benchmark")]
-impl<S> ClientContext<S>
+impl<S> ClientContext<S, ChainStateView<S::Context>>
 where
     S: Storage + Clone + Send + Sync + 'static,
     ViewError: From<S::ContextError>,

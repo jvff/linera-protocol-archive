@@ -46,21 +46,17 @@ use crate::{
 };
 
 /// The state of the chain worker.
-pub struct ChainWorkerState<StorageClient>
-where
-    StorageClient: Storage + Clone + Send + Sync + 'static,
-    ViewError: From<StorageClient::ContextError>,
-{
+pub struct ChainWorkerState<StorageClient, ChainState> {
     config: ChainWorkerConfig,
     storage: StorageClient,
-    chain: ChainStateView<StorageClient::Context>,
-    shared_chain_view: Option<Arc<RwLock<ChainStateView<StorageClient::Context>>>>,
+    chain: ChainState,
+    shared_chain_view: Option<Arc<RwLock<ChainState>>>,
     recent_hashed_certificate_values: Arc<ValueCache<CryptoHash, HashedCertificateValue>>,
     recent_hashed_blobs: Arc<ValueCache<BlobId, HashedBlob>>,
     knows_chain_is_active: bool,
 }
 
-impl<StorageClient> ChainWorkerState<StorageClient>
+impl<StorageClient> ChainWorkerState<StorageClient, ChainStateView<StorageClient::Context>>
 where
     StorageClient: Storage + Clone + Send + Sync + 'static,
     ViewError: From<StorageClient::ContextError>,

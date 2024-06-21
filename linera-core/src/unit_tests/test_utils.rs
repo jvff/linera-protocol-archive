@@ -13,8 +13,9 @@ use linera_base::{
     data_types::*,
     identifiers::{BlobId, ChainDescription, ChainId},
 };
-use linera_chain::data_types::{
-    BlockProposal, Certificate, HashedCertificateValue, LiteCertificate,
+use linera_chain::{
+    data_types::{BlockProposal, Certificate, HashedCertificateValue, LiteCertificate},
+    ChainStateView,
 };
 use linera_execution::{
     committee::{Committee, ValidatorName},
@@ -76,19 +77,27 @@ pub enum FaultType {
 /// All methods are executed in spawned Tokio tasks, so that canceling a client task doesn't cause
 /// the validator's tasks to be canceled: In a real network, a validator also wouldn't cancel
 /// tasks if the client stopped waiting for the response.
-struct LocalValidator<S> {
-    state: WorkerState<S>,
+struct LocalValidator<S, C> {
+    state: WorkerState<S, C>,
     fault_type: FaultType,
     notifier: Notifier<Notification>,
 }
 
-#[derive(Clone)]
-pub struct LocalValidatorClient<S> {
+pub struct LocalValidatorClient<S, C> {
     name: ValidatorName,
-    client: Arc<Mutex<LocalValidator<S>>>,
+    client: Arc<Mutex<LocalValidator<S, C>>>,
 }
 
-impl<S> ValidatorNode for LocalValidatorClient<S>
+impl<S, C> Clone for LocalValidatorClient<S, C> {
+    fn clone(&self) -> Self {
+        LocalValidatorClient {
+            name: self.name,
+            client: self.client.clone(),
+        }
+    }
+}
+
+impl<S> ValidatorNode for LocalValidatorClient<S, ChainStateView<S::Context>>
 where
     S: Storage + Clone + Send + Sync + 'static,
     ViewError: From<S::ContextError>,
@@ -177,12 +186,12 @@ where
     }
 }
 
-impl<S> LocalValidatorClient<S>
+impl<S> LocalValidatorClient<S, ChainStateView<S::Context>>
 where
     S: Storage + Clone + Send + Sync + 'static,
     ViewError: From<S::ContextError>,
 {
-    fn new(name: ValidatorName, state: WorkerState<S>) -> Self {
+    fn new(name: ValidatorName, state: WorkerState<S, ChainStateView<S::Context>>) -> Self {
         let client = LocalValidator {
             fault_type: FaultType::Honest,
             state,
@@ -390,15 +399,20 @@ where
     }
 }
 
-#[derive(Clone)]
-pub struct NodeProvider<S>(BTreeMap<ValidatorName, Arc<Mutex<LocalValidator<S>>>>);
+pub struct NodeProvider<S, C>(BTreeMap<ValidatorName, Arc<Mutex<LocalValidator<S, C>>>>);
 
-impl<S> LocalValidatorNodeProvider for NodeProvider<S>
+impl<S, C> Clone for NodeProvider<S, C> {
+    fn clone(&self) -> Self {
+        NodeProvider(self.0.clone())
+    }
+}
+
+impl<S> LocalValidatorNodeProvider for NodeProvider<S, ChainStateView<S::Context>>
 where
     S: Storage + Clone + Send + Sync + 'static,
     ViewError: From<S::ContextError>,
 {
-    type Node = LocalValidatorClient<S>;
+    type Node = LocalValidatorClient<S, ChainStateView<S::Context>>;
 
     fn make_node(&self, _: &str) -> Result<Self::Node, NodeError> {
         unimplemented!()
@@ -428,12 +442,13 @@ where
     }
 }
 
-impl<S> FromIterator<LocalValidatorClient<S>> for NodeProvider<S> {
+impl<S, C> FromIterator<LocalValidatorClient<S, C>> for NodeProvider<S, C> {
     fn from_iter<T>(iter: T) -> Self
     where
-        T: IntoIterator<Item = LocalValidatorClient<S>>,
+        T: IntoIterator<Item = LocalValidatorClient<S, C>>,
     {
-        let destructure = |validator: LocalValidatorClient<S>| (validator.name, validator.client);
+        let destructure =
+            |validator: LocalValidatorClient<S, C>| (validator.name, validator.client);
         Self(iter.into_iter().map(destructure).collect())
     }
 }
@@ -444,12 +459,12 @@ impl<S> FromIterator<LocalValidatorClient<S>> for NodeProvider<S> {
 // * When using `LocalValidatorClient`, clients communicate with an exact quorum then stop.
 // * Most tests have 1 faulty validator out 4 so that there is exactly only 1 quorum to
 // communicate with.
-pub struct TestBuilder<B: StorageBuilder> {
+pub struct TestBuilder<B: StorageBuilder, ChainState> {
     storage_builder: B,
     pub initial_committee: Committee,
     admin_id: ChainId,
     genesis_storage_builder: GenesisStorageBuilder,
-    validator_clients: Vec<LocalValidatorClient<B::Storage>>,
+    validator_clients: Vec<LocalValidatorClient<B::Storage, ChainState>>,
     validator_storages: HashMap<ValidatorName, B::Storage>,
     chain_client_storages: Vec<B::Storage>,
 }
@@ -505,7 +520,7 @@ impl GenesisStorageBuilder {
     }
 }
 
-impl<B> TestBuilder<B>
+impl<B> TestBuilder<B, ChainStateView<<B::Storage as Storage>::Context>>
 where
     B: StorageBuilder,
     ViewError: From<<B::Storage as Storage>::ContextError>,
@@ -580,7 +595,14 @@ where
         &mut self,
         description: ChainDescription,
         balance: Amount,
-    ) -> Result<ChainClient<NodeProvider<B::Storage>, B::Storage>, anyhow::Error> {
+    ) -> Result<
+        ChainClient<
+            NodeProvider<B::Storage, ChainStateView<<B::Storage as Storage>::Context>>,
+            B::Storage,
+            ChainStateView<<B::Storage as Storage>::Context>,
+        >,
+        anyhow::Error,
+    > {
         let key_pair = KeyPair::generate();
         let public_key = key_pair.public();
         // Remember what's in the genesis store for future clients to join.
@@ -647,11 +669,17 @@ where
         self.admin_id
     }
 
-    pub fn make_node_provider(&self) -> NodeProvider<B::Storage> {
+    pub fn make_node_provider(
+        &self,
+    ) -> NodeProvider<B::Storage, ChainStateView<<B::Storage as Storage>::Context>> {
         self.validator_clients.iter().cloned().collect()
     }
 
-    pub fn node(&mut self, index: usize) -> &mut LocalValidatorClient<B::Storage> {
+    pub fn node(
+        &mut self,
+        index: usize,
+    ) -> &mut LocalValidatorClient<B::Storage, ChainStateView<<B::Storage as Storage>::Context>>
+    {
         &mut self.validator_clients[index]
     }
 
@@ -672,7 +700,14 @@ where
         key_pair: KeyPair,
         block_hash: Option<CryptoHash>,
         block_height: BlockHeight,
-    ) -> Result<ChainClient<NodeProvider<B::Storage>, B::Storage>, anyhow::Error> {
+    ) -> Result<
+        ChainClient<
+            NodeProvider<B::Storage, ChainStateView<<B::Storage as Storage>::Context>>,
+            B::Storage,
+            ChainStateView<<B::Storage as Storage>::Context>,
+        >,
+        anyhow::Error,
+    > {
         // Note that new clients are only given the genesis store: they must figure out
         // the rest by asking validators.
         let storage = self.make_storage().await?;

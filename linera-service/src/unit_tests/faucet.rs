@@ -12,11 +12,12 @@ use linera_base::{
     data_types::{Amount, Timestamp},
     identifiers::{ChainDescription, ChainId},
 };
+use linera_chain::ChainStateView;
 use linera_core::{
     client::ChainClient,
     test_utils::{FaultType, MemoryStorageBuilder, NodeProvider, StorageBuilder as _, TestBuilder},
 };
-use linera_storage::{MemoryStorage, TestClock};
+use linera_storage::{MemoryStorage, Storage, TestClock};
 
 use super::MutationRoot;
 use crate::{chain_listener, wallet::Wallet};
@@ -27,18 +28,22 @@ struct ClientContext {
 }
 
 type TestStorage = MemoryStorage<TestClock>;
-type TestProvider = NodeProvider<TestStorage>;
+type TestProvider = NodeProvider<TestStorage, ChainStateView<<TestStorage as Storage>::Context>>;
 
 #[async_trait]
 impl chain_listener::ClientContext for ClientContext {
     type ValidatorNodeProvider = TestProvider;
     type Storage = TestStorage;
+    type ChainState = ChainStateView<<TestStorage as Storage>::Context>;
 
     fn wallet(&self) -> &Wallet {
         unimplemented!()
     }
 
-    fn make_chain_client(&self, _: ChainId) -> ChainClient<TestProvider, TestStorage> {
+    fn make_chain_client(
+        &self,
+        _: ChainId,
+    ) -> ChainClient<TestProvider, TestStorage, Self::ChainState> {
         unimplemented!()
     }
 
@@ -46,7 +51,10 @@ impl chain_listener::ClientContext for ClientContext {
         self.update_calls += 1;
     }
 
-    async fn update_wallet<'a>(&'a mut self, _: &'a mut ChainClient<TestProvider, TestStorage>) {
+    async fn update_wallet<'a>(
+        &'a mut self,
+        _: &'a mut ChainClient<TestProvider, TestStorage, Self::ChainState>,
+    ) {
         self.update_calls += 1;
     }
 }
@@ -91,7 +99,7 @@ async fn test_faucet_rate_limiting() {
 
 #[test]
 fn test_multiply() {
-    let mul = MutationRoot::<(), (), ()>::multiply;
+    let mul = MutationRoot::<(), (), (), ()>::multiply;
     assert_eq!(mul((1 << 127) + (1 << 63), 1 << 63), [1 << 62, 1 << 62, 0]);
     assert_eq!(mul(u128::MAX, u64::MAX), [u64::MAX - 1, u64::MAX, 1]);
 }

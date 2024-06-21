@@ -10,6 +10,7 @@ use anyhow::bail;
 use async_trait::async_trait;
 use futures::{stream::FuturesUnordered, FutureExt as _, StreamExt, TryFutureExt as _};
 use linera_base::crypto::{CryptoRng, KeyPair};
+use linera_chain::ChainStateView;
 use linera_core::{worker::WorkerState, JoinSetExt as _};
 use linera_execution::{committee::ValidatorName, WasmRuntime, WithWasmDefault};
 use linera_rpc::{
@@ -49,9 +50,14 @@ impl ServerContext {
         local_ip_addr: &str,
         shard_id: ShardId,
         storage: S,
-    ) -> (WorkerState<S>, ShardId, ShardConfig)
+    ) -> (
+        WorkerState<S, ChainStateView<S::Context>>,
+        ShardId,
+        ShardConfig,
+    )
     where
         S: Storage + Clone + Send + Sync + 'static,
+        ViewError: From<S::ContextError>,
     {
         let shard = self.server_config.internal_network.shard(shard_id);
         info!("Shard booted on {}", shard.host);
@@ -69,7 +75,7 @@ impl ServerContext {
     fn spawn_simple<S>(
         &self,
         listen_address: &str,
-        states: Vec<(WorkerState<S>, ShardId, ShardConfig)>,
+        states: Vec<ShardState<S>>,
         protocol: simple::TransportProtocol,
         shutdown_signal: CancellationToken,
     ) -> JoinSet<()>
@@ -123,7 +129,7 @@ impl ServerContext {
     fn spawn_grpc<S>(
         &self,
         listen_address: &str,
-        states: Vec<(WorkerState<S>, ShardId, ShardConfig)>,
+        states: Vec<ShardState<S>>,
         shutdown_signal: CancellationToken,
     ) -> JoinSet<()>
     where
@@ -176,6 +182,13 @@ impl ServerContext {
         "0.0.0.0".to_string()
     }
 }
+
+/// Type alias for a shard's worker and configuration.
+type ShardState<S> = (
+    WorkerState<S, ChainStateView<<S as Storage>::Context>>,
+    ShardId,
+    ShardConfig,
+);
 
 #[async_trait]
 impl Runnable for ServerContext {
