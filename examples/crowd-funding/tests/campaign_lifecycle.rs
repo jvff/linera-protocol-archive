@@ -114,6 +114,12 @@ async fn collect_pledges() {
             None,
         );
     }
+
+    let metrics = prometheus::TextEncoder::new()
+        .encode_to_string(&prometheus::gather())
+        .unwrap();
+    println!("METRICS");
+    println!("{metrics}");
 }
 
 /// Test creating a campaign and cancelling it.
