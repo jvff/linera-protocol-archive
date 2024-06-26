@@ -550,11 +550,13 @@ impl<UserInstance> SyncRuntime<UserInstance> {
     }
 }
 
-impl<UserInstance> SyncRuntimeHandle<UserInstance> {
-    fn new(runtime: SyncRuntimeInternal<UserInstance>) -> Self {
+impl<UserInstance> From<SyncRuntimeInternal<UserInstance>> for SyncRuntimeHandle<UserInstance> {
+    fn from(runtime: SyncRuntimeInternal<UserInstance>) -> Self {
         SyncRuntimeHandle(Arc::new(Mutex::new(runtime)))
     }
+}
 
+impl<UserInstance> SyncRuntimeHandle<UserInstance> {
     fn inner(&mut self) -> std::sync::MutexGuard<'_, SyncRuntimeInternal<UserInstance>> {
         self.0
             .try_lock()
@@ -1004,7 +1006,7 @@ impl ContractSyncRuntime {
         } else {
             OracleResponses::Record(Vec::new())
         };
-        let mut runtime = SyncRuntime(Some(ContractSyncRuntimeHandle::new(
+        let mut runtime = SyncRuntime(Some(ContractSyncRuntimeHandle::from(
             SyncRuntimeInternal::new(
                 chain_id,
                 height,
@@ -1329,7 +1331,8 @@ impl ServiceSyncRuntime {
             OracleResponses::Forget,
         );
 
-        ServiceSyncRuntimeHandle::new(runtime_internal).try_query_application(application_id, query)
+        ServiceSyncRuntimeHandle::from(runtime_internal)
+            .try_query_application(application_id, query)
     }
 }
 
