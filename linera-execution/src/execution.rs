@@ -478,14 +478,19 @@ where
     ) -> Result<Vec<u8>, ExecutionError> {
         let (execution_state_sender, mut execution_state_receiver) =
             futures::channel::mpsc::unbounded();
-        let query_result_future = tokio::task::spawn_blocking(move || {
-            ServiceSyncRuntime::new(execution_state_sender, context)
-                .run_query(application_id, query)
+
+        let mut runtime = ServiceSyncRuntime::new(execution_state_sender, context);
+        let (query_results_stream, ()) = async_scoped::TokioScope::scope(|scope| {
+            scope.spawn_blocking(|| runtime.run_query(application_id, query))
         });
+
         while let Some(request) = execution_state_receiver.next().await {
             self.handle_request(request).await?;
         }
-        query_result_future.await?
+
+        let query_results: Vec<_> = query_results_stream.collect().await;
+        assert_eq!(query_results.len(), 1);
+        query_results[0]?
     }
 
     pub async fn list_applications(

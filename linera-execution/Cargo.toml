@@ -34,6 +34,7 @@ web = ["linera-base/web", "linera-views/web"]
 [dependencies]
 anyhow.workspace = true
 async-graphql.workspace = true
+async-scoped.workspace = true
 async-trait.workspace = true
 bcs.workspace = true
 bytes = { workspace = true, optional = true }
