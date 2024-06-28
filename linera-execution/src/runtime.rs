@@ -1059,6 +1059,7 @@ impl ContractSyncRuntime {
             self.execute(application, context.authenticated_signer, |contract| {
                 contract.finalize(context)
             })?;
+            self.inner().loaded_applications.remove(&application);
         }
 
         Ok(())
