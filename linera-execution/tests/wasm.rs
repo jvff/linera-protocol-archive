@@ -3,6 +3,8 @@
 
 #![cfg(with_wasm_runtime)]
 
+mod common;
+
 use std::sync::Arc;
 
 use counter::CounterAbi;
@@ -19,6 +21,8 @@ use linera_execution::{
 use linera_views::views::View;
 use serde_json::json;
 use test_case::test_case;
+
+use self::common::spawn_service_runtime_actor;
 
 /// Test if the "counter" example application in `linera-sdk` compiled to a Wasm module can be
 /// called correctly and consume the expected amount of fuel.
@@ -124,13 +128,19 @@ async fn test_fuel_for_counter_wasm_application(
         next_block_height: BlockHeight(0),
         local_time: Timestamp::from(0),
     };
+    let (execution_request_receiver, runtime_request_sender) = spawn_service_runtime_actor(context);
     let expected_value = async_graphql::Response::new(
         async_graphql::Value::from_json(json!({"value" : increments.into_iter().sum::<u64>()}))
             .unwrap(),
     );
     let request = async_graphql::Request::new("query { value }");
     let Response::User(serialized_value) = view
-        .query_application(context, Query::user(app_id, &request).unwrap())
+        .query_application(
+            context,
+            Query::user(app_id, &request).unwrap(),
+            execution_request_receiver,
+            runtime_request_sender,
+        )
         .await?
     else {
         panic!("unexpected response")
