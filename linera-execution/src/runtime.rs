@@ -24,7 +24,7 @@ use oneshot::Receiver;
 
 use crate::{
     execution::UserAction,
-    execution_state_actor::{ExecutionStateSender, Request},
+    execution_state_actor::{ExecutionRequest, ExecutionStateSender},
     resources::ResourceController,
     util::{ReceiverExt, UnboundedSenderExt},
     BaseRuntime, ContractRuntime, ExecutionError, ExecutionOutcome, FinalizeContext,
@@ -411,7 +411,7 @@ impl SyncRuntimeInternal<UserContractInstance> {
             hash_map::Entry::Vacant(entry) => {
                 let (code, description) = self
                     .execution_state_sender
-                    .send_request(|callback| Request::LoadContract { id, callback })?
+                    .send_request(|callback| ExecutionRequest::LoadContract { id, callback })?
                     .recv_response()?;
 
                 let instance = code.instantiate(SyncRuntimeHandle(this))?;
@@ -524,7 +524,7 @@ impl SyncRuntimeInternal<UserServiceInstance> {
             hash_map::Entry::Vacant(entry) => {
                 let (code, description) = self
                     .execution_state_sender
-                    .send_request(|callback| Request::LoadService { id, callback })?
+                    .send_request(|callback| ExecutionRequest::LoadService { id, callback })?
                     .recv_response()?;
 
                 let instance = code.instantiate(SyncRuntimeHandle(this))?;
@@ -726,37 +726,37 @@ impl<UserInstance> BaseRuntime for SyncRuntimeInternal<UserInstance> {
 
     fn read_system_timestamp(&mut self) -> Result<Timestamp, ExecutionError> {
         self.execution_state_sender
-            .send_request(|callback| Request::SystemTimestamp { callback })?
+            .send_request(|callback| ExecutionRequest::SystemTimestamp { callback })?
             .recv_response()
     }
 
     fn read_chain_balance(&mut self) -> Result<Amount, ExecutionError> {
         self.execution_state_sender
-            .send_request(|callback| Request::ChainBalance { callback })?
+            .send_request(|callback| ExecutionRequest::ChainBalance { callback })?
             .recv_response()
     }
 
     fn read_owner_balance(&mut self, owner: Owner) -> Result<Amount, ExecutionError> {
         self.execution_state_sender
-            .send_request(|callback| Request::OwnerBalance { owner, callback })?
+            .send_request(|callback| ExecutionRequest::OwnerBalance { owner, callback })?
             .recv_response()
     }
 
     fn read_owner_balances(&mut self) -> Result<Vec<(Owner, Amount)>, ExecutionError> {
         self.execution_state_sender
-            .send_request(|callback| Request::OwnerBalances { callback })?
+            .send_request(|callback| ExecutionRequest::OwnerBalances { callback })?
             .recv_response()
     }
 
     fn read_balance_owners(&mut self) -> Result<Vec<Owner>, ExecutionError> {
         self.execution_state_sender
-            .send_request(|callback| Request::BalanceOwners { callback })?
+            .send_request(|callback| ExecutionRequest::BalanceOwners { callback })?
             .recv_response()
     }
 
     fn chain_ownership(&mut self) -> Result<ChainOwnership, ExecutionError> {
         self.execution_state_sender
-            .send_request(|callback| Request::ChainOwnership { callback })?
+            .send_request(|callback| ExecutionRequest::ChainOwnership { callback })?
             .recv_response()
     }
 
@@ -766,7 +766,7 @@ impl<UserInstance> BaseRuntime for SyncRuntimeInternal<UserInstance> {
         self.resource_controller.track_read_operations(1)?;
         let receiver = self
             .execution_state_sender
-            .send_request(move |callback| Request::ContainsKey { id, key, callback })?;
+            .send_request(move |callback| ExecutionRequest::ContainsKey { id, key, callback })?;
         state.contains_key_queries.register(receiver)
     }
 
@@ -784,9 +784,9 @@ impl<UserInstance> BaseRuntime for SyncRuntimeInternal<UserInstance> {
         let id = self.application_id()?;
         let state = self.view_user_states.entry(id).or_default();
         self.resource_controller.track_read_operations(1)?;
-        let receiver = self
-            .execution_state_sender
-            .send_request(move |callback| Request::ReadMultiValuesBytes { id, keys, callback })?;
+        let receiver = self.execution_state_sender.send_request(move |callback| {
+            ExecutionRequest::ReadMultiValuesBytes { id, keys, callback }
+        })?;
         state.read_multi_values_queries.register(receiver)
     }
 
@@ -815,7 +815,7 @@ impl<UserInstance> BaseRuntime for SyncRuntimeInternal<UserInstance> {
         self.resource_controller.track_read_operations(1)?;
         let receiver = self
             .execution_state_sender
-            .send_request(move |callback| Request::ReadValueBytes { id, key, callback })?;
+            .send_request(move |callback| ExecutionRequest::ReadValueBytes { id, key, callback })?;
         state.read_value_queries.register(receiver)
     }
 
@@ -841,7 +841,7 @@ impl<UserInstance> BaseRuntime for SyncRuntimeInternal<UserInstance> {
         let state = self.view_user_states.entry(id).or_default();
         self.resource_controller.track_read_operations(1)?;
         let receiver = self.execution_state_sender.send_request(move |callback| {
-            Request::FindKeysByPrefix {
+            ExecutionRequest::FindKeysByPrefix {
                 id,
                 key_prefix,
                 callback,
@@ -874,7 +874,7 @@ impl<UserInstance> BaseRuntime for SyncRuntimeInternal<UserInstance> {
         let state = self.view_user_states.entry(id).or_default();
         self.resource_controller.track_read_operations(1)?;
         let receiver = self.execution_state_sender.send_request(move |callback| {
-            Request::FindKeyValuesByPrefix {
+            ExecutionRequest::FindKeyValuesByPrefix {
                 id,
                 key_prefix,
                 callback,
@@ -940,7 +940,7 @@ impl<UserInstance> BaseRuntime for SyncRuntimeInternal<UserInstance> {
         let url = url.to_string();
         let bytes = self
             .execution_state_sender
-            .send_request(|callback| Request::HttpPost {
+            .send_request(|callback| ExecutionRequest::HttpPost {
                 url,
                 content_type,
                 payload,
@@ -1185,7 +1185,7 @@ impl ContractRuntime for ContractSyncRuntimeHandle {
         let execution_outcome = self
             .inner()
             .execution_state_sender
-            .send_request(|callback| Request::Transfer {
+            .send_request(|callback| ExecutionRequest::Transfer {
                 source,
                 destination,
                 amount,
@@ -1209,7 +1209,7 @@ impl ContractRuntime for ContractSyncRuntimeHandle {
         let execution_outcome = self
             .inner()
             .execution_state_sender
-            .send_request(|callback| Request::Claim {
+            .send_request(|callback| ExecutionRequest::Claim {
                 source,
                 destination,
                 amount,
@@ -1260,7 +1260,7 @@ impl ContractRuntime for ContractSyncRuntimeHandle {
         let chain_id = ChainId::child(next_message_id);
         let [open_chain_message, subscribe_message] = this
             .execution_state_sender
-            .send_request(|callback| Request::OpenChain {
+            .send_request(|callback| ExecutionRequest::OpenChain {
                 ownership,
                 balance,
                 next_message_id,
@@ -1280,7 +1280,7 @@ impl ContractRuntime for ContractSyncRuntimeHandle {
         let mut this = self.inner();
         let application_id = this.current_application().id;
         this.execution_state_sender
-            .send_request(|callback| Request::CloseChain {
+            .send_request(|callback| ExecutionRequest::CloseChain {
                 application_id,
                 callback,
             })?
@@ -1301,7 +1301,7 @@ impl ContractRuntime for ContractSyncRuntimeHandle {
         this.resource_controller
             .track_bytes_written(batch.size() as u64)?;
         this.execution_state_sender
-            .send_request(|callback| Request::WriteBatch {
+            .send_request(|callback| ExecutionRequest::WriteBatch {
                 id,
                 batch,
                 callback,
@@ -1404,7 +1404,7 @@ impl ServiceRuntime for ServiceSyncRuntimeHandle {
         let this = self.inner();
         let url = url.to_string();
         this.execution_state_sender
-            .send_request(|callback| Request::FetchUrl { url, callback })?
+            .send_request(|callback| ExecutionRequest::FetchUrl { url, callback })?
             .recv_response()
     }
 }
