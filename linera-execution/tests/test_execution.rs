@@ -3,6 +3,8 @@
 
 #![allow(clippy::field_reassign_with_default)]
 
+mod common;
+
 use std::{collections::BTreeMap, vec};
 
 use assert_matches::assert_matches;
@@ -28,6 +30,8 @@ use linera_execution::{
     ResourceControlPolicy, ResourceController, Response, SystemOperation,
 };
 use linera_views::batch::Batch;
+
+use self::common::spawn_service_runtime_actor;
 
 fn make_operation_context() -> OperationContext {
     OperationContext {
@@ -208,13 +212,16 @@ async fn test_simple_user_operation() -> anyhow::Result<()> {
         next_block_height: BlockHeight(0),
         local_time: Timestamp::from(0),
     };
+    let (execution_request_receiver, runtime_request_sender) = spawn_service_runtime_actor(context);
     assert_eq!(
         view.query_application(
             context,
             Query::User {
                 application_id: caller_id,
                 bytes: vec![]
-            }
+            },
+            execution_request_receiver,
+            runtime_request_sender,
         )
         .await
         .unwrap(),
