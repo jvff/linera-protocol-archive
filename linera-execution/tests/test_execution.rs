@@ -1625,3 +1625,56 @@ async fn test_close_chain() {
     .unwrap();
     assert!(view.system.closed.get());
 }
+
+/// Tests if a service is able to handle more than one query without restarting.
+#[tokio::test]
+async fn test_long_lived_service() -> anyhow::Result<()> {
+    const NUM_QUERIES: usize = 5;
+
+    let mut state = SystemExecutionState::default();
+    state.description = Some(ChainDescription::Root(0));
+    let mut view = state.into_view().await;
+
+    let mut applications = register_mock_applications(&mut view, 1).await?;
+    let (application_id, application) = applications
+        .next()
+        .expect("Mock application should be registered");
+
+    let query_context = QueryContext {
+        chain_id: ChainId::root(0),
+        next_block_height: BlockHeight(0),
+        local_time: Timestamp::from(0),
+    };
+    for _ in 0..NUM_QUERIES {
+        application.expect_call(ExpectedCall::handle_query(
+            move |_runtime, context, query| {
+                assert_eq!(context, query_context);
+                assert!(query.is_empty());
+                Ok(vec![])
+            },
+        ));
+    }
+
+    let (mut execution_request_receiver, mut runtime_request_sender) =
+        spawn_service_runtime_actor(query_context);
+
+    let query = Query::User {
+        application_id,
+        bytes: vec![],
+    };
+    for _ in 0..NUM_QUERIES {
+        assert_eq!(
+            view.query_application(
+                query_context,
+                query.clone(),
+                &mut execution_request_receiver,
+                &mut runtime_request_sender,
+            )
+            .await
+            .unwrap(),
+            Response::User(vec![])
+        );
+    }
+
+    Ok(())
+}
