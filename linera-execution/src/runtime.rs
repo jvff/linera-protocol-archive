@@ -542,10 +542,9 @@ impl<UserInstance> SyncRuntime<UserInstance> {
         let handle = self.0.take().expect(
             "`SyncRuntime` should not be used after its `inner` contents have been moved out",
         );
-        let runtime = Arc::into_inner(handle.0)?.into_inner().expect(
-            "`SyncRuntime::into_inner` should only be called \
-            after loaded applications have been cleared",
-        );
+        let runtime = Arc::into_inner(handle.0)?
+            .into_inner()
+            .expect("`SyncRuntime` should run in a single thread which should not panic");
         Some(runtime)
     }
 }
