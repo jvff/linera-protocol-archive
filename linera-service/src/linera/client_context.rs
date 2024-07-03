@@ -18,7 +18,7 @@ use linera_base::{
     identifiers::{Account, BlobId, BytecodeId, ChainId},
     ownership::ChainOwnership,
 };
-use linera_chain::data_types::Certificate;
+use linera_chain::data_types::{Certificate, ExecutedBlock};
 use linera_core::{
     client::{ArcChainClient, ChainClient, Client},
     data_types::ClientOutcome,
@@ -809,5 +809,10 @@ where
             application_id,
             bytes,
         }
+    }
+
+    /// Stages the execution of a block proposal.
+    pub async fn stage_block_execution(&self, block: Block) -> anyhow::Result<ExecutedBlock> {
+        Ok(self.client.stage_block_execution(block).await?.0)
     }
 }

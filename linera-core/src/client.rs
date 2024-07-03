@@ -178,6 +178,20 @@ where
     }
 }
 
+impl<P, S> Client<P, S>
+where
+    S: Storage + Clone + Send + Sync + 'static,
+    ViewError: From<S::ContextError>,
+{
+    /// Stages the execution of a block proposal.
+    pub async fn stage_block_execution(
+        &self,
+        block: Block,
+    ) -> Result<(ExecutedBlock, ChainInfoResponse), ChainClientError> {
+        Ok(self.local_node.stage_block_execution(block).await?)
+    }
+}
+
 /// Policies for automatically handling incoming messages.
 ///
 /// These apply to all messages except for the initial `OpenChain`, which is always accepted.
