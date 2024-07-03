@@ -1,6 +1,8 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+mod mock_application_injector;
+
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     sync::Arc,
