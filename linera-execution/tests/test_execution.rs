@@ -1656,7 +1656,7 @@ async fn test_long_lived_service() -> anyhow::Result<()> {
     }
 
     let (mut execution_request_receiver, mut runtime_request_sender) =
-        spawn_service_runtime_actor(query_context);
+        query_context.spawn_service_runtime_actor();
 
     let query = Query::User {
         application_id,
