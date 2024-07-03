@@ -18,7 +18,7 @@ use linera_base::{
     identifiers::{Account, BlobId, BytecodeId, ChainId},
     ownership::ChainOwnership,
 };
-use linera_chain::data_types::{Certificate, ExecutedBlock};
+use linera_chain::data_types::Certificate;
 use linera_core::{
     client::{ArcChainClient, ChainClient, Client},
     data_types::ClientOutcome,
@@ -45,7 +45,7 @@ use {
         data_types::Amount,
         identifiers::{AccountOwner, ApplicationId, Owner},
     },
-    linera_chain::data_types::{Block, BlockProposal, SignatureAggregator, Vote},
+    linera_chain::data_types::{Block, BlockProposal, ExecutedBlock, SignatureAggregator, Vote},
     linera_core::data_types::ChainInfoQuery,
     linera_execution::{
         committee::Epoch,
