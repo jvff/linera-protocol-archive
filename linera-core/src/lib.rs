@@ -14,7 +14,7 @@ pub mod local_node;
 pub mod node;
 pub mod notifier;
 #[cfg(with_testing)]
-#[path = "unit_tests/test_utils.rs"]
+#[path = "unit_tests/test_utils/mod.rs"]
 pub mod test_utils;
 pub mod worker;
 
