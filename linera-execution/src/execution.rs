@@ -3,7 +3,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use futures::{stream::FuturesUnordered, StreamExt, TryStreamExt};
+use futures::{stream::FuturesUnordered, FutureExt, StreamExt, TryStreamExt};
 use linera_base::{
     data_types::{Amount, BlockHeight, OracleRecord, Timestamp},
     identifiers::{Account, ChainId, Destination, Owner},
@@ -482,7 +482,8 @@ where
         >,
         runtime_request_sender: std::sync::mpsc::Sender<ServiceRuntimeRequest>,
     ) -> Result<Vec<u8>, ExecutionError> {
-        let (response_sender, mut response_receiver) = oneshot::channel();
+        let (response_sender, response_receiver) = oneshot::channel();
+        let mut response_receiver = response_receiver.fuse();
 
         runtime_request_sender
             .send(ServiceRuntimeRequest::Query {
@@ -493,9 +494,11 @@ where
             .expect("Service runtime thread should only stop when `request_sender` is dropped");
 
         loop {
-            tokio::select! {
-                Some(request) = incoming_execution_requests.next() => {
-                    self.handle_request(request).await?;
+            futures::select! {
+                maybe_request = incoming_execution_requests.next() => {
+                    if let Some(request) = maybe_request {
+                        self.handle_request(request).await?;
+                    }
                 }
                 response = &mut response_receiver => {
                     return response.map_err(|_| ExecutionError::MissingRuntimeResponse)?;
