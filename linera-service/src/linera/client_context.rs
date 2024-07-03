@@ -549,15 +549,17 @@ where
                 )
             })
             .collect();
-        let mut chain_client = self.make_chain_client(default_chain_id);
-        // Put at most 1000 fungible token operations in each block.
-        for operations in operations.chunks(1000) {
-            chain_client
-                .execute_without_prepare(operations.to_vec())
-                .await?
-                .expect("should execute block with OpenChain operations");
+        {
+            let mut chain_client = self.make_chain_client(default_chain_id);
+            // Put at most 1000 fungible token operations in each block.
+            for operations in operations.chunks(1000) {
+                chain_client
+                    .execute_without_prepare(operations.to_vec())
+                    .await?
+                    .expect("should execute block with OpenChain operations");
+            }
+            self.update_wallet_from_client(&mut chain_client).await;
         }
-        self.update_wallet_from_client(&mut chain_client).await;
         // Make sure all chains have registered the application now.
         let futures = key_pairs
             .keys()
