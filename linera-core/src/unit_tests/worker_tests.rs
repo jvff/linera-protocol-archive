@@ -39,11 +39,11 @@ use linera_execution::{
     },
     test_utils::{register_mock_applications, ExpectedCall, SystemExecutionState},
     ChannelSubscription, ExecutionError, Message, MessageKind, Query, QueryContext, Response,
-    SystemExecutionError, SystemQuery, SystemResponse,
+    SystemExecutionError, SystemQuery, SystemResponse, TestExecutionRuntimeContext,
 };
 use linera_storage::{MemoryStorage, Storage, TestClock};
 use linera_views::{
-    memory::TEST_MEMORY_MAX_STREAM_QUERIES,
+    memory::{MemoryContext, TEST_MEMORY_MAX_STREAM_QUERIES},
     views::{CryptoHashView, RootView, ViewError},
 };
 use test_case::test_case;
@@ -3882,16 +3882,7 @@ where
     }
     .into_view()
     .await;
-    // TODO: Inline this function
-    async fn helper(
-        state: &mut linera_execution::ExecutionStateView<
-            linera_views::memory::MemoryContext<linera_execution::TestExecutionRuntimeContext>,
-        >,
-    ) -> anyhow::Result<()> {
-        register_mock_applications(state, 1).await?;
-        Ok(())
-    }
-    helper(&mut state).await?;
+    register_mock_applications::<MemoryContext<TestExecutionRuntimeContext>>(&mut state, 1).await?;
 
     let value = HashedCertificateValue::new_confirmed(
         BlockExecutionOutcome {
