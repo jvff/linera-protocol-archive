@@ -3823,11 +3823,6 @@ where
             });
 
     for query_context in query_contexts_before_new_block {
-        let query_context = QueryContext {
-            local_time,
-            ..query_context
-        };
-
         application.expect_call(ExpectedCall::handle_query(
             move |_runtime, context, query| {
                 assert_eq!(context, query_context);
