@@ -3759,7 +3759,7 @@ where
 async fn test_new_block_causes_service_restart<B>(mut storage_builder: B) -> anyhow::Result<()>
 where
     B: StorageBuilder,
-    ViewError: From<<B::Storage as Storage>::ContextError>,
+    ViewError: From<<B::Storage as Storage>::StoreError>,
 {
     const NUM_QUERIES: usize = 2;
     const BLOCK_TIMESTAMP: u64 = 10;
