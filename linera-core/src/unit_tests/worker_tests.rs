@@ -3774,7 +3774,7 @@ where
     let key_pair = KeyPair::generate();
     let balance = Amount::ZERO;
 
-    let (_committee, mut worker) = init_worker_with_chain(
+    let (committee, mut worker) = init_worker_with_chain(
         storage.clone(),
         chain_description,
         key_pair.public(),
@@ -3793,21 +3793,39 @@ where
         .next()
         .expect("Mock application should be registered");
 
-    let first_query_sequence = (0..NUM_QUERIES as u64).map(Timestamp::from);
-    let second_query_sequence =
+    let queries_before_proposal = (0..NUM_QUERIES as u64).map(Timestamp::from);
+    let queries_before_confirmation =
+        (0..NUM_QUERIES as u64).map(|delta| Timestamp::from(NUM_QUERIES as u64 + delta));
+
+    let queries_before_new_block = queries_before_proposal
+        .clone()
+        .chain(queries_before_confirmation.clone());
+    let queries_after_new_block =
         (1..=NUM_QUERIES as u64).map(|delta| Timestamp::from(BLOCK_TIMESTAMP + delta));
 
-    let query_context = QueryContext {
-        chain_id,
-        next_block_height: BlockHeight(0),
-        local_time: Timestamp::from(0),
-    };
     let query = Query::User {
         application_id,
         bytes: vec![],
     };
 
-    for local_time in first_query_sequence.clone() {
+    let query_contexts_before_new_block =
+        queries_before_new_block
+            .clone()
+            .map(|local_time| QueryContext {
+                chain_id,
+                next_block_height: BlockHeight(0),
+                local_time,
+            });
+    let query_contexts_after_new_block =
+        queries_after_new_block
+            .clone()
+            .map(|local_time| QueryContext {
+                chain_id,
+                next_block_height: BlockHeight(1),
+                local_time,
+            });
+
+    for query_context in query_contexts_before_new_block {
         let query_context = QueryContext {
             local_time,
             ..query_context
@@ -3822,7 +3840,7 @@ where
         ));
     }
 
-    for local_time in first_query_sequence {
+    for local_time in queries_before_proposal {
         clock.set(local_time);
 
         assert_eq!(
@@ -3832,17 +3850,44 @@ where
     }
 
     clock.set(Timestamp::from(BLOCK_TIMESTAMP));
-    let block_proposal = make_first_block(chain_id)
-        .with_timestamp(Timestamp::from(BLOCK_TIMESTAMP))
-        .into_fast_proposal(&key_pair);
+    let block = make_first_block(chain_id).with_timestamp(Timestamp::from(BLOCK_TIMESTAMP));
+
+    let block_proposal = block.clone().into_fast_proposal(&key_pair);
     let _ = worker.handle_block_proposal(block_proposal).await?;
 
-    for local_time in second_query_sequence.clone() {
-        let query_context = QueryContext {
-            local_time,
-            ..query_context
-        };
+    for local_time in queries_before_confirmation {
+        clock.set(local_time);
 
+        assert_eq!(
+            worker.query_application(chain_id, query.clone()).await?,
+            Response::User(vec![])
+        );
+    }
+
+    let epoch = Epoch::ZERO;
+    let admin_id = ChainId::root(0);
+    let state_hash = SystemExecutionState {
+        committees: BTreeMap::from_iter([(epoch, committee.clone())]),
+        ownership: ChainOwnership::single(key_pair.public()),
+        balance,
+        ..SystemExecutionState::new(epoch, chain_description, admin_id)
+    }
+    .into_hash()
+    .await;
+    let value = HashedCertificateValue::new_confirmed(
+        BlockExecutionOutcome {
+            messages: vec![],
+            state_hash,
+            oracle_records: vec![],
+        }
+        .with(block),
+    );
+    let certificate = make_certificate(&committee, &worker, value);
+    worker
+        .handle_certificate(certificate, vec![], vec![], None)
+        .await?;
+
+    for query_context in query_contexts_after_new_block.clone() {
         application.expect_call(ExpectedCall::handle_query(
             move |_runtime, context, query| {
                 assert_eq!(context, query_context);
@@ -3852,7 +3897,7 @@ where
         ));
     }
 
-    for local_time in second_query_sequence {
+    for local_time in queries_after_new_block {
         clock.set(local_time);
 
         assert_eq!(
