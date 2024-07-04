@@ -3680,7 +3680,7 @@ where
 async fn test_long_lived_service<B>(mut storage_builder: B) -> anyhow::Result<()>
 where
     B: StorageBuilder,
-    ViewError: From<<B::Storage as Storage>::ContextError>,
+    ViewError: From<<B::Storage as Storage>::StoreError>,
 {
     const NUM_QUERIES: usize = 5;
 
