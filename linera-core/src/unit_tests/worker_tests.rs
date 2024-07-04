@@ -3794,6 +3794,9 @@ where
     let queries_before_confirmation =
         (0..NUM_QUERIES as u64).map(|delta| Timestamp::from(NUM_QUERIES as u64 + delta));
 
+    let queries_before_new_block = queries_before_proposal
+        .clone()
+        .chain(queries_before_confirmation.clone());
     let queries_after_new_block =
         (1..=NUM_QUERIES as u64).map(|delta| Timestamp::from(BLOCK_TIMESTAMP + delta));
 
@@ -3802,16 +3805,8 @@ where
         bytes: vec![],
     };
 
-    let query_contexts_before_proposal =
-        queries_before_proposal
-            .clone()
-            .map(|local_time| QueryContext {
-                chain_id,
-                next_block_height: BlockHeight(0),
-                local_time,
-            });
-    let query_contexts_before_confirmation =
-        queries_before_confirmation
+    let query_contexts_before_new_block =
+        queries_before_new_block
             .clone()
             .map(|local_time| QueryContext {
                 chain_id,
@@ -3827,7 +3822,7 @@ where
                 local_time,
             });
 
-    for query_context in query_contexts_before_proposal {
+    for query_context in query_contexts_before_new_block {
         application.expect_call(ExpectedCall::handle_query(
             move |_runtime, context, query| {
                 assert_eq!(context, query_context);
@@ -3851,16 +3846,6 @@ where
 
     let block_proposal = block.clone().into_fast_proposal(&key_pair);
     let _ = worker.handle_block_proposal(block_proposal).await?;
-
-    for query_context in query_contexts_before_confirmation {
-        application.expect_call(ExpectedCall::handle_query(
-            move |_runtime, context, query| {
-                assert_eq!(context, query_context);
-                assert!(query.is_empty());
-                Ok(vec![])
-            },
-        ));
-    }
 
     for local_time in queries_before_confirmation {
         clock.set(local_time);
