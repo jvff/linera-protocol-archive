@@ -340,9 +340,11 @@ where
             }
         }
 
+        drop(self.runtime_request_sender);
         self.service_runtime_thread
             .await
             .expect("Service runtime thread should not panic");
+
         trace!("`ChainWorkerActor` finished");
     }
 
