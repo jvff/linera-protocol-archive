@@ -3749,3 +3749,121 @@ where
 
     Ok(())
 }
+
+/// Tests if a service is restarted when a block is added to the chain.
+///
+/// A new block must force the service to restart, because the context will have changed and the
+/// application state may have changed.
+#[test_case(MemoryStorageBuilder::default(); "memory")]
+#[cfg_attr(feature = "rocksdb", test_case(RocksDbStorageBuilder::new().await; "rocks_db"))]
+#[cfg_attr(feature = "aws", test_case(DynamoDbStorageBuilder::default(); "dynamo_db"))]
+#[cfg_attr(feature = "scylladb", test_case(ScyllaDbStorageBuilder::default(); "scylla_db"))]
+#[test_log::test(tokio::test(start_paused = true))]
+async fn test_new_block_causes_service_restart<B>(mut storage_builder: B) -> anyhow::Result<()>
+where
+    B: StorageBuilder,
+    ViewError: From<<B::Storage as Storage>::ContextError>,
+{
+    const NUM_QUERIES: usize = 2;
+    const BLOCK_TIMESTAMP: u64 = 10;
+
+    let storage = storage_builder.build().await?;
+    let clock = storage_builder.clock();
+    let chain_description = ChainDescription::Root(1);
+    let chain_id = ChainId::from(chain_description);
+    let key_pair = KeyPair::generate();
+    let balance = Amount::ZERO;
+
+    let (_committee, mut worker) = init_worker_with_chain(
+        storage.clone(),
+        chain_description,
+        key_pair.public(),
+        balance,
+    )
+    .await;
+
+    let mut applications;
+    {
+        let mut chain = storage.load_chain(chain_id).await?;
+        applications = register_mock_applications(&mut chain.execution_state, 1).await?;
+        chain.save().await?;
+    }
+
+    let (application_id, application) = applications
+        .next()
+        .expect("Mock application should be registered");
+
+    let first_query_sequence = (0..NUM_QUERIES as u64).map(Timestamp::from);
+    let second_query_sequence =
+        (1..=NUM_QUERIES as u64).map(|delta| Timestamp::from(BLOCK_TIMESTAMP + delta));
+
+    let query_context = QueryContext {
+        chain_id,
+        next_block_height: BlockHeight(0),
+        local_time: Timestamp::from(0),
+    };
+    let query = Query::User {
+        application_id,
+        bytes: vec![],
+    };
+
+    for local_time in first_query_sequence.clone() {
+        let query_context = QueryContext {
+            local_time,
+            ..query_context
+        };
+
+        application.expect_call(ExpectedCall::handle_query(
+            move |_runtime, context, query| {
+                assert_eq!(context, query_context);
+                assert!(query.is_empty());
+                Ok(vec![])
+            },
+        ));
+    }
+
+    for local_time in first_query_sequence {
+        clock.set(local_time);
+
+        assert_eq!(
+            worker.query_application(chain_id, query.clone()).await?,
+            Response::User(vec![])
+        );
+    }
+
+    clock.set(Timestamp::from(BLOCK_TIMESTAMP));
+    let block_proposal = make_first_block(chain_id)
+        .with_timestamp(Timestamp::from(BLOCK_TIMESTAMP))
+        .into_fast_proposal(&key_pair);
+    let _ = worker.handle_block_proposal(block_proposal).await?;
+
+    for local_time in second_query_sequence.clone() {
+        let query_context = QueryContext {
+            local_time,
+            ..query_context
+        };
+
+        application.expect_call(ExpectedCall::handle_query(
+            move |_runtime, context, query| {
+                assert_eq!(context, query_context);
+                assert!(query.is_empty());
+                Ok(vec![])
+            },
+        ));
+    }
+
+    for local_time in second_query_sequence {
+        clock.set(local_time);
+
+        assert_eq!(
+            worker.query_application(chain_id, query.clone()).await?,
+            Response::User(vec![])
+        );
+    }
+
+    drop(worker);
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    application.assert_no_more_expected_calls();
+
+    Ok(())
+}
