@@ -20,9 +20,7 @@ use linera_chain::{
     },
     ChainStateView,
 };
-use linera_execution::{
-    Query, Response, ServiceSyncRuntime, UserApplicationDescription, UserApplicationId,
-};
+use linera_execution::{Query, Response, UserApplicationDescription, UserApplicationId};
 use linera_storage::Storage;
 use linera_views::views::ViewError;
 use tokio::{
@@ -225,27 +223,9 @@ where
                 ChainWorkerRequest::GetChainStateView { callback } => {
                     callback.send(self.worker.chain_state_view().await).is_ok()
                 }
-                ChainWorkerRequest::QueryApplication { query, callback } => {
-                    let (execution_state_sender, execution_state_receiver) =
-                        futures::channel::mpsc::unbounded();
-                    let (request_sender, request_receiver) = std::sync::mpsc::channel();
-                    let context = self.worker.current_query_context();
-
-                    let runtime_thread = tokio::task::spawn_blocking(move || {
-                        ServiceSyncRuntime::new(execution_state_sender, context)
-                            .run(request_receiver)
-                    });
-
-                    let response = self
-                        .worker
-                        .query_application(query, execution_state_receiver, request_sender)
-                        .await;
-
-                    runtime_thread
-                        .await
-                        .expect("Service runtime thread should not panic");
-                    callback.send(response).is_ok()
-                }
+                ChainWorkerRequest::QueryApplication { query, callback } => callback
+                    .send(self.worker.query_application(query).await)
+                    .is_ok(),
                 #[cfg(with_testing)]
                 ChainWorkerRequest::ReadBytecodeLocation {
                     bytecode_id,
