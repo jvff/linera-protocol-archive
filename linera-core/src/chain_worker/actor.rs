@@ -346,7 +346,7 @@ where
         trace!("`ChainWorkerActor` finished");
     }
 
-    /// Clear the current [`QueryContext`] if any changes might be made, which will force a restart
+    /// Clears the current [`QueryContext`] if any changes might be made, which will force a restart
     /// of the service runtime actor the next time before a query is handled.
     fn maybe_clear_query_context(&mut self, request: &ChainWorkerRequest<StorageClient::Context>) {
         match request {
@@ -370,7 +370,7 @@ where
         }
     }
 
-    /// Configure the [`QueryContext`] before executing a service to handle a query.
+    /// Configures the [`QueryContext`] before executing a service to handle a query.
     ///
     /// Restarts the service runtime actor if needed, otherwise just updates the local time of the
     /// context.
