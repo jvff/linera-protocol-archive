@@ -3710,17 +3710,14 @@ where
         .next()
         .expect("Mock application should be registered");
 
-    let query_context = QueryContext {
+    let query_times = (0..NUM_QUERIES as u64).map(Timestamp::from);
+    let query_contexts = query_times.clone().map(|local_time| QueryContext {
         chain_id,
         next_block_height: BlockHeight(0),
-        local_time: Timestamp::from(0),
-    };
-    for query_time in 0..NUM_QUERIES {
-        let query_context = QueryContext {
-            local_time: Timestamp::from(query_time as u64),
-            ..query_context
-        };
+        local_time,
+    });
 
+    for query_context in query_contexts {
         application.expect_call(ExpectedCall::handle_query(
             move |_runtime, context, query| {
                 assert_eq!(context, query_context);
@@ -3734,8 +3731,8 @@ where
         application_id,
         bytes: vec![],
     };
-    for query_time in 0..NUM_QUERIES {
-        clock.set(Timestamp::from(query_time as u64));
+    for query_time in query_times {
+        clock.set(query_time);
 
         assert_eq!(
             worker.query_application(chain_id, query.clone()).await?,
