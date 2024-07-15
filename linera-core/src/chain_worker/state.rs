@@ -61,7 +61,6 @@ where
     shared_chain_view: Option<Arc<RwLock<ChainStateView<StorageClient::Context>>>>,
     execution_state_receiver: futures::channel::mpsc::UnboundedReceiver<ExecutionRequest>,
     runtime_request_sender: std::sync::mpsc::Sender<ServiceRuntimeRequest>,
-    last_query_context: Option<QueryContext>,
     recent_hashed_certificate_values: Arc<ValueCache<CryptoHash, HashedCertificateValue>>,
     recent_hashed_blobs: Arc<ValueCache<BlobId, HashedBlob>>,
     knows_chain_is_active: bool,
@@ -91,7 +90,6 @@ where
             shared_chain_view: None,
             execution_state_receiver,
             runtime_request_sender,
-            last_query_context: None,
             recent_hashed_certificate_values: certificate_value_cache,
             recent_hashed_blobs: blob_cache,
             knows_chain_is_active: false,
@@ -568,7 +566,6 @@ where
         query: Query,
     ) -> Result<Response, WorkerError> {
         self.0.ensure_is_active()?;
-        self.prepare_to_query_application();
         let local_time = self.0.storage.clock().current_time();
         let response = self
             .0
@@ -581,35 +578,6 @@ where
             )
             .await?;
         Ok(response)
-    }
-
-    /// Configures the [`QueryContext`] before executing a service to handle a query.
-    ///
-    /// Restarts the service runtime actor if needed, otherwise just updates the local time of the
-    /// context.
-    fn prepare_to_query_application(&mut self) {
-        let new_context = self.0.current_query_context();
-
-        let mut expected_context = new_context;
-        if let Some(old_context) = self.0.last_query_context {
-            expected_context.local_time = old_context.local_time;
-        }
-
-        let request = if self.0.last_query_context != Some(expected_context) {
-            ServiceRuntimeRequest::ChangeContext {
-                context: new_context,
-            }
-        } else {
-            ServiceRuntimeRequest::UpdateLocalTime {
-                local_time: new_context.local_time,
-            }
-        };
-
-        self.0
-            .runtime_request_sender
-            .send(request)
-            .expect("Service runtime actor should be running while `ChainWorkerActor` is running");
-        self.0.last_query_context = Some(new_context);
     }
 
     /// Returns the [`BytecodeLocation`] for the requested [`BytecodeId`], if it is known by the
