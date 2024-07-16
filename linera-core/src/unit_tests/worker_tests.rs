@@ -3902,7 +3902,7 @@ where
     }
 
     drop(worker);
-    tokio::time::sleep(Duration::from_secs(1)).await;
+    tokio::task::yield_now().await;
     application.assert_no_more_expected_calls();
 
     Ok(())
