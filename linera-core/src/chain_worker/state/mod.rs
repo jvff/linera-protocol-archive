@@ -136,7 +136,8 @@ where
         &mut self,
         height: BlockHeight,
     ) -> Result<Option<Certificate>, WorkerError> {
-        ChainWorkerStateWithTemporaryChanges(self)
+        ChainWorkerStateWithTemporaryChanges::new(self)
+            .await
             .read_certificate(height)
             .await
     }
@@ -150,7 +151,8 @@ where
         height: BlockHeight,
         index: u32,
     ) -> Result<Option<Event>, WorkerError> {
-        ChainWorkerStateWithTemporaryChanges(self)
+        ChainWorkerStateWithTemporaryChanges::new(self)
+            .await
             .find_event_in_inbox(inbox_id, certificate_hash, height, index)
             .await
     }
@@ -160,7 +162,8 @@ where
         &mut self,
         query: Query,
     ) -> Result<Response, WorkerError> {
-        ChainWorkerStateWithTemporaryChanges(self)
+        ChainWorkerStateWithTemporaryChanges::new(self)
+            .await
             .query_application(query)
             .await
     }
@@ -172,7 +175,8 @@ where
         &mut self,
         bytecode_id: BytecodeId,
     ) -> Result<Option<BytecodeLocation>, WorkerError> {
-        ChainWorkerStateWithTemporaryChanges(self)
+        ChainWorkerStateWithTemporaryChanges::new(self)
+            .await
             .read_bytecode_location(bytecode_id)
             .await
     }
@@ -182,7 +186,8 @@ where
         &mut self,
         application_id: UserApplicationId,
     ) -> Result<UserApplicationDescription, WorkerError> {
-        ChainWorkerStateWithTemporaryChanges(self)
+        ChainWorkerStateWithTemporaryChanges::new(self)
+            .await
             .describe_application(application_id)
             .await
     }
@@ -192,7 +197,8 @@ where
         &mut self,
         block: Block,
     ) -> Result<(ExecutedBlock, ChainInfoResponse), WorkerError> {
-        ChainWorkerStateWithTemporaryChanges(self)
+        ChainWorkerStateWithTemporaryChanges::new(self)
+            .await
             .stage_block_execution(block)
             .await
     }
@@ -213,7 +219,8 @@ where
         &mut self,
         proposal: BlockProposal,
     ) -> Result<(ChainInfoResponse, NetworkActions), WorkerError> {
-        let validation_outcome = ChainWorkerStateWithTemporaryChanges(self)
+        let validation_outcome = ChainWorkerStateWithTemporaryChanges::new(self)
+            .await
             .validate_block(&proposal)
             .await?;
 
@@ -297,7 +304,8 @@ where
                 .vote_for_fallback()
                 .await?;
         }
-        let response = ChainWorkerStateWithTemporaryChanges(self)
+        let response = ChainWorkerStateWithTemporaryChanges::new(self)
+            .await
             .prepare_chain_info_response(query)
             .await?;
         // Trigger any outgoing cross-chain messages that haven't been confirmed yet.
