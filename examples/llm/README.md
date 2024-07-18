@@ -15,6 +15,11 @@ CAVEAT:
 
 * Running larger LLMs with acceptable performance will likely require hardware acceleration ([#1931](https://github.com/linera-io/linera-protocol/issues/1931)).
 
+* The service currently is restarted when the wallet receives a new block for the chain where the
+  application is running from. That means it fetches the model again, which is inefficient. The
+  service should be allowed to continue executing in that case
+  ([#2160](https://github.com/linera-io/linera-protocol/issues/2160)).
+
 
 # How It Works
 
