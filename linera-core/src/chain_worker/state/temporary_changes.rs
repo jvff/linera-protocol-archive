@@ -4,28 +4,29 @@
 //! Operations that don't persist any changes to the chain state.
 
 use linera_base::{
-    crypto::CryptoHash,
-    data_types::{ArithmeticError, BlockHeight, Timestamp},
+    data_types::{ArithmeticError, Timestamp},
     ensure,
 };
 use linera_chain::{
     data_types::{
-        Block, BlockExecutionOutcome, BlockProposal, Certificate, ExecutedBlock,
-        HashedCertificateValue, IncomingMessage, MessageAction, Origin, ProposalContent,
+        Block, BlockExecutionOutcome, BlockProposal, ExecutedBlock, HashedCertificateValue,
+        IncomingMessage, MessageAction, ProposalContent,
     },
     manager,
 };
-use linera_execution::{
-    BytecodeLocation, Query, Response, UserApplicationDescription, UserApplicationId,
-};
+use linera_execution::{Query, Response, UserApplicationDescription, UserApplicationId};
 use linera_storage::Storage;
 use linera_views::views::{View, ViewError};
 #[cfg(with_testing)]
-use {linera_base::identifiers::BytecodeId, linera_chain::data_types::Event};
+use {
+    linera_base::{crypto::CryptoHash, identifiers::BytecodeId},
+    linera_chain::data_types::{Certificate, Event, Origin},
+    linera_execution::BytecodeLocation,
+};
 
 use super::{check_block_epoch, ChainWorkerState};
 use crate::{
-    data_types::{ChainInfo, ChainInfoQuery, ChainInfoResponse},
+    data_types::{BlockHeight, ChainInfo, ChainInfoQuery, ChainInfoResponse},
     worker::WorkerError,
 };
 
