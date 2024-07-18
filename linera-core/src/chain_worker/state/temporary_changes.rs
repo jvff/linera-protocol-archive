@@ -48,7 +48,7 @@ where
     pub(super) async fn new(state: &'state mut ChainWorkerState<StorageClient>) -> Self {
         assert!(
             !state.chain.has_pending_changes().await,
-            "`ChainStateView` has unexpected left-over changes"
+            "`ChainStateView` has unexpected leftover changes"
         );
 
         ChainWorkerStateWithTemporaryChanges(state)
