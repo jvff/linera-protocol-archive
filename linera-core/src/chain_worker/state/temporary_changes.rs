@@ -19,14 +19,14 @@ use linera_storage::Storage;
 use linera_views::views::{View, ViewError};
 #[cfg(with_testing)]
 use {
-    linera_base::{crypto::CryptoHash, identifiers::BytecodeId},
+    linera_base::{crypto::CryptoHash, data_types::BlockHeight, identifiers::BytecodeId},
     linera_chain::data_types::{Certificate, Event, Origin},
     linera_execution::BytecodeLocation,
 };
 
 use super::{check_block_epoch, ChainWorkerState};
 use crate::{
-    data_types::{BlockHeight, ChainInfo, ChainInfoQuery, ChainInfoResponse},
+    data_types::{ChainInfo, ChainInfoQuery, ChainInfoResponse},
     worker::WorkerError,
 };
 
