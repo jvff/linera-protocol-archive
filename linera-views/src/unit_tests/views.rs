@@ -397,9 +397,7 @@ async fn test_reentrant_collection_view_has_no_pending_changes_after_try_load_en
 
     assert!(view.has_pending_changes().await);
 
-    let mut batch = Batch::new();
-    view.flush(&mut batch)?;
-    context.write_batch(batch).await?;
+    save_view(&context, &mut view).await?;
 
     assert!(!view.has_pending_changes().await);
 
