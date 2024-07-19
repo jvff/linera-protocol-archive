@@ -155,11 +155,8 @@ where
                 expected_state.pop_front();
             }
             Operation::CommitAndReload => {
-                let context = context.clone();
-                let mut batch = Batch::new();
-                queue.flush(&mut batch)?;
-                context.write_batch(batch).await?;
-                queue = QueueView::load(context).await?;
+                save_view(&context, &mut queue).await?;
+                queue = QueueView::load(context.clone()).await?;
             }
         }
 
@@ -357,9 +354,7 @@ async fn test_clearing_of_cached_stored_hash() -> anyhow::Result<()> {
     assert_eq!(view.hash_mut().await?, populated_hash);
     assert_ne!(populated_hash, empty_hash);
 
-    let mut batch = Batch::new();
-    view.flush(&mut batch)?;
-    context.write_batch(batch).await?;
+    save_view(&context, &mut view).await?;
 
     assert_eq!(view.hash().await?, populated_hash);
     assert_eq!(view.hash_mut().await?, populated_hash);
@@ -369,9 +364,7 @@ async fn test_clearing_of_cached_stored_hash() -> anyhow::Result<()> {
     assert_eq!(view.hash().await?, empty_hash);
     assert_eq!(view.hash_mut().await?, empty_hash);
 
-    let mut batch = Batch::new();
-    view.flush(&mut batch)?;
-    context.write_batch(batch).await?;
+    save_view(&context, &mut view).await?;
 
     assert_eq!(view.hash().await?, empty_hash);
     assert_eq!(view.hash_mut().await?, empty_hash);
@@ -417,5 +410,16 @@ async fn test_reentrant_collection_view_has_no_pending_changes_after_try_load_en
 
     assert!(!view.has_pending_changes().await);
 
+    Ok(())
+}
+
+/// Saves a [`View`] into the [`MemoryContext<()>`] storage simulation.
+async fn save_view<C>(context: &C, view: &mut impl View<C>) -> anyhow::Result<()>
+where
+    C: Context,
+{
+    let mut batch = Batch::new();
+    view.flush(&mut batch)?;
+    context.write_batch(batch).await?;
     Ok(())
 }
