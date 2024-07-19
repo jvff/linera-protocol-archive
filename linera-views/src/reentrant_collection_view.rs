@@ -23,7 +23,7 @@ use {
 
 use crate::{
     batch::Batch,
-    common::{Context, CustomSerialize, HasherOutput, KeyIterable, Update, MIN_VIEW_TAG},
+    common::{Context, CustomSerialize, HasherOutput, KeyIterable, MIN_VIEW_TAG},
     hashable_wrapper::WrappedHashableContainerView,
     views::{ClonableView, HashableView, Hasher, View, ViewError},
 };
@@ -77,7 +77,7 @@ impl<T> std::ops::DerefMut for WriteGuardedView<T> {
 pub struct ReentrantByteCollectionView<C, W> {
     context: C,
     delete_storage_first: bool,
-    updates: Mutex<BTreeMap<Vec<u8>, Update<Arc<RwLock<W>>>>>,
+    updates: Mutex<BTreeMap<Vec<u8>, SubView<Arc<RwLock<W>>>>>,
 }
 
 /// We need to find new base keys in order to implement the collection_view.
@@ -134,7 +134,14 @@ where
             return true;
         }
         let updates = self.updates.lock().await;
-        !updates.is_empty()
+        for update in updates.values() {
+            match update {
+                SubView::Removed => return true,
+                SubView::MaybeChanged(_) => return true,
+                SubView::Unchanged(_) => (),
+            }
+        }
+        false
     }
 
     fn flush(&mut self, batch: &mut Batch) -> Result<bool, ViewError> {
@@ -143,7 +150,7 @@ where
             delete_view = true;
             batch.delete_key_prefix(self.context.base_key());
             for (index, update) in mem::take(self.updates.get_mut()) {
-                if let Update::Set(view) = update {
+                if let SubView::MaybeChanged(view) = update {
                     let mut view = Arc::try_unwrap(view)
                         .map_err(|_| ViewError::CannotAcquireCollectionEntry)?
                         .into_inner();
@@ -155,14 +162,15 @@ where
         } else {
             for (index, update) in mem::take(self.updates.get_mut()) {
                 match update {
-                    Update::Set(view) => {
+                    SubView::Unchanged(_) => (),
+                    SubView::MaybeChanged(view) => {
                         let mut view = Arc::try_unwrap(view)
                             .map_err(|_| ViewError::CannotAcquireCollectionEntry)?
                             .into_inner();
                         view.flush(batch)?;
                         self.add_index(batch, &index);
                     }
-                    Update::Removed => {
+                    SubView::Removed => {
                         let key_subview = self.get_subview_key(&index);
                         let key_index = self.get_index_key(&index);
                         batch.delete_key(key_index);
@@ -194,13 +202,20 @@ where
             .iter()
             .map(|(key, value)| {
                 let cloned_value = match value {
-                    Update::Removed => Update::Removed,
-                    Update::Set(view_lock) => {
+                    SubView::Removed => SubView::Removed,
+                    SubView::MaybeChanged(view_lock) => {
                         let mut view = view_lock
                             .try_write()
                             .ok_or(ViewError::CannotAcquireCollectionEntry)?;
 
-                        Update::Set(Arc::new(RwLock::new(view.clone_unchecked()?)))
+                        SubView::MaybeChanged(Arc::new(RwLock::new(view.clone_unchecked()?)))
+                    }
+                    SubView::Unchanged(view_lock) => {
+                        let mut view = view_lock
+                            .try_write()
+                            .ok_or(ViewError::CannotAcquireCollectionEntry)?;
+
+                        SubView::Unchanged(Arc::new(RwLock::new(view.clone_unchecked()?)))
                     }
                 };
                 Ok((key.clone(), cloned_value))
@@ -259,18 +274,22 @@ where
         use btree_map::Entry::*;
         let updates = self.updates.get_mut();
         Ok(match updates.entry(short_key.to_owned()) {
-            Occupied(mut entry) => match entry.get_mut() {
-                Update::Set(view) => view.clone(),
-                entry @ Update::Removed => {
+            Occupied(mut entry) => match entry.get().clone() {
+                SubView::MaybeChanged(view) => view,
+                SubView::Unchanged(view) => {
+                    *entry.get_mut() = SubView::MaybeChanged(view.clone());
+                    view
+                }
+                SubView::Removed => {
                     let wrapped_view = Self::wrapped_view(&self.context, true, short_key).await?;
-                    *entry = Update::Set(wrapped_view.clone());
+                    *entry.get_mut() = SubView::MaybeChanged(wrapped_view.clone());
                     wrapped_view
                 }
             },
             Vacant(entry) => {
                 let wrapped_view =
                     Self::wrapped_view(&self.context, self.delete_storage_first, short_key).await?;
-                entry.insert(Update::Set(wrapped_view.clone()));
+                entry.insert(SubView::MaybeChanged(wrapped_view.clone()));
                 wrapped_view
             }
         })
@@ -283,8 +302,9 @@ where
         let updates = self.updates.lock().await;
         Ok(match updates.get(short_key) {
             Some(entry) => match entry {
-                Update::Set(view) => Some(view.clone()),
-                _entry @ Update::Removed => None,
+                SubView::MaybeChanged(view) => Some(view.clone()),
+                SubView::Unchanged(view) => Some(view.clone()),
+                SubView::Removed => None,
             },
             None => {
                 let key_index = self.context.base_tag_index(KeyTag::Index as u8, short_key);
@@ -400,8 +420,8 @@ where
         let updates = self.updates.lock().await;
         Ok(match updates.get(short_key) {
             Some(entry) => match entry {
-                Update::Set(_view) => true,
-                Update::Removed => false,
+                SubView::MaybeChanged(_) | SubView::Unchanged(_) => true,
+                SubView::Removed => false,
             },
             None => {
                 let key_index = self.context.base_tag_index(KeyTag::Index as u8, short_key);
@@ -432,7 +452,7 @@ where
             // Optimization: No need to mark `short_key` for deletion as we are going to remove all the keys at once.
             self.updates.get_mut().remove(&short_key);
         } else {
-            self.updates.get_mut().insert(short_key, Update::Removed);
+            self.updates.get_mut().insert(short_key, SubView::Removed);
         }
     }
 
@@ -463,7 +483,7 @@ where
         let context = self.context.clone_with_base_key(key);
         let view = W::new(context)?;
         let view = Arc::new(RwLock::new(view));
-        let view = Update::Set(view);
+        let view = SubView::MaybeChanged(view);
         let updates = self.updates.get_mut();
         updates.insert(short_key.to_vec(), view);
         Ok(())
@@ -483,21 +503,31 @@ where
 {
     async fn do_load_entries(
         context: &C,
-        updates: &mut BTreeMap<Vec<u8>, Update<Arc<RwLock<W>>>>,
+        updates: &mut BTreeMap<Vec<u8>, SubView<Arc<RwLock<W>>>>,
         delete_storage_first: bool,
         short_keys: Vec<Vec<u8>>,
+        entry_wrapper: impl Fn(Arc<RwLock<W>>) -> SubView<Arc<RwLock<W>>>,
     ) -> Result<Vec<(Vec<u8>, Arc<RwLock<W>>)>, ViewError> {
         let mut selected_short_keys = Vec::new();
         for short_key in &short_keys {
             match updates.entry(short_key.to_vec()) {
                 btree_map::Entry::Occupied(entry) => {
                     let entry = entry.into_mut();
-                    if let Update::Removed = entry {
-                        let key = context.base_tag_index(KeyTag::Subview as u8, short_key);
-                        let context = context.clone_with_base_key(key);
-                        let view = W::new(context)?;
-                        let view = Arc::new(RwLock::new(view));
-                        *entry = Update::Set(view);
+                    match entry {
+                        SubView::Removed => {
+                            let key = context.base_tag_index(KeyTag::Subview as u8, short_key);
+                            let context = context.clone_with_base_key(key);
+                            let view = W::new(context)?;
+                            let view = Arc::new(RwLock::new(view));
+                            *entry = entry_wrapper(view);
+                        }
+                        SubView::Unchanged(view) => {
+                            // Maybe change the `SubView` variant into `MaybeChanged`
+                            *entry = entry_wrapper(view.clone());
+                        }
+                        SubView::MaybeChanged(_) => {
+                            // Do *not* change the `SubView` variant
+                        }
                     }
                 }
                 btree_map::Entry::Vacant(entry) => {
@@ -506,7 +536,7 @@ where
                         let context = context.clone_with_base_key(key);
                         let view = W::new(context)?;
                         let view = Arc::new(RwLock::new(view));
-                        entry.insert(Update::Set(view));
+                        entry.insert(entry_wrapper(view));
                     } else {
                         selected_short_keys.push(short_key.to_vec());
                     }
@@ -523,7 +553,7 @@ where
         for (short_key, view) in selected_short_keys.into_iter().zip(response) {
             let view = view??;
             let wrapped_view = Arc::new(RwLock::new(view));
-            updates.insert(short_key, Update::Set(wrapped_view));
+            updates.insert(short_key, entry_wrapper(wrapped_view));
         }
 
         Ok(short_keys
@@ -532,7 +562,8 @@ where
                 let btree_map::Entry::Occupied(entry) = updates.entry(short_key.clone()) else {
                     unreachable!()
                 };
-                let Update::Set(view) = entry.into_mut() else {
+                let (SubView::Unchanged(view) | SubView::MaybeChanged(view)) = entry.into_mut()
+                else {
                     unreachable!()
                 };
                 (short_key, view.clone())
@@ -572,6 +603,7 @@ where
             updates,
             self.delete_storage_first,
             short_keys,
+            SubView::MaybeChanged,
         )
         .await?;
         entries
@@ -613,6 +645,7 @@ where
             &mut updates,
             self.delete_storage_first,
             short_keys,
+            SubView::Unchanged,
         )
         .await?;
         entries
@@ -693,7 +726,7 @@ where
                 loop {
                     match update {
                         Some((key, value)) if key.as_slice() <= index => {
-                            if let Update::Set(_) = value {
+                            if let SubView::Unchanged(_) | SubView::MaybeChanged(_) = value {
                                 if !f(key)? {
                                     return Ok(());
                                 }
@@ -714,7 +747,7 @@ where
             }
         }
         while let Some((key, value)) = update {
-            if let Update::Set(_) = value {
+            if let SubView::Unchanged(_) | SubView::MaybeChanged(_) = value {
                 if !f(key)? {
                     return Ok(());
                 }
@@ -776,7 +809,7 @@ where
             hasher.update_with_bytes(&key)?;
             let hash = match updates.get_mut(&key) {
                 Some(entry) => {
-                    let Update::Set(view) = entry else {
+                    let (SubView::Unchanged(view) | SubView::MaybeChanged(view)) = entry else {
                         unreachable!();
                     };
                     let mut view = view
@@ -807,7 +840,7 @@ where
             hasher.update_with_bytes(&key)?;
             let hash = match updates.get(&key) {
                 Some(entry) => {
-                    let Update::Set(view) = entry else {
+                    let (SubView::Unchanged(view) | SubView::MaybeChanged(view)) = entry else {
                         unreachable!();
                     };
                     let view = view
@@ -1722,3 +1755,14 @@ pub type HashedReentrantCollectionView<C, I, W> =
 /// Type wrapping `ReentrantCustomCollectionView` while memoizing the hash.
 pub type HashedReentrantCustomCollectionView<C, I, W> =
     WrappedHashableContainerView<C, ReentrantCustomCollectionView<C, I, W>, HasherOutput>;
+
+/// A [`SubView`] stored in the [`ReentrantByteCollectionView`]'s map of updates.
+#[derive(Clone, Debug)]
+enum SubView<T> {
+    /// The entry was marked for removal.
+    Removed,
+    /// The entry was loaded into memory, but could not have been changed yet.
+    Unchanged(T),
+    /// The entry is new or was loaded into memory and might have been changed.
+    MaybeChanged(T),
+}
