@@ -513,12 +513,21 @@ where
             match updates.entry(short_key.to_vec()) {
                 btree_map::Entry::Occupied(entry) => {
                     let entry = entry.into_mut();
-                    if let SubView::Removed = entry {
-                        let key = context.base_tag_index(KeyTag::Subview as u8, short_key);
-                        let context = context.clone_with_base_key(key);
-                        let view = W::new(context)?;
-                        let view = Arc::new(RwLock::new(view));
-                        *entry = entry_wrapper(view);
+                    match entry {
+                        SubView::Removed => {
+                            let key = context.base_tag_index(KeyTag::Subview as u8, short_key);
+                            let context = context.clone_with_base_key(key);
+                            let view = W::new(context)?;
+                            let view = Arc::new(RwLock::new(view));
+                            *entry = entry_wrapper(view);
+                        }
+                        SubView::Unchanged(view) => {
+                            // Maybe change the `SubView` variant into `MaybeChanged`
+                            *entry = entry_wrapper(view.clone());
+                        }
+                        SubView::MaybeChanged(_) => {
+                            // Do *not* change the `SubView` variant
+                        }
                     }
                 }
                 btree_map::Entry::Vacant(entry) => {
