@@ -134,7 +134,17 @@ where
             return true;
         }
         let updates = self.updates.lock().await;
-        !updates.is_empty()
+        for update in updates.values() {
+            match update {
+                Update::Removed => return true,
+                Update::Set(view) => {
+                    if view.read().await.has_pending_changes().await {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
     }
 
     fn flush(&mut self, batch: &mut Batch) -> Result<bool, ViewError> {
