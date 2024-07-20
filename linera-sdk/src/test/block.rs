@@ -5,7 +5,7 @@
 //!
 //! Helps with the construction of blocks, adding operations and
 
-use std::mem;
+use std::{mem, time::Instant};
 
 use linera_base::{
     crypto::PublicKey,
@@ -209,7 +209,11 @@ impl BlockBuilder {
     /// Tries to sign the prepared [`Block`] with the [`TestValidator`]'s keys and return the
     /// resulting [`Certificate`]. Returns an error if block execution fails.
     pub(crate) async fn try_sign(mut self) -> anyhow::Result<(Certificate, Vec<MessageId>)> {
-        self.collect_incoming_messages().await;
+        {
+            let start = Instant::now();
+            self.collect_incoming_messages().await;
+            tracing::trace!("Collected incoming messages in {:.2?}", start.elapsed());
+        }
 
         let (executed_block, _) = self
             .validator
@@ -217,21 +221,32 @@ impl BlockBuilder {
             .stage_block_execution(self.block)
             .await?;
 
-        let message_ids = (0..executed_block
-            .messages()
-            .iter()
-            .map(Vec::len)
-            .sum::<usize>() as u32)
-            .map(|index| executed_block.message_id(index))
-            .collect();
+        let message_ids = {
+            let start = Instant::now();
+            let r = (0..executed_block
+                .messages()
+                .iter()
+                .map(Vec::len)
+                .sum::<usize>() as u32)
+                .map(|index| executed_block.message_id(index))
+                .collect();
+            tracing::trace!("Collected message IDs in {:.2?}", start.elapsed());
+            r
+        };
 
-        let value = HashedCertificateValue::new_confirmed(executed_block);
-        let vote = LiteVote::new(value.lite(), Round::Fast, self.validator.key_pair());
-        let mut builder = SignatureAggregator::new(value, Round::Fast, self.validator.committee());
-        let certificate = builder
-            .append(vote.validator, vote.signature)
-            .expect("Failed to sign block")
-            .expect("Committee has more than one test validator");
+        let certificate = {
+            let start = Instant::now();
+            let value = HashedCertificateValue::new_confirmed(executed_block);
+            let vote = LiteVote::new(value.lite(), Round::Fast, self.validator.key_pair());
+            let mut builder =
+                SignatureAggregator::new(value, Round::Fast, self.validator.committee());
+            let certificate = builder
+                .append(vote.validator, vote.signature)
+                .expect("Failed to sign block")
+                .expect("Committee has more than one test validator");
+            tracing::trace!("Signed certificate in {:.2?}", start.elapsed());
+            certificate
+        };
 
         Ok((certificate, message_ids))
     }

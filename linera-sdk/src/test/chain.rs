@@ -117,11 +117,7 @@ impl ActiveChain {
         // TODO(#2066): Remove boxing once call-stack is shallower
         let (certificate, message_ids) = Box::pin(block.try_sign()).await?;
 
-        self.validator
-            .worker()
-            .fully_handle_certificate(certificate.clone(), vec![], vec![])
-            .await
-            .expect("Rejected certificate");
+        self.validator.handle_certificate(certificate.clone()).await;
 
         *tip = Some(certificate);
 
@@ -133,6 +129,8 @@ impl ActiveChain {
     /// Adds a block to this microchain that receives all queued messages in the microchains
     /// inboxes.
     pub async fn handle_received_messages(&self) {
+        self.validator.wait_for_cross_chain_updates().await;
+
         let chain_id = self.id();
         let (information, _) = self
             .validator

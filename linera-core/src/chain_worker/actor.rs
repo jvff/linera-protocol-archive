@@ -36,6 +36,14 @@ use {
     linera_base::identifiers::BytecodeId, linera_chain::data_types::Event,
     linera_execution::BytecodeLocation,
 };
+#[cfg(with_metrics)]
+use {
+    linera_base::{
+        prometheus_util::{self, MeasureLatency},
+        sync::Lazy,
+    },
+    prometheus::HistogramVec,
+};
 
 use super::{config::ChainWorkerConfig, state::ChainWorkerState};
 use crate::{
@@ -44,6 +52,34 @@ use crate::{
     worker::{NetworkActions, WorkerError},
     JoinSetExt as _,
 };
+
+#[cfg(with_metrics)]
+static WAIT_FOR_REQUEST_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    prometheus_util::register_histogram_vec(
+        "wait_for_request_latency",
+        "Latency waiting for a `ChainWorkerRequest`",
+        &[],
+        Some(vec![
+            0.000_1, 0.000_25, 0.000_5, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+            1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+        ]),
+    )
+    .expect("Counter creation should not fail")
+});
+
+#[cfg(with_metrics)]
+static HANDLE_CHAIN_WORKER_REQUEST_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    prometheus_util::register_histogram_vec(
+        "handle_chain_worker_request_latency",
+        "Handle `ChainWorkerRequest` latency",
+        &[],
+        Some(vec![
+            0.000_1, 0.000_25, 0.000_5, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+            1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+        ]),
+    )
+    .expect("Counter creation should not fail")
+});
 
 /// A request for the [`ChainWorkerActor`].
 pub enum ChainWorkerRequest<Context>
@@ -238,10 +274,13 @@ where
     )]
     async fn run(mut self, spawner_span: tracing::Span) {
         trace!("Starting `ChainWorkerActor`");
+        #[cfg(with_metrics)]
+        let mut receive_latency = WAIT_FOR_REQUEST_LATENCY.measure_latency();
 
         while let Some(request) = self.incoming_requests.recv().await {
             // TODO(#2237): Spawn concurrent tasks for read-only operations
             trace!("Handling `ChainWorkerRequest`: {request:?}");
+            let _ = start_notifier.send(());
 
             let responded = match request {
                 #[cfg(with_testing)]
@@ -339,6 +378,21 @@ where
 
             if !responded {
                 warn!("Callback for `ChainWorkerActor` was dropped before a response was sent");
+            }
+
+            tokio::task::yield_now().await;
+            #[cfg(with_metrics)]
+            {
+                receive_latency = WAIT_FOR_REQUEST_LATENCY.measure_latency();
+                trace!(
+                    "Finished handling request in {:.2?}",
+                    handle_latency.start.elapsed()
+                );
+            }
+
+            #[cfg(not(with_metrics))]
+            {
+                trace!("Finished handling request");
             }
         }
 

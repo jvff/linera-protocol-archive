@@ -6,6 +6,14 @@ use std::{collections::BTreeMap, fmt::Debug, sync::Arc};
 use async_lock::{Mutex, MutexGuardArc, RwLock};
 use futures::FutureExt as _;
 use thiserror::Error;
+#[cfg(with_metrics)]
+use {
+    linera_base::{
+        prometheus_util::{self, MeasureLatency},
+        sync::Lazy,
+    },
+    prometheus::HistogramVec,
+};
 
 use crate::{
     batch::{Batch, DeletePrefixExpander, WriteOperation},

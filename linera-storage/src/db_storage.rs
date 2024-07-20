@@ -24,7 +24,7 @@ use linera_views::{
     value_splitting::DatabaseConsistencyError,
     views::{View, ViewError},
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(with_testing)]
 use {
     futures::channel::oneshot::{self, Receiver},
@@ -255,7 +255,7 @@ pub struct DbStorage<Client, Clock> {
     pub execution_runtime_config: ExecutionRuntimeConfig,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 enum BaseKey {
     ChainState(ChainId),
     Certificate(CryptoHash),
@@ -263,6 +263,67 @@ enum BaseKey {
     BlobId(BlobId),
     BlobStateId(BlobId),
 }
+
+// impl Serialize for BaseKey {
+// fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+// where
+// S: Serializer,
+// {
+// let (variant_index, variant_name) = match self {
+// BaseKey::ChainState(chain_id) => (0, "ChainState"),
+// BaseKey::Certificate(hash) => (1, "Certificate"),
+// BaseKey::Value(hash) => (2, "Value"),
+// BaseKey::BlobId(blob_id) => (3, "BlobId"),
+// BaseKey::BlobStateId(blob_id) => (4, "BlobStateId"),
+// };
+
+// let first_byte = match self {
+// BaseKey::ChainState(chain_id) => chain_id.0.as_bytes()[0],
+// BaseKey::Certificate(hash) => hash.as_bytes()[0],
+// BaseKey::Value(hash) => hash.as_bytes()[0],
+// BaseKey::BlobId(blob_id) => blob_id.0.as_bytes()[0],
+// BaseKey::BlobStateId(blob_id) => blob_id.0.as_bytes()[0],
+// };
+
+// let tweaked_index = (variant_index << 5) | (first_byte >> 3);
+
+// let variant_serializer =
+// serializer.serialize_tuple_variant("BaseKey", tweaked_index, variant_name, 1)?;
+// match self {
+// BaseKey::ChainState(chain_id) => tuple_serializer.field(chain_id)?,
+// BaseKey::Certificate(hash) => tuple_serializer.field(chain_id)?,
+// BaseKey::Value(hash) => tuple_serializer.field(chain_id)?,
+// BaseKey::BlobId(blob_id) => tuple_serializer.field(chain_id)?,
+// BaseKey::BlobStateId(blob_id) => tuple_serializer.field(chain_id)?,
+// }
+// tuple_serializer.finish()?;
+// }
+// }
+
+// impl Deserialize for BaseKey {
+// fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+// where
+// S: Serializer,
+// {
+// let first_byte = match self {
+// BaseKey::ChainState(chain_id) => (0 << 5) | (chain_id.0.as_bytes()[0] >> 3),
+// BaseKey::Certificate(hash) => (0 << 5) | (hash.as_bytes()[0] >> 3),
+// BaseKey::Value(hash) => (0 << 5) | (hash.as_bytes()[0] >> 3),
+// BaseKey::BlobId(blob_id) => (0 << 5) | (blob_id.0.as_bytes()[0] >> 3),
+// BaseKey::BlobStateId(blob_id) => (0 << 5) | (blob_id.0.as_bytes()[0] >> 3),
+// };
+
+// serializer.serialize_u8(first_byte);
+
+// match self {
+// BaseKey::ChainState(chain_id) => serializer.serialize(chain_id),
+// BaseKey::Certificate(hash) => serializer.serialize(hash),
+// BaseKey::Value(hash) => serializer.serialize(hash),
+// BaseKey::BlobId(blob_id) => serializer.serialize(blob_id),
+// BaseKey::BlobStateId(blob_id) => serializer.serialize(blob_id),
+// }
+// }
+// }
 
 /// A clock that can be used to get the current `Timestamp`.
 #[async_trait]

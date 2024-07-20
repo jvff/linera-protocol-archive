@@ -84,7 +84,7 @@ pub trait StateStore {
 }
 
 pub struct MemoryTestStore {
-    states: HashMap<usize, Arc<Mutex<MemoryStoreMap>>>,
+    states: HashMap<usize, Arc<MemoryStoreMap>>,
 }
 
 #[async_trait]
@@ -101,12 +101,9 @@ impl StateStore for MemoryTestStore {
         let state = self
             .states
             .entry(id)
-            .or_insert_with(|| Arc::new(Mutex::new(BTreeMap::new())));
-        tracing::trace!("Acquiring lock on {:?}", id);
-        let guard = state.clone().lock_arc().await;
-        let map = Arc::new(RwLock::new(guard));
+            .or_insert_with(|| Arc::new(MemoryStoreMap::default()));
         let store = MemoryStore {
-            map,
+            map: state.clone(),
             max_stream_queries: TEST_MEMORY_MAX_STREAM_QUERIES,
         };
         let base_key = bcs::to_bytes(&id)?;
@@ -120,7 +117,7 @@ impl StateStore for MemoryTestStore {
 }
 
 pub struct KeyValueStoreTestStore {
-    states: HashMap<usize, Arc<Mutex<MemoryStoreMap>>>,
+    states: HashMap<usize, Arc<MemoryStoreMap>>,
 }
 
 #[async_trait]
@@ -137,12 +134,9 @@ impl StateStore for KeyValueStoreTestStore {
         let state = self
             .states
             .entry(id)
-            .or_insert_with(|| Arc::new(Mutex::new(BTreeMap::new())));
-        tracing::trace!("Acquiring lock on {:?}", id);
-        let guard = state.clone().lock_arc().await;
-        let map = Arc::new(RwLock::new(guard));
+            .or_insert_with(|| Arc::new(MemoryStoreMap::default()));
         let store = MemoryStore {
-            map,
+            map: state.clone(),
             max_stream_queries: TEST_MEMORY_MAX_STREAM_QUERIES,
         };
         let context = MemoryContext {
@@ -162,7 +156,7 @@ impl StateStore for KeyValueStoreTestStore {
 }
 
 pub struct LruMemoryStore {
-    states: HashMap<usize, Arc<Mutex<MemoryStoreMap>>>,
+    states: HashMap<usize, Arc<MemoryStoreMap>>,
 }
 
 #[async_trait]
@@ -179,12 +173,9 @@ impl StateStore for LruMemoryStore {
         let state = self
             .states
             .entry(id)
-            .or_insert_with(|| Arc::new(Mutex::new(BTreeMap::new())));
-        tracing::trace!("Acquiring lock on {:?}", id);
-        let guard = state.clone().lock_arc().await;
-        let map = Arc::new(RwLock::new(guard));
+            .or_insert_with(|| Arc::new(MemoryStoreMap::default()));
         let store = MemoryStore {
-            map,
+            map: state.clone(),
             max_stream_queries: TEST_MEMORY_MAX_STREAM_QUERIES,
         };
         let n = 1000;

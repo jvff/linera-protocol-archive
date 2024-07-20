@@ -16,7 +16,11 @@ use linera_base::{
     identifiers::{ApplicationId, BytecodeId, ChainDescription, ChainId},
     ownership::ChainOwnership,
 };
-use linera_core::worker::WorkerState;
+use linera_chain::data_types::Certificate;
+use linera_core::{
+    worker::{ValidatorWorker, WorkerState},
+    JoinSetExt as _,
+};
 use linera_execution::{
     committee::{Committee, Epoch, ValidatorName},
     system::{OpenChainConfig, SystemOperation, OPEN_CHAIN_MESSAGE_INDEX},
@@ -44,6 +48,7 @@ pub struct TestValidator {
     worker: WorkerState<MemoryStorage<TestClock>>,
     clock: TestClock,
     chains: Arc<DashMap<ChainId, ActiveChain>>,
+    cross_chain_updates: Arc<std::sync::Mutex<JoinSet<()>>>,
 }
 
 impl Clone for TestValidator {
@@ -54,6 +59,7 @@ impl Clone for TestValidator {
             worker: self.worker.clone(),
             clock: self.clock.clone(),
             chains: self.chains.clone(),
+            cross_chain_updates: self.cross_chain_updates.clone(),
         }
     }
 }
@@ -80,6 +86,7 @@ impl TestValidator {
             worker,
             clock,
             chains: Arc::default(),
+            cross_chain_updates: Arc::default(),
         };
 
         validator.create_admin_chain().await;
@@ -134,6 +141,25 @@ impl TestValidator {
     /// Returns the locked [`WorkerState`] of this validator.
     pub(crate) fn worker(&self) -> WorkerState<MemoryStorage<TestClock>> {
         self.worker.clone()
+    }
+
+    /// Handles a single [`Certificate`] with a block confirmation.
+    pub(crate) async fn handle_certificate(&self, certificate: Certificate) {
+        let mut worker = self.worker.clone();
+        let (_response, actions) = worker
+            .handle_certificate(certificate, vec![], vec![], None)
+            .await
+            .expect("Rejected certificate");
+
+        self.cross_chain_updates
+            .lock()
+            .expect("Thread should never panic while spawning a task for cross-chain updates")
+            .spawn(async move {
+                worker
+                    .fully_handle_cross_chain_requests(actions.cross_chain_requests)
+                    .await
+                    .expect("Failed to handle cross-chain updates");
+            });
     }
 
     /// Returns the [`TestClock`] of this validator.
@@ -199,6 +225,15 @@ impl TestValidator {
         ChainDescription::Child(messages[OPEN_CHAIN_MESSAGE_INDEX as usize])
     }
 
+    /// Waits for all cross-chain messages to be propagated.
+    pub async fn wait_for_cross_chain_updates(&self) {
+        self.cross_chain_updates
+            .lock()
+            .expect("Thread should never panic while spawning a task for cross-chain updates")
+            .await_all_tasks()
+            .await;
+    }
+
     /// Returns the [`ActiveChain`] reference to the microchain identified by `chain_id`.
     pub fn get_chain(&self, chain_id: &ChainId) -> ActiveChain {
         self.chains.get(chain_id).expect("Chain not found").clone()
@@ -216,7 +251,7 @@ impl TestValidator {
                 ChainId::root(0),
                 description,
                 key_pair.public(),
-                0.into(),
+                Amount::MAX,
                 Timestamp::from(0),
             )
             .await

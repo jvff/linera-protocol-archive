@@ -45,7 +45,8 @@ pub struct ActiveMeasurementGuard<'metric, Metric>
 where
     Metric: MeasureLatency,
 {
-    start: Instant,
+    /// Bla
+    pub start: Instant,
     metric: Option<&'metric Metric>,
 }
 

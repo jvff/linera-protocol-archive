@@ -11,6 +11,7 @@ use std::{
 };
 
 use async_trait::async_trait;
+use futures::{stream::FuturesUnordered, TryStreamExt};
 use linera_base::{
     crypto::{CryptoHash, KeyPair},
     data_types::{ArithmeticError, BlockHeight, HashedBlob, Round},
@@ -41,7 +42,7 @@ use tokio::{
 use tracing::{error, instrument, trace, warn};
 #[cfg(with_metrics)]
 use {
-    linera_base::prometheus_util,
+    linera_base::prometheus_util::{self, MeasureLatency},
     prometheus::{HistogramVec, IntCounterVec},
 };
 #[cfg(with_testing)]
@@ -105,6 +106,132 @@ static NUM_BLOCKS: Lazy<IntCounterVec> = Lazy::new(|| {
         .expect("Counter creation should not fail")
 });
 
+#[cfg(with_metrics)]
+static ACQUIRE_CHAIN_WORKERS_LOCK_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    prometheus_util::register_histogram_vec(
+        "acquire_chain_workers_lock_latency",
+        "Latency to acquire the chain worker cache lock",
+        &[],
+        Some(vec![
+            0.000_1, 0.000_25, 0.000_5, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+            1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+        ]),
+    )
+    .expect("Counter creation should not fail")
+});
+
+#[cfg(with_metrics)]
+static CONFIRMATION_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    prometheus_util::register_histogram_vec(
+        "confirmation_latency",
+        "Block confirmation latency",
+        &[],
+        Some(vec![
+            0.000_1, 0.000_25, 0.000_5, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+            1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+        ]),
+    )
+    .expect("Counter creation should not fail")
+});
+
+#[cfg(with_metrics)]
+static STAGE_BLOCK_EXECUTION_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    prometheus_util::register_histogram_vec(
+        "stage_block_execution_latency",
+        "Stage block execution latency",
+        &[],
+        Some(vec![
+            0.000_1, 0.000_25, 0.000_5, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+            1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+        ]),
+    )
+    .expect("Counter creation should not fail")
+});
+
+#[cfg(with_metrics)]
+static HANDLE_CROSS_CHAIN_REQUEST_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    prometheus_util::register_histogram_vec(
+        "handle_cross_chain_latency",
+        "Handle cross-chain latency",
+        &[],
+        Some(vec![
+            0.000_1, 0.000_25, 0.000_5, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+            1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+        ]),
+    )
+    .expect("Counter creation should not fail")
+});
+
+#[cfg(with_metrics)]
+static HANDLE_UPDATE_RECIPIENT_REQUEST_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    prometheus_util::register_histogram_vec(
+        "handle_update_recipient_latency",
+        "Handle update recipient latency",
+        &[],
+        Some(vec![
+            0.000_1, 0.000_25, 0.000_5, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+            1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+        ]),
+    )
+    .expect("Counter creation should not fail")
+});
+
+#[cfg(with_metrics)]
+static HANDLE_CONFIRM_UPDATED_RECIPIENT_REQUEST_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    prometheus_util::register_histogram_vec(
+        "handle_confirm_updated_recipient_latency",
+        "Handle confirm updated recipient latency",
+        &[],
+        Some(vec![
+            0.000_1, 0.000_25, 0.000_5, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+            1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+        ]),
+    )
+    .expect("Counter creation should not fail")
+});
+
+#[cfg(with_metrics)]
+static REGISTER_DELIVERY_NOTIFIER_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    prometheus_util::register_histogram_vec(
+        "register_delivery_notifier_latency",
+        "Register delivery notifier latency",
+        &[],
+        Some(vec![
+            0.000_1, 0.000_25, 0.000_5, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+            1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+        ]),
+    )
+    .expect("Counter creation should not fail")
+});
+
+#[cfg(with_metrics)]
+static QUERY_CHAIN_WORKER_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    prometheus_util::register_histogram_vec(
+        "query_chain_worker_latency",
+        "`ChainWorkerActor` query latency",
+        &[],
+        Some(vec![
+            0.000_1, 0.000_25, 0.000_5, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+            1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+        ]),
+    )
+    .expect("Counter creation should not fail")
+});
+
+#[cfg(with_metrics)]
+static CHAIN_WORKER_START_HANDLING_REQUEST_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    prometheus_util::register_histogram_vec(
+        "chain_worker_start_handling_request_latency",
+        "Time between a request is sent and the `ChainWorkerActor` picks it up",
+        &[],
+        Some(vec![
+            0.000_1, 0.000_25, 0.000_5, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+            1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+        ]),
+    )
+    .expect("Counter creation should not fail")
+});
+
 /// Interface provided by each physical shard (aka "worker") of a validator or a local node.
 /// * All commands return either the current chain info or an error.
 /// * Repeating commands produces no changes and returns no error.
@@ -129,7 +256,7 @@ pub trait ValidatorWorker {
 
     /// Processes a certificate, e.g. to extend a chain with a confirmed block.
     async fn handle_certificate(
-        &mut self,
+        &self,
         certificate: Certificate,
         hashed_certificate_values: Vec<HashedCertificateValue>,
         hashed_blobs: Vec<HashedBlob>,
@@ -144,7 +271,7 @@ pub trait ValidatorWorker {
 
     /// Handles a (trusted!) cross-chain request.
     async fn handle_cross_chain_request(
-        &mut self,
+        &self,
         request: CrossChainRequest,
     ) -> Result<NetworkActions, WorkerError>;
 }
@@ -297,8 +424,10 @@ where
 }
 
 /// The sender endpoint for [`ChainWorkerRequest`]s.
-type ChainActorEndpoint<StorageClient> =
-    mpsc::UnboundedSender<ChainWorkerRequest<<StorageClient as Storage>::Context>>;
+type ChainActorEndpoint<StorageClient> = mpsc::UnboundedSender<(
+    ChainWorkerRequest<<StorageClient as Storage>::Context>,
+    oneshot::Sender<()>,
+)>;
 
 pub(crate) type DeliveryNotifiers =
     HashMap<ChainId, BTreeMap<BlockHeight, Vec<oneshot::Sender<()>>>>;
@@ -419,7 +548,7 @@ where
     )]
     #[cfg(with_testing)]
     pub async fn fully_handle_certificate(
-        &mut self,
+        &self,
         certificate: Certificate,
         hashed_certificate_values: Vec<HashedCertificateValue>,
         hashed_blobs: Vec<HashedBlob>,
@@ -445,7 +574,7 @@ where
     )]
     #[inline]
     pub(crate) async fn fully_handle_certificate_with_notifications(
-        &mut self,
+        &self,
         certificate: Certificate,
         hashed_certificate_values: Vec<HashedCertificateValue>,
         hashed_blobs: Vec<HashedBlob>,
@@ -457,23 +586,61 @@ where
         if let Some(ref mut notifications) = notifications {
             notifications.extend(actions.notifications);
         }
-        let mut requests = VecDeque::from(actions.cross_chain_requests);
-        while let Some(request) = requests.pop_front() {
-            let actions = self.handle_cross_chain_request(request).await?;
-            requests.extend(actions.cross_chain_requests);
-            if let Some(ref mut notifications) = notifications {
-                notifications.extend(actions.notifications);
+        self.fully_handle_cross_chain_requests_with_notifications(
+            actions.cross_chain_requests,
+            notifications,
+        )
+        .await?;
+        Ok(response)
+    }
+
+    #[cfg(with_testing)]
+    pub async fn fully_handle_cross_chain_requests(
+        &self,
+        requests: Vec<CrossChainRequest>,
+    ) -> Result<(), WorkerError> {
+        self.fully_handle_cross_chain_requests_with_notifications(
+            requests,
+            None::<&mut Vec<Notification>>,
+        )
+        .await
+    }
+
+    #[cfg(with_testing)]
+    pub(crate) async fn fully_handle_cross_chain_requests_with_notifications(
+        &self,
+        mut requests: Vec<CrossChainRequest>,
+        mut notifications: Option<&mut impl Extend<Notification>>,
+    ) -> Result<(), WorkerError> {
+        while !requests.is_empty() {
+            let actions = requests
+                .into_iter()
+                .map(|request| self.handle_cross_chain_request(request))
+                .collect::<FuturesUnordered<_>>()
+                .try_collect::<Vec<_>>()
+                .await?;
+            let (new_requests, new_notifications) = actions
+                .into_iter()
+                .map(|actions| (actions.cross_chain_requests, actions.notifications))
+                .unzip::<_, _, Vec<_>, Vec<_>>();
+            requests = new_requests.into_iter().flatten().collect();
+            if let Some(notifications) = notifications.as_mut() {
+                notifications.extend(new_notifications.into_iter().flatten());
             }
         }
-        Ok(response)
+
+        Ok(())
     }
 
     #[tracing::instrument(level = "trace", skip(self, block))]
     /// Tries to execute a block proposal without any verification other than block execution.
     pub async fn stage_block_execution(
-        &mut self,
+        &self,
         block: Block,
     ) -> Result<(ExecutedBlock, ChainInfoResponse), WorkerError> {
+        #[cfg(with_metrics)]
+        let _stage_block_execution_latency = STAGE_BLOCK_EXECUTION_LATENCY.measure_latency();
+
         self.query_chain_worker(block.chain_id, move |callback| {
             ChainWorkerRequest::StageBlockExecution { block, callback }
         })
@@ -486,12 +653,15 @@ where
         skip(self, chain_id, height, actions, notify_when_messages_are_delivered)
     )]
     async fn register_delivery_notifier(
-        &mut self,
+        &self,
         chain_id: ChainId,
         height: BlockHeight,
         actions: &NetworkActions,
         notify_when_messages_are_delivered: Option<oneshot::Sender<()>>,
     ) {
+        #[cfg(with_metrics)]
+        let _measurement = REGISTER_DELIVERY_NOTIFIER_LATENCY.measure_latency();
+
         if let Some(notifier) = notify_when_messages_are_delivered {
             if actions
                 .cross_chain_requests
@@ -572,12 +742,15 @@ where
     )]
     /// Processes a confirmed block (aka a commit).
     async fn process_confirmed_block(
-        &mut self,
+        &self,
         certificate: Certificate,
         hashed_certificate_values: &[HashedCertificateValue],
         hashed_blobs: &[HashedBlob],
         notify_when_messages_are_delivered: Option<oneshot::Sender<()>>,
     ) -> Result<(ChainInfoResponse, NetworkActions), WorkerError> {
+        #[cfg(with_metrics)]
+        let _confirmation_latency = CONFIRMATION_LATENCY.measure_latency();
+
         let CertificateValue::ConfirmedBlock { executed_block, .. } = certificate.value() else {
             panic!("Expecting a confirmation certificate");
         };
@@ -612,7 +785,7 @@ where
     #[tracing::instrument(level = "trace", skip(self, certificate))]
     /// Processes a validated block issued from a multi-owner chain.
     async fn process_validated_block(
-        &mut self,
+        &self,
         certificate: Certificate,
     ) -> Result<(ChainInfoResponse, NetworkActions, bool), WorkerError> {
         let CertificateValue::ValidatedBlock {
@@ -633,7 +806,7 @@ where
     #[tracing::instrument(level = "trace", skip(self, certificate))]
     /// Processes a leader timeout issued from a multi-owner chain.
     async fn process_timeout(
-        &mut self,
+        &self,
         certificate: Certificate,
     ) -> Result<(ChainInfoResponse, NetworkActions), WorkerError> {
         let CertificateValue::Timeout { chain_id, .. } = certificate.value() else {
@@ -650,7 +823,7 @@ where
 
     #[tracing::instrument(level = "trace", skip(self, origin, recipient, bundles))]
     async fn process_cross_chain_update(
-        &mut self,
+        &self,
         origin: Origin,
         recipient: ChainId,
         bundles: Vec<MessageBundle>,
@@ -776,12 +949,22 @@ where
             oneshot::Sender<Result<Response, WorkerError>>,
         ) -> ChainWorkerRequest<StorageClient::Context>,
     ) -> Result<Response, WorkerError> {
+        #[cfg(with_metrics)]
+        let _measurement = QUERY_CHAIN_WORKER_LATENCY.measure_latency();
+
         let chain_actor = self.get_chain_worker_endpoint(chain_id).await?;
         let (callback, response) = oneshot::channel();
 
-        chain_actor
-            .send(request_builder(callback))
-            .expect("`ChainWorkerActor` stopped executing unexpectedly");
+        let request = request_builder(callback);
+        let (started_sender, started_receiver) = oneshot::channel();
+        tracing::trace!("Sending request {request:?} to chain worker for {chain_id}");
+        {
+            let _start_measurement = CHAIN_WORKER_START_HANDLING_REQUEST_LATENCY.measure_latency();
+            chain_actor
+                .send((request, started_sender))
+                .expect("`ChainWorkerActor` stopped executing unexpectedly");
+            started_receiver.await;
+        }
 
         response
             .await
@@ -795,7 +978,11 @@ where
         &self,
         chain_id: ChainId,
     ) -> Result<ChainActorEndpoint<StorageClient>, WorkerError> {
-        let mut chain_workers = self.chain_workers.lock().await;
+        let mut chain_workers = {
+            #[cfg(with_metrics)]
+            let _measurement = ACQUIRE_CHAIN_WORKERS_LOCK_LATENCY.measure_latency();
+            self.chain_workers.lock().await
+        };
 
         if !chain_workers.contains(&chain_id) {
             chain_workers.push(
@@ -900,7 +1087,7 @@ where
         height = %certificate.value().height(),
     ))]
     async fn handle_certificate(
-        &mut self,
+        &self,
         certificate: Certificate,
         hashed_certificate_values: Vec<HashedCertificateValue>,
         hashed_blobs: Vec<HashedBlob>,
@@ -994,9 +1181,11 @@ where
         chain_id = format!("{:.8}", request.target_chain_id())
     ))]
     async fn handle_cross_chain_request(
-        &mut self,
+        &self,
         request: CrossChainRequest,
     ) -> Result<NetworkActions, WorkerError> {
+        #[cfg(with_metrics)]
+        let _measurement = HANDLE_CROSS_CHAIN_REQUEST_LATENCY.measure_latency();
         trace!("{} <-- {:?}", self.nickname, request);
         match request {
             CrossChainRequest::UpdateRecipient {
@@ -1004,6 +1193,8 @@ where
                 recipient,
                 bundle_vecs,
             } => {
+                #[cfg(with_metrics)]
+                let _measurement = HANDLE_UPDATE_RECIPIENT_REQUEST_LATENCY.measure_latency();
                 let mut height_by_origin = Vec::new();
                 for (medium, bundles) in bundle_vecs {
                     let origin = Origin { sender, medium };
@@ -1041,6 +1232,9 @@ where
                 recipient,
                 latest_heights,
             } => {
+                #[cfg(with_metrics)]
+                let _measurement =
+                    HANDLE_CONFIRM_UPDATED_RECIPIENT_REQUEST_LATENCY.measure_latency();
                 let latest_heights = latest_heights
                     .into_iter()
                     .map(|(medium, height)| (Target { recipient, medium }, height))

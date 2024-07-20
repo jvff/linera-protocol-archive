@@ -1,0 +1,185 @@
+// Copyright (c) Zefchain Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+use std::{
+    env,
+    time::{Duration, Instant},
+};
+
+use futures::{
+    stream::{self, FuturesUnordered},
+    Stream, StreamExt,
+};
+use linera_base::{
+    data_types::Amount,
+    identifiers::{Account, ChainId, Owner},
+};
+use linera_execution::system::Recipient;
+use linera_sdk::test::{ActiveChain, TestValidator};
+use tokio::runtime;
+
+#[tokio::main]
+async fn main() -> Result<(), anyhow::Error> {
+    let chain_count = 16;
+    let accounts_per_chain = 1;
+    let transfers_per_account = if env::var_os("RUST_LOG").is_some() {
+        let log = std::fs::File::create("/tmp/bench.log").unwrap();
+        let env_filter = tracing_subscriber::EnvFilter::builder()
+            .with_default_directive(tracing_subscriber::filter::LevelFilter::INFO.into())
+            .from_env_lossy();
+        tracing_subscriber::fmt()
+            .with_writer(std::sync::Mutex::new(std::io::BufWriter::new(log)))
+            .with_env_filter(env_filter)
+            .init();
+        400
+    } else {
+        console_subscriber::init();
+        32000
+    };
+
+    let chains =
+        setup_native_token_balances(chain_count, accounts_per_chain, transfers_per_account).await;
+
+    let transfers = prepare_transfers(chains, transfers_per_account);
+
+    let measurement = Instant::now();
+    transfers.collect::<()>().await;
+
+    let metrics = prometheus::TextEncoder::new()
+        .encode_to_string(&prometheus::gather())
+        .unwrap();
+    let metrics = metrics
+        .lines()
+        .filter(|line| {
+            line.contains("acquire_chain_worker")
+                || line.contains("memory_store")
+                || line.contains("wait_for")
+                || !line.contains("_bucket{")
+        })
+        .scan(None, |maybe_sum: &mut Option<f64>, line| {
+            if line.contains("_sum ") {
+                if let Some(number) = line.split(" ").last() {
+                    if let Ok(sum) = number.parse() {
+                        *maybe_sum = Some(sum);
+                    }
+                }
+            } else if line.contains("_count ") {
+                if let Some(sum) = maybe_sum.take() {
+                    if let Some(number) = line.split(" ").last() {
+                        if let Ok(count) = number.parse::<f64>() {
+                            let average = sum / count;
+                            let average_time = Duration::from_secs_f64(average / 1000.0);
+                            return Some(vec![line.to_owned(), format!(" {average_time:.2?}")]);
+                        }
+                    }
+                }
+            }
+            Some(vec![line.to_owned()])
+        })
+        .flatten()
+        .collect::<Vec<_>>()
+        .join("\n");
+    println!("METRICS");
+    println!("{metrics}");
+
+    Ok(())
+}
+
+async fn setup_native_token_balances(
+    chain_count: usize,
+    accounts_per_chain: usize,
+    transfers_per_account: usize,
+) -> Vec<ActiveChain> {
+    let initial_balance = 2 * transfers_per_account as u128;
+
+    let validator = TestValidator::new().await;
+    let chains = stream::iter(0..chain_count)
+        .then(|_| validator.new_chain())
+        .collect::<Vec<_>>()
+        .await;
+
+    let admin_chain = validator.get_chain(&ChainId::root(0));
+
+    for chain in &chains {
+        let recipient = Recipient::Account(Account {
+            chain_id: chain.id(),
+            owner: Some(chain.public_key().into()),
+        });
+
+        assert_eq!(accounts_per_chain, 1);
+        admin_chain
+            .add_block(|block| {
+                block.with_native_token_transfer(
+                    None,
+                    recipient,
+                    Amount::from_tokens(initial_balance),
+                );
+            })
+            .await;
+
+        chain.handle_received_messages().await;
+    }
+
+    chains
+}
+
+fn prepare_transfers(
+    chains: Vec<ActiveChain>,
+    transfers_per_account: usize,
+) -> impl Stream<Item = ()> {
+    let accounts = chains
+        .iter()
+        .map(|chain| Account {
+            chain_id: chain.id(),
+            owner: Some(chain.public_key().into()),
+        })
+        .collect::<Vec<_>>();
+
+    let chain_count = chains.len();
+
+    let chain_transfers = chains
+        .into_iter()
+        .enumerate()
+        .map(|(index, chain)| {
+            let chain_id = chain.id();
+            let sender = Some(Owner::from(chain.public_key()));
+
+            let offset = if index == 0 {
+                chain_count - 1
+            } else {
+                index - 1
+            };
+
+            let transfers = accounts
+                .iter()
+                .copied()
+                .filter(move |recipient| recipient.chain_id != chain_id)
+                .cycle()
+                .skip(offset)
+                .take(transfers_per_account)
+                .map(Recipient::Account)
+                .map(move |recipient| (sender, recipient))
+                .collect::<Vec<_>>();
+
+            (chain, transfers)
+        })
+        .collect::<Vec<_>>();
+
+    chain_transfers
+        .into_iter()
+        .map(move |(chain, transfers)| async move {
+            tokio::spawn(async move {
+                for (height, (sender, recipient)) in transfers.into_iter().enumerate() {
+                    tracing::trace!("Adding block #{height} to {:?}", chain.id());
+                    chain
+                        .add_block(|block| {
+                            block.with_native_token_transfer(sender, recipient, Amount::ONE);
+                        })
+                        .await;
+                }
+            })
+            .await
+            .unwrap();
+        })
+        .collect::<FuturesUnordered<_>>()
+}

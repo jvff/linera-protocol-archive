@@ -41,6 +41,14 @@ use tokio::sync::{OwnedRwLockReadGuard, RwLock};
 use tracing::{debug, warn};
 #[cfg(with_testing)]
 use {linera_base::identifiers::BytecodeId, linera_chain::data_types::Event};
+#[cfg(with_metrics)]
+use {
+    linera_base::{
+        prometheus_util::{self, MeasureLatency},
+        sync::Lazy,
+    },
+    prometheus::HistogramVec,
+};
 
 use super::ChainWorkerConfig;
 use crate::{
@@ -48,6 +56,132 @@ use crate::{
     value_cache::ValueCache,
     worker::{NetworkActions, Notification, Reason, WorkerError},
 };
+
+#[cfg(with_metrics)]
+static CONFIRMATION_LATENCY_BEFORE_EXECUTE_BLOCK: Lazy<HistogramVec> = Lazy::new(|| {
+    prometheus_util::register_histogram_vec(
+        "confirmation_latency_before_execute_block",
+        "Latency in process_confirmed_block before the block is executed",
+        &[],
+        Some(vec![
+            0.000_1, 0.000_25, 0.000_5, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+            1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+        ]),
+    )
+    .expect("Counter creation should not fail")
+});
+
+#[cfg(with_metrics)]
+static CONFIRMATION_LATENCY_AFTER_EXECUTE_BLOCK: Lazy<HistogramVec> = Lazy::new(|| {
+    prometheus_util::register_histogram_vec(
+        "confirmation_latency_after_execute_block",
+        "Latency in process_confirmed_block after the block is executed",
+        &[],
+        Some(vec![
+            0.000_1, 0.000_25, 0.000_5, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+            1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+        ]),
+    )
+    .expect("Counter creation should not fail")
+});
+
+#[cfg(with_metrics)]
+static CONFIRMATION_NETWORK_ACTIONS_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    prometheus_util::register_histogram_vec(
+        "confirmation_network_actions_latency",
+        "Latency in process_confirmed_block to create network actions",
+        &[],
+        Some(vec![
+            0.000_1, 0.000_25, 0.000_5, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+            1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+        ]),
+    )
+    .expect("Counter creation should not fail")
+});
+
+#[cfg(with_metrics)]
+static CONFIRMATION_ADVANCE_HEIGHT_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    prometheus_util::register_histogram_vec(
+        "confirmation_advance_height_latency",
+        "Latency in process_confirmed_block to advance the block height",
+        &[],
+        Some(vec![
+            0.000_1, 0.000_25, 0.000_5, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+            1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+        ]),
+    )
+    .expect("Counter creation should not fail")
+});
+
+#[cfg(with_metrics)]
+static CONFIRMATION_BUILD_RESPONSE_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    prometheus_util::register_histogram_vec(
+        "confirmation_build_response_latency",
+        "Latency in process_confirmed_block to build the `ChainInfoResponse`",
+        &[],
+        Some(vec![
+            0.000_1, 0.000_25, 0.000_5, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+            1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+        ]),
+    )
+    .expect("Counter creation should not fail")
+});
+
+#[cfg(with_metrics)]
+static SAVE_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    prometheus_util::register_histogram_vec(
+        "chain_save_latency",
+        "Chain save latency",
+        &[],
+        Some(vec![
+            0.000_1, 0.000_25, 0.000_5, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+            1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+        ]),
+    )
+    .expect("Counter creation should not fail")
+});
+
+#[cfg(with_metrics)]
+static CHAIN_WORKER_STAGE_BLOCK_EXECUTION_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    prometheus_util::register_histogram_vec(
+        "chain_worker_stage_block_execution_latency",
+        "Chain worker stage lock execution latency",
+        &[],
+        Some(vec![
+            0.000_1, 0.000_25, 0.000_5, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+            1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+        ]),
+    )
+    .expect("Counter creation should not fail")
+});
+
+#[cfg(with_metrics)]
+static PROCESS_CROSS_CHAIN_UPDATE_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    prometheus_util::register_histogram_vec(
+        "process_cross_chain_update_latency",
+        "Process cross-chain update latency",
+        &[],
+        Some(vec![
+            0.000_1, 0.000_25, 0.000_5, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+            1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+        ]),
+    )
+    .expect("Counter creation should not fail")
+});
+
+#[cfg(with_metrics)]
+static CONFIRM_UPDATED_RECIPIENT_LATENCY: Lazy<HistogramVec> = Lazy::new(|| {
+    prometheus_util::register_histogram_vec(
+        "confirm_updated_recipient_latency",
+        "Confirm updated recipient latency",
+        &[],
+        Some(vec![
+            0.000_1, 0.000_25, 0.000_5, 0.001, 0.002_5, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+            1.0, 2.5, 5.0, 10.0, 25.0, 50.0,
+        ]),
+    )
+    .expect("Counter creation should not fail")
+});
 
 /// The state of the chain worker.
 pub struct ChainWorkerState<StorageClient>
@@ -607,6 +741,9 @@ where
         &mut self,
         block: Block,
     ) -> Result<(ExecutedBlock, ChainInfoResponse), WorkerError> {
+        #[cfg(with_metrics)]
+        let _measurement = CHAIN_WORKER_STAGE_BLOCK_EXECUTION_LATENCY.measure_latency();
+
         self.0.ensure_is_active()?;
 
         let local_time = self.0.storage.clock().current_time();
@@ -1026,6 +1163,10 @@ where
         hashed_certificate_values: &[HashedCertificateValue],
         hashed_blobs: &[HashedBlob],
     ) -> Result<(ChainInfoResponse, NetworkActions), WorkerError> {
+        #[cfg(with_metrics)]
+        let confirmation_latency_before_execute_block =
+            CONFIRMATION_LATENCY_BEFORE_EXECUTE_BLOCK.measure_latency();
+
         let CertificateValue::ConfirmedBlock { executed_block, .. } = certificate.value() else {
             panic!("Expecting a confirmation certificate");
         };
@@ -1129,12 +1270,17 @@ where
         // Execute the block and update inboxes.
         self.state.chain.remove_events_from_inboxes(block).await?;
         let local_time = self.state.storage.clock().current_time();
+        #[cfg(with_metrics)]
+        drop(confirmation_latency_before_execute_block);
         let verified_outcome = Box::pin(self.state.chain.execute_block(
             block,
             local_time,
             Some(executed_block.outcome.oracle_responses.clone()),
         ))
         .await?;
+        #[cfg(with_metrics)]
+        let _confirmation_latency_after_execute_block =
+            CONFIRMATION_LATENCY_AFTER_EXECUTE_BLOCK.measure_latency();
         // We should always agree on the messages and state hash.
         ensure!(
             executed_block.outcome == verified_outcome,
@@ -1176,6 +1322,9 @@ where
         origin: Origin,
         bundles: Vec<MessageBundle>,
     ) -> Result<Option<BlockHeight>, WorkerError> {
+        #[cfg(with_metrics)]
+        let _measurement = PROCESS_CROSS_CHAIN_UPDATE_LATENCY.measure_latency();
+
         // Only process certificates with relevant heights and epochs.
         let next_height_to_receive = self
             .state
@@ -1228,6 +1377,9 @@ where
         &mut self,
         latest_heights: Vec<(Target, BlockHeight)>,
     ) -> Result<BlockHeight, WorkerError> {
+        #[cfg(with_metrics)]
+        let _measurement = CONFIRM_UPDATED_RECIPIENT_LATENCY.measure_latency();
+
         let mut height_with_fully_delivered_messages = BlockHeight::ZERO;
 
         for (target, height) in latest_heights {
@@ -1296,6 +1448,9 @@ where
     ///
     /// Waits until the [`ChainStateView`] is no longer shared before persisting the changes.
     async fn save(&mut self) -> Result<(), WorkerError> {
+        #[cfg(with_metrics)]
+        let _save_latency = SAVE_LATENCY.measure_latency();
+
         // SAFETY: this is the only place a write-lock is acquired, and read-locks are acquired in
         // the `chain_state_view` method, which has a `&mut self` receiver like this `save` method.
         // That means that when the write-lock is acquired, no readers will be waiting to acquire
