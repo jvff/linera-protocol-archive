@@ -78,6 +78,7 @@ pub struct ReentrantByteCollectionView<C, W> {
     context: C,
     delete_storage_first: bool,
     updates: Mutex<BTreeMap<Vec<u8>, Update<Arc<RwLock<W>>>>>,
+    cached_entries: Mutex<BTreeMap<Vec<u8>, Arc<RwLock<W>>>>,
 }
 
 /// We need to find new base keys in order to implement the collection_view.
@@ -117,6 +118,7 @@ where
             context,
             delete_storage_first: false,
             updates: Mutex::new(BTreeMap::new()),
+            cached_entries: Mutex::new(BTreeMap::new()),
         })
     }
 
@@ -178,6 +180,7 @@ where
     fn clear(&mut self) {
         self.delete_storage_first = true;
         self.updates.get_mut().clear();
+        self.cached_entries.get_mut().clear();
     }
 }
 
@@ -211,6 +214,7 @@ where
             context: self.context.clone(),
             delete_storage_first: self.delete_storage_first,
             updates: Mutex::new(cloned_updates),
+            cached_entries: Mutex::new(BTreeMap::new()),
         })
     }
 }
@@ -268,8 +272,13 @@ where
                 }
             },
             Vacant(entry) => {
-                let wrapped_view =
-                    Self::wrapped_view(&self.context, self.delete_storage_first, short_key).await?;
+                let wrapped_view = match self.cached_entries.get_mut().remove(short_key) {
+                    Some(view) => view,
+                    None => {
+                        Self::wrapped_view(&self.context, self.delete_storage_first, short_key)
+                            .await?
+                    }
+                };
                 entry.insert(Update::Set(wrapped_view.clone()));
                 wrapped_view
             }
@@ -281,17 +290,26 @@ where
     /// missing there an error is reported.
     async fn try_load_view(&self, short_key: &[u8]) -> Result<Option<Arc<RwLock<W>>>, ViewError> {
         let updates = self.updates.lock().await;
-        Ok(match updates.get(short_key) {
-            Some(entry) => match entry {
+        Ok(if let Some(entry) = updates.get(short_key) {
+            match entry {
                 Update::Set(view) => Some(view.clone()),
                 _entry @ Update::Removed => None,
-            },
-            None => {
+            }
+        } else if self.delete_storage_first {
+            None
+        } else {
+            let mut cached_entries = self.cached_entries.lock().await;
+
+            if let Some(view) = cached_entries.get(short_key) {
+                Some(view.clone())
+            } else {
                 let key_index = self.context.base_tag_index(KeyTag::Index as u8, short_key);
-                if self.delete_storage_first || !self.context.contains_key(&key_index).await? {
-                    None
+                if self.context.contains_key(&key_index).await? {
+                    let view = Self::wrapped_view(&self.context, false, short_key).await?;
+                    cached_entries.insert(short_key.to_owned(), view.clone());
+                    Some(view)
                 } else {
-                    Some(Self::wrapped_view(&self.context, false, short_key).await?)
+                    None
                 }
             }
         })
@@ -398,15 +416,18 @@ where
     /// ```
     pub async fn contains_key(&self, short_key: &[u8]) -> Result<bool, ViewError> {
         let updates = self.updates.lock().await;
-        Ok(match updates.get(short_key) {
-            Some(entry) => match entry {
+        Ok(if let Some(entry) = updates.get(short_key) {
+            match entry {
                 Update::Set(_view) => true,
                 Update::Removed => false,
-            },
-            None => {
-                let key_index = self.context.base_tag_index(KeyTag::Index as u8, short_key);
-                !self.delete_storage_first && self.context.contains_key(&key_index).await?
             }
+        } else if self.delete_storage_first {
+            false
+        } else if self.cached_entries.lock().await.contains_key(short_key) {
+            true
+        } else {
+            let key_index = self.context.base_tag_index(KeyTag::Index as u8, short_key);
+            !self.delete_storage_first && self.context.contains_key(&key_index).await?
         })
     }
 
@@ -428,6 +449,7 @@ where
     /// # })
     /// ```
     pub fn remove_entry(&mut self, short_key: Vec<u8>) {
+        self.cached_entries.get_mut().remove(&short_key);
         if self.delete_storage_first {
             // Optimization: No need to mark `short_key` for deletion as we are going to remove all the keys at once.
             self.updates.get_mut().remove(&short_key);
@@ -466,6 +488,7 @@ where
         let view = Update::Set(view);
         let updates = self.updates.get_mut();
         updates.insert(short_key.to_vec(), view);
+        self.cached_entries.get_mut().remove(short_key);
         Ok(())
     }
 
@@ -508,23 +531,25 @@ where
         short_keys: Vec<Vec<u8>>,
     ) -> Result<Vec<WriteGuardedView<W>>, ViewError> {
         let updates = self.updates.get_mut();
+        let cached_entries = self.cached_entries.get_mut();
         let mut selected_short_keys = Vec::new();
         for short_key in &short_keys {
             match updates.entry(short_key.to_vec()) {
-                btree_map::Entry::Occupied(entry) => {
-                    let entry = entry.into_mut();
-                    if let Update::Removed = entry {
+                btree_map::Entry::Occupied(mut entry) => {
+                    if let Update::Removed = entry.get() {
                         let key = self
                             .context
                             .base_tag_index(KeyTag::Subview as u8, short_key);
                         let context = self.context.clone_with_base_key(key);
                         let view = W::new(context)?;
                         let view = Arc::new(RwLock::new(view));
-                        *entry = Update::Set(view);
+                        entry.insert(Update::Set(view));
+                        cached_entries.remove(short_key);
                     }
                 }
                 btree_map::Entry::Vacant(entry) => {
                     if self.delete_storage_first {
+                        cached_entries.remove(short_key);
                         let key = self
                             .context
                             .base_tag_index(KeyTag::Subview as u8, short_key);
@@ -595,68 +620,53 @@ where
         &self,
         short_keys: Vec<Vec<u8>>,
     ) -> Result<Vec<Option<ReadGuardedView<W>>>, ViewError> {
-        let mut updates = self.updates.lock().await;
-        let mut selected_short_keys = Vec::new();
-        for short_key in &short_keys {
-            match updates.entry(short_key.to_vec()) {
-                btree_map::Entry::Occupied(entry) => {
-                    let entry = entry.into_mut();
-                    if let Update::Removed = entry {
-                        let key = self
-                            .context
-                            .base_tag_index(KeyTag::Subview as u8, short_key);
-                        let context = self.context.clone_with_base_key(key);
-                        let view = W::new(context)?;
-                        let view = Arc::new(RwLock::new(view));
-                        *entry = Update::Set(view);
-                    }
-                }
-                btree_map::Entry::Vacant(entry) => {
-                    if self.delete_storage_first {
-                        let key = self
-                            .context
-                            .base_tag_index(KeyTag::Subview as u8, short_key);
-                        let context = self.context.clone_with_base_key(key);
-                        let view = W::new(context)?;
-                        let view = Arc::new(RwLock::new(view));
-                        entry.insert(Update::Set(view));
-                    } else {
-                        selected_short_keys.push(short_key.to_vec());
-                    }
-                }
-            }
-        }
+        let updates = self.updates.lock().await;
+        let mut cached_entries = self.cached_entries.lock().await;
+        let selected_short_keys = short_keys
+            .iter()
+            .filter(|short_key| !updates.contains_key(*short_key))
+            .filter(|_| !self.delete_storage_first)
+            .filter(|short_key| !cached_entries.contains_key(*short_key))
+            .collect::<Vec<_>>();
         let mut handles = Vec::new();
         for short_key in &selected_short_keys {
-            let key = self
+            let index_key = self.context.base_tag_index(KeyTag::Index as u8, short_key);
+            let base_key = self
                 .context
                 .base_tag_index(KeyTag::Subview as u8, short_key);
-            let context = self.context.clone_with_base_key(key);
-            handles.push(tokio::spawn(async move { W::load(context).await }));
+            let context = self.context.clone_with_base_key(base_key);
+            handles.push(tokio::spawn(async move {
+                if context.contains_key(&index_key).await? {
+                    Some(W::load(context).await).transpose()
+                } else {
+                    Ok(None)
+                }
+            }));
         }
         let response = futures::future::join_all(handles).await;
-        for (short_key, view) in selected_short_keys.into_iter().zip(response) {
-            let view = view??;
-            let wrapped_view = Arc::new(RwLock::new(view));
-            updates.insert(short_key, Update::Set(wrapped_view));
+        for (short_key, maybe_view) in selected_short_keys.into_iter().zip(response) {
+            if let Some(view) = maybe_view?? {
+                let wrapped_view = Arc::new(RwLock::new(view));
+                cached_entries.insert(short_key.to_owned(), wrapped_view);
+            }
         }
 
         short_keys
             .into_iter()
             .map(|short_key| {
-                let btree_map::Entry::Occupied(entry) = updates.entry(short_key.clone()) else {
-                    unreachable!()
+                let maybe_view = match updates.get(&short_key) {
+                    Some(Update::Set(view)) => Some(view.clone()),
+                    Some(Update::Removed) => None,
+                    None => cached_entries.get(&short_key).cloned(),
                 };
-                let Update::Set(view) = entry.into_mut() else {
-                    unreachable!()
-                };
-                (short_key, view.clone())
+                maybe_view.map(|view| (short_key.clone(), view))
             })
-            .map(|(short_key, view)| {
-                Ok(Some(ReadGuardedView(
+            .map(|maybe_item| match maybe_item {
+                Some((short_key, view)) => Ok(Some(ReadGuardedView(
                     view.try_read_arc()
                         .ok_or_else(|| ViewError::TryLockError(short_key))?,
-                )))
+                ))),
+                None => Ok(None),
             })
             .collect()
     }
@@ -807,24 +817,27 @@ where
         let keys = self.keys().await?;
         hasher.update_with_bcs_bytes(&keys.len())?;
         let updates = self.updates.get_mut();
+        let cached_entries = self.cached_entries.get_mut();
         for key in keys {
             hasher.update_with_bytes(&key)?;
-            let hash = match updates.get_mut(&key) {
-                Some(entry) => {
-                    let Update::Set(view) = entry else {
-                        unreachable!();
-                    };
-                    let mut view = view
-                        .try_write_arc()
-                        .ok_or_else(|| ViewError::TryLockError(key))?;
-                    view.hash_mut().await?
-                }
-                None => {
-                    let key = self.context.base_tag_index(KeyTag::Subview as u8, &key);
-                    let context = self.context.clone_with_base_key(key);
-                    let mut view = W::load(context).await?;
-                    view.hash_mut().await?
-                }
+            let hash = if let Some(entry) = updates.get_mut(&key) {
+                let Update::Set(view) = entry else {
+                    unreachable!();
+                };
+                let mut view = view
+                    .try_write_arc()
+                    .ok_or_else(|| ViewError::TryLockError(key))?;
+                view.hash_mut().await?
+            } else if let Some(view) = cached_entries.get_mut(&key) {
+                let mut view = view
+                    .try_write_arc()
+                    .ok_or_else(|| ViewError::TryLockError(key))?;
+                view.hash_mut().await?
+            } else {
+                let key = self.context.base_tag_index(KeyTag::Subview as u8, &key);
+                let context = self.context.clone_with_base_key(key);
+                let mut view = W::load(context).await?;
+                view.hash_mut().await?
             };
             hasher.write_all(hash.as_ref())?;
         }
@@ -838,24 +851,27 @@ where
         let keys = self.keys().await?;
         hasher.update_with_bcs_bytes(&keys.len())?;
         let updates = self.updates.lock().await;
+        let cached_entries = self.cached_entries.lock().await;
         for key in keys {
             hasher.update_with_bytes(&key)?;
-            let hash = match updates.get(&key) {
-                Some(entry) => {
-                    let Update::Set(view) = entry else {
-                        unreachable!();
-                    };
-                    let view = view
-                        .try_read_arc()
-                        .ok_or_else(|| ViewError::TryLockError(key))?;
-                    view.hash().await?
-                }
-                None => {
-                    let key = self.context.base_tag_index(KeyTag::Subview as u8, &key);
-                    let context = self.context.clone_with_base_key(key);
-                    let view = W::load(context).await?;
-                    view.hash().await?
-                }
+            let hash = if let Some(entry) = updates.get(&key) {
+                let Update::Set(view) = entry else {
+                    unreachable!();
+                };
+                let view = view
+                    .try_read_arc()
+                    .ok_or_else(|| ViewError::TryLockError(key))?;
+                view.hash().await?
+            } else if let Some(view) = cached_entries.get(&key) {
+                let view = view
+                    .try_read_arc()
+                    .ok_or_else(|| ViewError::TryLockError(key))?;
+                view.hash().await?
+            } else {
+                let key = self.context.base_tag_index(KeyTag::Subview as u8, &key);
+                let context = self.context.clone_with_base_key(key);
+                let view = W::load(context).await?;
+                view.hash().await?
             };
             hasher.write_all(hash.as_ref())?;
         }
