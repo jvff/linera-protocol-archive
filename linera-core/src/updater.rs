@@ -459,7 +459,14 @@ where
         {
             let chain = self.local_node.chain_state_view(chain_id).await?;
             let origins = chain.inboxes.indices().await?;
-            let inboxes = chain.inboxes.try_load_entries(&origins).await?;
+            let inboxes = chain
+                .inboxes
+                .try_load_entries(&origins)
+                .await?
+                .into_iter()
+                .map(|maybe_inbox| {
+                    maybe_inbox.expect("All obtained indices should have an element in the queue")
+                });
             for (origin, inbox) in origins.into_iter().zip(inboxes) {
                 let next_height = sender_heights.entry(origin.sender).or_default();
                 let inbox_next_height = inbox.next_block_height_to_receive()?;

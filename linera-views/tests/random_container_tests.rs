@@ -631,7 +631,7 @@ async fn reentrant_collection_view_check() -> Result<()> {
             let subviews = view.v.try_load_entries(&indices).await?;
             for i in 0..indices.len() {
                 let index = indices[i];
-                let value_view = *subviews[i].get();
+                let value_view = *subviews[i].as_ref().unwrap().get();
                 let value_map = match new_map.get(&index) {
                     None => 0,
                     Some(value) => *value,

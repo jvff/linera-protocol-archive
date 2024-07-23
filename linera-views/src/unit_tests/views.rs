@@ -396,8 +396,8 @@ async fn test_reentrant_collection_view_has_no_pending_changes_after_try_load_en
 
     let entries = view.try_load_entries(vec![&1, &2]).await?;
     assert_eq!(entries.len(), 2);
-    assert_eq!(entries[0].get(), &values[0].1);
-    assert_eq!(entries[1].get(), &values[1].1);
+    assert_eq!(entries[0].as_ref().unwrap().get(), &values[0].1);
+    assert_eq!(entries[1].as_ref().unwrap().get(), &values[1].1);
 
     assert!(!view.has_pending_changes().await);
 
@@ -479,10 +479,10 @@ async fn test_reentrant_collection_view_has_pending_changes_after_try_load_entri
 
     let entries = view.try_load_entries([&2, &3]).await?;
     assert_eq!(entries.len(), 2);
-    assert_eq!(entries[0].get(), &values[1].1);
-    assert_eq!(entries[1].get(), &values[2].1);
-    assert!(!entries[0].has_pending_changes().await);
-    assert!(!entries[1].has_pending_changes().await);
+    assert_eq!(entries[0].as_ref().unwrap().get(), &values[1].1);
+    assert_eq!(entries[1].as_ref().unwrap().get(), &values[2].1);
+    assert!(!entries[0].as_ref().unwrap().has_pending_changes().await);
+    assert!(!entries[1].as_ref().unwrap().has_pending_changes().await);
 
     assert!(!view.has_pending_changes().await);
 

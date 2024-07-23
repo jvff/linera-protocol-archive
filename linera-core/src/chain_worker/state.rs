@@ -438,7 +438,15 @@ where
     async fn create_network_actions(&self) -> Result<NetworkActions, WorkerError> {
         let mut heights_by_recipient: BTreeMap<_, BTreeMap<_, _>> = Default::default();
         let targets = self.chain.outboxes.indices().await?;
-        let outboxes = self.chain.outboxes.try_load_entries(&targets).await?;
+        let outboxes = self
+            .chain
+            .outboxes
+            .try_load_entries(&targets)
+            .await?
+            .into_iter()
+            .map(|maybe_outbox| {
+                maybe_outbox.expect("All obtained indices should have an element in the queue")
+            });
         for (target, outbox) in targets.into_iter().zip(outboxes) {
             let heights = outbox.queue.elements().await?;
             heights_by_recipient
@@ -776,7 +784,14 @@ where
         if query.request_pending_messages {
             let mut messages = Vec::new();
             let origins = chain.inboxes.indices().await?;
-            let inboxes = chain.inboxes.try_load_entries(&origins).await?;
+            let inboxes = chain
+                .inboxes
+                .try_load_entries(&origins)
+                .await?
+                .into_iter()
+                .map(|maybe_inbox| {
+                    maybe_inbox.expect("All obtained indices should have an element in the queue")
+                });
             let action = if *chain.execution_state.system.closed.get() {
                 MessageAction::Reject
             } else {

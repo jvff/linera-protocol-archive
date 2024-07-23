@@ -594,7 +594,7 @@ where
     pub async fn try_load_entries(
         &self,
         short_keys: Vec<Vec<u8>>,
-    ) -> Result<Vec<ReadGuardedView<W>>, ViewError> {
+    ) -> Result<Vec<Option<ReadGuardedView<W>>>, ViewError> {
         let mut updates = self.updates.lock().await;
         let mut selected_short_keys = Vec::new();
         for short_key in &short_keys {
@@ -653,10 +653,10 @@ where
                 (short_key, view.clone())
             })
             .map(|(short_key, view)| {
-                Ok(ReadGuardedView(
+                Ok(Some(ReadGuardedView(
                     view.try_read_arc()
                         .ok_or_else(|| ViewError::TryLockError(short_key))?,
-                ))
+                )))
             })
             .collect()
     }
@@ -1170,7 +1170,7 @@ where
     pub async fn try_load_entries<'a, Q>(
         &'a self,
         indices: impl IntoIterator<Item = &'a Q>,
-    ) -> Result<Vec<ReadGuardedView<W>>, ViewError>
+    ) -> Result<Vec<Option<ReadGuardedView<W>>>, ViewError>
     where
         I: Borrow<Q>,
         Q: Serialize + 'a,
@@ -1611,7 +1611,7 @@ where
     pub async fn try_load_entries<Q>(
         &self,
         indices: impl IntoIterator<Item = Q>,
-    ) -> Result<Vec<ReadGuardedView<W>>, ViewError>
+    ) -> Result<Vec<Option<ReadGuardedView<W>>>, ViewError>
     where
         I: Borrow<Q>,
         Q: CustomSerialize,

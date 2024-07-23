@@ -499,7 +499,14 @@ where
     pub async fn validate_incoming_messages(&self) -> Result<(), ChainError> {
         let chain_id = self.chain_id();
         let origins = self.inboxes.indices().await?;
-        let inboxes = self.inboxes.try_load_entries(&origins).await?;
+        let inboxes = self
+            .inboxes
+            .try_load_entries(&origins)
+            .await?
+            .into_iter()
+            .map(|maybe_inbox| {
+                maybe_inbox.expect("All obtained indices should have an element in the queue")
+            });
         let stream = origins.into_iter().zip(inboxes);
         let max_stream_queries = self.context().max_stream_queries();
         let stream = stream::iter(stream)
