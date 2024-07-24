@@ -632,10 +632,12 @@ where
                 keys_to_load.extend(W::pre_load(context)?);
             }
             let values = self.context.read_multi_values_bytes(keys_to_load).await?;
-            for (position, short_key, context) in entries_to_load.into_iter() {
+            for (load_index, (position, short_key, context)) in
+                entries_to_load.into_iter().enumerate()
+            {
                 let view = W::post_load(
                     context,
-                    &values[position * num_init_keys..(position + 1) * num_init_keys],
+                    &values[load_index * num_init_keys..(load_index + 1) * num_init_keys],
                 )?;
                 let wrapped_view = Arc::new(RwLock::new(view));
                 cached_entries.insert(short_key.clone(), wrapped_view.clone());
