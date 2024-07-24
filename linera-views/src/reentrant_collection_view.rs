@@ -1210,8 +1210,25 @@ where
     pub async fn load_all_entries(
         &self,
     ) -> Result<impl Iterator<Item = (I, ReadGuardedView<W>)>, ViewError> {
-        let all_indices = self.indices().await?;
-        let all_entries = self.collection.load_all_entries().await?;
+        let mut all_indices = Vec::new();
+        let mut all_keys = Vec::new();
+        self.collection
+            .for_each_key_while(|key| {
+                all_keys.push(key.to_owned());
+                all_indices.push(C::deserialize_value(key)?);
+                Ok(true)
+            })
+            .await?;
+
+        let all_entries = self
+            .collection
+            .try_load_entries(all_keys)
+            .await?
+            .into_iter()
+            .map(|wrapped_entry| {
+                wrapped_entry.expect("All obtained keys should have an entry in the collection")
+            });
+
         Ok(all_indices.into_iter().zip(all_entries))
     }
 }
