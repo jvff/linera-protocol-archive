@@ -637,46 +637,6 @@ where
         }
         Ok(results)
     }
-
-    /// Returns an iterator over all entries, ordered by their keys.
-    ///
-    /// Any entries not already in memory are loaded together, and the iterator is a heap
-    /// allocation with all the entries.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use linera_views::{
-    /// #     memory::{create_memory_context, MemoryContext},
-    /// #     reentrant_collection_view::ReentrantByteCollectionView,
-    /// #     register_view::RegisterView,
-    /// #     views::View,
-    /// # };
-    /// # tokio_test::block_on(async {
-    /// #     let context = create_memory_context();
-    ///       let mut view: ReentrantByteCollectionView<_, RegisterView<_, String>> =
-    ///           ReentrantByteCollectionView::load(context).await?;
-    ///
-    ///       view.try_load_entry_mut(&[1]).await.unwrap().set("one".to_owned());
-    ///       view.try_load_entry_mut(&[2]).await.unwrap().set("two".to_owned());
-    ///
-    ///       let entries = view.load_all_entries().await?.collect::<Vec<_>>();
-    ///
-    ///       assert_eq!(entries.len(), 2);
-    ///       assert_eq!(entries[0].get(), "one");
-    ///       assert_eq!(entries[1].get(), "two");
-    /// #     Ok::<_, anyhow::Error>(())
-    /// # });
-    /// ```
-    pub async fn load_all_entries(
-        &self,
-    ) -> Result<impl Iterator<Item = ReadGuardedView<W>>, ViewError> {
-        let all_keys = self.keys().await?;
-        let all_entries = self.try_load_entries(all_keys).await?;
-        Ok(all_entries.into_iter().map(|wrapped_entry| {
-            wrapped_entry.expect("All obtained keys should have an entry in the collection")
-        }))
-    }
 }
 
 impl<C, W> ReentrantByteCollectionView<C, W>
@@ -1173,46 +1133,6 @@ where
             .map(|index| C::derive_short_key(index))
             .collect::<Result<_, _>>()?;
         self.collection.try_load_entries(short_keys).await
-    }
-
-    /// Returns an iterator over all indices and their entries.
-    ///
-    /// Any entries not already in memory are loaded together, and the iterator consists of two
-    /// heap allocations, one with indices and one with the entries.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use linera_views::{
-    /// #     memory::{create_memory_context, MemoryContext},
-    /// #     reentrant_collection_view::ReentrantCollectionView,
-    /// #     register_view::RegisterView,
-    /// #     views::View,
-    /// # };
-    /// # tokio_test::block_on(async {
-    /// #     let context = create_memory_context();
-    ///       let mut view: ReentrantCollectionView<_, u64, RegisterView<_, String>> =
-    ///           ReentrantCollectionView::load(context).await?;
-    ///
-    ///       view.try_load_entry_mut(&1).await.unwrap().set("one".to_owned());
-    ///       view.try_load_entry_mut(&2).await.unwrap().set("two".to_owned());
-    ///
-    ///       let entries = view.load_all_entries().await?.collect::<Vec<_>>();
-    ///
-    ///       assert_eq!(entries.len(), 2);
-    ///       assert_eq!(entries[0].0, 1);
-    ///       assert_eq!(entries[1].0, 2);
-    ///       assert_eq!(entries[0].1.get(), "one");
-    ///       assert_eq!(entries[1].1.get(), "two");
-    /// #     Ok::<_, anyhow::Error>(())
-    /// # });
-    /// ```
-    pub async fn load_all_entries(
-        &self,
-    ) -> Result<impl Iterator<Item = (I, ReadGuardedView<W>)>, ViewError> {
-        let all_indices = self.indices().await?;
-        let all_entries = self.collection.load_all_entries().await?;
-        Ok(all_indices.into_iter().zip(all_entries))
     }
 }
 
