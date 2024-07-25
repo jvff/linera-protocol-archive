@@ -670,12 +670,13 @@ where
         &self,
     ) -> Result<Vec<(Vec<u8>, ReadGuardedView<W>)>, ViewError> {
         let short_keys = self.keys().await?;
-        let mut updates = self.updates.lock().await;
+        let mut cached_entries = self.cached_entries.lock().await;
         if !self.delete_storage_first {
             let mut keys = Vec::new();
             let mut short_keys_to_load = Vec::new();
             for short_key in &short_keys {
-                if updates.get(short_key).is_none() {
+                if !self.updates.contains_key(short_key) && !cached_entries.contains_key(short_key)
+                {
                     let key = self
                         .context
                         .base_tag_index(KeyTag::Subview as u8, short_key);
@@ -696,18 +697,21 @@ where
                     &values[i_key * num_init_keys..(i_key + 1) * num_init_keys],
                 )?;
                 let wrapped_view = Arc::new(RwLock::new(view));
-                updates.insert(short_key.to_vec(), Update::Set(wrapped_view));
+                cached_entries.insert(short_key.to_vec(), wrapped_view);
             }
         }
         short_keys
             .into_iter()
             .map(|short_key| {
-                let Some(Update::Set(view)) = updates.get(&short_key) else {
-                    unreachable!()
+                let view = if let Some(Update::Set(view)) = self.updates.get(&short_key) {
+                    view.clone()
+                } else if let Some(view) = cached_entries.get(&short_key) {
+                    view.clone()
+                } else {
+                    unreachable!("All entries should have been loaded into memory");
                 };
                 let guard = ReadGuardedView(
-                    view.clone()
-                        .try_read_arc()
+                    view.try_read_arc()
                         .ok_or_else(|| ViewError::TryLockError(short_key.clone()))?,
                 );
                 Ok((short_key, guard))
@@ -732,21 +736,25 @@ where
     /// # })
     /// ```
     pub async fn try_load_all_entries_mut(
-        &self,
+        &mut self,
     ) -> Result<Vec<(Vec<u8>, WriteGuardedView<W>)>, ViewError> {
         let short_keys = self.keys().await?;
-        let mut updates = self.updates.lock().await;
+        let cached_entries = self.cached_entries.get_mut();
         if !self.delete_storage_first {
             let mut keys = Vec::new();
             let mut short_keys_to_load = Vec::new();
             for short_key in &short_keys {
-                if updates.get(short_key).is_none() {
-                    let key = self
-                        .context
-                        .base_tag_index(KeyTag::Subview as u8, short_key);
-                    let context = self.context.clone_with_base_key(key);
-                    keys.extend(W::pre_load(&context)?);
-                    short_keys_to_load.push(short_key.to_vec());
+                if !self.updates.contains_key(short_key) {
+                    if let Some(view) = cached_entries.remove(short_key) {
+                        self.updates.insert(short_key.to_vec(), Update::Set(view));
+                    } else {
+                        let key = self
+                            .context
+                            .base_tag_index(KeyTag::Subview as u8, short_key);
+                        let context = self.context.clone_with_base_key(key);
+                        keys.extend(W::pre_load(&context)?);
+                        short_keys_to_load.push(short_key.to_vec());
+                    }
                 }
             }
             let values = self.context.read_multi_values_bytes(keys).await?;
@@ -761,14 +769,15 @@ where
                     &values[i_key * num_init_keys..(i_key + 1) * num_init_keys],
                 )?;
                 let wrapped_view = Arc::new(RwLock::new(view));
-                updates.insert(short_key.to_vec(), Update::Set(wrapped_view));
+                self.updates
+                    .insert(short_key.to_vec(), Update::Set(wrapped_view));
             }
         }
         short_keys
             .into_iter()
             .map(|short_key| {
-                let Some(Update::Set(view)) = updates.get(&short_key) else {
-                    unreachable!()
+                let Some(Update::Set(view)) = self.updates.get(&short_key) else {
+                    unreachable!("All entries should have been loaded into `updates`")
                 };
                 let guard = WriteGuardedView(
                     view.clone()
