@@ -396,7 +396,7 @@ where
             true
         } else {
             let key_index = self.context.base_tag_index(KeyTag::Index as u8, short_key);
-            !self.delete_storage_first && self.context.contains_key(&key_index).await?
+            self.context.contains_key(&key_index).await?
         })
     }
 
