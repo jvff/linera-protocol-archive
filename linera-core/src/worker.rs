@@ -6,7 +6,7 @@ use std::{
     borrow::Cow,
     collections::{hash_map, BTreeMap, HashMap, VecDeque},
     num::NonZeroUsize,
-    sync::{Arc, LazyLock},
+    sync::{Arc, LazyLock, Mutex},
     time::Duration,
 };
 
@@ -33,7 +33,7 @@ use lru::LruCache;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::{
-    sync::{mpsc, oneshot, Mutex, OwnedRwLockReadGuard},
+    sync::{mpsc, oneshot, OwnedRwLockReadGuard},
     task::JoinSet,
 };
 use tracing::{error, instrument, trace, warn};
@@ -55,6 +55,7 @@ use crate::{
     chain_worker::{ChainWorkerActor, ChainWorkerConfig, ChainWorkerRequest},
     data_types::{ChainInfoQuery, ChainInfoResponse, CrossChainRequest},
     value_cache::ValueCache,
+    JoinSetExt,
 };
 
 #[cfg(test)]
@@ -333,7 +334,10 @@ where
     #[cfg(test)]
     pub(crate) async fn with_key_pair(mut self, key_pair: Option<Arc<KeyPair>>) -> Self {
         self.chain_worker_config.key_pair = key_pair;
-        self.chain_workers.lock().await.clear();
+        self.chain_workers
+            .lock()
+            .expect("`WorkerState` should not panic while manipulating `delivery_notifiers`")
+            .clear();
         self
     }
 
@@ -454,7 +458,9 @@ where
             {
                 self.delivery_notifiers
                     .lock()
-                    .await
+                    .expect(
+                        "`WorkerState` should not panic while manipulating `delivery_notifiers`",
+                    )
                     .entry(chain_id)
                     .or_default()
                     .entry(height)
@@ -753,29 +759,36 @@ where
         &self,
         chain_id: ChainId,
     ) -> Result<ChainActorEndpoint<StorageClient>, WorkerError> {
-        let mut chain_workers = self.chain_workers.lock().await;
+        let mut new_receiver = None;
 
-        if !chain_workers.contains(&chain_id) {
-            chain_workers.push(
+        let endpoint = self
+            .chain_workers
+            .lock()
+            .expect("`WorkerState` should not panic while accessing the `chain_workers` map")
+            .get_or_insert(chain_id, || {
+                let (sender, receiver) = mpsc::unbounded_channel();
+                new_receiver = Some(receiver);
+                sender
+            })
+            .clone();
+
+        if let Some(receiver) = new_receiver {
+            let actor = ChainWorkerActor::new(
+                self.chain_worker_config.clone(),
+                self.storage.clone(),
+                self.recent_hashed_certificate_values.clone(),
+                self.recent_hashed_blobs.clone(),
                 chain_id,
-                ChainWorkerActor::spawn(
-                    self.chain_worker_config.clone(),
-                    self.storage.clone(),
-                    self.recent_hashed_certificate_values.clone(),
-                    self.recent_hashed_blobs.clone(),
-                    chain_id,
-                    &mut *self.chain_worker_tasks.lock().await,
-                )
-                .await?,
-            );
+                receiver,
+            )
+            .await?;
+            self.chain_worker_tasks
+                .lock()
+                .expect("`WorkerState` should not panic while accessing `chain_worker_tasks`")
+                .spawn_task(actor.run(tracing::Span::current()));
         }
 
-        Ok(chain_workers
-            .get(&chain_id)
-            .expect(
-                "Chain worker should have been inserted in the cache if it wasn't there already",
-            )
-            .clone())
+        Ok(endpoint)
     }
 
     #[instrument(skip_all, fields(
@@ -983,8 +996,13 @@ where
                     })
                     .await?;
                 // Handle delivery notifiers for this chain, if any.
-                if let hash_map::Entry::Occupied(mut map) =
-                    self.delivery_notifiers.lock().await.entry(sender)
+                if let hash_map::Entry::Occupied(mut map) = self
+                    .delivery_notifiers
+                    .lock()
+                    .expect(
+                        "`WorkerState` should not panic while manipulating `delivery_notifiers`",
+                    )
+                    .entry(sender)
                 {
                     while let Some(entry) = map.get_mut().first_entry() {
                         if entry.key() > &height_with_fully_delivered_messages {
