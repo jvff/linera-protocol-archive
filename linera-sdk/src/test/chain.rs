@@ -7,6 +7,7 @@
 
 use std::{
     io,
+    ops::{Bound, RangeBounds},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -23,6 +24,7 @@ use linera_execution::{
     system::{SystemChannel, SystemExecutionError, SystemMessage, SystemOperation},
     Bytecode, ExecutionError, Message, Query, Response,
 };
+use linera_storage::Storage;
 use serde::Serialize;
 use tokio::{fs, sync::Mutex};
 
@@ -81,6 +83,45 @@ impl ActiveChain {
     /// Sets the [`KeyPair`] to use for signing new blocks.
     pub fn set_key_pair(&mut self, key_pair: KeyPair) {
         self.key_pair = key_pair
+    }
+
+    /// Retrieves the [`Certificate`]s for some of this chain's blocks.
+    pub async fn get_certificates(
+        &self,
+        heights: &impl RangeBounds<BlockHeight>,
+    ) -> Vec<Certificate> {
+        let chain_state = self
+            .validator
+            .worker()
+            .chain_state_view(self.id())
+            .await
+            .expect("Failed to access chain state");
+
+        let start_index = match heights.start_bound() {
+            Bound::Included(BlockHeight(value)) => *value as usize,
+            Bound::Excluded(BlockHeight(value)) => *value as usize + 1,
+            Bound::Unbounded => 0,
+        };
+        let end_index = match heights.end_bound() {
+            Bound::Included(BlockHeight(value)) => *value as usize,
+            Bound::Excluded(BlockHeight(value)) => *value as usize - 1,
+            Bound::Unbounded => chain_state.confirmed_log.count(),
+        };
+
+        let certificate_hashes = chain_state
+            .confirmed_log
+            .multi_get(Vec::from_iter(start_index..end_index))
+            .await
+            .expect("Failed to read chain's confirmed log")
+            .into_iter()
+            .scan((), |_, maybe_hash| maybe_hash);
+
+        self.validator
+            .worker()
+            .storage_client()
+            .read_certificates(certificate_hashes)
+            .await
+            .expect("Failed to read chain block certificates")
     }
 
     /// Adds a block to this microchain.
