@@ -206,7 +206,6 @@ impl TestValidator {
 
     /// Creates the root admin microchain and returns the [`ActiveChain`] map with it.
     async fn create_admin_chain(&self) {
-        let key_pair = KeyPair::generate();
         let description = ChainDescription::Root(0);
 
         self.worker()
@@ -215,14 +214,14 @@ impl TestValidator {
                 self.committee.clone(),
                 ChainId::root(0),
                 description,
-                key_pair.public(),
+                self.key_pair.public(),
                 Amount::MAX,
                 Timestamp::from(0),
             )
             .await
             .expect("Failed to create root admin chain");
 
-        let chain = ActiveChain::new(key_pair, description, self.clone());
+        let chain = ActiveChain::new(self.key_pair.copy(), description, self.clone());
 
         self.chains.insert(description.into(), chain);
     }
