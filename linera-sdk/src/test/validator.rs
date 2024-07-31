@@ -6,16 +6,17 @@
 //! The [`TestValidator`] is a minimal validator with a single shard. Micro-chains can be added to
 //! it, and blocks can be added to each microchain individually.
 
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use dashmap::DashMap;
-use futures::FutureExt as _;
+use futures::{stream::FuturesUnordered, FutureExt as _, StreamExt as _};
 use linera_base::{
     crypto::{KeyPair, PublicKey},
     data_types::{Amount, ApplicationPermissions, Timestamp},
     identifiers::{ApplicationId, BytecodeId, ChainDescription, ChainId},
     ownership::ChainOwnership,
 };
+use linera_chain::data_types::Certificate;
 use linera_core::worker::WorkerState;
 use linera_execution::{
     committee::{Committee, Epoch, ValidatorName},
@@ -228,5 +229,22 @@ impl TestValidator {
         let chain = ActiveChain::new(self.key_pair.copy(), description, self.clone());
 
         self.chains.insert(description.into(), chain);
+    }
+
+    /// Returns all certificates that this validator has in storage.
+    ///
+    /// These are the certificates of all of the blocks of all microchains.
+    pub async fn get_all_certificates(&self) -> HashMap<ChainId, Vec<Certificate>> {
+        self.chains
+            .iter()
+            .map(|entry| async move {
+                let (&chain_id, chain) = entry.pair();
+                let certificates = chain.get_certificates(&..).await;
+
+                (chain_id, certificates)
+            })
+            .collect::<FuturesUnordered<_>>()
+            .collect()
+            .await
     }
 }
