@@ -59,9 +59,13 @@ impl Clone for TestValidator {
 }
 
 impl TestValidator {
-    /// Creates a new [`TestValidator`].
+    /// Creates a new [`TestValidator`] using a new [`KeyPair`] for signing certificates.
     pub async fn new() -> Self {
-        let key_pair = KeyPair::generate();
+        TestValidator::with_key_pair(KeyPair::generate()).await
+    }
+
+    /// Creates a new [`TestValidator`] using an existing [`KeyPair`] for signing certificates.
+    pub async fn with_key_pair(key_pair: KeyPair) -> Self {
         let committee = Committee::make_simple(vec![ValidatorName(key_pair.public())]);
         let wasm_runtime = Some(WasmRuntime::default());
         let storage = MemoryStorage::make_test_storage(wasm_runtime)
