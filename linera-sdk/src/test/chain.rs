@@ -85,6 +85,11 @@ impl ActiveChain {
         self.key_pair = key_pair
     }
 
+    /// Returns the [`TestValidator`] this [`ActiveChain`] is using.
+    pub fn validator(&self) -> &TestValidator {
+        &self.validator
+    }
+
     /// Retrieves the [`Certificate`]s for some of this chain's blocks.
     pub async fn get_certificates(
         &self,
