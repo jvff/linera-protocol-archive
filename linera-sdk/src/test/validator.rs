@@ -17,7 +17,10 @@ use linera_base::{
     ownership::ChainOwnership,
 };
 use linera_chain::data_types::Certificate;
-use linera_core::worker::WorkerState;
+use linera_core::{
+    data_types::ChainInfoResponse,
+    worker::{WorkerError, WorkerState},
+};
 use linera_execution::{
     committee::{Committee, Epoch, ValidatorName},
     system::{OpenChainConfig, SystemOperation, OPEN_CHAIN_MESSAGE_INDEX},
@@ -245,6 +248,19 @@ impl TestValidator {
             })
             .collect::<FuturesUnordered<_>>()
             .collect()
+            .await
+    }
+
+    /// Processes a raw [`Certificate`].
+    ///
+    /// Any changes to a microchain's state (for example, a newly added block) is *not* reflected
+    /// on [`ActiveChain`] instances.
+    pub async fn handle_raw_certificate(
+        &self,
+        certificate: Certificate,
+    ) -> Result<ChainInfoResponse, WorkerError> {
+        self.worker
+            .fully_handle_certificate(certificate, vec![], vec![])
             .await
     }
 }
