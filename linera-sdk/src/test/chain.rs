@@ -142,11 +142,10 @@ impl ActiveChain {
         &self,
         block_builder: impl FnOnce(&mut BlockBuilder),
     ) -> anyhow::Result<Vec<MessageId>> {
-        let mut tip = self.tip.lock().await;
         let mut block = BlockBuilder::new(
             self.description.into(),
             self.key_pair.public().into(),
-            tip.as_ref(),
+            self.tip.lock().await.as_ref(),
             self.validator.clone(),
         );
 
@@ -155,6 +154,25 @@ impl ActiveChain {
         // TODO(#2066): Remove boxing once call-stack is shallower
         let (certificate, message_ids) = Box::pin(block.try_sign()).await?;
 
+        self.add_certified_block(certificate).await;
+
+        Ok(message_ids)
+    }
+
+    /// Processes a certificate that adds a block to this microchain.
+    pub async fn add_certified_block(&self, certificate: Certificate) {
+        let mut tip = self.tip.lock().await;
+
+        assert_eq!(
+            certificate.value().height(),
+            tip.as_ref()
+                .map(|tip| {
+                    let height = tip.value().height();
+                    BlockHeight(height.0 + 1)
+                })
+                .unwrap_or(BlockHeight::ZERO)
+        );
+
         self.validator
             .worker()
             .fully_handle_certificate(certificate.clone(), vec![], vec![])
@@ -162,8 +180,6 @@ impl ActiveChain {
             .expect("Rejected certificate");
 
         *tip = Some(certificate);
-
-        Ok(message_ids)
     }
 
     /// Receives all queued messages in all inboxes of this microchain.
