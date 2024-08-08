@@ -28,10 +28,10 @@ use crate::{
     execution_state_actor::{ExecutionRequest, ExecutionStateSender},
     resources::ResourceController,
     util::{ReceiverExt, UnboundedSenderExt},
-    BaseRuntime, ContractRuntime, ExecutionError, ExecutionOutcome, FinalizeContext,
-    MessageContext, OperationContext, QueryContext, RawExecutionOutcome, ServiceRuntime,
-    TransactionTracker, UserApplicationDescription, UserApplicationId, UserContractInstance,
-    UserServiceInstance, MAX_EVENT_KEY_LEN, MAX_STREAM_NAME_LEN,
+    BaseRuntime, ContractRuntime, ExecutionError, FinalizeContext, MessageContext,
+    OperationContext, QueryContext, RawExecutionOutcome, ServiceRuntime, TransactionTracker,
+    UserApplicationDescription, UserApplicationId, UserContractInstance, UserServiceInstance,
+    MAX_EVENT_KEY_LEN, MAX_STREAM_NAME_LEN,
 };
 
 #[cfg(test)]
@@ -491,7 +491,7 @@ impl SyncRuntimeInternal<UserContractInstance> {
         }
 
         self.transaction_tracker
-            .add_outcome(ExecutionOutcome::User(application_id, outcome));
+            .add_user_outcome(application_id, outcome);
         Ok(())
     }
 }
@@ -1246,7 +1246,7 @@ impl ContractRuntime for ContractSyncRuntimeHandle {
             .recv_response()?;
         self.inner()
             .transaction_tracker
-            .add_outcome(ExecutionOutcome::System(execution_outcome));
+            .add_system_outcome(execution_outcome);
         Ok(())
     }
 
@@ -1271,7 +1271,7 @@ impl ContractRuntime for ContractSyncRuntimeHandle {
             .with_authenticated_signer(signer);
         self.inner()
             .transaction_tracker
-            .add_outcome(ExecutionOutcome::System(execution_outcome));
+            .add_system_outcome(execution_outcome);
         Ok(())
     }
 
@@ -1342,8 +1342,7 @@ impl ContractRuntime for ContractSyncRuntimeHandle {
         let outcome = RawExecutionOutcome::default()
             .with_message(open_chain_message)
             .with_message(subscribe_message);
-        this.transaction_tracker
-            .add_outcome(ExecutionOutcome::System(outcome));
+        this.transaction_tracker.add_system_outcome(outcome);
         Ok(chain_id)
     }
 
