@@ -1006,11 +1006,10 @@ impl<UserInstance> BaseRuntime for SyncRuntimeInternal<UserInstance> {
     }
 
     fn assert_blob_exists(&mut self, blob_id: &BlobId) -> Result<(), ExecutionError> {
-        if let Some(responses) = &mut self.replaying_oracle_responses {
-            match responses.next() {
-                Some(OracleResponse::Blob(oracle_blob_id)) if oracle_blob_id == *blob_id => {}
-                Some(_) => return Err(ExecutionError::OracleResponseMismatch),
-                None => return Err(ExecutionError::MissingOracleResponse),
+        if let Some(response) = self.transaction_tracker.next_replayed_oracle_response()? {
+            match response {
+                OracleResponse::Blob(oracle_blob_id) if oracle_blob_id == *blob_id => {}
+                _ => return Err(ExecutionError::OracleResponseMismatch),
             }
         }
         self.execution_state_sender
@@ -1019,8 +1018,8 @@ impl<UserInstance> BaseRuntime for SyncRuntimeInternal<UserInstance> {
                 callback,
             })?
             .recv_response()?;
-        self.recorded_oracle_responses
-            .push(OracleResponse::Blob(*blob_id));
+        self.transaction_tracker
+            .add_oracle_response(OracleResponse::Blob(*blob_id));
         Ok(())
     }
 }
