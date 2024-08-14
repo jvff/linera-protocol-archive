@@ -3155,7 +3155,7 @@ async fn test_cross_chain_helper() -> anyhow::Result<()> {
             .iter()
             .cloned()
             .chain(bundles2.iter().cloned())
-            .map(|(_, bundle)| bundle.clone())
+            .map(|(_, bundle)| bundle)
             .collect::<Vec<_>>()
     );
     // Anticipated messages re-certify blocks up to the given height.
