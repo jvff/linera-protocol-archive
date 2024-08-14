@@ -148,14 +148,7 @@ pub trait MessageTestExt: Sized {
 
 impl<T: Into<Message>> MessageTestExt for T {
     fn to_simple_incoming(self, sender: ChainId, height: BlockHeight) -> IncomingBundle {
-        let posted_message = PostedMessage {
-            authenticated_signer: None,
-            grant: Amount::ZERO,
-            refund_grant_to: None,
-            kind: MessageKind::Protected,
-            index: 0,
-            message: self.into(),
-        };
+        let posted_message = self.to_posted(0, MessageKind::Protected);
         let bundle = MessageBundle {
             certificate_hash: CryptoHash::test_hash("certificate"),
             height,
