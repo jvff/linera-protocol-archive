@@ -878,8 +878,8 @@ where
                     timestamp: Timestamp::from(0),
                     transaction_index: 0,
                     messages: vec![
-                        system_credit_message(Amount::from_tokens(2))
-                            .to_posted(0, MessageKind::Tracked), // wrong amount
+                        system_credit_message(Amount::from_tokens(2)) // wrong amount
+                            .to_posted(0, MessageKind::Tracked),
                     ],
                 },
                 action: MessageAction::Accept,
