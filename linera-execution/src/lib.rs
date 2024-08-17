@@ -1117,8 +1117,8 @@ impl TryFrom<CompressedBytecode> for Bytecode {
     }
 }
 
-impl std::fmt::Debug for CompressedBytecode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+impl fmt::Debug for CompressedBytecode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("CompressedBytecode").finish()
     }
 }
