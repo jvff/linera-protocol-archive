@@ -1119,7 +1119,7 @@ impl TryFrom<CompressedBytecode> for Bytecode {
 
 impl fmt::Debug for CompressedBytecode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("CompressedBytecode").finish()
+        f.debug_struct("CompressedBytecode").finish_non_exhaustive()
     }
 }
 
