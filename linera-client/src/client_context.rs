@@ -140,6 +140,7 @@ where
             storage,
             options.max_pending_messages,
             delivery,
+            wallet.chain_ids(),
         );
 
         ClientContext {
