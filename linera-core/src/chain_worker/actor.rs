@@ -4,8 +4,9 @@
 //! An actor that runs a chain worker.
 
 use std::{
+    collections::HashSet,
     fmt::{self, Debug, Formatter},
-    sync::Arc,
+    sync::{Arc, RwLock},
 };
 
 use linera_base::{
@@ -166,6 +167,7 @@ where
         storage: StorageClient,
         certificate_value_cache: Arc<ValueCache<CryptoHash, HashedCertificateValue>>,
         blob_cache: Arc<ValueCache<BlobId, HashedBlob>>,
+        tracked_chains: Option<Arc<RwLock<HashSet<ChainId>>>>,
         chain_id: ChainId,
         join_set: &mut JoinSet<()>,
     ) -> Result<mpsc::UnboundedSender<ChainWorkerRequest<StorageClient::Context>>, WorkerError>
@@ -175,6 +177,7 @@ where
             storage,
             certificate_value_cache,
             blob_cache,
+            tracked_chains,
             chain_id,
         )
         .await?;

@@ -4,9 +4,9 @@
 
 use std::{
     borrow::Cow,
-    collections::{hash_map, BTreeMap, HashMap, VecDeque},
+    collections::{hash_map, BTreeMap, HashMap, HashSet, VecDeque},
     num::NonZeroUsize,
-    sync::Arc,
+    sync::{Arc, RwLock},
     time::Duration,
 };
 
@@ -286,6 +286,8 @@ where
     recent_hashed_certificate_values: Arc<ValueCache<CryptoHash, HashedCertificateValue>>,
     /// Cached hashed blobs by `BlobId`.
     recent_hashed_blobs: Arc<ValueCache<BlobId, HashedBlob>>,
+    /// Chain IDs that should be tracked by a worker.
+    tracked_chains: Option<Arc<RwLock<HashSet<ChainId>>>>,
     /// One-shot channels to notify callers when messages of a particular chain have been
     /// delivered.
     delivery_notifiers: Arc<Mutex<DeliveryNotifiers>>,
@@ -314,6 +316,7 @@ where
             chain_worker_config: ChainWorkerConfig::default().with_key_pair(key_pair),
             recent_hashed_certificate_values: Arc::new(ValueCache::default()),
             recent_hashed_blobs: Arc::new(ValueCache::default()),
+            tracked_chains: None,
             delivery_notifiers: Arc::default(),
             chain_worker_tasks: Arc::default(),
             chain_workers: Arc::new(Mutex::new(LruCache::new(*CHAIN_WORKER_LIMIT))),
@@ -749,6 +752,7 @@ where
                     self.storage.clone(),
                     self.recent_hashed_certificate_values.clone(),
                     self.recent_hashed_blobs.clone(),
+                    self.tracked_chains.clone(),
                     chain_id,
                     &mut *self.chain_worker_tasks.lock().await,
                 )

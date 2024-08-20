@@ -76,6 +76,7 @@ where
         storage: StorageClient,
         certificate_value_cache: Arc<ValueCache<CryptoHash, HashedCertificateValue>>,
         blob_cache: Arc<ValueCache<BlobId, HashedBlob>>,
+        tracked_chains: Option<Arc<sync::RwLock<HashSet<ChainId>>>>,
         chain_id: ChainId,
     ) -> Result<Self, WorkerError> {
         let chain = storage.load_chain(chain_id).await?;
@@ -87,7 +88,7 @@ where
             shared_chain_view: None,
             recent_hashed_certificate_values: certificate_value_cache,
             recent_hashed_blobs: blob_cache,
-            tracked_chains: None,
+            tracked_chains,
             knows_chain_is_active: false,
         })
     }
