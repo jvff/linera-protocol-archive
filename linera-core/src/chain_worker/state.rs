@@ -6,7 +6,7 @@
 use std::{
     borrow::Cow,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
-    sync::Arc,
+    sync::{self, Arc},
 };
 
 use futures::{
@@ -61,6 +61,7 @@ where
     shared_chain_view: Option<Arc<RwLock<ChainStateView<StorageClient::Context>>>>,
     recent_hashed_certificate_values: Arc<ValueCache<CryptoHash, HashedCertificateValue>>,
     recent_hashed_blobs: Arc<ValueCache<BlobId, HashedBlob>>,
+    tracked_chains: Option<Arc<sync::RwLock<HashSet<ChainId>>>>,
     knows_chain_is_active: bool,
 }
 
@@ -86,6 +87,7 @@ where
             shared_chain_view: None,
             recent_hashed_certificate_values: certificate_value_cache,
             recent_hashed_blobs: blob_cache,
+            tracked_chains: None,
             knows_chain_is_active: false,
         })
     }
