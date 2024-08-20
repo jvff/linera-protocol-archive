@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
-    collections::{hash_map, BTreeMap, HashMap},
+    collections::{hash_map, BTreeMap, HashMap, HashSet},
     convert::Infallible,
     iter,
     ops::{Deref, DerefMut},
-    sync::Arc,
+    sync::{Arc, RwLock},
 };
 
 use dashmap::{
@@ -88,6 +88,8 @@ where
     message_policy: MessagePolicy,
     /// Whether to block on cross-chain message delivery.
     cross_chain_message_delivery: CrossChainMessageDelivery,
+    /// Chains that should be tracked by the client.
+    tracked_chains: Arc<RwLock<HashSet<ChainId>>>,
     /// References to clients waiting for chain notifications.
     notifier: Arc<Notifier<Notification>>,
     /// A copy of the storage client so that we don't have to lock the local node client
@@ -120,6 +122,7 @@ where
             max_pending_messages,
             message_policy: MessagePolicy::Accept,
             cross_chain_message_delivery,
+            tracked_chains: Arc::default(),
             notifier: Arc::new(Notifier::default()),
             storage,
         }
