@@ -2401,6 +2401,15 @@ where
             .await
     }
 
+    /// Handles any cross-chain requests for any pending outgoing messages.
+    pub async fn retry_pending_outgoing_messages(&self) -> Result<(), ChainClientError> {
+        self.client
+            .local_node
+            .retry_pending_cross_chain_requests(self.chain_id)
+            .await?;
+        Ok(())
+    }
+
     pub async fn read_hashed_certificate_values_downward(
         &self,
         from: CryptoHash,
