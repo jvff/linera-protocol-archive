@@ -323,8 +323,22 @@ where
         }
     }
 
-    pub fn new_for_client(nickname: String, storage: StorageClient) -> Self {
-        Self::new(nickname, None, storage)
+    pub fn new_for_client(
+        nickname: String,
+        storage: StorageClient,
+        tracked_chains: Arc<RwLock<HashSet<ChainId>>>,
+    ) -> Self {
+        WorkerState {
+            nickname,
+            storage,
+            chain_worker_config: ChainWorkerConfig::default(),
+            recent_hashed_certificate_values: Arc::new(ValueCache::default()),
+            recent_hashed_blobs: Arc::new(ValueCache::default()),
+            tracked_chains: Some(tracked_chains),
+            delivery_notifiers: Arc::default(),
+            chain_worker_tasks: Arc::default(),
+            chain_workers: Arc::new(Mutex::new(LruCache::new(*CHAIN_WORKER_LIMIT))),
+        }
     }
 
     pub fn with_allow_inactive_chains(mut self, value: bool) -> Self {
