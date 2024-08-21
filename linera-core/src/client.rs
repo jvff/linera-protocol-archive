@@ -145,8 +145,6 @@ where
     }
 
     /// Adds a chain to the set of chains tracked by the local node.
-    ///
-    /// This only affects the [`ChainClient`]s created after this call.
     pub fn track_chain(&self, chain_id: ChainId) {
         self.tracked_chains
             .write()
