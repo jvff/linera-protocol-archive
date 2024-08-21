@@ -12,7 +12,11 @@
 
 mod common;
 
-use std::{env, path::PathBuf, time::Duration};
+use std::{
+    env,
+    path::PathBuf,
+    time::{Duration, Instant},
+};
 
 use anyhow::Result;
 use async_graphql::InputType;
@@ -3211,6 +3215,74 @@ async fn test_end_to_end_faucet(config: impl LineraNetConfig) -> Result<()> {
     );
     client3.transfer(Amount::ONE, chain3, chain1).await?;
     assert!(client3.query_balance(Account::chain(chain3)).await? <= Amount::ONE);
+    net.ensure_is_running().await?;
+    net.terminate().await?;
+
+    Ok(())
+}
+
+/// Tests running the Faucet to create a lot of microchains.
+///
+/// Checks if creating each new microchain takes approximately the same amount of time.
+/// Also checks that the microchain has a balance that can be used successfully.
+#[cfg_attr(feature = "storage-service", test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc) ; "storage_service_grpc"))]
+#[cfg_attr(feature = "scylladb", test_case(LocalNetConfig::new_test(Database::ScyllaDb, Network::Grpc) ; "scylladb_grpc"))]
+#[cfg_attr(feature = "dynamodb", test_case(LocalNetConfig::new_test(Database::DynamoDb, Network::Grpc) ; "aws_grpc"))]
+#[cfg_attr(feature = "kubernetes", test_case(SharedLocalKubernetesNetTestingConfig::new(Network::Grpc, BuildArg::Build) ; "kubernetes_grpc"))]
+#[cfg_attr(feature = "remote-net", test_case(RemoteNetTestingConfig::new(None) ; "remote_net_grpc"))]
+#[test_log::test(tokio::test)]
+async fn test_end_to_end_faucet_with_long_chains(config: impl LineraNetConfig) -> Result<()> {
+    let _guard = INTEGRATION_TEST_GUARD.lock().await;
+    tracing::info!("Starting test {}", test_name!());
+
+    const CLIENT_COUNT: usize = 100_000;
+
+    let (mut net, faucet_client) = config.instantiate().await?;
+
+    let faucet_chain = faucet_client.load_wallet()?.default_chain().unwrap();
+
+    let amount = Amount::ONE;
+    let mut faucet_service = faucet_client.run_faucet(None, faucet_chain, amount).await?;
+    let faucet = faucet_service.instance();
+
+    let mut expected_init_time = None;
+
+    // Use the faucet directly to initialize client 3.
+    for _ in 0..CLIENT_COUNT {
+        let client = net.make_client().await;
+
+        let start = Instant::now();
+        let outcome = client
+            .wallet_init(&[], FaucetOption::NewChain(&faucet))
+            .await?;
+        let init_time = start.elapsed().as_secs_f64();
+
+        match expected_init_time {
+            Some(expected_init_time) => {
+                let ratio = init_time / expected_init_time;
+                assert!(ratio < 2.0);
+            }
+            None => expected_init_time = Some(init_time),
+        }
+
+        let chain = outcome.unwrap().chain_id;
+        assert_eq!(chain, client.load_wallet()?.default_chain().unwrap());
+
+        let initial_balance = client.query_balance(Account::chain(chain)).await?;
+        let fees_paid = amount - initial_balance;
+        assert!(initial_balance > Amount::ZERO);
+
+        client
+            .transfer(initial_balance - fees_paid, chain, faucet_chain)
+            .await?;
+
+        let final_balance = client.query_balance(Account::chain(chain)).await?;
+        assert_eq!(final_balance, Amount::ZERO);
+    }
+
+    faucet_service.ensure_is_running()?;
+    faucet_service.terminate().await?;
+
     net.ensure_is_running().await?;
     net.terminate().await?;
 
