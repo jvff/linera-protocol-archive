@@ -28,8 +28,8 @@ use linera_chain::{
     ChainError, ChainStateView,
 };
 use linera_execution::{
-    committee::Epoch, BytecodeLocation, ExecutionRequest, Query, QueryContext, Response,
-    ServiceRuntimeRequest, UserApplicationDescription, UserApplicationId,
+    committee::Epoch, BytecodeLocation, ExecutionRequest, Message, Query, QueryContext, Response,
+    ServiceRuntimeRequest, SystemMessage, UserApplicationDescription, UserApplicationId,
 };
 use linera_storage::Storage;
 use linera_views::views::{ClonableView, ViewError};
@@ -444,6 +444,28 @@ where
     /// Inserts a [`Blob`] into the worker's cache.
     async fn cache_recent_blob<'a>(&mut self, blob: Cow<'a, Blob>) -> bool {
         self.recent_blobs.insert(blob).await
+    }
+
+    /// Adds any newly created chains to the set of `tracked_chains`.
+    fn track_newly_created_chains(&self, block: &ExecutedBlock) {
+        if let Some(tracked_chains) = self.tracked_chains.as_ref() {
+            let messages = block.messages().iter().flatten();
+            let open_chain_message_indices =
+                messages
+                    .enumerate()
+                    .filter_map(|(index, outgoing_message)| match outgoing_message.message {
+                        Message::System(SystemMessage::OpenChain(_)) => Some(index),
+                        _ => None,
+                    });
+            let open_chain_message_ids =
+                open_chain_message_indices.map(|index| block.message_id(index as u32));
+            let new_chain_ids = open_chain_message_ids.map(ChainId::child);
+
+            tracked_chains
+                .write()
+                .expect("Panics should not happen while holding a lock to `tracked_chains`")
+                .extend(new_chain_ids);
+        }
     }
 
     /// Loads pending cross-chain requests.

@@ -377,6 +377,7 @@ where
         });
         // Persist chain.
         self.save().await?;
+        self.state.track_newly_created_chains(executed_block);
         self.state
             .recent_hashed_certificate_values
             .insert(Cow::Owned(certificate.value))
