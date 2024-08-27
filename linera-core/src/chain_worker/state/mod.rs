@@ -460,13 +460,11 @@ where
             let open_chain_message_ids =
                 open_chain_message_indices.map(|index| block.message_id(index as u32));
             let new_chain_ids = open_chain_message_ids.map(ChainId::child);
-            let mut tracked_chains = tracked_chains
-                .write()
-                .expect("Panics should not happen while holding a lock to `tracked_chains`");
 
-            for new_chain_id in new_chain_ids {
-                tracked_chains.insert(new_chain_id);
-            }
+            tracked_chains
+                .write()
+                .expect("Panics should not happen while holding a lock to `tracked_chains`")
+                .extend(new_chain_ids);
         }
     }
 
