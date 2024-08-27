@@ -346,6 +346,7 @@ where
         tip.num_outgoing_messages += executed_block.outcome.messages.len() as u32;
         self.state.chain.confirmed_log.push(certificate.hash());
         let info = ChainInfoResponse::new(&self.state.chain, self.state.config.key_pair());
+        self.state.track_newly_created_chains(executed_block);
         let mut actions = self.state.create_network_actions().await?;
         actions.notifications.push(Notification {
             chain_id: block.chain_id,
@@ -356,7 +357,6 @@ where
         });
         // Persist chain.
         self.save().await?;
-        self.state.track_newly_created_chains(executed_block);
         self.state
             .recent_hashed_certificate_values
             .insert(Cow::Owned(certificate.value))
