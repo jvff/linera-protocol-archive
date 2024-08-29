@@ -843,12 +843,12 @@ impl fmt::Debug for Bytecode {
 #[derive(Error, Debug)]
 pub enum DecompressionError {
     /// Compressed bytecode is invalid, and could not be decompressed.
-    #[cfg(not(target_arch = "wasm32"))]
-    #[error("Bytecode could not be decompressed")]
-    InvalidCompressedBytecode(#[source] io::Error),
+    // #[cfg(not(target_arch = "wasm32"))]
+    // #[error("Bytecode could not be decompressed")]
+    // InvalidCompressedBytecode(#[source] io::Error),
 
-    /// Compressed bytecode is invalid, and could not be decompressed.
-    #[cfg(target_arch = "wasm32")]
+    // /// Compressed bytecode is invalid, and could not be decompressed.
+    // #[cfg(target_arch = "wasm32")]
     #[error("Bytecode could not be decompressed")]
     InvalidCompressedBytecode(#[from] ruzstd::frame_decoder::FrameDecoderError),
 }
@@ -878,19 +878,19 @@ impl From<Bytecode> for CompressedBytecode {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-impl TryFrom<&CompressedBytecode> for Bytecode {
-    type Error = DecompressionError;
+// #[cfg(not(target_arch = "wasm32"))]
+// impl TryFrom<&CompressedBytecode> for Bytecode {
+// type Error = DecompressionError;
 
-    fn try_from(compressed_bytecode: &CompressedBytecode) -> Result<Self, Self::Error> {
-        let bytes = zstd::stream::decode_all(&*compressed_bytecode.compressed_bytes)
-            .map_err(DecompressionError::InvalidCompressedBytecode)?;
+// fn try_from(compressed_bytecode: &CompressedBytecode) -> Result<Self, Self::Error> {
+// let bytes = zstd::stream::decode_all(&*compressed_bytecode.compressed_bytes)
+// .map_err(DecompressionError::InvalidCompressedBytecode)?;
 
-        Ok(Bytecode { bytes })
-    }
-}
+// Ok(Bytecode { bytes })
+// }
+// }
 
-#[cfg(target_arch = "wasm32")]
+// #[cfg(target_arch = "wasm32")]
 impl TryFrom<&CompressedBytecode> for Bytecode {
     type Error = DecompressionError;
 
