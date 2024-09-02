@@ -3249,6 +3249,10 @@ async fn test_end_to_end_faucet_with_long_chains(config: impl LineraNetConfig) -
         let outcome = faucet_client
             .open_chain(faucet_chain, None, Amount::ZERO)
             .await?;
+        let balance = faucet_client
+            .query_balance(Account::chain(faucet_chain))
+            .await?;
+        tracing::error!("Balance {balance:?}");
         // let init_time = start.elapsed().as_secs_f64();
 
         // match expected_init_time {

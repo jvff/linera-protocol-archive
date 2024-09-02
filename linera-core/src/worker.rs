@@ -845,14 +845,17 @@ where
                 let mut height_by_origin = Vec::new();
                 for (medium, bundles) in bundle_vecs {
                     let origin = Origin { sender, medium };
+                    tracing::error!("Processing cross chain update");
                     if let Some(height) = self
                         .process_cross_chain_update(origin.clone(), recipient, bundles)
                         .await?
                     {
                         height_by_origin.push((origin, height));
                     }
+                    tracing::error!("Processed cross chain update");
                 }
                 if height_by_origin.is_empty() {
+                    tracing::error!("Empty");
                     return Ok(NetworkActions::default());
                 }
                 let mut notifications = Vec::new();
@@ -869,6 +872,7 @@ where
                     recipient,
                     latest_heights,
                 }];
+                tracing::error!("Got a confirmation to send");
                 Ok(NetworkActions {
                     cross_chain_requests,
                     notifications,

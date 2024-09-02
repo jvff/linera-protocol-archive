@@ -328,7 +328,7 @@ impl LocalNetConfig {
             database,
             network,
             num_other_initial_chains: 10,
-            initial_amount: Amount::from_tokens(1_000_000),
+            initial_amount: Amount::from_tokens(100_000_000),
             policy: ResourceControlPolicy::devnet(),
             testing_prng_seed: Some(37),
             table_name: linera_views::test_utils::generate_test_namespace(),
