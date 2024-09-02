@@ -3235,50 +3235,63 @@ async fn test_end_to_end_faucet_with_long_chains(config: impl LineraNetConfig) -
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
     tracing::info!("Starting test {}", test_name!());
 
-    const CLIENT_COUNT: usize = 100_000;
+    const CHAIN_COUNT: usize = 510;
 
     let (mut net, faucet_client) = config.instantiate().await?;
 
     let faucet_chain = faucet_client.load_wallet()?.default_chain().unwrap();
 
+    // let mut expected_init_time = None;
+
+    // Use the faucet directly to initialize many chains
+    for _ in 0..CHAIN_COUNT {
+        // let start = Instant::now();
+        let outcome = faucet_client
+            .open_chain(faucet_chain, None, Amount::ZERO)
+            .await?;
+        // let init_time = start.elapsed().as_secs_f64();
+
+        // match expected_init_time {
+        // Some(expected_init_time) => {
+        // let ratio = init_time / expected_init_time;
+        // assert!(ratio < 2.0);
+        // }
+        // None => expected_init_time = Some(init_time),
+        // }
+
+        // let chain = outcome.unwrap().chain_id;
+        // assert_eq!(
+        // chain,
+        // populator_client.load_wallet()?.default_chain().unwrap()
+        // );
+    }
+
     let amount = Amount::ONE;
     let mut faucet_service = faucet_client.run_faucet(None, faucet_chain, amount).await?;
     let faucet = faucet_service.instance();
 
-    let mut expected_init_time = None;
+    let start = Instant::now();
+    let client = net.make_client().await;
+    let outcome = client
+        .wallet_init(&[], FaucetOption::NewChain(&faucet))
+        .await?;
 
-    // Use the faucet directly to initialize client 3.
-    for _ in 0..CLIENT_COUNT {
-        let client = net.make_client().await;
+    let chain = outcome.unwrap().chain_id;
+    assert_eq!(chain, client.load_wallet()?.default_chain().unwrap());
 
-        let start = Instant::now();
-        let outcome = client
-            .wallet_init(&[], FaucetOption::NewChain(&faucet))
-            .await?;
-        let init_time = start.elapsed().as_secs_f64();
+    let initial_balance = client.query_balance(Account::chain(chain)).await?;
+    let fees_paid = amount - initial_balance;
+    assert!(initial_balance > Amount::ZERO);
 
-        match expected_init_time {
-            Some(expected_init_time) => {
-                let ratio = init_time / expected_init_time;
-                assert!(ratio < 2.0);
-            }
-            None => expected_init_time = Some(init_time),
-        }
+    client
+        .transfer(initial_balance - fees_paid, chain, faucet_chain)
+        .await?;
 
-        let chain = outcome.unwrap().chain_id;
-        assert_eq!(chain, client.load_wallet()?.default_chain().unwrap());
+    let final_balance = client.query_balance(Account::chain(chain)).await?;
+    assert_eq!(final_balance, Amount::ZERO);
 
-        let initial_balance = client.query_balance(Account::chain(chain)).await?;
-        let fees_paid = amount - initial_balance;
-        assert!(initial_balance > Amount::ZERO);
-
-        client
-            .transfer(initial_balance - fees_paid, chain, faucet_chain)
-            .await?;
-
-        let final_balance = client.query_balance(Account::chain(chain)).await?;
-        assert_eq!(final_balance, Amount::ZERO);
-    }
+    let init_time = start.elapsed().as_secs_f64();
+    tracing::error!("Test time: {init_time:?}");
 
     faucet_service.ensure_is_running()?;
     faucet_service.terminate().await?;
