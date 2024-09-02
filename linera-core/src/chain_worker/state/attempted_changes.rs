@@ -443,6 +443,7 @@ where
         &mut self,
         latest_heights: Vec<(Target, BlockHeight)>,
     ) -> Result<BlockHeight, WorkerError> {
+        tracing::trace!("Confirming updated recipient {latest_heights:?}");
         let mut height_with_fully_delivered_messages = BlockHeight::ZERO;
 
         for (target, height) in latest_heights {
@@ -458,7 +459,9 @@ where
             }
         }
 
+        tracing::trace!("Saving");
         self.save().await?;
+        tracing::trace!("Save");
 
         Ok(height_with_fully_delivered_messages)
     }
