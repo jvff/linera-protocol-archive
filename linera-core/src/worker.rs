@@ -709,6 +709,7 @@ where
     ///
     /// Returns [`None`] if the cache is full and candidate for eviction was found.
     #[tracing::instrument(level = "trace", skip(self))]
+    #[allow(clippy::type_complexity)]
     fn try_get_chain_worker_endpoint(
         &self,
         chain_id: ChainId,
