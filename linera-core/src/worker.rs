@@ -6,7 +6,7 @@ use std::{
     borrow::Cow,
     collections::{hash_map, BTreeMap, HashMap, HashSet, VecDeque},
     num::NonZeroUsize,
-    sync::{Arc, LazyLock, Mutex, RwLock},
+    sync::{Arc, Mutex, RwLock},
     time::Duration,
 };
 
@@ -40,6 +40,7 @@ use tracing::{error, instrument, trace, warn, Instrument as _};
 use {
     linera_base::prometheus_util,
     prometheus::{HistogramVec, IntCounterVec},
+    std::sync::LazyLock,
 };
 
 use crate::{
