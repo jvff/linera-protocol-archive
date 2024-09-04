@@ -714,7 +714,7 @@ where
     /// Retrieves an endpoint to a [`ChainWorkerActor`] from the cache, attempting to create one
     /// and add it to the cache if needed.
     ///
-    /// Returns [`None`] if the cache is full and candidate for eviction was found.
+    /// Returns [`None`] if the cache is full and no candidate for eviction was found.
     #[tracing::instrument(level = "trace", skip(self))]
     #[allow(clippy::type_complexity)]
     fn try_get_chain_worker_endpoint(
