@@ -32,7 +32,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::{
     sync::{mpsc, oneshot, OwnedRwLockReadGuard},
-    task::{self, JoinSet},
+    task::JoinSet,
+    time::sleep,
 };
 use tracing::{error, instrument, trace, warn, Instrument as _};
 #[cfg(with_metrics)]
@@ -680,7 +681,7 @@ where
         let (sender, new_receiver) = loop {
             match self.try_get_chain_worker_endpoint(chain_id) {
                 Some(endpoint) => break endpoint,
-                None => task::yield_now().await,
+                None => sleep(Duration::from_millis(250)).await,
             }
             warn!("No chain worker candidates found for eviction, retrying...");
         };
