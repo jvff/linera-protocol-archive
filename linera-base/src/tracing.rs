@@ -56,7 +56,7 @@ pub fn init(log_name: &str) {
             .with_ansi(color_output),
     );
 
-    let maybe_log_file_layer = open_log_file(log_file_name).map(|file_writer| {
+    let maybe_log_file_layer = open_log_file(log_name).map(|file_writer| {
         prepare_formatted_layer(
             format.as_deref(),
             fmt::layer()
@@ -76,12 +76,13 @@ pub fn init(log_name: &str) {
 /// Opens a log file for writing.
 ///
 /// The location of the file is determined by the `LINERA_LOG_DIR` environment variable,
-/// and its name by the `log_file_name` parameter.
+/// and its name by the `log_name` parameter.
 ///
 /// Returns [`None`] if the `LINERA_LOG_DIR` environment variable is not set.
-fn open_log_file(log_file_name: impl AsRef<Path>) -> Option<File> {
+fn open_log_file(log_name: &str) -> Option<File> {
     let log_directory = env::var_os("LINERA_LOG_DIR")?;
-    let log_file_path = Path::new(&log_directory).join(log_file_name);
+    let mut log_file_path = Path::new(&log_directory).join(log_name);
+    log_file_path.set_extension("log");
 
     Some(
         OpenOptions::new()
