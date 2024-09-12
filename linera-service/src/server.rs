@@ -434,13 +434,13 @@ fn log_file_name_for(command: &ServerCommand) -> Cow<'static, str> {
             let name = &server_config.validator.name;
 
             if let Some(shard) = shard {
-                format!("validator-{name}-shard-{shard}.log")
+                format!("validator-{name}-shard-{shard}")
             } else {
-                format!("validator-{name}.log")
+                format!("validator-{name}")
             }
             .into()
         }
-        ServerCommand::Generate { .. } | ServerCommand::Initialize { .. } => "server.log".into(),
+        ServerCommand::Generate { .. } | ServerCommand::Initialize { .. } => "server".into(),
     }
 }
 
