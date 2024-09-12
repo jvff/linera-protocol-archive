@@ -1311,14 +1311,14 @@ fn log_file_name_for(command: &ClientCommand) -> Cow<'static, str> {
         | ClientCommand::Keygen { .. }
         | ClientCommand::Assign { .. }
         | ClientCommand::Wallet { .. }
-        | ClientCommand::RetryPendingBlock { .. } => "client.log".into(),
+        | ClientCommand::RetryPendingBlock { .. } => "client".into(),
         #[cfg(feature = "benchmark")]
-        ClientCommand::Benchmark { .. } => "benchmark.log".into(),
-        ClientCommand::Net { .. } => "net.log".into(),
-        ClientCommand::Project { .. } => "project.log".into(),
-        ClientCommand::Watch { .. } => "watch.log".into(),
-        ClientCommand::Service { port, .. } => format!("service-{port}.log").into(),
-        ClientCommand::Faucet { .. } => "faucet.log".into(),
+        ClientCommand::Benchmark { .. } => "benchmark".into(),
+        ClientCommand::Net { .. } => "net".into(),
+        ClientCommand::Project { .. } => "project".into(),
+        ClientCommand::Watch { .. } => "watch".into(),
+        ClientCommand::Service { port, .. } => format!("service-{port}").into(),
+        ClientCommand::Faucet { .. } => "faucet".into(),
     }
 }
 
