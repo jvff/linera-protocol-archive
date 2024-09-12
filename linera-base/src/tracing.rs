@@ -31,9 +31,9 @@ use tracing_subscriber::{
 /// respectively.
 ///
 /// The `LINERA_LOG_DIR` environment variable can be used to configure a directory to
-/// store log files. If it is set, a file with the `log_file_name` is created in the
-/// directory.
-pub fn init(log_file_name: impl AsRef<Path>) {
+/// store log files. If it is set, a file named `log_name` with the `log` extension is
+/// created in the directory.
+pub fn init(log_name: &str) {
     let env_filter = tracing_subscriber::EnvFilter::builder()
         .with_default_directive(tracing_subscriber::filter::LevelFilter::INFO.into())
         .from_env_lossy();
