@@ -33,13 +33,11 @@ impl<UserData> Instance for StubInstance<UserData> {
     type UserDataReference<'a> = &'a UserData
     where
         Self::UserData: 'a,
-        Self: 'a
-        ;
+        Self: 'a;
     type UserDataMutReference<'a> = &'a mut UserData
     where
         Self::UserData: 'a,
-        Self: 'a
-        ;
+        Self: 'a;
 
     fn load_export(&mut self, _name: &str) -> Option<()> {
         unimplemented!("`StubInstance` can not be used as a real `Instance`");
