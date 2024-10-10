@@ -313,7 +313,7 @@ where
                 callback.respond(bytes);
             }
 
-            HttpPost {
+            PerformHttpRequest {
                 url,
                 content_type,
                 payload,
@@ -501,7 +501,7 @@ pub enum ExecutionRequest {
         callback: Sender<Vec<u8>>,
     },
 
-    HttpPost {
+    PerformHttpRequest {
         url: String,
         content_type: String,
         #[debug(with = hex_debug)]

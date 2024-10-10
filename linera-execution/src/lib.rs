@@ -604,7 +604,7 @@ pub trait BaseRuntime {
     ) -> Result<Vec<u8>, ExecutionError>;
 
     /// Makes a POST request to the given URL and returns the answer, if any.
-    fn http_post(
+    fn perform_http_request(
         &mut self,
         url: &str,
         content_type: String,
