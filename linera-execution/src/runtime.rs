@@ -699,11 +699,10 @@ impl<UserInstance> BaseRuntime for SyncRuntimeHandle<UserInstance> {
         &mut self,
         method: http::Method,
         url: &str,
-        content_type: String,
+        headers: Vec<(String, Vec<u8>)>,
         payload: Vec<u8>,
     ) -> Result<Vec<u8>, ExecutionError> {
-        self.inner()
-            .http_request(method, url, content_type, payload)
+        self.inner().http_request(method, url, headers, payload)
     }
 
     fn assert_before(&mut self, timestamp: Timestamp) -> Result<(), ExecutionError> {
@@ -979,7 +978,7 @@ impl<UserInstance> BaseRuntime for SyncRuntimeInternal<UserInstance> {
         &mut self,
         method: http::Method,
         url: &str,
-        content_type: String,
+        headers: Vec<(String, Vec<u8>)>,
         payload: Vec<u8>,
     ) -> Result<Vec<u8>, ExecutionError> {
         ensure!(
@@ -998,7 +997,7 @@ impl<UserInstance> BaseRuntime for SyncRuntimeInternal<UserInstance> {
                     .send_request(|callback| ExecutionRequest::HttpRequest {
                         method,
                         url,
-                        content_type,
+                        headers,
                         payload,
                         callback,
                     })?

@@ -20,7 +20,7 @@ use linera_views::{batch::Batch, context::Context, views::View};
 use oneshot::Sender;
 #[cfg(with_metrics)]
 use prometheus::HistogramVec;
-use reqwest::{header::CONTENT_TYPE, Client};
+use reqwest::{header::HeaderMap, Client};
 
 use crate::{
     system::{OpenChainConfig, Recipient},
@@ -297,14 +297,19 @@ where
             HttpRequest {
                 method,
                 url,
-                content_type,
+                headers,
                 payload,
                 callback,
             } => {
+                let headers = headers
+                    .into_iter()
+                    .map(|(name, value)| Ok((name.parse()?, value.try_into()?)))
+                    .collect::<Result<HeaderMap, ExecutionError>>()?;
+
                 let res = Client::new()
                     .request(method.into(), url)
                     .body(payload)
-                    .header(CONTENT_TYPE, content_type)
+                    .headers(headers)
                     .send()
                     .await?;
                 let body = res.bytes().await?;
@@ -477,7 +482,7 @@ pub enum ExecutionRequest {
     HttpRequest {
         method: http::Method,
         url: String,
-        content_type: String,
+        headers: Vec<(String, Vec<u8>)>,
         #[debug(with = hex_debug)]
         payload: Vec<u8>,
         #[debug(skip)]
