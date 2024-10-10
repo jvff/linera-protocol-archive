@@ -12,6 +12,7 @@ use futures::channel::mpsc;
 use linera_base::prometheus_util::{self, MeasureLatency as _};
 use linera_base::{
     data_types::{Amount, ApplicationPermissions, BlobContent, Timestamp},
+    http,
     identifiers::{Account, BlobId, MessageId, Owner},
     ownership::ChainOwnership,
 };
@@ -289,13 +290,14 @@ where
             }
 
             HttpRequest {
+                method,
                 url,
                 content_type,
                 payload,
                 callback,
             } => {
                 let res = Client::new()
-                    .post(url)
+                    .request(method.into(), url)
                     .body(payload)
                     .header(CONTENT_TYPE, content_type)
                     .send()
@@ -438,6 +440,7 @@ pub enum ExecutionRequest {
     },
 
     HttpRequest {
+        method: http::Method,
         url: String,
         content_type: String,
         payload: Vec<u8>,
@@ -579,9 +582,13 @@ impl Debug for ExecutionRequest {
                 .finish_non_exhaustive(),
 
             ExecutionRequest::HttpRequest {
-                url, content_type, ..
+                method,
+                url,
+                content_type,
+                ..
             } => formatter
                 .debug_struct("ExecutionRequest::HttpRequest")
+                .field("method", method)
                 .field("url", url)
                 .field("content_type", content_type)
                 .finish_non_exhaustive(),
