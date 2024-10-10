@@ -695,13 +695,13 @@ impl<UserInstance> BaseRuntime for SyncRuntimeHandle<UserInstance> {
         self.inner().query_service(application_id, query)
     }
 
-    fn http_post(
+    fn http_request(
         &mut self,
         url: &str,
         content_type: String,
         payload: Vec<u8>,
     ) -> Result<Vec<u8>, ExecutionError> {
-        self.inner().http_post(url, content_type, payload)
+        self.inner().http_request(url, content_type, payload)
     }
 
     fn assert_before(&mut self, timestamp: Timestamp) -> Result<(), ExecutionError> {
@@ -973,7 +973,7 @@ impl<UserInstance> BaseRuntime for SyncRuntimeInternal<UserInstance> {
         Ok(response)
     }
 
-    fn http_post(
+    fn http_request(
         &mut self,
         url: &str,
         content_type: String,
@@ -992,7 +992,7 @@ impl<UserInstance> BaseRuntime for SyncRuntimeInternal<UserInstance> {
             } else {
                 let url = url.to_string();
                 self.execution_state_sender
-                    .send_request(|callback| ExecutionRequest::HttpPost {
+                    .send_request(|callback| ExecutionRequest::HttpRequest {
                         url,
                         content_type,
                         payload,
