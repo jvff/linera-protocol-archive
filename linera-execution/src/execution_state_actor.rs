@@ -12,7 +12,7 @@ use futures::channel::mpsc;
 use linera_base::prometheus_util::{bucket_latencies, register_histogram_vec, MeasureLatency as _};
 use linera_base::{
     data_types::{Amount, ApplicationPermissions, BlobContent, Timestamp},
-    hex_debug, hex_vec_debug,
+    hex_debug, hex_vec_debug, http,
     identifiers::{Account, AccountOwner, BlobId, MessageId, Owner},
     ownership::ChainOwnership,
 };
@@ -295,13 +295,14 @@ where
             }
 
             HttpRequest {
+                method,
                 url,
                 content_type,
                 payload,
                 callback,
             } => {
                 let res = Client::new()
-                    .post(url)
+                    .request(method.into(), url)
                     .body(payload)
                     .header(CONTENT_TYPE, content_type)
                     .send()
@@ -474,6 +475,7 @@ pub enum ExecutionRequest {
     },
 
     HttpRequest {
+        method: http::Method,
         url: String,
         content_type: String,
         #[debug(with = hex_debug)]
