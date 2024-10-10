@@ -288,7 +288,7 @@ where
                 callback.respond(bytes);
             }
 
-            HttpPost {
+            HttpRequest {
                 url,
                 content_type,
                 payload,
@@ -437,7 +437,7 @@ pub enum ExecutionRequest {
         callback: Sender<Vec<u8>>,
     },
 
-    HttpPost {
+    HttpRequest {
         url: String,
         content_type: String,
         payload: Vec<u8>,
@@ -578,10 +578,10 @@ impl Debug for ExecutionRequest {
                 .field("url", url)
                 .finish_non_exhaustive(),
 
-            ExecutionRequest::HttpPost {
+            ExecutionRequest::HttpRequest {
                 url, content_type, ..
             } => formatter
-                .debug_struct("ExecutionRequest::HttpPost")
+                .debug_struct("ExecutionRequest::HttpRequest")
                 .field("url", url)
                 .field("content_type", content_type)
                 .finish_non_exhaustive(),
