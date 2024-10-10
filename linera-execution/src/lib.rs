@@ -205,6 +205,11 @@ pub enum ExecutionError {
     // and enforced limits for all oracles.
     #[error("Unstable oracles are disabled on this network.")]
     UnstableOracle,
+
+    #[error("Invalid HTTP header name used for HTTP request")]
+    InvalidHeaderName(#[from] reqwest::header::InvalidHeaderName),
+    #[error("Invalid HTTP header value used for HTTP request")]
+    InvalidHeaderValue(#[from] reqwest::header::InvalidHeaderValue),
 }
 
 /// The public entry points provided by the contract part of an application.
@@ -509,7 +514,7 @@ pub trait BaseRuntime {
         &mut self,
         method: http::Method,
         url: &str,
-        content_type: String,
+        headers: Vec<(String, Vec<u8>)>,
         payload: Vec<u8>,
     ) -> Result<Vec<u8>, ExecutionError>;
 
