@@ -736,8 +736,8 @@ impl ApplicationPermissions {
 pub enum OracleResponse {
     /// The response from a service query.
     Service(Vec<u8>),
-    /// The response from an HTTP POST request.
-    Post(Vec<u8>),
+    /// The response from an HTTP request.
+    Http(Vec<u8>),
     /// A successful read or write of a blob.
     Blob(BlobId),
     /// An assertion oracle that passed.
@@ -757,7 +757,7 @@ impl Display for OracleResponse {
             OracleResponse::Service(bytes) => {
                 write!(f, "Service:{}", STANDARD_NO_PAD.encode(bytes))?
             }
-            OracleResponse::Post(bytes) => write!(f, "Post:{}", STANDARD_NO_PAD.encode(bytes))?,
+            OracleResponse::Http(bytes) => write!(f, "Http:{}", STANDARD_NO_PAD.encode(bytes))?,
             OracleResponse::Blob(blob_id) => write!(f, "Blob:{}", blob_id)?,
             OracleResponse::Assert => write!(f, "Assert")?,
         };
@@ -775,8 +775,8 @@ impl FromStr for OracleResponse {
                 STANDARD_NO_PAD.decode(string).context("Invalid base64")?,
             ));
         }
-        if let Some(string) = s.strip_prefix("Post:") {
-            return Ok(OracleResponse::Post(
+        if let Some(string) = s.strip_prefix("Http:") {
+            return Ok(OracleResponse::Http(
                 STANDARD_NO_PAD.decode(string).context("Invalid base64")?,
             ));
         }
