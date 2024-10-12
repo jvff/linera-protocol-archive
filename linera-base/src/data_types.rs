@@ -30,7 +30,7 @@ use thiserror::Error;
 use crate::prometheus_util::{self, MeasureLatency};
 use crate::{
     crypto::BcsHashable,
-    doc_scalar, hex_debug,
+    doc_scalar, hex_debug, http,
     identifiers::{
         ApplicationId, BlobId, BlobType, BytecodeId, Destination, GenericApplicationId, MessageId,
         UserApplicationId,
@@ -735,7 +735,7 @@ pub enum OracleResponse {
     /// The response from a service query.
     Service(Vec<u8>),
     /// The response from an HTTP request.
-    Http(Vec<u8>),
+    Http(http::Response),
     /// A successful read or write of a blob.
     Blob(BlobId),
     /// An assertion oracle that passed.
