@@ -18,9 +18,7 @@ use std::{
     str::FromStr,
 };
 
-use anyhow::Context as _;
 use async_graphql::InputObject;
-use base64::engine::{general_purpose::STANDARD_NO_PAD, Engine as _};
 use custom_debug_derive::Debug;
 use linera_witty::{WitLoad, WitStore, WitType};
 #[cfg(with_metrics)]
@@ -748,44 +746,6 @@ impl OracleResponse {
     /// Wether an `OracleResponse` is permitted in fast blocks or not.
     pub fn is_permitted_in_fast_blocks(&self) -> bool {
         matches!(self, OracleResponse::Blob(_))
-    }
-}
-
-impl Display for OracleResponse {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            OracleResponse::Service(bytes) => {
-                write!(f, "Service:{}", STANDARD_NO_PAD.encode(bytes))?
-            }
-            OracleResponse::Http(bytes) => write!(f, "Http:{}", STANDARD_NO_PAD.encode(bytes))?,
-            OracleResponse::Blob(blob_id) => write!(f, "Blob:{}", blob_id)?,
-            OracleResponse::Assert => write!(f, "Assert")?,
-        };
-
-        Ok(())
-    }
-}
-
-impl FromStr for OracleResponse {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Some(string) = s.strip_prefix("Service:") {
-            return Ok(OracleResponse::Service(
-                STANDARD_NO_PAD.decode(string).context("Invalid base64")?,
-            ));
-        }
-        if let Some(string) = s.strip_prefix("Http:") {
-            return Ok(OracleResponse::Http(
-                STANDARD_NO_PAD.decode(string).context("Invalid base64")?,
-            ));
-        }
-        if let Some(string) = s.strip_prefix("Blob:") {
-            return Ok(OracleResponse::Blob(
-                BlobId::from_str(string).context("Invalid BlobId")?,
-            ));
-        }
-        Err(anyhow::anyhow!("Invalid enum! Enum: {}", s))
     }
 }
 
