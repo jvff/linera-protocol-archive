@@ -362,15 +362,12 @@ where
     /// Makes an HTTP request to the given URL and returns the response body.
     fn http_request(
         caller: &mut Caller,
-        method: http::Method,
-        query: String,
-        headers: Vec<(String, Vec<u8>)>,
-        payload: Vec<u8>,
+        request: http::Request,
     ) -> Result<http::Response, RuntimeError> {
         caller
             .user_data_mut()
             .runtime
-            .http_request(method, &query, headers, payload)
+            .http_request(request)
             .map_err(|error| RuntimeError::Custom(error.into()))
     }
 
@@ -571,15 +568,12 @@ where
     /// Makes an HTTP request to the given URL and returns the response body.
     fn http_request(
         caller: &mut Caller,
-        method: http::Method,
-        query: String,
-        headers: Vec<(String, Vec<u8>)>,
-        payload: Vec<u8>,
+        request: http::Request,
     ) -> Result<http::Response, RuntimeError> {
         caller
             .user_data_mut()
             .runtime
-            .http_request(method, &query, headers, payload)
+            .http_request(request)
             .map_err(|error| RuntimeError::Custom(error.into()))
     }
 

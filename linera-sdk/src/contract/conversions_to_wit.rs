@@ -182,6 +182,21 @@ impl From<Resources> for wit_system_api::Resources {
     }
 }
 
+impl From<http::Request> for wit_system_api::Request {
+    fn from(request: http::Request) -> Self {
+        wit_system_api::Request {
+            method: request.method.into(),
+            url: request.url,
+            headers: request
+                .headers
+                .into_iter()
+                .map(http::Header::into)
+                .collect(),
+            body: request.body,
+        }
+    }
+}
+
 impl From<http::Method> for wit_system_api::Method {
     fn from(method: http::Method) -> Self {
         match method {
@@ -194,6 +209,15 @@ impl From<http::Method> for wit_system_api::Method {
             http::Method::Connect => wit_system_api::Method::Connect,
             http::Method::Patch => wit_system_api::Method::Patch,
             http::Method::Trace => wit_system_api::Method::Trace,
+        }
+    }
+}
+
+impl From<http::Header> for wit_system_api::Header {
+    fn from(header: http::Header) -> Self {
+        wit_system_api::Header {
+            name: header.name,
+            value: header.value,
         }
     }
 }
