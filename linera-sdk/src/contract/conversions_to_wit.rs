@@ -182,6 +182,17 @@ impl From<Resources> for wit_system_api::Resources {
     }
 }
 
+impl From<http::Request> for wit_system_api::Request {
+    fn from(request: http::Request) -> Self {
+        wit_system_api::Request {
+            method: request.method.into(),
+            url: request.url,
+            headers: request.headers,
+            body: request.body,
+        }
+    }
+}
+
 impl From<http::Method> for wit_system_api::Method {
     fn from(method: http::Method) -> Self {
         match method {
