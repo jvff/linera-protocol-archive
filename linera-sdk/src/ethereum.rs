@@ -42,10 +42,13 @@ impl JsonRpcClient for EthereumClient {
 
     async fn request_inner(&self, payload: Vec<u8>) -> Result<Vec<u8>, Self::Error> {
         let response = contract_system_api::http_request(
-            http::Method::Post.into(),
-            &self.url,
-            &[("Content-Type".to_owned(), b"application/json".to_vec())],
-            &payload,
+            &http::Request {
+                method: http::Method::Post,
+                url: self.url.clone(),
+                headers: Vec::from([("Content-Type".to_owned(), b"application/json".to_vec())]),
+                body: payload,
+            }
+            .into(),
         );
 
         Ok(response.body)
