@@ -313,21 +313,16 @@ where
                 callback.respond(bytes);
             }
 
-            PerformHttpRequest {
-                method,
-                url,
-                headers,
-                payload,
-                callback,
-            } => {
-                let headers = headers
+            PerformHttpRequest { request, callback } => {
+                let headers = request
+                    .headers
                     .into_iter()
-                    .map(|(name, value)| Ok((name.parse()?, value.try_into()?)))
+                    .map(|http::Header { name, value }| Ok((name.parse()?, value.try_into()?)))
                     .collect::<Result<HeaderMap, ExecutionError>>()?;
 
                 let response = Client::new()
-                    .request(method.into(), url)
-                    .body(payload)
+                    .request(request.method.into(), request.url)
+                    .body(request.body)
                     .headers(headers)
                     .send()
                     .await?;
@@ -506,12 +501,7 @@ pub enum ExecutionRequest {
     },
 
     PerformHttpRequest {
-        method: http::Method,
-        url: String,
-        headers: Vec<(String, Vec<u8>)>,
-        #[debug(with = hex_debug)]
-        payload: Vec<u8>,
-        #[debug(skip)]
+        request: http::Request,
         callback: oneshot::Sender<http::Response>,
     },
 
