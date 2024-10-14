@@ -289,21 +289,16 @@ where
                 callback.respond(bytes);
             }
 
-            HttpRequest {
-                method,
-                url,
-                headers,
-                payload,
-                callback,
-            } => {
-                let headers = headers
+            HttpRequest { request, callback } => {
+                let headers = request
+                    .headers
                     .into_iter()
                     .map(|(name, value)| Ok((name.parse()?, value.try_into()?)))
                     .collect::<Result<HeaderMap, ExecutionError>>()?;
 
                 let response = Client::new()
-                    .request(method.into(), url)
-                    .body(payload)
+                    .request(request.method.into(), request.url)
+                    .body(request.body)
                     .headers(headers)
                     .send()
                     .await?;
@@ -443,10 +438,7 @@ pub enum ExecutionRequest {
     },
 
     HttpRequest {
-        method: http::Method,
-        url: String,
-        headers: Vec<(String, Vec<u8>)>,
-        payload: Vec<u8>,
+        request: http::Request,
         callback: oneshot::Sender<http::Response>,
     },
 
@@ -584,16 +576,9 @@ impl Debug for ExecutionRequest {
                 .field("url", url)
                 .finish_non_exhaustive(),
 
-            ExecutionRequest::HttpRequest {
-                method,
-                url,
-                headers,
-                ..
-            } => formatter
+            ExecutionRequest::HttpRequest { request, .. } => formatter
                 .debug_struct("ExecutionRequest::HttpRequest")
-                .field("method", method)
-                .field("url", url)
-                .field("headers", headers)
+                .field("request", request)
                 .finish_non_exhaustive(),
 
             ExecutionRequest::ReadBlobContent { blob_id, .. } => formatter

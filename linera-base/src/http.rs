@@ -7,7 +7,7 @@ use linera_witty::{WitLoad, WitStore, WitType};
 use serde::{Deserialize, Serialize};
 
 /// An HTTP request.
-#[derive(Clone, Debug, WitLoad, WitStore, WitType)]
+#[derive(Clone, Debug, Eq, PartialEq, WitLoad, WitStore, WitType)]
 pub struct Request {
     /// The [`Method`] used for the HTTP request.
     pub method: Method,
