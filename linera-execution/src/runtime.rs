@@ -707,13 +707,9 @@ impl<UserInstance> BaseRuntime for SyncRuntimeHandle<UserInstance> {
 
     fn perform_http_request(
         &mut self,
-        method: http::Method,
-        url: &str,
-        headers: Vec<(String, Vec<u8>)>,
-        payload: Vec<u8>,
+        request: http::Request,
     ) -> Result<http::Response, ExecutionError> {
-        self.inner()
-            .perform_http_request(method, url, headers, payload)
+        self.inner().perform_http_request(request)
     }
 
     fn assert_before(&mut self, timestamp: Timestamp) -> Result<(), ExecutionError> {
@@ -994,10 +990,7 @@ impl<UserInstance> BaseRuntime for SyncRuntimeInternal<UserInstance> {
 
     fn perform_http_request(
         &mut self,
-        method: http::Method,
-        url: &str,
-        headers: Vec<(String, Vec<u8>)>,
-        payload: Vec<u8>,
+        request: http::Request,
     ) -> Result<http::Response, ExecutionError> {
         ensure!(
             cfg!(feature = "unstable-oracles"),
@@ -1010,13 +1003,9 @@ impl<UserInstance> BaseRuntime for SyncRuntimeInternal<UserInstance> {
                     _ => return Err(ExecutionError::OracleResponseMismatch),
                 }
             } else {
-                let url = url.to_string();
                 self.execution_state_sender
                     .send_request(|callback| ExecutionRequest::PerformHttpRequest {
-                        method,
-                        url,
-                        headers,
-                        payload,
+                        request,
                         callback,
                     })?
                     .recv_response()?
