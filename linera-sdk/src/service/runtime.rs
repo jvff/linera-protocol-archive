@@ -8,6 +8,7 @@ use std::cell::Cell;
 use linera_base::{
     abi::ServiceAbi,
     data_types::{Amount, BlockHeight, Timestamp},
+    http,
     identifiers::{ApplicationId, ChainId, Owner},
 };
 
