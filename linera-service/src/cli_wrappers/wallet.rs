@@ -1009,17 +1009,24 @@ impl NodeService {
             linera_base::time::timer::sleep(Duration::from_secs(i)).await;
             let url = format!("http://localhost:{}/", self.port);
             let client = reqwest_client();
-            let response = client
+            let result = client
                 .post(url)
                 .json(&json!({ "query": query }))
                 .send()
-                .await
-                .with_context(|| {
-                    format!(
-                        "query_node: failed to post query={}",
-                        truncate_query_output(query)
-                    )
-                })?;
+                .await;
+            if matches!(result, Err(error) if error.is_timeout()) {
+                warn!(
+                    "Timeout when sending query {:?} to the node service",
+                    query.as_ref()
+                );
+                continue;
+            }
+            let response = result.with_context(|| {
+                format!(
+                    "query_node: failed to post query={}",
+                    truncate_query_output(query)
+                )
+            })?;
             anyhow::ensure!(
                 response.status().is_success(),
                 "Query \"{}\" failed: {}",
