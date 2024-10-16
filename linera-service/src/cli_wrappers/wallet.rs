@@ -1014,7 +1014,7 @@ impl NodeService {
                 .json(&json!({ "query": query }))
                 .send()
                 .await;
-            if matches!(result, Err(error) if error.is_timeout()) {
+            if matches!(result, Err(ref error) if error.is_timeout()) {
                 warn!("Timeout when sending query {query:?} to the node service");
                 continue;
             }
