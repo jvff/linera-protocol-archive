@@ -123,7 +123,7 @@ pub struct Response {
     pub status: u16,
 
     /// The headers included in the response.
-    pub headers: Vec<(String, Vec<u8>)>,
+    pub headers: Vec<Header>,
 
     /// The body of the response.
     #[debug(with = "hex_debug")]
@@ -158,6 +158,12 @@ impl Response {
             body: vec![],
         }
     }
+
+    /// Adds a header to this [`Response`].
+    pub fn with_header(mut self, name: impl Into<String>, value: impl Into<Vec<u8>>) -> Self {
+        self.headers.push(Header::new(name, value));
+        self
+    }
 }
 
 #[cfg(with_reqwest)]
@@ -168,7 +174,7 @@ impl Response {
         let headers = response
             .headers()
             .into_iter()
-            .map(|(name, value)| (name.to_string(), value.as_bytes().to_owned()))
+            .map(|(name, value)| Header::new(name.to_string(), value.as_bytes().to_owned()))
             .collect();
 
         Ok(Response {
