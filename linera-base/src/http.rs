@@ -134,6 +134,12 @@ impl Response {
             body: body.into(),
         }
     }
+
+    /// Adds a header to this [`Response`].
+    pub fn with_header(mut self, name: impl Into<String>, value: impl Into<Vec<u8>>) -> Self {
+        self.headers.push((name.into(), value.into()));
+        self
+    }
 }
 
 #[cfg(with_reqwest)]
