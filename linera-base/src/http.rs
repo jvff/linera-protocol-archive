@@ -125,6 +125,17 @@ pub struct Response {
     pub body: Vec<u8>,
 }
 
+impl Response {
+    /// Creates an HTTP [`Response`] with an OK status code and the provided `body`.
+    pub fn ok(body: impl Into<Vec<u8>>) -> Self {
+        Response {
+            status: 200,
+            headers: vec![],
+            body: body.into(),
+        }
+    }
+}
+
 #[cfg(with_reqwest)]
 impl Response {
     /// Creates a [`Response`] from a [`reqwest::Response`], waiting for it to be fully
