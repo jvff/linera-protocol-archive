@@ -136,7 +136,7 @@ impl Response {
     }
 
     /// Creates an HTTP [`Response`] with an Unauthorized status code.
-    pub fn unauthorized(body: impl Into<Vec<u8>>) -> Self {
+    pub fn unauthorized() -> Self {
         Response {
             status: 401,
             headers: vec![],
