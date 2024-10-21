@@ -135,6 +135,15 @@ impl Response {
         }
     }
 
+    /// Creates an HTTP [`Response`] with an Unauthorized status code.
+    pub fn unauthorized(body: impl Into<Vec<u8>>) -> Self {
+        Response {
+            status: 401,
+            headers: vec![],
+            body: vec![],
+        }
+    }
+
     /// Adds a header to this [`Response`].
     pub fn with_header(mut self, name: impl Into<String>, value: impl Into<Vec<u8>>) -> Self {
         self.headers.push((name.into(), value.into()));
