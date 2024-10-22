@@ -365,7 +365,41 @@ where
             .insert(Cow::Owned(certificate.value))
             .await;
 
+        self.register_delivery_notifier(height, &actions, notify_when_messages_are_delivered)
+            .await;
+
         Ok((info, actions))
+    }
+
+    /// Schedules a notification for when cross-chain messages are delivered up to the given
+    /// `height`.
+    #[tracing::instrument(level = "trace", skip(self, notify_when_messages_are_delivered))]
+    async fn register_delivery_notifier(
+        &self,
+        height: BlockHeight,
+        actions: &NetworkActions,
+        notify_when_messages_are_delivered: Option<oneshot::Sender<()>>,
+    ) {
+        if let Some(notifier) = notify_when_messages_are_delivered {
+            if actions
+                .cross_chain_requests
+                .iter()
+                .any(|request| request.has_messages_lower_or_equal_than(height))
+            {
+                self.delivery_notifiers
+                    .entry(chain_id)
+                    .or_default()
+                    .entry(height)
+                    .or_default()
+                    .push(notifier);
+            } else {
+                // No need to wait. Also, cross-chain requests may not trigger the
+                // notifier later, even if we register it.
+                if let Err(()) = notifier.send(()) {
+                    warn!("Failed to notify message delivery to caller");
+                }
+            }
+        }
     }
 
     /// Updates the chain's inboxes, receiving messages from a cross-chain update.

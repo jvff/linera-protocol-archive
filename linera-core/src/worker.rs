@@ -239,9 +239,6 @@ where
     recent_blobs: Arc<ValueCache<BlobId, Blob>>,
     /// Chain IDs that should be tracked by a worker.
     tracked_chains: Option<Arc<RwLock<HashSet<ChainId>>>>,
-    /// One-shot channels to notify callers when messages of a particular chain have been
-    /// delivered.
-    delivery_notifiers: Arc<Mutex<DeliveryNotifiers>>,
     /// The set of spawned [`ChainWorkerActor`] tasks.
     chain_worker_tasks: Arc<Mutex<JoinSet>>,
     /// The cache of running [`ChainWorkerActor`]s.
@@ -251,9 +248,6 @@ where
 /// The sender endpoint for [`ChainWorkerRequest`]s.
 type ChainActorEndpoint<StorageClient> =
     mpsc::UnboundedSender<ChainWorkerRequest<<StorageClient as Storage>::Context>>;
-
-pub(crate) type DeliveryNotifiers =
-    HashMap<ChainId, BTreeMap<BlockHeight, Vec<oneshot::Sender<()>>>>;
 
 impl<StorageClient> WorkerState<StorageClient>
 where
@@ -273,7 +267,6 @@ where
             recent_hashed_certificate_values: Arc::new(ValueCache::default()),
             recent_blobs: Arc::new(ValueCache::default()),
             tracked_chains: None,
-            delivery_notifiers: Arc::default(),
             chain_worker_tasks: Arc::default(),
             chain_workers: Arc::new(Mutex::new(LruCache::new(chain_worker_limit))),
         }
@@ -293,7 +286,6 @@ where
             recent_hashed_certificate_values: Arc::new(ValueCache::default()),
             recent_blobs: Arc::new(ValueCache::default()),
             tracked_chains: Some(tracked_chains),
-            delivery_notifiers: Arc::default(),
             chain_worker_tasks: Arc::default(),
             chain_workers: Arc::new(Mutex::new(LruCache::new(chain_worker_limit))),
         }
@@ -446,42 +438,6 @@ where
             ChainWorkerRequest::StageBlockExecution { block, callback }
         })
         .await
-    }
-
-    // Schedule a notification when cross-chain messages are delivered up to the given height.
-    #[tracing::instrument(
-        level = "trace",
-        skip(self, chain_id, height, actions, notify_when_messages_are_delivered)
-    )]
-    async fn register_delivery_notifier(
-        &self,
-        chain_id: ChainId,
-        height: BlockHeight,
-        actions: &NetworkActions,
-        notify_when_messages_are_delivered: Option<oneshot::Sender<()>>,
-    ) {
-        if let Some(notifier) = notify_when_messages_are_delivered {
-            if actions
-                .cross_chain_requests
-                .iter()
-                .any(|request| request.has_messages_lower_or_equal_than(height))
-            {
-                self.delivery_notifiers
-                    .lock()
-                    .unwrap()
-                    .entry(chain_id)
-                    .or_default()
-                    .entry(height)
-                    .or_default()
-                    .push(notifier);
-            } else {
-                // No need to wait. Also, cross-chain requests may not trigger the
-                // notifier later, even if we register it.
-                if let Err(()) = notifier.send(()) {
-                    warn!("Failed to notify message delivery to caller");
-                }
-            }
-        }
     }
 
     /// Executes a [`Query`] for an application's state on a specific chain.
