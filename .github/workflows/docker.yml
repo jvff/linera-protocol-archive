@@ -71,4 +71,4 @@ N;N;N;N;d}' docker/docker-compose.yml
           # Docker compose can take some time to start
           max_attempts: 5
           timeout_minutes: 2
-          command: sleep 120 && linera --wallet docker/wallet.json --storage rocksdb:docker/linera.db sync-balance
+          command: sleep 60 && linera --wallet docker/wallet.json --storage rocksdb:docker/linera.db sync-balance
