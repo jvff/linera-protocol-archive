@@ -54,6 +54,9 @@ jobs:
           cargo install --path linera-service --bin linera --bin linera-server --debug
       - name: Build Docker image
         run: docker build . -f docker/Dockerfile -t linera
+      - name: Patch Dockerfile to run ScyllaDB in developer mode
+        run: sed -i -e '/SCYLLA_AUTO_CONF/{N;s/command:/  SCYLLA_ENABLE_EXPERIMENTAL: 1/p;
+N;N;N;N;d}' docker/docker-compose.yml
       - name: Run Compose
         run: cd docker && ./compose.sh &
       - name: Setup upterm session
