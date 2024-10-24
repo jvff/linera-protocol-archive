@@ -736,7 +736,11 @@ where
     /// Obtains up to `self.options.max_pending_message_bundles` pending message bundles for the
     /// local chain.
     #[tracing::instrument(level = "trace")]
-    async fn pending_message_bundles(&self) -> Result<Vec<IncomingBundle>, ChainClientError> {
+    pub async fn pending_message_bundles(&self) -> Result<Vec<IncomingBundle>, ChainClientError> {
+        if self.next_block_height() != BlockHeight::ZERO && self.options.message_policy.is_ignore()
+        {
+            return Ok(Vec::new()); // OpenChain is already received, other are ignored.
+        }
         let query = ChainInfoQuery::new(self.chain_id).with_pending_message_bundles();
         let info = self
             .client

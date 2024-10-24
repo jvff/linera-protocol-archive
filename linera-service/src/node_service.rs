@@ -27,7 +27,7 @@ use linera_base::{
     ownership::{ChainOwnership, TimeoutConfig},
     BcsHexParseError,
 };
-use linera_chain::{data_types::HashedCertificateValue, ChainStateView};
+use linera_chain::{data_types::{HashedCertificateValue, IncomingBundle}, ChainStateView};
 use linera_client::chain_listener::{ChainListener, ChainListenerConfig, ClientContext};
 use linera_core::{
     client::{ChainClient, ChainClientError},
@@ -744,6 +744,13 @@ where
     /// Returns the version information on this node service.
     async fn version(&self) -> linera_version::VersionInfo {
         linera_version::VersionInfo::default()
+    }
+
+    /// Returns the pending message of the chain
+    async fn pending_messages(&self, chain_id: ChainId) -> Result<Vec<IncomingBundle>, Error> {
+        let client = self.context.lock().await.make_chain_client(chain_id)?;
+        tracing::info!("Pending messages: {:?}", client.pending_message_bundles().await?);
+        Ok(client.pending_message_bundles().await?)
     }
 }
 
