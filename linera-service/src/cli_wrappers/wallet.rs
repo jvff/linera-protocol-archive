@@ -714,7 +714,7 @@ impl ClientWrapper {
         let mut command = self.command().await?;
         command
             .args(["wallet", "forget-chain"])
-            .arg(&chain_id.to_string());
+            .arg(chain_id.to_string());
         command.spawn_and_wait_for_stdout().await?;
         Ok(())
     }
