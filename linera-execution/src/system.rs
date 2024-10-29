@@ -19,7 +19,8 @@ use linera_base::{
     },
     ensure, hex_debug,
     identifiers::{
-        Account, BlobId, BlobType, BytecodeId, ChainDescription, ChainId, MessageId, Owner,
+        Account, AccountOwner, BlobId, BlobType, BytecodeId, ChainDescription, ChainId, MessageId,
+        Owner,
     },
     ownership::{ChainOwnership, TimeoutConfig},
 };
@@ -82,7 +83,7 @@ pub struct SystemExecutionStateView<C> {
     /// Balance of the chain. (Available to any user able to create blocks in the chain.)
     pub balance: HashedRegisterView<C, Amount>,
     /// Balances attributed to a given owner.
-    pub balances: HashedMapView<C, Owner, Amount>,
+    pub balances: HashedMapView<C, AccountOwner, Amount>,
     /// The timestamp of the most recent block.
     pub timestamp: HashedRegisterView<C, Timestamp>,
     /// Track the locations of known bytecodes as well as the descriptions of known applications.
@@ -698,7 +699,11 @@ where
             SystemExecutionError::IncorrectTransferAmount
         );
         let balance = match &owner {
-            Some(owner) => self.balances.get_mut_or_default(owner).await?,
+            Some(owner) => {
+                self.balances
+                    .get_mut_or_default(&AccountOwner::User(*owner))
+                    .await?
+            }
             None => self.balance.get_mut(),
         };
         balance
@@ -776,7 +781,10 @@ where
                         self.balance.set(new_balance);
                     }
                     Some(owner) => {
-                        let balance = self.balances.get_mut_or_default(&owner).await?;
+                        let balance = self
+                            .balances
+                            .get_mut_or_default(&AccountOwner::User(owner))
+                            .await?;
                         *balance = balance.saturating_add(amount);
                     }
                 }
@@ -791,7 +799,10 @@ where
                     SystemExecutionError::UnauthenticatedClaimOwner
                 );
 
-                let balance = self.balances.get_mut_or_default(&owner).await?;
+                let balance = self
+                    .balances
+                    .get_mut_or_default(&AccountOwner::User(owner))
+                    .await?;
                 balance
                     .try_sub_assign(amount)
                     .map_err(|_| SystemExecutionError::InsufficientFunding { balance: *balance })?;
