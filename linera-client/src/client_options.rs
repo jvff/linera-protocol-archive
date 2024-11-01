@@ -976,7 +976,13 @@ impl fmt::Display for ResourceControlPolicyConfig {
 #[derive(Clone, clap::Subcommand)]
 pub enum WalletCommand {
     /// Show the contents of the wallet.
-    Show { chain_id: Option<ChainId> },
+    Show {
+        /// The chain to show the metadata.
+        chain_id: Option<ChainId>,
+        /// Only print a non-formatted list of the wallet's chain IDs.
+        #[arg(long)]
+        chain_ids_only: bool,
+    },
 
     /// Change the wallet default chain.
     SetDefault { chain_id: ChainId },
