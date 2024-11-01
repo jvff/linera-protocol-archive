@@ -32,7 +32,7 @@ use serde::{de::DeserializeOwned, ser::Serialize};
 use serde_json::{json, Value};
 use tempfile::TempDir;
 use tokio::process::{Child, Command};
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 use crate::{
     cli_wrappers::{
@@ -949,10 +949,10 @@ impl Drop for ClientWrapper {
     fn drop(&mut self) {
         use std::process::Command as SyncCommand;
 
-        let binary_path = self
-            .binary_path
-            .lock()
-            .expect("Threads should not panic while holding a lock to `binary_path`");
+        let Ok(binary_path) = self.binary_path.lock() else {
+            error!("Failed to close chains because a thread panicked with a lock to `binary_path`");
+            return;
+        };
 
         let Some(binary_path) = binary_path.as_ref() else {
             // The command binary was never resolved, so it is assumed to have never been called
