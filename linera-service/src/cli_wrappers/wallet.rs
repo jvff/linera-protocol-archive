@@ -63,6 +63,7 @@ pub struct ClientWrapper {
     max_pending_message_bundles: usize,
     network: Network,
     pub path_provider: PathProvider,
+    close_chains_on_drop: bool,
 }
 
 impl ClientWrapper {
@@ -71,6 +72,7 @@ impl ClientWrapper {
         network: Network,
         testing_prng_seed: Option<u64>,
         id: usize,
+        close_chains_on_drop: bool,
     ) -> Self {
         let storage = format!(
             "rocksdb:{}/client_{}.db",
@@ -86,6 +88,7 @@ impl ClientWrapper {
             max_pending_message_bundles: 10_000,
             network,
             path_provider,
+            close_chains_on_drop,
         }
     }
 
