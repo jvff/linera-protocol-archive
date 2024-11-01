@@ -257,6 +257,7 @@ impl LineraNet for LocalKubernetesNet {
             self.network,
             self.testing_prng_seed,
             self.next_client_id,
+            false,
         );
         if let Some(seed) = self.testing_prng_seed {
             self.testing_prng_seed = Some(seed + 1);
