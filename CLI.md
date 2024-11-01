@@ -712,7 +712,11 @@ Show the contents of the wallet
 
 ###### **Arguments:**
 
-* `<CHAIN_ID>`
+* `<CHAIN_ID>` — The chain to show the metadata
+
+###### **Options:**
+
+* `--short` — Only print a non-formatted list of the wallet's chain IDs
 
 
 
