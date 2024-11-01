@@ -79,14 +79,20 @@ async fn benchmark_with_fungible(
 ) -> Result<()> {
     info!("Creating the clients and initializing the wallets");
     let path_provider = PathProvider::create_temporary_directory().unwrap();
-    let publisher = ClientWrapper::new(path_provider, Network::Grpc, None, num_wallets);
+    let publisher = ClientWrapper::new(path_provider, Network::Grpc, None, num_wallets, true);
     publisher
         .wallet_init(&[], FaucetOption::NewChain(&faucet))
         .await?;
     let clients = (0..num_wallets)
         .map(|n| {
             let path_provider = PathProvider::create_temporary_directory().unwrap();
-            Ok(ClientWrapper::new(path_provider, Network::Grpc, None, n))
+            Ok(ClientWrapper::new(
+                path_provider,
+                Network::Grpc,
+                None,
+                n,
+                true,
+            ))
         })
         .collect::<Result<Vec<_>, anyhow::Error>>()?;
     try_join_all(
