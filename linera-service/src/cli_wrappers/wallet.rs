@@ -955,8 +955,10 @@ impl Drop for ClientWrapper {
         };
 
         let Some(binary_path) = binary_path.as_ref() else {
-            // The command binary was never resolved, so it is assumed to have never been called
-            // and therefore no chains need to be removed.
+            warn!(
+                "Assuming no chains need to be closed, because the command binary was never \
+                resolved and therefore presumably never called"
+            );
             return;
         };
 
