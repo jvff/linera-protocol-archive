@@ -971,10 +971,10 @@ impl Drop for ClientWrapper {
 
         let Ok(wallet_show_output) = wallet_show_command
             .current_dir(working_directory)
-            .args(["wallet", "show", "--only-chain-ids"])
+            .args(["wallet", "show", "--chain-ids-only"])
             .output()
         else {
-            warn!("Failed to execute `wallet show --only-chain-ids` to list chains to close");
+            warn!("Failed to execute `wallet show --chain-ids-only` to list chains to close");
             return;
         };
 
