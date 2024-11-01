@@ -945,6 +945,70 @@ impl ClientWrapper {
     }
 }
 
+impl Drop for ClientWrapper {
+    fn drop(&mut self) {
+        use std::process::Command as SyncCommand;
+
+        let binary_path = self
+            .binary_path
+            .lock()
+            .expect("Threads should not panic while holding a lock to `binary_path`");
+
+        let Some(binary_path) = binary_path.as_ref() else {
+            // The command binary was never resolved, so it is assumed to have never been called
+            // and therefore no chains need to be removed.
+            return;
+        };
+
+        let working_directory = self.path_provider.path();
+        let mut wallet_show_command = SyncCommand::new(binary_path);
+
+        for argument in self.command_arguments() {
+            wallet_show_command.arg(&*argument);
+        }
+
+        let Ok(wallet_show_output) = wallet_show_command
+            .current_dir(working_directory)
+            .args(["wallet", "show", "--only-chain-ids"])
+            .output()
+        else {
+            warn!("Failed to execute `wallet show --only-chain-ids` to list chains to close");
+            return;
+        };
+
+        if !wallet_show_output.status.success() {
+            warn!("Failed to list chains in the wallet to close them");
+            return;
+        }
+
+        let Ok(chain_list_string) = String::from_utf8(wallet_show_output.stdout) else {
+            warn!(
+                "Failed to close chains because `linera wallet show --only-chain-ids` \
+                returned a non-UTF-8 output"
+            );
+            return;
+        };
+
+        let chain_ids = chain_list_string.split('\n');
+
+        for chain_id in chain_ids {
+            let mut close_chain_command = SyncCommand::new(binary_path);
+
+            for argument in self.command_arguments() {
+                close_chain_command.arg(&*argument);
+            }
+
+            close_chain_command.current_dir(working_directory);
+
+            match close_chain_command.args(["close-chain", chain_id]).status() {
+                Ok(status) if status.success() => (),
+                Ok(failure) => warn!("Failed to close chain {chain_id}: {failure}"),
+                Err(error) => warn!("Failed to close chain {chain_id}: {error}"),
+            }
+        }
+    }
+}
+
 /// Whether `wallet_init` should use a faucet.
 #[derive(Clone, Copy, Debug)]
 pub enum FaucetOption<'a> {
