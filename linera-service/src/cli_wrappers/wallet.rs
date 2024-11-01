@@ -991,7 +991,10 @@ impl Drop for ClientWrapper {
             return;
         };
 
-        let chain_ids = chain_list_string.split('\n');
+        let chain_ids = chain_list_string
+            .split('\n')
+            .map(|line| line.trim())
+            .filter(|line| !line.is_empty());
 
         for chain_id in chain_ids {
             let mut close_chain_command = SyncCommand::new(binary_path);
