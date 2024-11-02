@@ -371,6 +371,9 @@ async fn test_end_to_end_receipt_of_old_remove_committee_messages(
 
     client.query_validators(None).await?;
 
+    // Ensure the faucet is on the new epoch
+    faucet_client.process_inbox(faucet_chain).await?;
+
     if matches!(network, Network::Grpc) {
         assert_eq!(faucet.current_validators().await?.len(), 5);
     }
@@ -395,6 +398,9 @@ async fn test_end_to_end_receipt_of_old_remove_committee_messages(
         .await?;
 
     client.query_validators(None).await?;
+
+    // Ensure the faucet is on the new epoch
+    faucet_client.process_inbox(faucet_chain).await?;
 
     if matches!(network, Network::Grpc) {
         assert_eq!(faucet.current_validators().await?.len(), 6);
