@@ -372,6 +372,10 @@ async fn test_end_to_end_receipt_of_old_remove_committee_messages(
         assert_eq!(faucet.current_validators().await?.len(), 5);
     }
 
+    // We need the epoch before the latest to still be active, so that it can send all the epoch
+    // change messages in a batch where the latest messages is signed by a committee that the
+    // receiving chain trusts.
+
     // Start another new validator
     net.generate_validator_config(5).await?;
     net.start_validator(5).await?;
@@ -402,7 +406,7 @@ async fn test_end_to_end_receipt_of_old_remove_committee_messages(
     } = faucet.claim(&new_owner_key).await?;
     client.assign(new_owner_key, message_id).await?;
 
-    // Attempt to receive the existing epoch change message
+    // Attempt to receive the existing epoch change messages
     client.process_inbox(chain_id).await?;
 
     net.ensure_is_running().await?;
