@@ -1533,11 +1533,8 @@ async fn run(options: &ClientOptions) -> anyhow::Result<()> {
         },
 
         ClientCommand::Wallet(wallet_command) => match wallet_command {
-            WalletCommand::Show {
-                chain_id,
-                chain_ids_only,
-            } => {
-                if *chain_ids_only {
+            WalletCommand::Show { chain_id, short } => {
+                if *short {
                     for chain_id in options.wallet().await?.chains.keys() {
                         println!("{chain_id}");
                     }
