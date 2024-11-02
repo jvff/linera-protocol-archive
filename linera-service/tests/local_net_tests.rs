@@ -272,10 +272,8 @@ async fn test_end_to_end_receipt_of_old_create_committee_messages(
 
     client.query_validators(None).await?;
 
-    // Create a configuration for one more validator
+    // Start a new validator
     net.generate_validator_config(4).await?;
-
-    // Start the validators
     net.start_validator(4).await?;
 
     let address = format!("{}:localhost:{}", network.short(), LocalNet::proxy_port(4));
@@ -284,11 +282,10 @@ async fn test_end_to_end_receipt_of_old_create_committee_messages(
         net.genesis_config()?.hash()
     );
 
-    // Add 4th validator
+    // Add 5th validator to the network
     client
         .set_validator(net.validator_name(4).unwrap(), LocalNet::proxy_port(4), 100)
         .await?;
-    // client.finalize_committee().await?;
 
     client.query_validators(None).await?;
 
@@ -305,7 +302,7 @@ async fn test_end_to_end_receipt_of_old_create_committee_messages(
     } = faucet.claim(&new_owner_key).await?;
     client.assign(new_owner_key, message_id).await?;
 
-    // Attempt to receive the existing epoch change messages
+    // Attempt to receive the existing epoch change message
     client.process_inbox(chain_id).await?;
 
     net.ensure_is_running().await?;
