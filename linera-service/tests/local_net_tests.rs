@@ -290,7 +290,7 @@ async fn test_end_to_end_receipt_of_old_create_committee_messages(
     client.query_validators(None).await?;
 
     // Ensure the faucet is on the new epoch
-    tokio::time::sleep(Duration::from_millis(250)).await;
+    tokio::time::sleep(Duration::from_millis(500)).await;
 
     if matches!(network, Network::Grpc) {
         assert_eq!(faucet.current_validators().await?.len(), 5);
