@@ -196,10 +196,7 @@ impl ClientWrapper {
 
     /// Returns a [`Command`] instance configured with the cached `binary_path`, if available.
     fn command_with_cached_binary_path(&self) -> Option<Command> {
-        let binary_path = self
-            .binary_path
-            .lock()
-            .expect("Threads should not panic while holding a lock to `binary_path`");
+        let binary_path = self.binary_path.lock().unwrap();
 
         binary_path.as_ref().map(Command::new)
     }
@@ -212,10 +209,7 @@ impl ClientWrapper {
     /// `command_binary` can race and resolve the binary path twice, but they should always be the
     /// same path.
     fn set_cached_binary_path(&self, new_binary_path: PathBuf) {
-        let mut binary_path = self
-            .binary_path
-            .lock()
-            .expect("Threads should not panic while holding a lock to `binary_path`");
+        let mut binary_path = self.binary_path.lock().unwrap();
 
         if binary_path.is_none() {
             *binary_path = Some(new_binary_path);
