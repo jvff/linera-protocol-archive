@@ -978,10 +978,10 @@ impl Drop for ClientWrapper {
 
         let Ok(wallet_show_output) = wallet_show_command
             .current_dir(working_directory)
-            .args(["wallet", "show", "--chain-ids-only"])
+            .args(["wallet", "show", "--short"])
             .output()
         else {
-            warn!("Failed to execute `wallet show --chain-ids-only` to list chains to close");
+            warn!("Failed to execute `wallet show --short` to list chains to close");
             return;
         };
 
@@ -992,7 +992,7 @@ impl Drop for ClientWrapper {
 
         let Ok(chain_list_string) = String::from_utf8(wallet_show_output.stdout) else {
             warn!(
-                "Failed to close chains because `linera wallet show --only-chain-ids` \
+                "Failed to close chains because `linera wallet show --short` \
                 returned a non-UTF-8 output"
             );
             return;
