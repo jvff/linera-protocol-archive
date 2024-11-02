@@ -289,6 +289,9 @@ async fn test_end_to_end_receipt_of_old_create_committee_messages(
 
     client.query_validators(None).await?;
 
+    // Ensure the faucet is on the new epoch
+    faucet_client.process_inbox(faucet_chain).await?;
+
     if matches!(network, Network::Grpc) {
         assert_eq!(faucet.current_validators().await?.len(), 5);
     }
