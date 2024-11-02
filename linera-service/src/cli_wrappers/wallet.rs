@@ -952,6 +952,10 @@ impl Drop for ClientWrapper {
     fn drop(&mut self) {
         use std::process::Command as SyncCommand;
 
+        if !self.close_chains_on_drop {
+            return;
+        }
+
         let Ok(binary_path) = self.binary_path.lock() else {
             error!("Failed to close chains because a thread panicked with a lock to `binary_path`");
             return;
