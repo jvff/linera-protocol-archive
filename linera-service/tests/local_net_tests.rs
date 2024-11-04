@@ -352,15 +352,18 @@ async fn test_end_to_end_receipt_of_old_remove_committee_messages(
         .open_and_assign(&faucet_client, Amount::from_tokens(1_000u128))
         .await?;
 
-    let mut faucet_service = faucet_client
-        .run_faucet(None, faucet_chain, Amount::from_tokens(2))
-        .await?;
+    if matches!(network, Network::Grpc) {
+        let mut faucet_service = faucet_client
+            .run_faucet(None, faucet_chain, Amount::from_tokens(2))
+            .await?;
 
-    faucet_service.ensure_is_running()?;
+        faucet_service.ensure_is_running()?;
 
-    let faucet = faucet_service.instance();
+        let faucet = faucet_service.instance();
+        assert_eq!(faucet.current_validators().await?.len(), 4);
 
-    assert_eq!(faucet.current_validators().await?.len(), 4);
+        faucet_service.terminate().await?;
+    }
 
     client.query_validators(None).await?;
 
@@ -383,10 +386,19 @@ async fn test_end_to_end_receipt_of_old_remove_committee_messages(
     client.query_validators(None).await?;
 
     // Ensure the faucet is on the new epoch
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    faucet_client.process_inbox(faucet_chain).await?;
 
     if matches!(network, Network::Grpc) {
+        let mut faucet_service = faucet_client
+            .run_faucet(None, faucet_chain, Amount::from_tokens(2))
+            .await?;
+
+        faucet_service.ensure_is_running()?;
+
+        let faucet = faucet_service.instance();
         assert_eq!(faucet.current_validators().await?.len(), 5);
+
+        faucet_service.terminate().await?;
     }
 
     // We need the epoch before the latest to still be active, so that it can send all the epoch
@@ -411,7 +423,15 @@ async fn test_end_to_end_receipt_of_old_remove_committee_messages(
     client.query_validators(None).await?;
 
     // Ensure the faucet is on the new epoch
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    faucet_client.process_inbox(faucet_chain).await?;
+
+    let mut faucet_service = faucet_client
+        .run_faucet(None, faucet_chain, Amount::from_tokens(2))
+        .await?;
+
+    faucet_service.ensure_is_running()?;
+
+    let faucet = faucet_service.instance();
 
     if matches!(network, Network::Grpc) {
         assert_eq!(faucet.current_validators().await?.len(), 6);
