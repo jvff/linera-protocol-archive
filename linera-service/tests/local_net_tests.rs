@@ -402,7 +402,7 @@ async fn test_end_to_end_receipt_of_old_remove_committee_messages(
     }
 
     // We need the epoch before the latest to still be active, so that it can send all the epoch
-    // change messages in a batch where the latest messages is signed by a committee that the
+    // change messages in a batch where the latest message is signed by a committee that the
     // receiving chain trusts.
 
     // Start another new validator
