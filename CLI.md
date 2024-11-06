@@ -258,7 +258,7 @@ A closed chain cannot execute operations or accept messages anymore. It can stil
 
 **Usage:** `linera close-chain <CHAIN_ID>`
 
-###### **Options:**
+###### **Arguments:**
 
 * `<CHAIN_ID>` — Chain ID (must be one of our chains)
 
