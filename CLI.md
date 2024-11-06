@@ -708,7 +708,7 @@ Show the contents of the wallet
 
 Show the contents of the wallet
 
-**Usage:** `linera wallet show [CHAIN_ID]`
+**Usage:** `linera wallet show [OPTIONS] [CHAIN_ID]`
 
 ###### **Arguments:**
 
