@@ -955,7 +955,7 @@ impl Drop for ClientWrapper {
     fn drop(&mut self) {
         use std::process::Command as SyncCommand;
 
-        if !self.close_chains_on_drop {
+        if self.on_drop != OnClientDrop::CloseChains {
             return;
         }
 
