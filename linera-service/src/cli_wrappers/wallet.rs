@@ -63,10 +63,11 @@ pub struct ClientWrapper {
     max_pending_message_bundles: usize,
     network: Network,
     pub path_provider: PathProvider,
-    close_chains_on_drop: bool,
+    on_drop: OnClientDrop,
 }
 
 /// Action to perform when the [`ClientWrapper`] is dropped.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OnClientDrop {
     /// Close all the chains on the wallet.
     CloseChains,
@@ -80,7 +81,7 @@ impl ClientWrapper {
         network: Network,
         testing_prng_seed: Option<u64>,
         id: usize,
-        close_chains_on_drop: bool,
+        on_drop: OnClientDrop,
     ) -> Self {
         let storage = format!(
             "rocksdb:{}/client_{}.db",
@@ -96,7 +97,7 @@ impl ClientWrapper {
             max_pending_message_bundles: 10_000,
             network,
             path_provider,
-            close_chains_on_drop,
+            on_drop,
         }
     }
 
@@ -954,7 +955,7 @@ impl Drop for ClientWrapper {
     fn drop(&mut self) {
         use std::process::Command as SyncCommand;
 
-        if !self.close_chains_on_drop {
+        if self.on_drop != OnClientDrop::CloseChains {
             return;
         }
 

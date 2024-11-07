@@ -15,7 +15,7 @@ use linera_base::{
 use linera_sdk::abis::fungible::{self, FungibleTokenAbi, InitialState, Parameters};
 use linera_service::cli_wrappers::{
     local_net::{PathProvider, ProcessInbox},
-    ApplicationWrapper, ClientWrapper, Faucet, FaucetOption, Network,
+    ApplicationWrapper, ClientWrapper, Faucet, FaucetOption, Network, OnClientDrop,
 };
 use port_selector::random_free_tcp_port;
 use rand::{Rng as _, SeedableRng};
@@ -79,7 +79,13 @@ async fn benchmark_with_fungible(
 ) -> Result<()> {
     info!("Creating the clients and initializing the wallets");
     let path_provider = PathProvider::create_temporary_directory().unwrap();
-    let publisher = ClientWrapper::new(path_provider, Network::Grpc, None, num_wallets, true);
+    let publisher = ClientWrapper::new(
+        path_provider,
+        Network::Grpc,
+        None,
+        num_wallets,
+        OnClientDrop::CloseChains,
+    );
     publisher
         .wallet_init(&[], FaucetOption::NewChain(&faucet))
         .await?;
@@ -91,7 +97,7 @@ async fn benchmark_with_fungible(
                 Network::Grpc,
                 None,
                 n,
-                true,
+                OnClientDrop::CloseChains,
             ))
         })
         .collect::<Result<Vec<_>, anyhow::Error>>()?;
