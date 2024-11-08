@@ -120,12 +120,7 @@ impl BlockTestExt for Block {
     }
 
     fn into_proposal_with_round(self, key_pair: &KeyPair, round: Round) -> BlockProposal {
-        BlockProposal::new_initial(
-            round,
-            self.with_authenticated_signer(Some(key_pair.public().into())),
-            key_pair,
-            vec![],
-        )
+        BlockProposal::new_initial(round, self, key_pair, vec![])
     }
 }
 
