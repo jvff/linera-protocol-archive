@@ -3487,7 +3487,7 @@ where
         .clone()
         .with_authenticated_signer(Some(pub_key1.into()))
         .into_proposal_with_round(&key_pairs[1], Round::MultiLeader(0));
-    assert!(worker.handle_block_proposal(proposal3).await.is_ok());
+    worker.handle_block_proposal(proposal3).await?;
 
     // A validated block certificate from a later round can override the locked fast block.
     let (executed_block2, _) = worker.stage_block_execution(block2.clone()).await?;
