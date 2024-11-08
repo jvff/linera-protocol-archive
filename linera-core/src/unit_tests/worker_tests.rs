@@ -738,7 +738,8 @@ where
             .with(
                 make_first_block(ChainId::root(1))
                     .with_simple_transfer(ChainId::root(2), Amount::ONE)
-                    .with_simple_transfer(ChainId::root(2), Amount::from_tokens(2)),
+                    .with_simple_transfer(ChainId::root(2), Amount::from_tokens(2))
+                    .with_authenticated_signer(Some(sender_key_pair.public().into())),
             ),
         ),
     );
@@ -2294,16 +2295,18 @@ where
                 .await,
                 oracle_responses: vec![Vec::new()],
             }
-            .with(make_first_block(admin_id).with_operation(
-                SystemOperation::OpenChain(OpenChainConfig {
-                    ownership: ChainOwnership::single(key_pair.public()),
-                    epoch: Epoch::ZERO,
-                    committees: committees.clone(),
-                    admin_id,
-                    balance: Amount::ZERO,
-                    application_permissions: Default::default(),
-                }),
-            )),
+            .with(
+                make_first_block(admin_id)
+                    .with_operation(SystemOperation::OpenChain(OpenChainConfig {
+                        ownership: ChainOwnership::single(key_pair.public()),
+                        epoch: Epoch::ZERO,
+                        committees: committees.clone(),
+                        admin_id,
+                        balance: Amount::ZERO,
+                        application_permissions: Default::default(),
+                    }))
+                    .with_authenticated_signer(Some(key_pair.public().into())),
+            ),
         ),
     );
     worker
@@ -2616,7 +2619,11 @@ where
                 .await,
                 oracle_responses: vec![Vec::new()],
             }
-            .with(make_first_block(user_id).with_simple_transfer(admin_id, Amount::ONE)),
+            .with(
+                make_first_block(user_id)
+                    .with_simple_transfer(admin_id, Amount::ONE)
+                    .with_authenticated_signer(Some(key_pair1.public().into())),
+            ),
         ),
     );
     // Have the admin chain create a new epoch without retiring the old one.
@@ -2747,7 +2754,11 @@ where
                 .await,
                 oracle_responses: vec![Vec::new()],
             }
-            .with(make_first_block(user_id).with_simple_transfer(admin_id, Amount::ONE)),
+            .with(
+                make_first_block(user_id)
+                    .with_simple_transfer(admin_id, Amount::ONE)
+                    .with_authenticated_signer(Some(key_pair1.public().into())),
+            ),
         ),
     );
     // Have the admin chain create a new epoch and retire the old one immediately.
@@ -3125,12 +3136,14 @@ where
     let (committee, worker) = init_worker_with_chains(storage, balances).await;
 
     // Add another owner and use the leader-based protocol in all rounds.
-    let block0 = make_first_block(chain_id).with_operation(SystemOperation::ChangeOwnership {
-        super_owners: Vec::new(),
-        owners: vec![(pub_key0, 100), (pub_key1, 100)],
-        multi_leader_rounds: 0,
-        timeout_config: TimeoutConfig::default(),
-    });
+    let block0 = make_first_block(chain_id)
+        .with_operation(SystemOperation::ChangeOwnership {
+            super_owners: Vec::new(),
+            owners: vec![(pub_key0, 100), (pub_key1, 100)],
+            multi_leader_rounds: 0,
+            timeout_config: TimeoutConfig::default(),
+        })
+        .with_authenticated_signer(Some(pub_key0.into()));
     let (executed_block0, _) = worker.stage_block_execution(block0).await?;
     let value0 = HashedCertificateValue::new_confirmed(executed_block0);
     let certificate0 = make_certificate(&committee, &worker, value0.clone());
@@ -3386,6 +3399,7 @@ where
     let block1 = make_child_block(&value0);
     let proposal1 = block1
         .clone()
+        .with_authenticated_signer(Some(pub_key1.into()))
         .into_proposal_with_round(&key_pairs[1], Round::MultiLeader(1));
     let _ = worker.handle_block_proposal(proposal1).await?;
     let query_values = ChainInfoQuery::new(chain_id).with_manager_values();
@@ -3412,15 +3426,17 @@ where
     let (committee, worker) = init_worker_with_chains(storage, balances).await;
 
     // Add another owner and configure two multi-leader rounds.
-    let block0 = make_first_block(chain_id).with_operation(SystemOperation::ChangeOwnership {
-        super_owners: vec![pub_key0],
-        owners: vec![(pub_key0, 100), (pub_key1, 100)],
-        multi_leader_rounds: 3,
-        timeout_config: TimeoutConfig {
-            fast_round_duration: Some(TimeDelta::from_millis(5)),
-            ..TimeoutConfig::default()
-        },
-    });
+    let block0 = make_first_block(chain_id)
+        .with_operation(SystemOperation::ChangeOwnership {
+            super_owners: vec![pub_key0],
+            owners: vec![(pub_key0, 100), (pub_key1, 100)],
+            multi_leader_rounds: 3,
+            timeout_config: TimeoutConfig {
+                fast_round_duration: Some(TimeDelta::from_millis(5)),
+                ..TimeoutConfig::default()
+            },
+        })
+        .with_authenticated_signer(Some(pub_key0.into()));
     let (executed_block0, _) = worker.stage_block_execution(block0).await?;
     let value0 = HashedCertificateValue::new_confirmed(executed_block0);
     let certificate0 = make_certificate(&committee, &worker, value0.clone());
@@ -3461,6 +3477,7 @@ where
     let block2 = make_child_block(&value0).with_simple_transfer(ChainId::root(1), Amount::ONE);
     let proposal2 = block2
         .clone()
+        .with_authenticated_signer(Some(pub_key1.into()))
         .into_proposal_with_round(&key_pairs[1], Round::MultiLeader(0));
     let result = worker.handle_block_proposal(proposal2).await;
     assert_matches!(result, Err(WorkerError::ChainError(err))
@@ -3468,6 +3485,7 @@ where
     );
     let proposal3 = block1
         .clone()
+        .with_authenticated_signer(Some(pub_key1.into()))
         .into_proposal_with_round(&key_pairs[1], Round::MultiLeader(0));
     assert!(worker.handle_block_proposal(proposal3).await.is_ok());
 
@@ -3528,7 +3546,9 @@ where
     assert!(response.info.manager.fallback_vote.is_none());
 
     // Make a tracked message to ourselves. It's in the inbox now.
-    let block = make_first_block(chain_id).with_simple_transfer(chain_id, Amount::ONE);
+    let block = make_first_block(chain_id)
+        .with_simple_transfer(chain_id, Amount::ONE)
+        .with_authenticated_signer(Some(key_pair.public().into()));
     let (executed_block, _) = worker.stage_block_execution(block).await?;
     let value = HashedCertificateValue::new_confirmed(executed_block);
     let certificate = make_certificate(&committee, &worker, value);
