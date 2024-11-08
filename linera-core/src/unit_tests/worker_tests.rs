@@ -478,6 +478,7 @@ where
     // test block non-positive amount
     let zero_amount_block_proposal = make_first_block(ChainId::root(1))
         .with_simple_transfer(ChainId::root(2), Amount::ZERO)
+        .with_authenticated_signer(Some(sender_key_pair.public().into()))
         .into_fast_proposal(&sender_key_pair);
     assert_matches!(
     worker
@@ -632,6 +633,7 @@ where
     .await;
     let block_proposal0 = make_first_block(ChainId::root(1))
         .with_simple_transfer(ChainId::root(2), Amount::ONE)
+        .with_authenticated_signer(Some(sender_key_pair.public().into()))
         .into_fast_proposal(&sender_key_pair);
     let certificate0 = make_simple_transfer_certificate(
         ChainDescription::Root(1),
@@ -765,7 +767,8 @@ where
             }
             .with(
                 make_child_block(&certificate0.value)
-                    .with_simple_transfer(ChainId::root(2), Amount::from_tokens(3)),
+                    .with_simple_transfer(ChainId::root(2), Amount::from_tokens(3))
+                    .with_authenticated_signer(Some(sender_key_pair.public().into())),
             ),
         ),
     );
@@ -821,6 +824,7 @@ where
     {
         let block_proposal = make_first_block(ChainId::root(2))
             .with_simple_transfer(ChainId::root(3), Amount::from_tokens(6))
+            .with_authenticated_signer(Some(recipient_key_pair.public().into()))
             .into_fast_proposal(&recipient_key_pair);
         // Insufficient funding
         assert_matches!(
@@ -880,6 +884,7 @@ where
                 },
                 action: MessageAction::Accept,
             })
+            .with_authenticated_signer(Some(recipient_key_pair.public().into()))
             .into_fast_proposal(&recipient_key_pair);
         // Inconsistent received messages.
         assert_matches!(
@@ -903,6 +908,7 @@ where
                 },
                 action: MessageAction::Accept,
             })
+            .with_authenticated_signer(Some(recipient_key_pair.public().into()))
             .into_fast_proposal(&recipient_key_pair);
         // Skipped message.
         assert_matches!(
@@ -951,6 +957,7 @@ where
                 },
                 action: MessageAction::Accept,
             })
+            .with_authenticated_signer(Some(recipient_key_pair.public().into()))
             .into_fast_proposal(&recipient_key_pair);
         // Inconsistent order in received messages (heights).
         assert_matches!(
@@ -975,6 +982,7 @@ where
                 },
                 action: MessageAction::Accept,
             })
+            .with_authenticated_signer(Some(recipient_key_pair.public().into()))
             .into_fast_proposal(&recipient_key_pair);
         // Taking the first message only is ok.
         worker.handle_block_proposal(block_proposal.clone()).await?;
@@ -1065,6 +1073,7 @@ where
     .await;
     let block_proposal = make_first_block(ChainId::root(1))
         .with_simple_transfer(ChainId::root(2), Amount::from_tokens(1000))
+        .with_authenticated_signer(Some(sender_key_pair.public().into()))
         .into_fast_proposal(&sender_key_pair);
     assert_matches!(
         worker.handle_block_proposal(block_proposal).await,
@@ -1105,6 +1114,7 @@ where
     .await;
     let block_proposal = make_first_block(ChainId::root(1))
         .with_simple_transfer(ChainId::root(2), Amount::from_tokens(5))
+        .with_authenticated_signer(Some(sender_key_pair.public().into()))
         .into_fast_proposal(&sender_key_pair);
 
     let (chain_info_response, _actions) = worker.handle_block_proposal(block_proposal).await?;
@@ -1147,6 +1157,7 @@ where
     .await;
     let block_proposal = make_first_block(ChainId::root(1))
         .with_simple_transfer(ChainId::root(2), Amount::from_tokens(5))
+        .with_authenticated_signer(Some(sender_key_pair.public().into()))
         .into_fast_proposal(&sender_key_pair);
 
     let (response, _actions) = worker.handle_block_proposal(block_proposal.clone()).await?;
@@ -3197,6 +3208,7 @@ where
     let (executed_block1, _) = worker.stage_block_execution(block1.clone()).await?;
     let proposal1_wrong_owner = block1
         .clone()
+        .with_authenticated_signer(Some(pub_key1.into()))
         .into_proposal_with_round(&key_pairs[1], Round::SingleLeader(1));
     let result = worker.handle_block_proposal(proposal1_wrong_owner).await;
     assert_matches!(result, Err(WorkerError::InvalidOwner));
@@ -3250,6 +3262,7 @@ where
     // Proposing block2 now would fail.
     let proposal = block2
         .clone()
+        .with_authenticated_signer(Some(pub_key1.into()))
         .into_proposal_with_round(&key_pairs[1], Round::SingleLeader(5));
     let result = worker.handle_block_proposal(proposal.clone()).await;
     assert_matches!(result, Err(WorkerError::ChainError(error))
@@ -3426,17 +3439,15 @@ where
     let (committee, worker) = init_worker_with_chains(storage, balances).await;
 
     // Add another owner and configure two multi-leader rounds.
-    let block0 = make_first_block(chain_id)
-        .with_operation(SystemOperation::ChangeOwnership {
-            super_owners: vec![pub_key0],
-            owners: vec![(pub_key0, 100), (pub_key1, 100)],
-            multi_leader_rounds: 3,
-            timeout_config: TimeoutConfig {
-                fast_round_duration: Some(TimeDelta::from_millis(5)),
-                ..TimeoutConfig::default()
-            },
-        })
-        .with_authenticated_signer(Some(pub_key0.into()));
+    let block0 = make_first_block(chain_id).with_operation(SystemOperation::ChangeOwnership {
+        super_owners: vec![pub_key0],
+        owners: vec![(pub_key0, 100), (pub_key1, 100)],
+        multi_leader_rounds: 3,
+        timeout_config: TimeoutConfig {
+            fast_round_duration: Some(TimeDelta::from_millis(5)),
+            ..TimeoutConfig::default()
+        },
+    });
     let (executed_block0, _) = worker.stage_block_execution(block0).await?;
     let value0 = HashedCertificateValue::new_confirmed(executed_block0);
     let certificate0 = make_certificate(&committee, &worker, value0.clone());
@@ -3474,10 +3485,11 @@ where
     assert_eq!(response.info.manager.leader, None);
 
     // Now any owner can propose a block. But block1 is locked.
-    let block2 = make_child_block(&value0).with_simple_transfer(ChainId::root(1), Amount::ONE);
+    let block2 = make_child_block(&value0)
+        .with_simple_transfer(ChainId::root(1), Amount::ONE)
+        .with_authenticated_signer(Some(pub_key1.into()));
     let proposal2 = block2
         .clone()
-        .with_authenticated_signer(Some(pub_key1.into()))
         .into_proposal_with_round(&key_pairs[1], Round::MultiLeader(0));
     let result = worker.handle_block_proposal(proposal2).await;
     assert_matches!(result, Err(WorkerError::ChainError(err))
@@ -3485,7 +3497,6 @@ where
     );
     let proposal3 = block1
         .clone()
-        .with_authenticated_signer(Some(pub_key1.into()))
         .into_proposal_with_round(&key_pairs[1], Round::MultiLeader(0));
     worker.handle_block_proposal(proposal3).await?;
 
