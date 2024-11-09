@@ -1736,11 +1736,11 @@ fn make_operation_context() -> OperationContext {
 }
 
 /// Creates a dummy [`MessageContext`] to use in tests.
-fn make_message_context() -> MessageContext {
+fn make_message_context(authenticated_signer: Option<Owner>) -> MessageContext {
     MessageContext {
         chain_id: ChainId::root(0),
         is_bouncing: false,
-        authenticated_signer: None,
+        authenticated_signer,
         refund_grant_to: None,
         height: BlockHeight(0),
         certificate_hash: CryptoHash::test_hash("block receiving a message"),
