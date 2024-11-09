@@ -8,7 +8,7 @@ use std::{collections::BTreeMap, vec};
 use assert_matches::assert_matches;
 use futures::{stream, StreamExt, TryStreamExt};
 use linera_base::{
-    crypto::{CryptoHash, KeyPair, PublicKey},
+    crypto::{CryptoHash, PublicKey},
     data_types::{
         Amount, ApplicationPermissions, BlockHeight, Resources, SendMessageRequest, Timestamp,
     },
@@ -28,6 +28,7 @@ use linera_execution::{
     SystemOperation, TransactionTracker,
 };
 use linera_views::{batch::Batch, context::Context, views::View};
+use test_case::test_case;
 
 #[tokio::test]
 async fn test_missing_bytecode_for_user_application() -> anyhow::Result<()> {
@@ -1661,19 +1662,57 @@ async fn test_close_chain() {
     assert!(view.system.closed.get());
 }
 
-/// Tests if an application can transfer the tokens in the chain's balance while executing messages
-/// from a sender that's an owner of the receiving chain.
+/// Tests an application attempting to transfer the tokens in the chain's balance while executing
+/// messages.
+#[test_case(
+    Some(PublicKey::test_key(1)), Some(PublicKey::test_key(1).into())
+    => matches Ok(Ok(()));
+    "works if sender is a receiving chain owner"
+)]
+#[test_case(
+    Some(PublicKey::test_key(1)), Some(PublicKey::test_key(2).into())
+    => matches Ok(Err(
+        ExecutionError::SystemError(SystemExecutionError::UnauthenticatedTransferOwner)
+    ));
+    "fails if sender is not a receiving chain owner"
+)]
+#[test_case(
+    Some(PublicKey::test_key(1)), None
+    => matches Ok(Err(
+        ExecutionError::SystemError(SystemExecutionError::UnauthenticatedTransferOwner)
+    ));
+    "fails if unauthenticated"
+)]
+#[test_case(
+    None, None
+    => matches Ok(Err(
+        ExecutionError::SystemError(SystemExecutionError::UnauthenticatedTransferOwner)
+    ));
+    "fails if unauthenticated and receiving chain has no owners"
+)]
+#[test_case(
+    None, Some(PublicKey::test_key(1).into())
+    => matches Ok(Err(
+        ExecutionError::SystemError(SystemExecutionError::UnauthenticatedTransferOwner)
+    ));
+    "fails if receiving chain has no owners"
+)]
 #[tokio::test]
-async fn test_authorized_message_sender_can_spend_receiving_chain_balance() -> anyhow::Result<()> {
+async fn test_message_receipt_spending_chain_balance(
+    receiving_chain_owner_key: Option<PublicKey>,
+    authenticated_signer: Option<Owner>,
+) -> anyhow::Result<Result<(), ExecutionError>> {
     let amount = Amount::ONE;
+    let super_owners = receiving_chain_owner_key
+        .into_iter()
+        .map(|key| (Owner::from(key), key))
+        .collect();
 
-    let owner_key = KeyPair::generate();
-    let owner = Owner::from(owner_key.public());
     let mut view = SystemExecutionState {
         description: Some(ChainDescription::Root(0)),
         balance: amount,
         ownership: ChainOwnership {
-            super_owners: [(owner, owner_key.public())].into_iter().collect(),
+            super_owners,
             ..ChainOwnership::default()
         },
         ..SystemExecutionState::default()
@@ -1686,81 +1725,26 @@ async fn test_authorized_message_sender_can_spend_receiving_chain_balance() -> a
         .next()
         .expect("Caller mock application should be registered");
 
-    let victim_chain_account = None;
-    let attacker_chain_id = ChainId::root(2);
+    let receiver_chain_account = None;
+    let sender_chain_id = ChainId::root(2);
     let recipient = Account {
-        chain_id: attacker_chain_id,
+        chain_id: sender_chain_id,
         owner: None,
     };
 
     application.expect_call(ExpectedCall::execute_message(
         move |runtime, _context, _operation| {
-            runtime.transfer(victim_chain_account, recipient, amount)?;
+            runtime.transfer(receiver_chain_account, recipient, amount)?;
             Ok(())
         },
     ));
     application.expect_call(ExpectedCall::default_finalize());
 
-    let context = make_message_context(Some(owner));
+    let context = make_message_context(authenticated_signer);
     let mut controller = ResourceController::default();
     let mut txn_tracker = TransactionTracker::new(0, Some(Vec::new()));
 
-    view.execute_message(
-        context,
-        Timestamp::from(0),
-        Message::User {
-            application_id,
-            bytes: vec![],
-        },
-        None,
-        &mut txn_tracker,
-        &mut controller,
-    )
-    .await?;
-
-    Ok(())
-}
-
-/// Tests if an application can't transfer the tokens in the chain's balance while executing
-/// messages from a sender that's not an owner of the receiving chain.
-#[tokio::test]
-async fn test_unauthorized_message_sender_cant_spend_receiving_chain_balance() -> anyhow::Result<()>
-{
-    let amount = Amount::ONE;
-
-    let mut view = SystemExecutionState {
-        description: Some(ChainDescription::Root(0)),
-        balance: amount,
-        ..SystemExecutionState::default()
-    }
-    .into_view()
-    .await;
-
-    let mut applications = register_mock_applications(&mut view, 1).await?;
-    let (application_id, application, _, _) = applications
-        .next()
-        .expect("Caller mock application should be registered");
-
-    let victim_chain_account = None;
-    let attacker_chain_id = ChainId::root(2);
-    let recipient = Account {
-        chain_id: attacker_chain_id,
-        owner: None,
-    };
-
-    application.expect_call(ExpectedCall::execute_message(
-        move |runtime, _context, _operation| {
-            runtime.transfer(victim_chain_account, recipient, amount)?;
-            Ok(())
-        },
-    ));
-    application.expect_call(ExpectedCall::default_finalize());
-
-    let context = make_message_context(None);
-    let mut controller = ResourceController::default();
-    let mut txn_tracker = TransactionTracker::new(0, Some(Vec::new()));
-
-    let result = view
+    let execution_result = view
         .execute_message(
             context,
             Timestamp::from(0),
@@ -1774,14 +1758,7 @@ async fn test_unauthorized_message_sender_cant_spend_receiving_chain_balance() -
         )
         .await;
 
-    assert!(matches!(
-        result,
-        Err(ExecutionError::SystemError(
-            SystemExecutionError::UnauthenticatedTransferOwner
-        ))
-    ));
-
-    Ok(())
+    Ok(execution_result)
 }
 
 /// Creates a dummy [`OperationContext`] to use in tests.
