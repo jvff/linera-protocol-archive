@@ -1662,15 +1662,19 @@ async fn test_close_chain() {
 }
 
 /// Tests if an application can't transfer the tokens in the chain's balance while executing
-/// messages.
+/// messages from a sender that's not an owner of the receiving chain.
 #[tokio::test]
-async fn test_message_handler_cant_spend_chain_balance() -> anyhow::Result<()> {
+async fn test_unauthorized_message_sender_cant_spend_receiving_chain_balance() -> anyhow::Result<()>
+{
     let amount = Amount::ONE;
 
-    let mut state = SystemExecutionState::default();
-    state.description = Some(ChainDescription::Root(0));
-    state.balance = amount;
-    let mut view = state.into_view().await;
+    let mut view = SystemExecutionState {
+        description: Some(ChainDescription::Root(0)),
+        balance: amount,
+        ..SystemExecutionState::default()
+    }
+    .into_view()
+    .await;
 
     let mut applications = register_mock_applications(&mut view, 1).await?;
     let (application_id, application, _, _) = applications
@@ -1692,7 +1696,7 @@ async fn test_message_handler_cant_spend_chain_balance() -> anyhow::Result<()> {
     ));
     application.expect_call(ExpectedCall::default_finalize());
 
-    let context = make_message_context();
+    let context = make_message_context(None);
     let mut controller = ResourceController::default();
     let mut txn_tracker = TransactionTracker::new(0, Some(Vec::new()));
 
