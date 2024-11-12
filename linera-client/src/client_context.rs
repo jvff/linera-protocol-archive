@@ -1,9 +1,10 @@
 // Copyright (c) Zefchain Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(with_testing)]
+use std::num::NonZero;
 use std::{
     collections::{BTreeMap, HashSet},
-    num::NonZeroUsize,
     sync::Arc,
 };
 
