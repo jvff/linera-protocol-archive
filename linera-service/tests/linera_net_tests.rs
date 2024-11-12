@@ -3005,6 +3005,11 @@ async fn test_end_to_end_listen_for_new_rounds(config: impl LineraNetConfig) -> 
                 }
             }
             .await;
+            // Drop the client in a separate thread so that the synchronous `Drop` implementation
+            // can close the chains without blocking the asynchronous worker thread, which might be
+            // shared with the other client's task. If the asynchronous thread is blocked, the
+            // other client might have the round but not be able to execute and propose a block,
+            // deadlocking the test.
             thread::spawn(move || {
                 drop(client1);
                 drop_barrier.wait();
@@ -3022,6 +3027,11 @@ async fn test_end_to_end_listen_for_new_rounds(config: impl LineraNetConfig) -> 
                 }
             }
             .await;
+            // Drop the client in a separate thread so that the synchronous `Drop` implementation
+            // can close the chains without blocking the asynchronous worker thread, which might be
+            // shared with the other client's task. If the asynchronous thread is blocked, the
+            // other client might have the round but not be able to execute and propose a block,
+            // deadlocking the test.
             thread::spawn(move || {
                 drop(client2);
                 drop_barrier.wait();
