@@ -3,6 +3,7 @@
 
 use std::{
     collections::{BTreeMap, HashSet},
+    num::NonZeroUsize,
     sync::Arc,
 };
 
@@ -172,6 +173,7 @@ where
             options.long_lived_services,
             chain_ids,
             name,
+            NonZeroUsize::new(20).expect("Chain worker limit should not be zero"),
         );
 
         ClientContext {
@@ -207,7 +209,16 @@ where
             1 => format!("Client node for {:.8}", chain_ids[0]),
             n => format!("Client node for {:.8} and {} others", chain_ids[0], n - 1),
         };
-        let client = Client::new(node_provider, storage, 10, delivery, false, chain_ids, name);
+        let client = Client::new(
+            node_provider,
+            storage,
+            10,
+            delivery,
+            false,
+            chain_ids,
+            name,
+            NonZeroUsize::new(20).expect("Chain worker limit should not be zero"),
+        );
 
         ClientContext {
             client: Arc::new(client),
