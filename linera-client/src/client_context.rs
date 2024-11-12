@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[cfg(with_testing)]
-use std::num::NonZero;
+use std::num::NonZeroUsize;
 use std::{
     collections::{BTreeMap, HashSet},
     sync::Arc,
