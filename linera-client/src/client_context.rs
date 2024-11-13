@@ -174,7 +174,7 @@ where
             options.long_lived_services,
             chain_ids,
             name,
-            options.max_active_chains,
+            options.max_loaded_chains,
         );
 
         ClientContext {
