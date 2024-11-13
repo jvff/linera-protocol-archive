@@ -180,7 +180,7 @@ where
     /// Chain state for the managed chains.
     chains: DashMap<ChainId, ChainClientState>,
     /// The maximum active chain workers.
-    max_active_chains: NonZeroUsize,
+    max_loaded_chains: NonZeroUsize,
 }
 
 impl<P, S: Storage + Clone> Client<P, S> {
@@ -195,7 +195,7 @@ impl<P, S: Storage + Clone> Client<P, S> {
         long_lived_services: bool,
         tracked_chains: impl IntoIterator<Item = ChainId>,
         name: impl Into<String>,
-        max_active_chains: NonZeroUsize,
+        max_loaded_chains: NonZeroUsize,
     ) -> Self {
         let tracked_chains = Arc::new(RwLock::new(tracked_chains.into_iter().collect()));
         let state = WorkerState::new_for_client(
@@ -219,7 +219,7 @@ impl<P, S: Storage + Clone> Client<P, S> {
             tracked_chains,
             notifier: Arc::new(ChannelNotifier::default()),
             storage,
-            max_active_chains,
+            max_loaded_chains,
         }
     }
 
