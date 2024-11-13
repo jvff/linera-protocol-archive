@@ -202,7 +202,7 @@ impl<P, S: Storage + Clone> Client<P, S> {
             name.into(),
             storage.clone(),
             tracked_chains.clone(),
-            max_active_chains,
+            max_loaded_chains,
         )
         .with_long_lived_services(long_lived_services)
         .with_allow_inactive_chains(true)
@@ -1099,7 +1099,7 @@ where
         let nodes = self.make_nodes(committee)?;
         let n_validators = nodes.len();
         let chain_worker_count =
-            std::cmp::max(1, self.client.max_active_chains.get() / n_validators);
+            std::cmp::max(1, self.client.max_loaded_chains.get() / n_validators);
         communicate_with_quorum(
             &nodes,
             committee,
@@ -1137,7 +1137,7 @@ where
         let nodes = self.make_nodes(committee)?;
         let n_validators = nodes.len();
         let chain_worker_count =
-            std::cmp::max(1, self.client.max_active_chains.get() / n_validators);
+            std::cmp::max(1, self.client.max_loaded_chains.get() / n_validators);
         let ((votes_hash, votes_round), votes) = communicate_with_quorum(
             &nodes,
             committee,
@@ -1430,7 +1430,7 @@ where
         // We would like to use all chain workers, but we need to keep some of them free, because
         // handling the certificates can trigger messages to other chains, and putting these in
         // the inbox requires the recipient chain's worker, too.
-        let chain_worker_limit = (self.client.max_active_chains.get() / 2).max(1);
+        let chain_worker_limit = (self.client.max_loaded_chains.get() / 2).max(1);
 
         // Process the certificates sorted by chain and in ascending order of block height.
         let stream = stream::iter(certificates.into_values().map(|certificates| {
@@ -1495,7 +1495,7 @@ where
         // Proceed to downloading received certificates. Split the available chain workers so that
         // the tasks don't use more than the limit in total.
         let chain_worker_limit =
-            (self.client.max_active_chains.get() / local_committee.validators().len()).max(1);
+            (self.client.max_loaded_chains.get() / local_committee.validators().len()).max(1);
         let result = communicate_with_quorum(
             &nodes,
             &local_committee,
@@ -3298,7 +3298,7 @@ where
             .synchronize_received_certificates_from_validator(
                 chain_id,
                 &remote_node,
-                self.client.max_active_chains.into(),
+                self.client.max_loaded_chains.into(),
             )
             .await?;
         // Process received certificates. If the client state has changed during the
