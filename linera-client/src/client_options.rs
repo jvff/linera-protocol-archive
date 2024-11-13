@@ -103,7 +103,7 @@ pub struct ClientOptions {
     pub wasm_runtime: Option<WasmRuntime>,
 
     /// The maximal number of chains loaded in memory at a given time.
-    #[arg(long, default_value = "20")]
+    #[arg(long, default_value = "40")]
     pub max_loaded_chains: NonZeroUsize,
 
     /// The maximal number of simultaneous queries to the database
