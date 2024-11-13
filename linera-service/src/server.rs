@@ -45,7 +45,7 @@ struct ServerContext {
     notification_config: NotificationConfig,
     shard: Option<usize>,
     grace_period: Duration,
-    max_active_chains: NonZeroUsize,
+    max_loaded_chains: NonZeroUsize,
 }
 
 impl ServerContext {
@@ -64,7 +64,7 @@ impl ServerContext {
             format!("Shard {} @ {}:{}", shard_id, local_ip_addr, shard.port),
             Some(self.server_config.key.copy()),
             storage,
-            self.max_active_chains,
+            self.max_loaded_chains,
         )
         .with_allow_inactive_chains(false)
         .with_allow_messages_from_deprecated_epochs(false)
@@ -344,9 +344,9 @@ enum ServerCommand {
         #[arg(long)]
         wasm_runtime: Option<WasmRuntime>,
 
-        /// The maximal number of simultaneous chains in memory handling requests.
+        /// The maximal number of chains loaded in memory at a given time.
         #[arg(long, default_value = "400")]
-        max_active_chains: NonZeroUsize,
+        max_loaded_chains: NonZeroUsize,
 
         /// The maximal number of simultaneous queries to the database
         #[arg(long)]
@@ -497,7 +497,7 @@ async fn run(options: ServerOptions) {
             shard,
             grace_period,
             wasm_runtime,
-            max_active_chains,
+            max_loaded_chains,
             max_concurrent_queries,
             max_stream_queries,
             cache_size,
@@ -522,7 +522,7 @@ async fn run(options: ServerOptions) {
                 notification_config,
                 shard,
                 grace_period,
-                max_active_chains,
+                max_loaded_chains,
             };
             let wasm_runtime = wasm_runtime.with_wasm_default();
             let common_config = CommonStoreConfig {
