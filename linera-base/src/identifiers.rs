@@ -48,7 +48,7 @@ pub struct Account {
     pub chain_id: ChainId,
     /// The owner of the account, or `None` for the chain balance.
     #[debug(skip_if = Option::is_none)]
-    pub owner: Option<Owner>,
+    pub owner: Option<AccountOwner>,
 }
 
 impl Account {
@@ -64,7 +64,7 @@ impl Account {
     pub fn owner(chain_id: ChainId, owner: Owner) -> Self {
         Account {
             chain_id,
-            owner: Some(owner),
+            owner: Some(AccountOwner::User(owner)),
         }
     }
 }
