@@ -33,8 +33,8 @@ use linera_base::{
     },
     ensure,
     identifiers::{
-        Account, ApplicationId, BlobId, BlobType, BytecodeId, ChainId, MessageId, Owner,
-        UserApplicationId,
+        Account, AccountOwner, ApplicationId, BlobId, BlobType, BytecodeId, ChainId, MessageId,
+        Owner, UserApplicationId,
     },
     ownership::{ChainOwnership, TimeoutConfig},
 };
@@ -2368,7 +2368,7 @@ where
             ChainClientError::WalletSynchronizationError
         );
         let mut query = ChainInfoQuery::new(self.chain_id);
-        query.request_owner_balance = owner;
+        query.request_owner_balance = owner.map(AccountOwner::User);
         let response = self
             .client
             .local_node
