@@ -2261,14 +2261,17 @@ where
         Ok(balance)
     }
 
-    /// Obtains the local balance of a user account after staging the execution of
-    /// incoming messages in a new block.
+    /// Obtains the local balance of an account after staging the execution of incoming messages in
+    /// a new block.
     ///
     /// Does not attempt to synchronize with validators. The result will reflect up to
     /// `max_pending_message_bundles` incoming message bundles and the execution fees for a single
     /// block.
     #[instrument(level = "trace", skip(owner))]
-    pub async fn query_owner_balance(&self, owner: Owner) -> Result<Amount, ChainClientError> {
+    pub async fn query_owner_balance(
+        &self,
+        owner: AccountOwner,
+    ) -> Result<Amount, ChainClientError> {
         Ok(self
             .query_balances_with_owner(Some(owner))
             .await?
@@ -2276,8 +2279,8 @@ where
             .unwrap_or(Amount::ZERO))
     }
 
-    /// Obtains the local balance of the chain account and optionally another user after
-    /// staging the execution of incoming messages in a new block.
+    /// Obtains the local balance of an account and optionally another user after staging the
+    /// execution of incoming messages in a new block.
     ///
     /// Does not attempt to synchronize with validators. The result will reflect up to
     /// `max_pending_message_bundles` incoming message bundles and the execution fees for a single
@@ -2285,7 +2288,7 @@ where
     #[instrument(level = "trace", skip(owner))]
     async fn query_balances_with_owner(
         &self,
-        owner: Option<Owner>,
+        owner: Option<AccountOwner>,
     ) -> Result<(Amount, Option<Amount>), ChainClientError> {
         let incoming_bundles = self.pending_message_bundles().await?;
         let (previous_block_hash, height, timestamp) = {
@@ -2303,7 +2306,10 @@ where
             operations: Vec::new(),
             previous_block_hash,
             height,
-            authenticated_signer: owner,
+            authenticated_signer: owner.and_then(|owner| match owner {
+                AccountOwner::User(user) => Some(user),
+                AccountOwner::Application(_) => None,
+            }),
             timestamp,
         };
         match self
@@ -2346,7 +2352,10 @@ where
     ///
     /// Does not process the inbox or attempt to synchronize with validators.
     #[instrument(level = "trace", skip(owner))]
-    pub async fn local_owner_balance(&self, owner: Owner) -> Result<Amount, ChainClientError> {
+    pub async fn local_owner_balance(
+        &self,
+        owner: AccountOwner,
+    ) -> Result<Amount, ChainClientError> {
         Ok(self
             .local_balances_with_owner(Some(owner))
             .await?
@@ -2360,7 +2369,7 @@ where
     #[instrument(level = "trace", skip(owner))]
     async fn local_balances_with_owner(
         &self,
-        owner: Option<Owner>,
+        owner: Option<AccountOwner>,
     ) -> Result<(Amount, Option<Amount>), ChainClientError> {
         let next_block_height = self.next_block_height();
         ensure!(
@@ -2368,7 +2377,7 @@ where
             ChainClientError::WalletSynchronizationError
         );
         let mut query = ChainInfoQuery::new(self.chain_id);
-        query.request_owner_balance = owner.map(AccountOwner::User);
+        query.request_owner_balance = owner;
         let response = self
             .client
             .local_node
