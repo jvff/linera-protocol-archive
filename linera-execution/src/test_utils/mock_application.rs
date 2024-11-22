@@ -7,7 +7,7 @@
 
 use std::{
     collections::VecDeque,
-    fmt::{self, Display, Formatter},
+    fmt::{self, Debug, Display, Formatter},
     mem,
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -83,6 +83,24 @@ impl MockApplication {
             0,
             "At least one of `MockApplicationInstance` is still waiting for expected calls"
         );
+    }
+}
+
+impl Debug for MockApplication {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        let mut struct_formatter = formatter.debug_struct("MockApplication");
+
+        match self.expected_calls.lock() {
+            Ok(expected_calls) => struct_formatter.field("expected_calls", &*expected_calls),
+            Err(_) => struct_formatter.field("expected_calls", &"[POISONED]"),
+        };
+
+        struct_formatter
+            .field(
+                "active_instances",
+                &self.active_instances.load(Ordering::Acquire),
+            )
+            .finish()
     }
 }
 
@@ -170,6 +188,24 @@ impl Display for ExpectedCall {
         };
 
         write!(formatter, "{name}")
+    }
+}
+
+impl Debug for ExpectedCall {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        let mut tuple_formatter = match self {
+            ExpectedCall::Instantiate(_) => formatter.debug_tuple("ExpectedCall::Instantiate"),
+            ExpectedCall::ExecuteOperation(_) => {
+                formatter.debug_tuple("ExpectedCall::ExecuteOperation")
+            }
+            ExpectedCall::ExecuteMessage(_) => {
+                formatter.debug_tuple("ExpectedCall::ExecuteMessage")
+            }
+            ExpectedCall::Finalize(_) => formatter.debug_tuple("ExpectedCall::Finalize"),
+            ExpectedCall::HandleQuery(_) => formatter.debug_tuple("ExpectedCall::HandleQuery"),
+        };
+
+        tuple_formatter.field(&"_").finish()
     }
 }
 
