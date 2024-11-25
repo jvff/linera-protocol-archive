@@ -5,7 +5,7 @@
 
 use std::{collections::BTreeMap, vec};
 
-use anyhow::anyhow;
+use anyhow::Context as _;
 use assert_matches::assert_matches;
 use futures::{stream, StreamExt, TryStreamExt};
 use linera_base::{
