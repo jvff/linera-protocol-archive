@@ -5,7 +5,6 @@
 
 use std::{collections::BTreeMap, iter};
 
-use anyhow::anyhow;
 use assert_matches::assert_matches;
 use linera_base::{
     crypto::{CryptoHash, PublicKey},
