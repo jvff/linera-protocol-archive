@@ -164,17 +164,18 @@ type HandleQueryHandler = Box<
 >;
 
 /// An expected call to a [`MockApplicationInstance`].
+#[derive(custom_debug_derive::Debug)]
 pub enum ExpectedCall {
     /// An expected call to [`UserContract::instantiate`].
-    Instantiate(InstantiateHandler),
+    Instantiate(#[debug(skip)] InstantiateHandler),
     /// An expected call to [`UserContract::execute_operation`].
-    ExecuteOperation(ExecuteOperationHandler),
+    ExecuteOperation(#[debug(skip)] ExecuteOperationHandler),
     /// An expected call to [`UserContract::execute_message`].
-    ExecuteMessage(ExecuteMessageHandler),
+    ExecuteMessage(#[debug(skip)] ExecuteMessageHandler),
     /// An expected call to [`UserContract::finalize`].
-    Finalize(FinalizeHandler),
+    Finalize(#[debug(skip)] FinalizeHandler),
     /// An expected call to [`UserService::handle_query`].
-    HandleQuery(HandleQueryHandler),
+    HandleQuery(#[debug(skip)] HandleQueryHandler),
 }
 
 impl Display for ExpectedCall {
@@ -188,24 +189,6 @@ impl Display for ExpectedCall {
         };
 
         write!(formatter, "{name}")
-    }
-}
-
-impl Debug for ExpectedCall {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        let mut tuple_formatter = match self {
-            ExpectedCall::Instantiate(_) => formatter.debug_tuple("ExpectedCall::Instantiate"),
-            ExpectedCall::ExecuteOperation(_) => {
-                formatter.debug_tuple("ExpectedCall::ExecuteOperation")
-            }
-            ExpectedCall::ExecuteMessage(_) => {
-                formatter.debug_tuple("ExpectedCall::ExecuteMessage")
-            }
-            ExpectedCall::Finalize(_) => formatter.debug_tuple("ExpectedCall::Finalize"),
-            ExpectedCall::HandleQuery(_) => formatter.debug_tuple("ExpectedCall::HandleQuery"),
-        };
-
-        tuple_formatter.field(&"_").finish()
     }
 }
 
