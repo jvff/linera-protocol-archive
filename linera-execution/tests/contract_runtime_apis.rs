@@ -598,12 +598,8 @@ async fn test_read_balance_owners_system_api(
     application.expect_call(ExpectedCall::execute_operation(
         move |runtime, _context, _operation| {
             assert_eq!(
-                runtime
-                    .read_balance_owners()
-                    .unwrap()
-                    .into_iter()
-                    .collect::<HashSet<_>>(),
-                accounts.keys().copied().collect::<HashSet<_>>()
+                runtime.read_balance_owners().unwrap(),
+                accounts.keys().copied().collect::<Vec<_>>()
             );
             Ok(vec![])
         },
