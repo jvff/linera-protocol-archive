@@ -87,7 +87,7 @@ impl FromStr for Account {
         let chain_id = parts
             .next()
             .context(
-                "Expecting an account formatted as `chain-id` or `chain-id:owner-type:address`"
+                "Expecting an account formatted as `chain-id` or `chain-id:owner-type:address`",
             )?
             .parse()?;
 
