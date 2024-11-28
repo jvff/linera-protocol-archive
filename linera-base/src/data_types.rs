@@ -48,7 +48,10 @@ use crate::{
 #[derive(
     Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash, Default, Debug, WitType, WitLoad, WitStore,
 )]
-#[cfg_attr(with_testing, derive(test_strategy::Arbitrary))]
+#[cfg_attr(
+    all(with_testing, not(target_arch = "wasm32")),
+    derive(test_strategy::Arbitrary)
+)]
 pub struct Amount(u128);
 
 #[derive(Serialize, Deserialize)]
