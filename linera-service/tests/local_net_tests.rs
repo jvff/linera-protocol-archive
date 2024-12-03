@@ -10,12 +10,7 @@
 
 mod common;
 
-use std::{
-    env,
-    path::PathBuf,
-    process::{Command, Stdio},
-    time::Duration,
-};
+use std::{env, path::PathBuf, process::Command, time::Duration};
 
 use anyhow::Result;
 use common::INTEGRATION_TEST_GUARD;
@@ -723,7 +718,10 @@ async fn test_storage_service_wallet_lock() -> Result<()> {
 #[test_log::test(tokio::test)]
 #[cfg(feature = "storage-service")]
 async fn test_storage_service_linera_net_up_simple() -> Result<()> {
-    use std::io::{BufRead, BufReader};
+    use std::{
+        io::{BufRead, BufReader},
+        process::Stdio,
+    };
 
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
     tracing::info!("Starting test {}", test_name!());
