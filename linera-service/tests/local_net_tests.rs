@@ -10,7 +10,12 @@
 
 mod common;
 
-use std::{env, path::PathBuf, time::Duration};
+use std::{
+    env,
+    path::PathBuf,
+    process::{Command, Stdio},
+    time::Duration,
+};
 
 use anyhow::Result;
 use common::INTEGRATION_TEST_GUARD;
@@ -660,6 +665,12 @@ async fn test_project_new() -> Result<()> {
         .build_application(project_dir.as_path(), "init-test", false)
         .await?;
 
+    let mut child = Command::new("cargo")
+        .args(["fmt", "--check"])
+        .current_dir(project_dir.as_path())
+        .spawn()?;
+    assert!(child.wait()?.success());
+
     Ok(())
 }
 
@@ -712,10 +723,7 @@ async fn test_storage_service_wallet_lock() -> Result<()> {
 #[test_log::test(tokio::test)]
 #[cfg(feature = "storage-service")]
 async fn test_storage_service_linera_net_up_simple() -> Result<()> {
-    use std::{
-        io::{BufRead, BufReader},
-        process::{Command, Stdio},
-    };
+    use std::io::{BufRead, BufReader};
 
     let _guard = INTEGRATION_TEST_GUARD.lock().await;
     tracing::info!("Starting test {}", test_name!());
