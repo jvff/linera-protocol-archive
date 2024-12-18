@@ -52,3 +52,25 @@ impl From<Method> for reqwest::Method {
         }
     }
 }
+
+/// A header for a HTTP request or response.
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, WitLoad, WitStore, WitType)]
+pub struct Header {
+    /// The header name.
+    pub name: String,
+
+    /// The value of the header.
+    #[debug(with = "hex_debug")]
+    #[serde(with = "serde_bytes")]
+    pub value: Vec<u8>,
+}
+
+impl Header {
+    /// Creates a new [`Header`] with the provided `name` and `value`.
+    pub fn new(name: impl Into<String>, value: impl Into<Vec<u8>>) -> Self {
+        Header {
+            name: name.into(),
+            value: value.into(),
+        }
+    }
+}
