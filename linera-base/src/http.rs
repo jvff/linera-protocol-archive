@@ -7,6 +7,22 @@ use custom_debug_derive::Debug;
 use linera_witty::{WitLoad, WitStore, WitType};
 use serde::{Deserialize, Serialize};
 
+/// An HTTP request.
+#[derive(Clone, Debug, WitLoad, WitStore, WitType)]
+pub struct Request {
+    /// The [`Method`] used for the HTTP request.
+    pub method: Method,
+
+    /// The URL this request is intended to.
+    pub url: String,
+
+    /// The headers that should be included in the request.
+    pub headers: Vec<(String, Vec<u8>)>,
+
+    /// The body of the request.
+    pub body: Vec<u8>,
+}
+
 /// The method used in an HTTP request.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, WitLoad, WitStore, WitType)]
 pub enum Method {
