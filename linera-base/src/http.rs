@@ -126,6 +126,15 @@ pub struct Response {
 }
 
 impl Response {
+    /// Creates an HTTP [`Response`] with a user defined `status_code`.
+    pub fn new(status_code: u16) -> Self {
+        Response {
+            status: status_code,
+            headers: vec![],
+            body: vec![],
+        }
+    }
+
     /// Creates an HTTP [`Response`] with an OK status code and the provided `body`.
     pub fn ok(body: impl Into<Vec<u8>>) -> Self {
         Response {
