@@ -19,9 +19,10 @@ pub struct Request {
     pub url: String,
 
     /// The headers that should be included in the request.
-    pub headers: Vec<(String, Vec<u8>)>,
+    pub headers: Vec<Header>,
 
     /// The body of the request.
+    #[debug(with = "hex_debug")]
     pub body: Vec<u8>,
 }
 
