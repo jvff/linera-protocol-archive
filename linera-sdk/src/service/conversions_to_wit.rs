@@ -108,9 +108,18 @@ impl From<http::Request> for wit_system_api::Request {
             headers: request
                 .headers
                 .into_iter()
-                .map(|http::Header { name, value }| (name, value))
+                .map(http::Header::into)
                 .collect(),
             body: request.body,
+        }
+    }
+}
+
+impl From<http::Header> for wit_system_api::Header {
+    fn from(header: http::Header) -> Self {
+        wit_system_api::Header {
+            name: header.name,
+            value: header.value,
         }
     }
 }
