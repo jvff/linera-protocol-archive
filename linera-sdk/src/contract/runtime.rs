@@ -278,8 +278,8 @@ where
         url: &str,
         headers: Vec<(String, Vec<u8>)>,
         payload: Vec<u8>,
-    ) -> Vec<u8> {
-        wit::http_request(method.into(), url, &headers, &payload)
+    ) -> http::Response {
+        wit::http_request(method.into(), url, &headers, &payload).into()
     }
 
     /// Panics if the current time at block validation is `>= timestamp`. Note that block
