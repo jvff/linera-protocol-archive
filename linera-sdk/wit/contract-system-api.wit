@@ -96,6 +96,11 @@ interface contract-system-api {
         subscribers(channel-name),
     }
 
+    record header {
+        name: string,
+        value: list<u8>,
+    }
+
     enum log-level {
         error,
         warn,
@@ -153,7 +158,7 @@ interface contract-system-api {
 
     record response {
         status: u16,
-        headers: list<tuple<string, list<u8>>>,
+        headers: list<header>,
         body: list<u8>,
     }
 

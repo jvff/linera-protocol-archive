@@ -54,6 +54,11 @@ interface service-system-api {
         part4: u64,
     }
 
+    record header {
+        name: string,
+        value: list<u8>,
+    }
+
     enum log-level {
         error,
         warn,
@@ -93,7 +98,7 @@ interface service-system-api {
 
     record response {
         status: u16,
-        headers: list<tuple<string, list<u8>>>,
+        headers: list<header>,
         body: list<u8>,
     }
 
