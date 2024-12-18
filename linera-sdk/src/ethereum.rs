@@ -45,7 +45,7 @@ impl JsonRpcClient for EthereumClient {
             &http::Request {
                 method: http::Method::Post,
                 url: self.url.clone(),
-                headers: Vec::from([("Content-Type".to_owned(), b"application/json".to_vec())]),
+                headers: Vec::from([http::Header::new("Content-Type", b"application/json")]),
                 body: payload,
             }
             .into(),

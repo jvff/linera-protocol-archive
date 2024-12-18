@@ -298,7 +298,7 @@ where
                 let headers = request
                     .headers
                     .into_iter()
-                    .map(|(name, value)| Ok((name.parse()?, value.try_into()?)))
+                    .map(|http::Header { name, value }| Ok((name.parse()?, value.try_into()?)))
                     .collect::<Result<HeaderMap, ExecutionError>>()?;
 
                 let response = Client::new()
