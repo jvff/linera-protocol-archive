@@ -104,8 +104,18 @@ impl From<wit_system_api::Response> for http::Response {
     fn from(response: wit_system_api::Response) -> http::Response {
         http::Response {
             status: response.status,
-            headers: response.headers,
+            headers: response
+                .headers
+                .into_iter()
+                .map(http::Header::from)
+                .collect(),
             body: response.body,
         }
+    }
+}
+
+impl From<wit_system_api::Header> for http::Header {
+    fn from(header: wit_system_api::Header) -> http::Header {
+        http::Header::new(header.name, header.value)
     }
 }
