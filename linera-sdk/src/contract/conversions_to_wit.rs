@@ -190,7 +190,7 @@ impl From<http::Request> for wit_system_api::Request {
             headers: request
                 .headers
                 .into_iter()
-                .map(|http::Header { name, value }| (name, value))
+                .map(http::Header::into)
                 .collect(),
             body: request.body,
         }
@@ -209,6 +209,15 @@ impl From<http::Method> for wit_system_api::Method {
             http::Method::Connect => wit_system_api::Method::Connect,
             http::Method::Patch => wit_system_api::Method::Patch,
             http::Method::Trace => wit_system_api::Method::Trace,
+        }
+    }
+}
+
+impl From<http::Header> for wit_system_api::Header {
+    fn from(header: http::Header) -> Self {
+        wit_system_api::Header {
+            name: header.name,
+            value: header.value,
         }
     }
 }

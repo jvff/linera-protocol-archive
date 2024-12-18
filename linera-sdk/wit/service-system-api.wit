@@ -92,7 +92,7 @@ interface service-system-api {
     record request {
         method: method,
         url: string,
-        headers: list<tuple<string, list<u8>>>,
+        headers: list<header>,
         body: list<u8>,
     }
 
