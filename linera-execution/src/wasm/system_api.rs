@@ -350,7 +350,7 @@ where
         query: String,
         headers: Vec<(String, Vec<u8>)>,
         payload: Vec<u8>,
-    ) -> Result<Vec<u8>, RuntimeError> {
+    ) -> Result<http::Response, RuntimeError> {
         caller
             .user_data_mut()
             .runtime
@@ -559,7 +559,7 @@ where
         query: String,
         headers: Vec<(String, Vec<u8>)>,
         payload: Vec<u8>,
-    ) -> Result<Vec<u8>, RuntimeError> {
+    ) -> Result<http::Response, RuntimeError> {
         caller
             .user_data_mut()
             .runtime
