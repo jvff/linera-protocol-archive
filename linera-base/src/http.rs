@@ -56,7 +56,7 @@ impl Request {
         Ok(Request {
             method: Method::Post,
             url: url.into(),
-            headers: vec![("Content-Type".to_owned(), b"application/json".to_vec())],
+            headers: vec![Header::new("Content-Type", b"application/json")],
             body: serde_json::to_vec(payload)?,
         })
     }
