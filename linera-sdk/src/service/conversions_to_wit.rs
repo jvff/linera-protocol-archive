@@ -105,7 +105,11 @@ impl From<http::Request> for wit_system_api::Request {
         wit_system_api::Request {
             method: request.method.into(),
             url: request.url,
-            headers: request.headers,
+            headers: request
+                .headers
+                .into_iter()
+                .map(|http::Header { name, value }| (name, value))
+                .collect(),
             body: request.body,
         }
     }
