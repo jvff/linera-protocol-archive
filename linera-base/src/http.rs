@@ -7,8 +7,6 @@ use custom_debug_derive::Debug;
 use linera_witty::{WitLoad, WitStore, WitType};
 use serde::{Deserialize, Serialize};
 
-use crate::hex_debug;
-
 /// An HTTP request.
 #[derive(Clone, Debug, Eq, PartialEq, WitLoad, WitStore, WitType)]
 pub struct Request {
@@ -125,8 +123,6 @@ pub struct Response {
     pub headers: Vec<(String, Vec<u8>)>,
 
     /// The body of the response.
-    #[debug(with = "hex_debug")]
-    #[serde(with = "serde_bytes")]
     pub body: Vec<u8>,
 }
 
