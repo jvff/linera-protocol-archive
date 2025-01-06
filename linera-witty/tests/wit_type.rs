@@ -225,6 +225,21 @@ fn test_vec() {
     });
 }
 
+/// Checks the memory size, layout and WIT declaration derived for a slice type.
+#[test]
+fn test_slice() {
+    test_wit_type_implementation::<[SimpleWrapper]>(ExpectedMetadata {
+        size: 8,
+        alignment: 4,
+        flat_layout_length: 2,
+        declaration: concat!(
+            "    record simple-wrapper {\n",
+            "        inner0: bool,\n",
+            "    }\n"
+        ),
+    });
+}
+
 /// Checks the memory size, layout and WIT declaration derived for a type that has list
 /// fields.
 #[test]
