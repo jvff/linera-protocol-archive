@@ -11,9 +11,9 @@ use std::{fmt::Debug, rc::Rc, sync::Arc};
 use linera_witty::{hlist, InstanceWithMemory, Layout, MockInstance, WitStore};
 
 use self::types::{
-    Branch, Enum, Leaf, RecordWithDoublePadding, SimpleWrapper, SpecializedGenericEnum,
-    SpecializedGenericStruct, StructWithHeapFields, StructWithLists, TupleWithPadding,
-    TupleWithoutPadding,
+    Branch, Enum, Leaf, RecordWithDoublePadding, SimpleWrapper, SliceWrapper,
+    SpecializedGenericEnum, SpecializedGenericStruct, StructWithHeapFields, StructWithLists,
+    TupleWithPadding, TupleWithoutPadding,
 };
 
 /// Checks that a wrapper type is properly stored in memory and lowered into its flat layout.
@@ -457,6 +457,35 @@ fn test_list_fields() {
         &expected_heap,
     );
     test_lower_to_flat_layout(data, hlist![0_i32, 4_i32, 8_i32, 2_i32], &expected_heap);
+}
+
+/// Check that a type with a slice field is properly stored in memory and lowered into its
+/// flat layout.
+#[test]
+fn test_slice_field() {
+    let slice = [
+        TupleWithoutPadding(0, 1, 2),
+        TupleWithoutPadding(3, 4, 5),
+        TupleWithoutPadding(6, 7, 8),
+    ];
+    let data = SliceWrapper(&slice);
+
+    test_store_in_memory(
+        data,
+        &[8, 0, 0, 0, 3, 0, 0, 0],
+        &[
+            0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 5,
+            0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0,
+        ],
+    );
+    test_lower_to_flat_layout(
+        data,
+        hlist![0_i32, 3_i32],
+        &[
+            0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 5,
+            0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0,
+        ],
+    );
 }
 
 /// Tests that the `data` of type `T` and wrapped versions of it can be stored as a sequence of
