@@ -364,6 +364,35 @@ fn test_vec() {
     test_lift_from_flat_layout(hlist![0_i32, 2_i32], expected, &[0, 1]);
 }
 
+/// Checks that a boxed slice type is properly loaded from memory and lifted from its flat
+/// layout.
+#[test]
+fn test_boxed_slice() {
+    let expected: Box<[Enum]> = Box::new([
+        Enum::Empty,
+        Enum::SmallerVariantWithStrictAlignment {
+            inner: 0x2726_2524_2322_2120,
+        },
+    ]);
+
+    test_load_from_memory(
+        &[
+            8, 0, 0, 0, 2, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+            18, 19, 20, 21, 22, 23, 2, 25, 26, 27, 28, 29, 30, 31, 0x20, 0x21, 0x22, 0x23, 0x24,
+            0x25, 0x26, 0x27,
+        ],
+        expected.clone(),
+    );
+    test_lift_from_flat_layout(
+        hlist![0_i32, 2_i32],
+        expected,
+        &[
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+            2, 25, 26, 27, 28, 29, 30, 31, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+        ],
+    );
+}
+
 /// Checks that a type with list fields is properly loaded from memory and lifted from its
 /// flat layout.
 #[test]
