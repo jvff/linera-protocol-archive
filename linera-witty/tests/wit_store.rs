@@ -414,6 +414,34 @@ fn test_vec() {
     test_lower_to_flat_layout(data, hlist![0_i32, 3_i32,], &[1, 0, 1]);
 }
 
+/// Check that a boxed slice type is properly stored in memory and lowered into its flat layout.
+#[test]
+fn test_boxed_slice() {
+    let data: Box<[Enum]> = Box::new([
+        Enum::LargeVariantWithLooseAlignment(10, 20, 30, 40, 50, 60, 70, 80, 90, 100),
+        Enum::Empty,
+        Enum::Empty,
+        Enum::SmallerVariantWithStrictAlignment { inner: 0xFFFF_FFFF },
+    ]);
+
+    let heap_memory = [
+        [
+            1, 0, 0, 0, 0, 0, 0, 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 0, 0, 0, 0, 0, 0,
+        ],
+        [0; 24],
+        [0; 24],
+        [
+            2, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ],
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<u8>>();
+
+    test_store_in_memory(data.clone(), &[8, 0, 0, 0, 4, 0, 0, 0], &heap_memory);
+    test_lower_to_flat_layout(data, hlist![0_i32, 4_i32,], &heap_memory);
+}
+
 /// Check that a slice type is properly stored in memory and lowered into its flat layout.
 #[test]
 fn test_slice() {
