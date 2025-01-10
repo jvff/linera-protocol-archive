@@ -13,8 +13,8 @@ use linera_witty::{hlist, InstanceWithMemory, Layout, MockInstance, RuntimeError
 
 use self::types::{
     Branch, Enum, Leaf, RecordWithDoublePadding, SimpleWrapper, SpecializedGenericEnum,
-    SpecializedGenericStruct, StructWithHeapFields, StructWithLists, TupleWithPadding,
-    TupleWithoutPadding,
+    SpecializedGenericStruct, StructWithHeapFields, StructWithLists, TupleWithMisalignedSize,
+    TupleWithPadding, TupleWithoutPadding,
 };
 
 /// Checks that a wrapper type is properly loaded from memory and lifted from its flat layout.
@@ -404,28 +404,57 @@ fn test_list_fields() {
             SimpleWrapper(false),
         ],
         second_vec: vec![
-            TupleWithPadding(0x1a19, 0x201f_1e1d, 0x2827_2625_2423_2221),
-            TupleWithPadding(0x2a29, 0x302f_2e2d, 0x3837_3635_3433_3231),
+            TupleWithPadding(0x2120, 0x2726_2524, 0x2f2e_2d2c_2b2a_2928),
+            TupleWithPadding(0x3130, 0x3736_3534, 0x3f3e_3d3c_3b3a_3938),
+        ],
+        third_vec: vec![
+            TupleWithMisalignedSize(0x4746_4544_4342_4140, 0x48),
+            TupleWithMisalignedSize(0x5756_5554_5352_5150, 0x58),
+            TupleWithMisalignedSize(0x6766_6564_6362_6160, 0x68),
+            TupleWithMisalignedSize(0x7776_7574_7372_7170, 0x78),
         ],
     };
 
-    test_load_from_memory(
-        &[
-            16, 0, 0, 0, 3, 0, 0, 0, 24, 0, 0, 0, 2, 0, 0, 0, 1, 1, 0, 20, 21, 22, 23, 24, 0x19,
-            0x1a, 27, 28, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
-            0x29, 0x2a, 43, 44, 0x2d, 0x2e, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
-            0x38,
-        ],
-        expected.clone(),
-    );
+    let first_vec_meta = [24, 0, 0, 0, 3, 0, 0, 0];
+    let first_vec_contents = [1, 1, 0];
+
+    let second_vec_meta = [32, 0, 0, 0, 2, 0, 0, 0];
+    let second_vec_contents = [
+        0x20, 0x21, 34, 35, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+        0x30, 0x31, 50, 51, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+    ];
+
+    let third_vec_meta = [64, 0, 0, 0, 4, 0, 0, 0];
+    let third_vec_contents = [
+        0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 73, 74, 75, 76, 77, 78, 79, 0x50,
+        0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 89, 90, 91, 92, 93, 94, 95, 0x60, 0x61,
+        0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 105, 106, 107, 108, 109, 110, 111, 0x70, 0x71,
+        0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 121, 122, 123, 124, 125, 126, 127,
+    ];
+
+    let memory_for_load = first_vec_meta
+        .into_iter()
+        .chain(second_vec_meta)
+        .chain(third_vec_meta)
+        .chain(first_vec_contents)
+        .chain(27..32)
+        .chain(second_vec_contents)
+        .chain(third_vec_contents)
+        .collect::<Vec<u8>>();
+
+    test_load_from_memory(&memory_for_load, expected.clone());
+
+    let memory_for_lift = first_vec_contents
+        .into_iter()
+        .chain(3..8)
+        .chain(second_vec_contents)
+        .chain(third_vec_contents)
+        .collect::<Vec<u8>>();
+
     test_lift_from_flat_layout(
-        hlist![0_i32, 3_i32, 8_i32, 2_i32],
+        hlist![0_i32, 3_i32, 8_i32, 2_i32, 40_i32, 4_i32],
         expected,
-        &[
-            1, 1, 0, 0, 0, 0, 0, 0, 0x19, 0x1a, 0, 0, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x23,
-            0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0, 0, 0x2d, 0x2e, 0x2f, 0x30, 0x31, 0x32,
-            0x33, 0x34, 0x35, 0x36, 0x37, 0x38,
-        ],
+        &memory_for_lift,
     );
 }
 

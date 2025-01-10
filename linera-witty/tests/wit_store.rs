@@ -13,7 +13,7 @@ use linera_witty::{hlist, InstanceWithMemory, Layout, MockInstance, WitStore};
 use self::types::{
     Branch, Enum, Leaf, RecordWithDoublePadding, SimpleWrapper, SliceWrapper,
     SpecializedGenericEnum, SpecializedGenericStruct, StructWithHeapFields, StructWithLists,
-    TupleWithPadding, TupleWithoutPadding,
+    TupleWithMisalignedSize, TupleWithPadding, TupleWithoutPadding,
 };
 
 /// Checks that a wrapper type is properly stored in memory and lowered into its flat layout.
@@ -468,6 +468,11 @@ fn test_list_fields() {
             SimpleWrapper(true),
         ],
         second_vec: vec![TupleWithPadding(1, 0, -1), TupleWithPadding(10, 11, 12)],
+        third_vec: vec![
+            TupleWithMisalignedSize(80, -9),
+            TupleWithMisalignedSize(0x8899_aabb_ccdd_eeff, 127),
+            TupleWithMisalignedSize(320, -128),
+        ],
     };
 
     let expected_heap = [0, 1, 0, 1]
@@ -477,14 +482,26 @@ fn test_list_fields() {
             1, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
         ])
         .chain([10, 0, 0, 0, 11, 0, 0, 0, 12, 0, 0, 0, 0, 0, 0, 0])
+        .chain([80, 0, 0, 0, 0, 0, 0, 0, 0xf7])
+        .chain([0; 7])
+        .chain([0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88, 127])
+        .chain([0; 7])
+        .chain([64, 1, 0, 0, 0, 0, 0, 0, 0x80])
+        .chain([0; 7])
         .collect::<Vec<_>>();
 
     test_store_in_memory(
         data.clone(),
-        &[16, 0, 0, 0, 4, 0, 0, 0, 24, 0, 0, 0, 2, 0, 0, 0],
+        &[
+            24, 0, 0, 0, 4, 0, 0, 0, 32, 0, 0, 0, 2, 0, 0, 0, 64, 0, 0, 0, 3, 0, 0, 0,
+        ],
         &expected_heap,
     );
-    test_lower_to_flat_layout(data, hlist![0_i32, 4_i32, 8_i32, 2_i32], &expected_heap);
+    test_lower_to_flat_layout(
+        data,
+        hlist![0_i32, 4_i32, 8_i32, 2_i32, 40_i32, 3_i32],
+        &expected_heap,
+    );
 }
 
 /// Check that a type with a slice field is properly stored in memory and lowered into its

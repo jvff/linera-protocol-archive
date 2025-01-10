@@ -262,9 +262,9 @@ fn test_slice() {
 #[test]
 fn test_list_fields() {
     test_wit_type_implementation::<StructWithLists>(ExpectedMetadata {
-        size: 16,
+        size: 24,
         alignment: 4,
-        flat_layout_length: 4,
+        flat_layout_length: 6,
         declaration: concat!(
             "    record simple-wrapper {\n",
             "        inner0: bool,\n",
@@ -272,6 +272,11 @@ fn test_list_fields() {
             "    record struct-with-lists {\n",
             "        vec: list<simple-wrapper>,\n",
             "        second-vec: list<tuple-with-padding>,\n",
+            "        third-vec: list<tuple-with-misaligned-size>,\n",
+            "    }\n\n",
+            "    record tuple-with-misaligned-size {\n",
+            "        inner0: u64,\n",
+            "        inner1: s8,\n",
             "    }\n\n",
             "    record tuple-with-padding {\n",
             "        inner0: u16,\n",

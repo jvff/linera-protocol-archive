@@ -28,6 +28,10 @@ pub struct RecordWithDoublePadding {
     pub fourth: i64,
 }
 
+/// A simple struct with a size that's not aligned to its required alignment.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, WitType, WitLoad, WitStore)]
+pub struct TupleWithMisalignedSize(pub u64, pub i8);
+
 /// A simple struct with named fields to be used inside a more complex struct.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, WitType, WitLoad, WitStore)]
 pub struct Leaf {
@@ -84,6 +88,7 @@ pub struct StructWithHeapFields {
 pub struct StructWithLists {
     pub vec: Vec<SimpleWrapper>,
     pub second_vec: Vec<TupleWithPadding>,
+    pub third_vec: Vec<TupleWithMisalignedSize>,
 }
 
 /// A type that wraps a slice.
