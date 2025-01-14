@@ -182,9 +182,9 @@ impl From<Resources> for wit_system_api::Resources {
     }
 }
 
-impl From<http::Request> for wit_system_api::Request {
+impl From<http::Request> for wit_system_api::HttpRequest {
     fn from(request: http::Request) -> Self {
-        wit_system_api::Request {
+        wit_system_api::HttpRequest {
             method: request.method.into(),
             url: request.url,
             headers: request
@@ -197,25 +197,25 @@ impl From<http::Request> for wit_system_api::Request {
     }
 }
 
-impl From<http::Method> for wit_system_api::Method {
+impl From<http::Method> for wit_system_api::HttpMethod {
     fn from(method: http::Method) -> Self {
         match method {
-            http::Method::Get => wit_system_api::Method::Get,
-            http::Method::Post => wit_system_api::Method::Post,
-            http::Method::Put => wit_system_api::Method::Put,
-            http::Method::Delete => wit_system_api::Method::Delete,
-            http::Method::Head => wit_system_api::Method::Head,
-            http::Method::Options => wit_system_api::Method::Options,
-            http::Method::Connect => wit_system_api::Method::Connect,
-            http::Method::Patch => wit_system_api::Method::Patch,
-            http::Method::Trace => wit_system_api::Method::Trace,
+            http::Method::Get => wit_system_api::HttpMethod::Get,
+            http::Method::Post => wit_system_api::HttpMethod::Post,
+            http::Method::Put => wit_system_api::HttpMethod::Put,
+            http::Method::Delete => wit_system_api::HttpMethod::Delete,
+            http::Method::Head => wit_system_api::HttpMethod::Head,
+            http::Method::Options => wit_system_api::HttpMethod::Options,
+            http::Method::Connect => wit_system_api::HttpMethod::Connect,
+            http::Method::Patch => wit_system_api::HttpMethod::Patch,
+            http::Method::Trace => wit_system_api::HttpMethod::Trace,
         }
     }
 }
 
-impl From<http::Header> for wit_system_api::Header {
+impl From<http::Header> for wit_system_api::HttpHeader {
     fn from(header: http::Header) -> Self {
-        wit_system_api::Header {
+        wit_system_api::HttpHeader {
             name: header.name,
             value: header.value,
         }

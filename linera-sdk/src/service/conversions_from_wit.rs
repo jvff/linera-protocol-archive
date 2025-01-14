@@ -100,8 +100,8 @@ impl From<wit_system_api::Timestamp> for Timestamp {
     }
 }
 
-impl From<wit_system_api::Response> for http::Response {
-    fn from(response: wit_system_api::Response) -> http::Response {
+impl From<wit_system_api::HttpResponse> for http::Response {
+    fn from(response: wit_system_api::HttpResponse) -> http::Response {
         http::Response {
             status: response.status,
             headers: response
@@ -114,8 +114,8 @@ impl From<wit_system_api::Response> for http::Response {
     }
 }
 
-impl From<wit_system_api::Header> for http::Header {
-    fn from(header: wit_system_api::Header) -> http::Header {
+impl From<wit_system_api::HttpHeader> for http::Header {
+    fn from(header: wit_system_api::HttpHeader) -> http::Header {
         http::Header::new(header.name, header.value)
     }
 }

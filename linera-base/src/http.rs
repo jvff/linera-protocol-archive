@@ -11,6 +11,7 @@ use crate::hex_debug;
 
 /// An HTTP request.
 #[derive(Clone, Debug, Eq, PartialEq, WitLoad, WitStore, WitType)]
+#[witty(name = "http-request")]
 pub struct Request {
     /// The [`Method`] used for the HTTP request.
     pub method: Method,
@@ -70,6 +71,7 @@ impl Request {
 
 /// The method used in an HTTP request.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, WitLoad, WitStore, WitType)]
+#[witty(name = "http-method")]
 pub enum Method {
     /// A GET request.
     Get,
@@ -118,6 +120,7 @@ impl From<Method> for reqwest::Method {
 
 /// A response for an HTTP request.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, WitLoad, WitStore, WitType)]
+#[witty(name = "http-response")]
 pub struct Response {
     /// The status code of the HTTP response.
     pub status: u16,
@@ -187,6 +190,7 @@ impl Response {
 
 /// A header for a HTTP request or response.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, WitLoad, WitStore, WitType)]
+#[witty(name = "http-header")]
 pub struct Header {
     /// The header name.
     pub name: String,
