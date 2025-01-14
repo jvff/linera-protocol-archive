@@ -696,8 +696,11 @@ impl<UserInstance> BaseRuntime for SyncRuntimeHandle<UserInstance> {
         self.inner().query_service(application_id, query)
     }
 
-    fn http_request(&mut self, request: http::Request) -> Result<http::Response, ExecutionError> {
-        self.inner().http_request(request)
+    fn perform_http_request(
+        &mut self,
+        request: http::Request,
+    ) -> Result<http::Response, ExecutionError> {
+        self.inner().perform_http_request(request)
     }
 
     fn assert_before(&mut self, timestamp: Timestamp) -> Result<(), ExecutionError> {
@@ -969,7 +972,10 @@ impl<UserInstance> BaseRuntime for SyncRuntimeInternal<UserInstance> {
         Ok(response)
     }
 
-    fn http_request(&mut self, request: http::Request) -> Result<http::Response, ExecutionError> {
+    fn perform_http_request(
+        &mut self,
+        request: http::Request,
+    ) -> Result<http::Response, ExecutionError> {
         ensure!(
             cfg!(feature = "unstable-oracles"),
             ExecutionError::UnstableOracle

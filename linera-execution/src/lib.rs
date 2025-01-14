@@ -609,7 +609,10 @@ pub trait BaseRuntime {
     ) -> Result<Vec<u8>, ExecutionError>;
 
     /// Makes an HTTP request to the given URL and returns the answer, if any.
-    fn http_request(&mut self, request: http::Request) -> Result<http::Response, ExecutionError>;
+    fn perform_http_request(
+        &mut self,
+        request: http::Request,
+    ) -> Result<http::Response, ExecutionError>;
 
     /// Ensures that the current time at block validation is `< timestamp`. Note that block
     /// validation happens at or after the block timestamp, but isn't necessarily the same.

@@ -367,7 +367,7 @@ where
         caller
             .user_data_mut()
             .runtime
-            .http_request(request)
+            .perform_http_request(request)
             .map_err(|error| RuntimeError::Custom(error.into()))
     }
 
@@ -573,7 +573,7 @@ where
         caller
             .user_data_mut()
             .runtime
-            .http_request(request)
+            .perform_http_request(request)
             .map_err(|error| RuntimeError::Custom(error.into()))
     }
 
