@@ -360,7 +360,7 @@ where
     }
 
     /// Makes an HTTP request to the given URL and returns the response body.
-    fn http_request(
+    fn perform_http_request(
         caller: &mut Caller,
         request: http::Request,
     ) -> Result<http::Response, RuntimeError> {
@@ -566,7 +566,7 @@ where
     }
 
     /// Makes an HTTP request to the given URL and returns the response body.
-    fn http_request(
+    fn perform_http_request(
         caller: &mut Caller,
         request: http::Request,
     ) -> Result<http::Response, RuntimeError> {
