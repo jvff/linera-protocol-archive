@@ -325,15 +325,13 @@ where
                     .map(|(name, value)| Ok((name.parse()?, value.try_into()?)))
                     .collect::<Result<HeaderMap, ExecutionError>>()?;
 
-                let res = Client::new()
+                let response = Client::new()
                     .request(method.into(), url)
                     .body(payload)
                     .headers(headers)
                     .send()
                     .await?;
-                let body = res.bytes().await?;
-                let bytes = body.as_ref().to_vec();
-                callback.respond(bytes);
+                callback.respond(http::Response::from_reqwest(response).await?);
             }
 
             ReadBlobContent { blob_id, callback } => {
@@ -514,7 +512,7 @@ pub enum ExecutionRequest {
         #[debug(with = hex_debug)]
         payload: Vec<u8>,
         #[debug(skip)]
-        callback: oneshot::Sender<Vec<u8>>,
+        callback: oneshot::Sender<http::Response>,
     },
 
     ReadBlobContent {
