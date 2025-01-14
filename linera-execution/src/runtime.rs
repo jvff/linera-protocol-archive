@@ -988,7 +988,10 @@ impl<UserInstance> BaseRuntime for SyncRuntimeInternal<UserInstance> {
                 }
             } else {
                 self.execution_state_sender
-                    .send_request(|callback| ExecutionRequest::HttpRequest { request, callback })?
+                    .send_request(|callback| ExecutionRequest::PerformHttpRequest {
+                        request,
+                        callback,
+                    })?
                     .recv_response()?
             };
         self.transaction_tracker

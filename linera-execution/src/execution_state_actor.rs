@@ -313,7 +313,7 @@ where
                 callback.respond(bytes);
             }
 
-            HttpRequest { request, callback } => {
+            PerformHttpRequest { request, callback } => {
                 let headers = request
                     .headers
                     .into_iter()
@@ -500,7 +500,7 @@ pub enum ExecutionRequest {
         callback: Sender<Vec<u8>>,
     },
 
-    HttpRequest {
+    PerformHttpRequest {
         request: http::Request,
         callback: oneshot::Sender<http::Response>,
     },
