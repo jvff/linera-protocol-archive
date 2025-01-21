@@ -627,6 +627,14 @@ impl LocalNet {
         self.running_validators.insert(validator, validator_proxy);
         Ok(())
     }
+
+    /// Terminates all the processes of a given `validator`.
+    pub async fn stop_validator(&mut self, validator: usize) -> Result<()> {
+        if let Some(mut validator) = self.running_validators.remove(&validator) {
+            validator.terminate().await?;
+        }
+        Ok(())
+    }
 }
 
 #[cfg(with_testing)]
