@@ -80,22 +80,34 @@ fn generate_mutation_root_code(input: ItemEnum, crate_root: &str) -> TokenStream
 
     quote! {
         /// Mutation root
-        pub struct #mutation_root_name;
-
-        #[async_graphql::Object]
-        impl #mutation_root_name {
-            #
-
-            (#methods)
-
-            *
+        pub struct #mutation_root_name<Application>
+        where
+            Application: #crate_root::Service,
+            #crate_root::ServiceRuntime<Application>: Send + Sync,
+        {
+            runtime: ::std::sync::Arc<#crate_root::ServiceRuntime<Application>>,
         }
 
-        impl #crate_root::graphql::GraphQLMutationRoot for #enum_name {
-            type MutationRoot = #mutation_root_name;
+        #[async_graphql::Object]
+        impl<Application> #mutation_root_name<Application>
+        where
+            Application: #crate_root::Service,
+            #crate_root::ServiceRuntime<Application>: Send + Sync,
+        {
+            #(#methods)*
+        }
 
-            fn mutation_root() -> Self::MutationRoot {
-                #mutation_root_name
+        impl<Application> #crate_root::graphql::GraphQLMutationRoot<Application> for #enum_name
+        where
+            Application: #crate_root::Service,
+            #crate_root::ServiceRuntime<Application>: Send + Sync,
+        {
+            type MutationRoot = #mutation_root_name<Application>;
+
+            fn mutation_root(
+                runtime: ::std::sync::Arc<#crate_root::ServiceRuntime<Application>>,
+            ) -> Self::MutationRoot {
+                #mutation_root_name { runtime }
             }
         }
     }
