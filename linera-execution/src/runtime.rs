@@ -963,27 +963,28 @@ impl<UserInstance> BaseRuntime for SyncRuntimeInternal<UserInstance> {
             cfg!(feature = "unstable-oracles"),
             ExecutionError::UnstableOracle
         );
-        let QueryOutcome {
-            response,
-            operations,
-        } = if let Some(response) = self.transaction_tracker.next_replayed_oracle_response()? {
-            match response {
-                OracleResponse::Service(bytes) => QueryOutcome {
-                    response: bytes,
-                    operations: vec![],
-                },
-                _ => return Err(ExecutionError::OracleResponseMismatch),
-            }
-        } else {
-            let context = QueryContext {
-                chain_id: self.chain_id,
-                next_block_height: self.height,
-                local_time: self.local_time,
+        let response =
+            if let Some(response) = self.transaction_tracker.next_replayed_oracle_response()? {
+                match response {
+                    OracleResponse::Service(bytes) => bytes,
+                    _ => return Err(ExecutionError::OracleResponseMismatch),
+                }
+            } else {
+                let context = QueryContext {
+                    chain_id: self.chain_id,
+                    next_block_height: self.height,
+                    local_time: self.local_time,
+                };
+                let sender = self.execution_state_sender.clone();
+
+                let QueryOutcome {
+                    response,
+                    operations,
+                } = ServiceSyncRuntime::new(sender, context).run_query(application_id, query)?;
+
+                self.scheduled_operations.extend(operations);
+                response
             };
-            let sender = self.execution_state_sender.clone();
-            ServiceSyncRuntime::new(sender, context).run_query(application_id, query)?
-        };
-        self.scheduled_operations.extend(operations);
         self.transaction_tracker
             .add_oracle_response(OracleResponse::Service(response.clone()));
         Ok(response)
