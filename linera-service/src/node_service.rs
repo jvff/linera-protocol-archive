@@ -44,7 +44,7 @@ use serde_json::json;
 use thiserror::Error as ThisError;
 use tokio::sync::OwnedRwLockReadGuard;
 use tower_http::cors::CorsLayer;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, error, info, instrument, trace};
 
 use crate::util;
 
