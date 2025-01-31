@@ -1003,7 +1003,7 @@ where
                 .collect();
             return Err(NodeServiceError::ApplicationServiceError { errors });
         }
-        debug!("Operations: {operations:?}");
+        trace!("Operations: {operations:?}");
 
         let client = self
             .context
