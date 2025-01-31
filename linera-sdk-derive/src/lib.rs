@@ -174,22 +174,22 @@ pub mod tests {
                 Application: linera_sdk::Service,
                 linera_sdk::ServiceRuntime<Application>: Send + Sync,
             {
-                async fn tuple_variant(&self, field0: String,) -> Vec<u8> {
+                async fn tuple_variant(&self, field0: String,) -> [u8; 0] {
                     let operation = SomeOperation::TupleVariant(field0,);
                     self.runtime.schedule_operation(&operation);
-                    linera_sdk::bcs::to_bytes(&operation).unwrap()
+                    []
                 }
 
-                async fn struct_variant(&self, a: u32, b: u64,) -> Vec<u8> {
+                async fn struct_variant(&self, a: u32, b: u64,) -> [u8; 0] {
                     let operation = SomeOperation::StructVariant { a, b, };
                     self.runtime.schedule_operation(&operation);
-                    linera_sdk::bcs::to_bytes(&operation).unwrap()
+                    []
                 }
 
-                async fn empty_variant(&self) -> Vec<u8> {
+                async fn empty_variant(&self) -> [u8; 0] {
                     let operation = SomeOperation::EmptyVariant;
                     self.runtime.schedule_operation(&operation);
-                    linera_sdk::bcs::to_bytes(&operation).unwrap()
+                    []
                 }
             }
 
