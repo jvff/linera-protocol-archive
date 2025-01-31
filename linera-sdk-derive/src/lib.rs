@@ -46,13 +46,14 @@ fn generate_mutation_root_code(input: ItemEnum, crate_root: &str) -> TokenStream
                     field_names.push(name);
                 }
                 methods.push(quote! {
-                    async fn #function_name(&self, #(#fields,)*) -> Vec<u8> {
+                    async fn #function_name(&self, #(#fields,)*) -> [u8; 0] {
                         let operation = #enum_name::#variant_name {
                             #(#field_names,)*
                         };
 
                         self.runtime.schedule_operation(&operation);
-                        #crate_root::bcs::to_bytes(&operation).unwrap()
+
+                        []
                     }
                 });
             }
@@ -66,23 +67,25 @@ fn generate_mutation_root_code(input: ItemEnum, crate_root: &str) -> TokenStream
                     field_names.push(name);
                 }
                 methods.push(quote! {
-                    async fn #function_name(&self, #(#fields,)*) -> Vec<u8> {
+                    async fn #function_name(&self, #(#fields,)*) -> [u8; 0] {
                         let operation = #enum_name::#variant_name(
                             #(#field_names,)*
                         );
 
                         self.runtime.schedule_operation(&operation);
-                        #crate_root::bcs::to_bytes(&operation).unwrap()
+
+                        []
                     }
                 });
             }
             Fields::Unit => {
                 methods.push(quote! {
-                    async fn #function_name(&self) -> Vec<u8> {
+                    async fn #function_name(&self) -> [u8; 0] {
                         let operation = #enum_name::#variant_name;
 
                         self.runtime.schedule_operation(&operation);
-                        #crate_root::bcs::to_bytes(&operation).unwrap()
+
+                        []
                     }
                 });
             }
