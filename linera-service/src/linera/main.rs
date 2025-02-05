@@ -519,27 +519,17 @@ impl Runnable for Job {
                 println!("{}/{} OK.", num_ok_validators, committee.validators().len());
             }
 
-            SyncValidator { name, mut chains } => {
+            SyncValidator {
+                address,
+                mut chains,
+            } => {
                 if chains.is_empty() {
                     chains.push(context.default_chain());
                 }
 
-                let first_chain_id = chains[0];
-                let first_chain = context.make_chain_client(first_chain_id)?;
-                let committee = first_chain.local_committee().await?;
+                let validator = context.make_node_provider().make_node(&address)?;
 
-                let validator_address = committee.network_address(&name).ok_or_else(|| {
-                    anyhow!("Validator {name} is not known by the chain {first_chain_id}")
-                })?;
-                let validator_node = context.make_node_provider().make_node(validator_address)?;
-                let validator = RemoteNode {
-                    name,
-                    node: validator_node,
-                };
-
-                first_chain.sync_validator(validator.clone()).await?;
-
-                for chain_id in chains.into_iter().skip(1) {
+                for chain_id in chains {
                     let chain = context.make_chain_client(chain_id)?;
 
                     chain.sync_validator(validator.clone()).await?;
