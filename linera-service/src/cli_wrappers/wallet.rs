@@ -520,12 +520,10 @@ impl ClientWrapper {
     pub async fn sync_validator(
         &self,
         chain_ids: impl IntoIterator<Item = &ChainId>,
-        validator_name: ValidatorName,
+        validator_address: impl Into<String>,
     ) -> Result<()> {
         let mut command = self.command().await?;
-        command
-            .arg("sync-validator")
-            .arg(validator_name.to_string());
+        command.arg("sync-validator").arg(validator_address.into());
         let mut chain_ids = chain_ids.into_iter().peekable();
         if chain_ids.peek().is_some() {
             command
