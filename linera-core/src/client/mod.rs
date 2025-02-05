@@ -3416,6 +3416,7 @@ where
             .next_block_height
             .0
             .checked_sub(validator_chain_state.next_block_height.0)
+            .filter(|count| *count > 0)
         else {
             debug!("Validator is up-to-date with local state");
             return Ok(());
