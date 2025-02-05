@@ -640,6 +640,14 @@ impl LocalNet {
         Ok(())
     }
 
+    /// Returns the address to connect to a validator's proxy.
+    pub fn validator_address(&self, validator: usize) -> String {
+        let port = Self::proxy_port(validator);
+        let schema = self.network.external.schema();
+
+        format!("{schema}:localhost:{port}")
+    }
+
     /// Returns a [`linera_rpc::Client`] to interact directly with a `validator`.
     pub async fn validator_client(&mut self, validator: usize) -> Result<linera_rpc::Client> {
         let node_provider = linera_rpc::NodeProvider::new(linera_rpc::NodeOptions {
