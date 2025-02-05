@@ -897,12 +897,9 @@ async fn test_sync_validator(config: LocalNetConfig) -> Result<()> {
     assert_eq!(state_before_sync.info.next_block_height, BlockHeight::ZERO);
 
     // Synchronize the validator
-    let validator_name = net
-        .validator_name(LAGGING_VALIDATOR_INDEX)
-        .expect("Missing name for the first validator")
-        .parse()?;
+    let validator_address = net.validator_address(LAGGING_VALIDATOR_INDEX);
     client
-        .sync_validator([&sender_chain], validator_name)
+        .sync_validator([&sender_chain], validator_address)
         .await
         .expect("Missing lagging validator name");
 
