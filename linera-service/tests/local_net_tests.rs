@@ -848,7 +848,7 @@ async fn test_end_to_end_benchmark(mut config: LocalNetConfig) -> Result<()> {
 }
 
 /// Tests if the `sync-validator` command uploads missing certificates to a validator.
-// TODO: Fix test for simple-net
+// TODO(#3258): Fix test for simple-net
 // #[cfg_attr(feature = "scylladb", test_case(LocalNetConfig::new_test(Database::ScyllaDb, Network::Udp) ; "scylladb_udp"))]
 #[cfg_attr(feature = "scylladb", test_case(LocalNetConfig::new_test(Database::ScyllaDb, Network::Grpc) ; "scylladb_grpc"))]
 #[cfg_attr(feature = "storage-service", test_case(LocalNetConfig::new_test(Database::Service, Network::Grpc) ; "storage_service_grpc"))]
