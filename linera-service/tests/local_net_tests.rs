@@ -863,11 +863,12 @@ async fn test_sync_validator(config: LocalNetConfig) -> Result<()> {
     tracing::info!("Starting test {}", test_name!());
 
     const BLOCKS_TO_CREATE: usize = 5;
+    const LAGGING_VALIDATOR_INDEX: usize = 0;
 
     let (mut net, client) = config.instantiate().await?;
 
     // Stop a validator to force it to lag behind the others
-    net.stop_validator(0).await?;
+    net.stop_validator(LAGGING_VALIDATOR_INDEX).await?;
 
     // Create some blocks
     let sender_chain = client.default_chain().expect("Client has no default chain");
@@ -886,9 +887,9 @@ async fn test_sync_validator(config: LocalNetConfig) -> Result<()> {
     }
 
     // Restart the stopped validator
-    net.start_validator(0).await?;
+    net.start_validator(LAGGING_VALIDATOR_INDEX).await?;
 
-    let lagging_validator = net.validator_client(0).await?;
+    let lagging_validator = net.validator_client(LAGGING_VALIDATOR_INDEX).await?;
 
     let state_before_sync = lagging_validator
         .handle_chain_info_query(ChainInfoQuery::new(sender_chain))
@@ -897,7 +898,7 @@ async fn test_sync_validator(config: LocalNetConfig) -> Result<()> {
 
     // Synchronize the validator
     let validator_name = net
-        .validator_name(0)
+        .validator_name(LAGGING_VALIDATOR_INDEX)
         .expect("Missing name for the first validator")
         .parse()?;
     client
