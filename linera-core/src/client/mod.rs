@@ -3402,11 +3402,8 @@ where
     }
 
     /// Attempts to update a validator with the local information.
-    #[instrument(level = "trace")]
-    pub async fn sync_validator(
-        &self,
-        remote_node: RemoteNode<P::Node>,
-    ) -> Result<(), ChainClientError> {
+    #[instrument(level = "trace", skip(remote_node))]
+    pub async fn sync_validator(&self, remote_node: P::Node) -> Result<(), ChainClientError> {
         let validator_chain_state = remote_node
             .handle_chain_info_query(ChainInfoQuery::new(self.chain_id))
             .await?;
@@ -3415,7 +3412,7 @@ where
         let Some(missing_certificate_count) = local_chain_state
             .next_block_height
             .0
-            .checked_sub(validator_chain_state.next_block_height.0)
+            .checked_sub(validator_chain_state.info.next_block_height.0)
             .filter(|count| *count > 0)
         else {
             debug!("Validator is up-to-date with local state");
