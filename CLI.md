@@ -383,11 +383,11 @@ Show the current set of validators for a chain. Also print some information abou
 
 Synchronizes a validator with the local state of chains
 
-**Usage:** `linera sync-validator [OPTIONS] <NAME>`
+**Usage:** `linera sync-validator [OPTIONS] <ADDRESS>`
 
 ###### **Arguments:**
 
-* `<NAME>` — The public key of the validator to synchronize
+* `<ADDRESS>` — The public address of the validator to synchronize
 
 ###### **Options:**
 
