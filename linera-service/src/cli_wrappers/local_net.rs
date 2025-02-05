@@ -649,11 +649,7 @@ impl LocalNet {
             max_retries: 0,
         });
 
-        let port = Self::proxy_port(validator);
-        let schema = self.network.external.schema();
-        let address = format!("{schema}:localhost:{port}");
-
-        Ok(node_provider.make_node(&address)?)
+        Ok(node_provider.make_node(&self.validator_address(validator))?)
     }
 }
 
