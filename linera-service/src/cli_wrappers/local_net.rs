@@ -647,11 +647,7 @@ impl LocalNet {
         });
 
         let port = Self::proxy_port(validator);
-        let schema = match self.network.internal {
-            Network::Grpc | Network::Grpcs => "grpc",
-            Network::Tcp => "tcp",
-            Network::Udp => "udp",
-        };
+        let schema = self.network.external.schema();
         let address = format!("{schema}:localhost:{port}");
 
         Ok(node_provider.make_node(&address)?)
