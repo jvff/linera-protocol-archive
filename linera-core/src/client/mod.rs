@@ -3436,13 +3436,13 @@ where
             .read(missing_certificates_start..missing_certificates_end)
             .await?;
 
-        for certificate_hash in missing_certificate_hashes {
-            let certificate = self
-                .client
-                .storage
-                .read_certificate(certificate_hash)
-                .await?;
+        let certificates = self
+            .client
+            .storage
+            .read_certificates(missing_certificate_hashes)
+            .await?;
 
+        for certificate in certificates {
             remote_node
                 .handle_confirmed_certificate(certificate, CrossChainMessageDelivery::NonBlocking)
                 .await?;
